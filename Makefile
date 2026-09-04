@@ -12,10 +12,10 @@
 # one once enumerated ten modules while eleven were in the tree, and the
 # newest was the one nothing checked.
 #
-# plugins/ is also the index. `plugins/<name>.yaml` beside `plugins/<name>/`
-# is the manifest the release pipeline generated from that plugin's released
-# binaries, and rta reads the .yaml files and skips the directories when this
-# repository is attached with `rta plugin index add official`.
+# Each folder its purpose: plugins/ holds the modules, index/ holds the
+# manifests the release pipeline generated from their released binaries —
+# what rta reads when this repository is attached with
+# `rta plugin index add official`. Nothing under index/ is written by hand.
 
 .DEFAULT_GOAL := help
 
@@ -234,7 +234,7 @@ cross: name-check ## Compile every plugin for every release target and discard t
 # its *output* is the names, which no later expansion touches. A prerequisite
 # of every target that splices the list, so make stops before expanding.
 name-check:
-	@bad=$$(ls -1 plugins 2>/dev/null | sed 's|\.yaml$$||' | grep -vE '^[a-z0-9][a-z0-9-]*$$' || true); \
+	@bad=$$(ls -1 plugins 2>/dev/null | grep -vE '^[a-z0-9][a-z0-9-]*$$' || true); \
 	if [ -n "$$bad" ]; then \
 		echo "plugins/ entry is not a plugin namespace:"; echo "$$bad" | sed 's/^/  /'; \
 		echo "lowercase letters, digits and dashes"; exit 1; \
@@ -286,12 +286,12 @@ docs-check: name-check ## Fail if README's counts or a backup's receipt disagree
 # and sandboxed declaration check a published index gets.
 index: build ## Generate an attachable index from the binaries just built, for this platform
 	@command -v $(RTA) >/dev/null || { echo "cannot run '$(RTA)': install rta, or pass RTA=/path/to/rta"; exit 1; }
-	@rm -rf $(INDEXDIR); mkdir -p $(INDEXDIR)/plugins
+	@rm -rf $(INDEXDIR); mkdir -p $(INDEXDIR)/index
 	@for p in $(PLUGIN_LIST); do \
 		$(RTA) plugin manifest $(BUILDDIR)/rta-plugin-$$p --index $(INDEXDIR) \
 			--homepage $(INDEX_HOMEPAGE)/tree/main/plugins/$$p \
 			--platform $(HOST_PLATFORM)=$(BUILDDIR)/rta-plugin-$$p >/dev/null || exit 1; \
-		echo "==> $(INDEXDIR)/plugins/$$p.yaml"; \
+		echo "==> $(INDEXDIR)/index/$$p.yaml"; \
 	done
 	@git -C $(INDEXDIR) init --quiet
 	@git -C $(INDEXDIR) $(GIT_AS_RTA) add .
@@ -329,7 +329,7 @@ release: name-check ## Build every release archive for PLUGIN at VERSION into di
 # `release` built and the URLs the release serves them at. The binary is run
 # to read its declaration — this platform's, extracted from its own archive
 # — and every other platform is described by the checksums file.
-index-release: name-check ## Regenerate plugins/<name>.yaml for PLUGINS_RELEASED from dist/<name>
+index-release: name-check ## Regenerate index/<name>.yaml for PLUGINS_RELEASED from dist/<name>
 	@test -n "$(PLUGINS_RELEASED)" || { echo "index-release needs PLUGINS_RELEASED=\"pg kube\""; exit 1; }
 	@command -v $(RTA) >/dev/null || { echo "cannot run '$(RTA)': install rta, or pass RTA=/path/to/rta"; exit 1; }
 	@for p in $(PLUGINS_RELEASED); do \
@@ -343,7 +343,7 @@ index-release: name-check ## Regenerate plugins/<name>.yaml for PLUGINS_RELEASED
 		done; \
 		$(RTA) plugin manifest "$$stage/rta-plugin-$$p" --checksums "$$d/checksums.txt" \
 			--homepage $(INDEX_HOMEPAGE)/tree/main/plugins/$$p --index . $$flags >/dev/null || exit 1; \
-		rm -rf "$$stage"; echo "==> plugins/$$p.yaml ($$version)"; \
+		rm -rf "$$stage"; echo "==> index/$$p.yaml ($$version)"; \
 	done
 
 ##@ SDK development

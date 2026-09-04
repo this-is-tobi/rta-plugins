@@ -5,7 +5,7 @@
 # makes the tag `plugins/<name>/v<x.y.z>` exist. One matrix leg per released
 # plugin then builds the six archives and attaches them to that release;
 # attest-go attests each release by its tag. Last, one job reads the binaries
-# just built and regenerates the index entries — a manifest is never written
+# just built and regenerates the index entries under index/ — a manifest is never written
 # by hand — and commits them to main with this repository's own token. No
 # credential from any other repository is involved anywhere, which is the
 # reason the plugins live here rather than beside rta.
@@ -131,7 +131,7 @@ jobs:
     # manifest says, so it is part of the supply chain.
     - name: Install rta
       # renovate: datasource=go depName=github.com/this-is-tobi/rule-them-all
-      run: go install github.com/this-is-tobi/rule-them-all/cmd/rta@v0.6.0
+      run: go install github.com/this-is-tobi/rule-them-all/cmd/rta@v0.7.0
 
     # Every leg uploaded its dist/<plugin>/ under its own artifact name;
     # merged back into one dist/, which is the layout index-release reads.
@@ -155,7 +155,7 @@ jobs:
       run: |-
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-        git add plugins/*.yaml
+        git add index/*.yaml
         if git diff --cached --quiet; then echo "index unchanged"; exit 0; fi
         released=$(echo "$PATHS_RELEASED" | jq -r '.[]' | xargs -n1 basename | paste -sd ',' - | sed 's/,/, /g')
         git commit -m "chore(index): $released"

@@ -31,7 +31,7 @@ Install is where claims meet evidence: rta fetches the release archive, hashes i
 
 ## The layout
 
-`plugins/` is both the source and the index. `plugins/<name>/` is a plugin's module; `plugins/<name>.yaml` beside it is the manifest the release pipeline generated from that plugin's released binaries, and it is what rta reads when this repository is attached. rta skips the directories and reads the manifests, so the two live together without either getting in the other's way.
+Each folder its purpose. `plugins/<name>/` is a plugin's module. `index/<name>.yaml` is the manifest the release pipeline generated from that plugin's released binaries, and `index/` is what rta reads when this repository is attached — never edited by hand.
 
 ## Building from source
 
@@ -47,7 +47,7 @@ A binary on your `$PATH` is not consent: rta loads a plugin by running it, so a 
 
 ## How a release works
 
-Every plugin is versioned on its own. A release is tagged `plugins/<name>/v<x.y.z>` — `plugins/pg/v0.3.0` — which is also what `go install github.com/this-is-tobi/rta-plugins/plugins/pg@v0.3.0` resolves. release-please opens one pull request for every plugin a merged commit touched; merging it cuts one release per plugin, six archives each (`darwin`, `linux`, `windows` × `amd64`, `arm64`), with SLSA provenance, an SBOM and a cosign signature on the checksums file. The pipeline then regenerates `plugins/<name>.yaml` from the binaries it just built and commits it — a manifest is never written by hand.
+Every plugin is versioned on its own. A release is tagged `plugins/<name>/v<x.y.z>` — `plugins/pg/v0.3.0` — which is also what `go install github.com/this-is-tobi/rta-plugins/plugins/pg@v0.3.0` resolves. release-please opens one pull request for every plugin a merged commit touched; merging it cuts one release per plugin, six archives each (`darwin`, `linux`, `windows` × `amd64`, `arm64`), with SLSA provenance, an SBOM and a cosign signature on the checksums file. The pipeline then regenerates `index/<name>.yaml` from the binaries it just built and commits it — a manifest is never written by hand.
 
 Verify a release's checksums file:
 

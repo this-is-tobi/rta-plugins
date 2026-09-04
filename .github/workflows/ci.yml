@@ -36,7 +36,7 @@ jobs:
 
   # A pull request that only touches prose has nothing for the build gates to
   # check. Everything unmatched counts as code, so an unanticipated path fails
-  # toward running the suite rather than skipping it. plugins/*.yaml counts as
+  # toward running the suite rather than skipping it. index/*.yaml counts as
   # code on purpose: a manifest is a claim every install verifies against.
   changes:
     name: Detect changed paths
