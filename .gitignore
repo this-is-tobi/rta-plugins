@@ -1,0 +1,18 @@
+# Build output
+/bin/
+/dist/
+
+# The SDK edit loop: `make dev` writes a workspace pointing at a sibling rta
+# checkout, and a committed one would make every go.mod's pin a fiction.
+/go.work
+/go.work.sum
+
+# Test artifacts
+coverage.out
+*.test
+
+# Editor / OS
+.DS_Store
+
+# Working notes, never shipped
+.local/

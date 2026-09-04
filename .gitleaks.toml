@@ -1,0 +1,9 @@
+title = "rta-plugins gitleaks config"
+
+[extend]
+useDefault = true
+
+# No allowlist. rta's own reviewed secret fixtures all live in rta's tree,
+# not here. Add an entry only for a fixture that trips the scan, and name the
+# file, never a pattern: a security tool's plugins should not stop looking at
+# test files in general.
