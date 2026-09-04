@@ -1,0 +1,43 @@
+# Does the SDK still fit these plugins?
+#
+# Every go.mod pins a released rta, so a breaking change on rta's main breaks
+# nothing here until somebody bumps — the right v0 semantics and the wrong
+# signal for a project re-architecting before v1. This builds and tests every
+# plugin against rta's main instead. Red here blocks nothing; it says "the SDK
+# moved under you" a day after it did rather than on the day of the bump.
+#
+# repository_dispatch is the hook for rta's own CI to fire this on a merge
+# that touches pkg/; until it does, the schedule is the signal.
+name: Canary
+
+on:
+  schedule:
+  - cron: "17 5 * * *"
+  workflow_dispatch:
+  repository_dispatch:
+    types: [sdk-changed]
+
+permissions:
+  contents: read
+
+jobs:
+  canary:
+    name: Every plugin against rta main
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - name: Checks-out repository
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Setup Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version-file: plugins/pg/go.mod
+        cache: true
+        cache-dependency-path: plugins/*/go.sum
+
+    - name: Build and test against rta main
+      run: make canary RTA_REF=main

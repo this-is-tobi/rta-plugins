@@ -1,0 +1,237 @@
+# The gates `make ci` runs, on the machines a laptop is not.
+#
+# lint-commits and scan-secrets come from the shared workflow catalogue. The
+# plugin gates stay local: one job walking ten modules beats ten
+# catalogue calls that each pay a runner, a checkout and a cache restore.
+name: CI
+
+on:
+  pull_request:
+    types:
+    - opened
+    - reopened
+    - synchronize
+    - ready_for_review
+    branches:
+    - "**"
+
+# A superseded run is not worth finishing: a follow-up push to the same
+# branch cancels the run for the commit it replaced.
+concurrency:
+  group: ci-${{ github.head_ref }}
+  cancel-in-progress: true
+
+# Every job below narrows this further; nothing here writes.
+permissions:
+  contents: read
+
+jobs:
+  lint-commits:
+    name: Lint commits
+    if: ${{ github.event_name == 'pull_request' }}
+    uses: this-is-tobi/github-workflows/.github/workflows/lint-commits.yml@v0
+    permissions:
+      contents: read
+      pull-requests: read
+
+  # A pull request that only touches prose has nothing for the build gates to
+  # check. Everything unmatched counts as code, so an unanticipated path fails
+  # toward running the suite rather than skipping it. plugins/*.yaml counts as
+  # code on purpose: a manifest is a claim every install verifies against.
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+    - name: Classify changed files
+      id: diff
+      run: |-
+        files=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" --paginate --jq '.[].filename')
+        code=false
+        while IFS= read -r f; do
+          [ -z "$f" ] && continue
+          case "$f" in
+            *.md|LICENSE|NOTICE) ;;
+            *) code=true ;;
+          esac
+        done <<< "$files"
+        echo "changed files are docs-only: $([ "$code" = false ] && echo yes || echo no)"
+        echo "code=$code" >> "$GITHUB_OUTPUT"
+
+  # Both operating systems: a plugin is a binary and the sandbox that confines
+  # it differs per OS. -k is fail-fast:false by other means — every module is
+  # attempted and every failure named, not just the first.
+  check:
+    name: Check every module
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+    - name: Checks-out repository
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Setup Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        # No root module. Every plugin declares the same toolchain, and pg
+        # is the first one anybody bumps.
+        go-version-file: plugins/pg/go.mod
+        cache: true
+        cache-dependency-path: plugins/*/go.sum
+
+    - name: Guards, then build, vet, test and format-check every module
+      run: make fmt-check name-check replace-check docs-check && make -k check
+
+  # Every target a release ships, compiled to /dev/null: what this checks is
+  # that the build constraints resolve on every platform, not that the binary
+  # runs there.
+  cross:
+    name: Cross-compile every target
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - name: Checks-out repository
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Setup Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version-file: plugins/pg/go.mod
+        cache: true
+        cache-dependency-path: plugins/*/go.sum
+
+    - name: Cross-compile
+      run: make cross
+
+  # These plugins are what an agent reaches a database through. A credential
+  # in their own history would be the kind of thing rta exists to find in
+  # yours. Unconditional: a docs pull request can leak one as easily.
+  scan-secrets:
+    name: Scan secrets
+    uses: this-is-tobi/github-workflows/.github/workflows/scan-gitleaks.yml@v0
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+    with:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+
+  # Each plugin is its own module with its own go.sum. govulncheck fails only
+  # on a vulnerability reachable from the module's own code, which is what
+  # keeps this worth failing the build on. The SARIF pass is the paper trail,
+  # one upload per module under its own govulncheck-<module> category — the
+  # only shape the Security tab accepts since July 2025; the category rides
+  # inside the file (automationDetails.id) because the upload API rejects it
+  # as a parameter.
+  scan-deps:
+    name: Scan every module's dependencies
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+    - name: Checks-out repository
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Setup Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version-file: plugins/pg/go.mod
+        cache: true
+        cache-dependency-path: plugins/*/go.sum
+
+    # Exact, not a range: this is third-party code executed in the job.
+    - name: Install govulncheck
+      # renovate: datasource=go depName=golang.org/x/vuln/cmd/govulncheck
+      run: go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+
+    - name: Scan every module
+      id: scan
+      run: |-
+        mkdir -p "$RUNNER_TEMP/sarif"
+        failed=""
+        for m in $(make list); do
+          echo "==> plugins/$m"
+          (cd "plugins/$m" && govulncheck ./...) || failed="$failed plugins/$m"
+          (cd "plugins/$m" && govulncheck -format sarif ./...) > "$RUNNER_TEMP/sarif/$m.raw" || { rm -f "$RUNNER_TEMP/sarif/$m.raw"; continue; }
+          jq --arg id "govulncheck-$m/" '.runs[].automationDetails.id = $id' \
+            "$RUNNER_TEMP/sarif/$m.raw" > "$RUNNER_TEMP/sarif/$m.sarif" || rm -f "$RUNNER_TEMP/sarif/$m.sarif"
+          rm -f "$RUNNER_TEMP/sarif/$m.raw"
+        done
+        find "$RUNNER_TEMP/sarif" -name '*.sarif' -size -2c -delete
+        if ls "$RUNNER_TEMP"/sarif/*.sarif >/dev/null 2>&1; then
+          echo "sarif=true" >> "$GITHUB_OUTPUT"
+        fi
+        if [ -n "$failed" ]; then
+          echo "govulncheck failed or found a reachable vulnerability in:$failed"
+          exit 1
+        fi
+
+    # always(): a finding fails the scan step, and a failing scan is exactly
+    # when this upload matters most. A rejected upload warns instead of
+    # failing, so the tab cannot mask the scan's own verdict.
+    - name: Upload scan results to the Security tab
+      if: ${{ always() && steps.scan.outputs.sarif == 'true' }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |-
+        for f in "$RUNNER_TEMP"/sarif/*.sarif; do
+          m=$(basename "$f" .sarif)
+          gh api "repos/${{ github.repository }}/code-scanning/sarifs" \
+            -f commit_sha="${{ github.sha }}" \
+            -f ref="${{ github.ref }}" \
+            -f sarif="$(gzip -c "$f" | base64 -w0)" \
+            >/dev/null || echo "::warning::could not upload the $m scan to the Security tab"
+        done
+
+  # One required check to protect the branch with. A skipped job is a pass;
+  # anything else is not.
+  all-jobs-passed:
+    name: Check jobs status
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    permissions: {}
+    needs:
+    - lint-commits
+    - changes
+    - check
+    - cross
+    - scan-secrets
+    - scan-deps
+    steps:
+    - name: Check status of all required jobs
+      run: |-
+        NEEDS_CONTEXT='${{ toJson(needs) }}'
+        JOB_IDS=$(echo "$NEEDS_CONTEXT" | jq -r 'keys[]')
+        for JOB_ID in $JOB_IDS; do
+          RESULT=$(echo "$NEEDS_CONTEXT" | jq -r ".[\"$JOB_ID\"].result")
+          echo "$JOB_ID job result: $RESULT"
+          if [[ $RESULT != "success" && $RESULT != "skipped" ]]; then
+            echo "***"
+            echo "Error: The $JOB_ID job did not pass."
+            exit 1
+          fi
+        done
+        echo "All jobs passed or were skipped."
