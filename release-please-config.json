@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "0428e9d8fda18d74bc1e76ecf1ffb5d5469d853c",
+  "release-type": "go",
+  "include-component-in-tag": true,
+  "tag-separator": "/",
+  "separate-pull-requests": false,
+  "initial-version": "0.1.0",
+  "draft": false,
+  "force-tag-creation": true,
+  "changelog-sections": [
+    { "type": "feat", "section": "Features", "hidden": false },
+    { "type": "fix", "section": "Bug Fixes", "hidden": false },
+    { "type": "perf", "section": "Performance Improvements", "hidden": false },
+    { "type": "revert", "section": "Reverts", "hidden": false },
+    { "type": "refactor", "section": "Code Refactoring", "hidden": false },
+    { "type": "build", "section": "Dependencies", "hidden": false },
+    { "type": "docs", "section": "Documentation", "hidden": true },
+    { "type": "style", "section": "Styles", "hidden": true },
+    { "type": "chore", "section": "Miscellaneous Chores", "hidden": true },
+    { "type": "test", "section": "Tests", "hidden": true },
+    { "type": "ci", "section": "Continuous Integration", "hidden": true }
+  ],
+  "packages": {
+    "plugins/cnpg": { "component": "plugins/cnpg" },
+    "plugins/docker": { "component": "plugins/docker" },
+    "plugins/eol": { "component": "plugins/eol" },
+    "plugins/etcd": { "component": "plugins/etcd" },
+    "plugins/kube": { "component": "plugins/kube" },
+    "plugins/mariadb": { "component": "plugins/mariadb" },
+    "plugins/mysql": { "component": "plugins/mysql" },
+    "plugins/pg": { "component": "plugins/pg" },
+    "plugins/qdrant": { "component": "plugins/qdrant" },
+    "plugins/s3": { "component": "plugins/s3" },
+    "plugins/vault": { "component": "plugins/vault" }
+  }
+}
