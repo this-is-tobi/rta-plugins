@@ -24,7 +24,6 @@
   "packages": {
     "plugins/cnpg": { "component": "plugins/cnpg" },
     "plugins/docker": { "component": "plugins/docker" },
-    "plugins/eol": { "component": "plugins/eol" },
     "plugins/etcd": { "component": "plugins/etcd" },
     "plugins/kube": { "component": "plugins/kube" },
     "plugins/mariadb": { "component": "plugins/mariadb" },

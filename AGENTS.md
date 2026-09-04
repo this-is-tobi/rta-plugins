@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for AI coding agents (and anyone using one) working in this repository — the eleven first-party plugins for [rta](https://github.com/this-is-tobi/rule-them-all), and the index rta installs them from. Each plugin is a separate Go module written against rta's public SDK (`pkg/plugin`, `pkg/sdk`, `pkg/view`, `pkg/format`) and nothing else; rta's [Writing a plugin](https://github.com/this-is-tobi/rule-them-all/blob/main/docs/40-plugins/20-writing-a-plugin.md) is the contract.
+Guidance for AI coding agents (and anyone using one) working in this repository — the ten first-party plugins for [rta](https://github.com/this-is-tobi/rule-them-all), and the index rta installs them from. Each plugin is a separate Go module written against rta's public SDK (`pkg/plugin`, `pkg/sdk`, `pkg/view`, `pkg/format`) and nothing else; rta's [Writing a plugin](https://github.com/this-is-tobi/rule-them-all/blob/main/docs/40-plugins/20-writing-a-plugin.md) is the contract.
 
 ## Priority order
 

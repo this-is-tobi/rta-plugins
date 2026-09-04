@@ -14,7 +14,6 @@ The first-party plugins for [rta](https://github.com/this-is-tobi/rule-them-all)
 | [`kube`](./plugins/kube/) | Kubernetes, through the `kubectl` you already have | 19 |
 | [`cnpg`](./plugins/cnpg/) | CloudNativePG: clusters, their health, replication, backups and volumes, and asking for a backup now | 5 |
 | [`docker`](./plugins/docker/) | Containers and images over the local daemon socket | 7 |
-| [`eol`](./plugins/eol/) | End-of-life checks against endoflife.date | 1 |
 
 Every one draws the same line in the same place: the read tier describes the thing, and anything that returns a value somebody stored is a write. `mysql.schema` tells you a database's shape and `mysql.query` returns its rows. That is what makes read worth granting.
 
@@ -58,11 +57,10 @@ gh attestation verify checksums.txt --owner this-is-tobi
 
 ## Writing your own
 
-rta's [Writing a plugin](https://github.com/this-is-tobi/rule-them-all/blob/main/docs/40-plugins/20-writing-a-plugin.md) is the guide; `rta plugin new` scaffolds one that builds and runs. These eleven are worked examples, each adding one idea, in the order worth reading them:
+rta's [Writing a plugin](https://github.com/this-is-tobi/rule-them-all/blob/main/docs/40-plugins/20-writing-a-plugin.md) is the guide; `rta plugin new` scaffolds one that builds and runs. These ten are worked examples, each adding one idea, in the order worth reading them (`eol`, the smallest, is built into rta itself and is the one to read first):
 
 | Read | For |
 | --- | --- |
-| [`eol`](./plugins/eol/) | The smallest real one: a single capability over a public API, nothing to configure |
 | [`kube`](./plugins/kube/) | Shelling out to a tool the operator already has instead of linking its client library, and why |
 | [`cnpg`](./plugins/cnpg/) | One plain API read against a Custom Resource, declaring a credential need rather than assuming one, and a single write among reads |
 | [`mysql`](./plugins/mysql/) | A connection: declared inputs, a secret a profile fills, an endpoint role a tunnel can fill |
