@@ -1,0 +1,105 @@
+# rta-plugin-kube, as rta read it out of the binary.
+#
+# Everything here except the platform URLs came from the artifact's own
+# declaration, so this file cannot disagree with the plugin it describes.
+# `rta plugin install` derives all of it again from the bytes it downloads
+# and refuses the install if the two differ, naming this index.
+#
+# Regenerate with `rta plugin manifest` rather than editing.
+name: kube
+version: 0.1.0
+summary: "Read-first Kubernetes: contexts, namespaces, pods, deployments"
+homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/kube
+platforms:
+- os: darwin
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.1.0/rta-plugin-kube_0.1.0_darwin_amd64.tar.gz
+  sha256: 51722dff63430c070a3cdc16580bd72f53dd29d1f3f8a27717db9d395b34601d
+  bin: rta-plugin-kube
+- os: darwin
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.1.0/rta-plugin-kube_0.1.0_darwin_arm64.tar.gz
+  sha256: 495d5c45b277bce730671995ffffdd829ad3898ec3154e0688c5f12f06e353e3
+  bin: rta-plugin-kube
+- os: linux
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.1.0/rta-plugin-kube_0.1.0_linux_amd64.tar.gz
+  sha256: ea479433d7d80a1b06c579b665df13f626790e6231f870390b1942c62403cdae
+  bin: rta-plugin-kube
+- os: linux
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.1.0/rta-plugin-kube_0.1.0_linux_arm64.tar.gz
+  sha256: 71dc7ddeff659ee2628645b008fee5223cd85ae039c3a9763f2479e8a7d49273
+  bin: rta-plugin-kube
+- os: windows
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.1.0/rta-plugin-kube_0.1.0_windows_amd64.tar.gz
+  sha256: b71dbb00f7f51e5a12cf5d0c3f278c5dc62f924bf621bbf0770bc410a4ff6fc6
+  bin: rta-plugin-kube.exe
+- os: windows
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.1.0/rta-plugin-kube_0.1.0_windows_arm64.tar.gz
+  sha256: 24ee0fae8f53e6b5b50084441d95e8ed79e0f477bbcf78d192c4cf850f62525c
+  bin: rta-plugin-kube.exe
+capabilities:
+- id: kube.context.list
+  summary: Every context in this machine's kubeconfig, and which one is current
+  safety: read
+- id: kube.context.get
+  summary: "The current context in full: cluster, user and default namespace"
+  safety: read
+- id: kube.namespace.list
+  summary: Namespaces in the cluster, with their status and age
+  safety: read
+- id: kube.node.list
+  summary: Nodes, with readiness, cordon state and the pressures a kubelet reports
+  safety: read
+- id: kube.pod.list
+  summary: Pods in a namespace, with readiness, restarts and age
+  safety: read
+- id: kube.deployment.list
+  summary: Deployments in a namespace, with how many replicas are actually ready
+  safety: read
+- id: kube.event.list
+  summary: What the cluster is complaining about, oldest-running problems still visible
+  safety: read
+- id: kube.quota.list
+  summary: "ResourceQuota pressure per namespace: used against hard, as a percentage"
+  safety: read
+- id: kube.pvc.list
+  summary: "PersistentVolumeClaims: capacity, requested size, storage class and phase"
+  safety: read
+- id: kube.cert.list
+  summary: Every TLS certificate this cluster stores as a Secret, and its expiry
+  safety: read
+- id: kube.metrics.pod
+  summary: Pod CPU/memory usage against each pod's own limit, worst pressure first
+  safety: read
+- id: kube.metrics.node
+  summary: Node CPU/memory usage against what the node can actually allocate
+  safety: read
+- id: kube.metrics.pressure
+  summary: "Kernel pressure stall per node: is anything waiting, and is it getting worse"
+  safety: read
+- id: kube.pvc.usage
+  summary: How full each PersistentVolumeClaim actually is, worst first
+  safety: read
+- id: kube.overview
+  summary: "One cluster at a glance: where you are pointed and what is not healthy"
+  safety: read
+- id: kube.context.set
+  summary: Switch this machine's current kubeconfig context
+  safety: write
+  grant: true
+- id: kube.serviceaccount.provision
+  summary: Mint a scoped ServiceAccount, Role and token for an agent to use
+  safety: write
+- id: kube.serviceaccount.list
+  summary: ServiceAccounts this plugin has provisioned, and whether they look expired
+  safety: read
+- id: kube.serviceaccount.revoke
+  summary: Delete a provisioned ServiceAccount, Role and RoleBinding
+  safety: destructive
+  grant: true
+needs:
+- kubeconfig

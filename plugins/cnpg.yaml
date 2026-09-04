@@ -1,0 +1,62 @@
+# rta-plugin-cnpg, as rta read it out of the binary.
+#
+# Everything here except the platform URLs came from the artifact's own
+# declaration, so this file cannot disagree with the plugin it describes.
+# `rta plugin install` derives all of it again from the bytes it downloads
+# and refuses the install if the two differ, naming this index.
+#
+# Regenerate with `rta plugin manifest` rather than editing.
+name: cnpg
+version: 0.1.0
+summary: Read the state of CloudNativePG PostgreSQL clusters
+homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/cnpg
+platforms:
+- os: darwin
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.1.0/rta-plugin-cnpg_0.1.0_darwin_amd64.tar.gz
+  sha256: f74bb67bff259233ba3e216ff1f927fc6b139b3867de3098989ac5b1f060e367
+  bin: rta-plugin-cnpg
+- os: darwin
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.1.0/rta-plugin-cnpg_0.1.0_darwin_arm64.tar.gz
+  sha256: c39b9732e4713fc00eda836d089dc178e8399e3ce9d0df59a21325174718b959
+  bin: rta-plugin-cnpg
+- os: linux
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.1.0/rta-plugin-cnpg_0.1.0_linux_amd64.tar.gz
+  sha256: a53cb8246b9e13cfb98f9e740da1a5fcd921cc8b051192733651ba3836a55293
+  bin: rta-plugin-cnpg
+- os: linux
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.1.0/rta-plugin-cnpg_0.1.0_linux_arm64.tar.gz
+  sha256: caa097322fef7f9dcefdda0c72fbbd3ca7bdda4a66c64e679202afdc182e0c2b
+  bin: rta-plugin-cnpg
+- os: windows
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.1.0/rta-plugin-cnpg_0.1.0_windows_amd64.tar.gz
+  sha256: a7fe49ca69e7b387df74792203e64fb76508d8bea67b4128975bbdb57fa99bdd
+  bin: rta-plugin-cnpg.exe
+- os: windows
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.1.0/rta-plugin-cnpg_0.1.0_windows_arm64.tar.gz
+  sha256: 4902aae77e3610fe8365436d7d6ce19ecf7ab1e901553c70dda0f02abcc8cf5e
+  bin: rta-plugin-cnpg.exe
+capabilities:
+- id: cnpg.list
+  summary: Every CloudNativePG cluster, and whether it is healthy
+  safety: read
+- id: cnpg.status
+  summary: "One cluster in depth: instances, replication, backups, storage"
+  safety: read
+- id: cnpg.backup.list
+  summary: "Backups taken of a cluster: when, how, where they went, and what failed"
+  safety: read
+- id: cnpg.backup.request
+  summary: Ask the operator to back a cluster up now, using that cluster's own configuration
+  safety: write
+  grant: true
+- id: cnpg.storage
+  summary: "The volumes a cluster's data and WAL sit on: size, class, and whether each one is actually bound"
+  safety: read
+needs:
+- kubeconfig

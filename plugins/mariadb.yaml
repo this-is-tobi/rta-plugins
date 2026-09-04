@@ -1,0 +1,77 @@
+# rta-plugin-mariadb, as rta read it out of the binary.
+#
+# Everything here except the platform URLs came from the artifact's own
+# declaration, so this file cannot disagree with the plugin it describes.
+# `rta plugin install` derives all of it again from the bytes it downloads
+# and refuses the install if the two differ, naming this index.
+#
+# Regenerate with `rta plugin manifest` rather than editing.
+name: mariadb
+version: 0.1.0
+summary: "MariaDB: connection health, schema, rows, activity and cluster state"
+homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/mariadb
+platforms:
+- os: darwin
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmariadb%2Fv0.1.0/rta-plugin-mariadb_0.1.0_darwin_amd64.tar.gz
+  sha256: bf50df25808b6c6c6b258be4fc89463c3a8afde22e7a8ca2064685eaad3aa7a8
+  bin: rta-plugin-mariadb
+- os: darwin
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmariadb%2Fv0.1.0/rta-plugin-mariadb_0.1.0_darwin_arm64.tar.gz
+  sha256: cc7493249151f4d6c21472be72c07327242bcec453fcc3badd8423c216ee91ee
+  bin: rta-plugin-mariadb
+- os: linux
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmariadb%2Fv0.1.0/rta-plugin-mariadb_0.1.0_linux_amd64.tar.gz
+  sha256: dd64d4a9e11d10ae8aa3beaee9cd0bb435fb38b82b8db4a2f11f03d6a987179f
+  bin: rta-plugin-mariadb
+- os: linux
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmariadb%2Fv0.1.0/rta-plugin-mariadb_0.1.0_linux_arm64.tar.gz
+  sha256: cc9c516f01d1e22d5937a6f8a63fd97a1a806f0cef23aa68ea8046164b80d972
+  bin: rta-plugin-mariadb
+- os: windows
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmariadb%2Fv0.1.0/rta-plugin-mariadb_0.1.0_windows_amd64.tar.gz
+  sha256: b8831ddb4e9efdd5ca0c1685b390bbfab86998dee59986cc96944e2645b8be5c
+  bin: rta-plugin-mariadb.exe
+- os: windows
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmariadb%2Fv0.1.0/rta-plugin-mariadb_0.1.0_windows_arm64.tar.gz
+  sha256: c82cf519baf013446a2bbbf0305423adcebf16ee3569bc4f83b0bdc0965495aa
+  bin: rta-plugin-mariadb.exe
+capabilities:
+- id: mariadb.dump
+  summary: Back up one database to a SQL file, for a person at a terminal
+  safety: write
+- id: mariadb.restore
+  summary: Restore a mariadb.dump file into a database, for a person at a terminal
+  safety: destructive
+- id: mariadb.overview
+  summary: Everything about this connection at a glance
+  safety: read
+- id: mariadb.status
+  summary: Whether the database answers, and what it is
+  safety: read
+- id: mariadb.database.list
+  summary: List databases on this server, with their sizes
+  safety: read
+- id: mariadb.table.list
+  summary: List tables with their row estimates and sizes
+  safety: read
+- id: mariadb.schema
+  summary: Describe a database's tables, columns and keys — no values
+  safety: read
+- id: mariadb.query
+  summary: Run a read-only query
+  safety: write
+- id: mariadb.activity
+  summary: What every connected session is doing right now
+  safety: write
+- id: mariadb.galera.status
+  summary: "Galera cluster state: size, health, and whether this node is really in it"
+  safety: read
+- id: mariadb.replication.status
+  summary: Whether this replica is running, and how far behind it is
+  safety: read

@@ -1,0 +1,91 @@
+# rta-plugin-s3, as rta read it out of the binary.
+#
+# Everything here except the platform URLs came from the artifact's own
+# declaration, so this file cannot disagree with the plugin it describes.
+# `rta plugin install` derives all of it again from the bytes it downloads
+# and refuses the install if the two differ, naming this index.
+#
+# Regenerate with `rta plugin manifest` rather than editing.
+name: s3
+version: 0.1.0
+summary: "S3-compatible object storage: buckets, objects, presigned URLs and policy"
+homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/s3
+platforms:
+- os: darwin
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.1.0/rta-plugin-s3_0.1.0_darwin_amd64.tar.gz
+  sha256: 0e8caa38dcae9d3a781f9c8b8c2851c122363efa6a7ed434fa5ee82b6d182dc4
+  bin: rta-plugin-s3
+- os: darwin
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.1.0/rta-plugin-s3_0.1.0_darwin_arm64.tar.gz
+  sha256: eab0c07fa4bfecbfabe23f4ca5c62380e313e61135d894a12e174677d373330b
+  bin: rta-plugin-s3
+- os: linux
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.1.0/rta-plugin-s3_0.1.0_linux_amd64.tar.gz
+  sha256: 73e2df2aeae4e73e7e89564105529a3bde07d090837a37f0b3be094ef8be4b5b
+  bin: rta-plugin-s3
+- os: linux
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.1.0/rta-plugin-s3_0.1.0_linux_arm64.tar.gz
+  sha256: 6f59227fefdc783c03adebde28e6bcb41f10711f8a8d42cc58aca02634e0c058
+  bin: rta-plugin-s3
+- os: windows
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.1.0/rta-plugin-s3_0.1.0_windows_amd64.tar.gz
+  sha256: faab53867a62773d1ecd42eac7102f57942ae76a79c224ad094d1459773196e8
+  bin: rta-plugin-s3.exe
+- os: windows
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.1.0/rta-plugin-s3_0.1.0_windows_arm64.tar.gz
+  sha256: c6d21d0a94b9657cb4db3e3cf22ce4e482d186c8701aa7646986d51ee4923491
+  bin: rta-plugin-s3.exe
+capabilities:
+- id: s3.overview
+  summary: Endpoint and bucket count at a glance
+  safety: read
+- id: s3.bucket.list
+  summary: List every bucket the configured credentials can see
+  safety: read
+- id: s3.policy.get
+  summary: Show a bucket's policy document
+  safety: read
+- id: s3.object.list
+  summary: List objects in a bucket
+  safety: read
+- id: s3.object.tree
+  summary: The shape of a bucket in one call, with objects and bytes per prefix
+  safety: read
+- id: s3.object.show
+  summary: Show one object's metadata — size, type, etag — never its content
+  safety: read
+- id: s3.object.get
+  summary: Download an object's content
+  safety: write
+  grant: true
+- id: s3.object.set
+  summary: Upload (or overwrite) an object
+  safety: write
+  grant: true
+- id: s3.object.copy
+  summary: Copy an object to a new bucket/key
+  safety: write
+  grant: true
+- id: s3.object.rename
+  summary: Move an object to a new bucket/key
+  safety: write
+  grant: true
+- id: s3.object.rm
+  summary: Delete an object
+  safety: destructive
+- id: s3.object.presign
+  summary: Generate a time-limited URL for an object
+  safety: write
+  grant: true
+- id: s3.bucket.download
+  summary: Copy a bucket to a local directory, for a person at a terminal
+  safety: write
+- id: s3.bucket.upload
+  summary: Copy a local directory into a bucket, for a person at a terminal
+  safety: destructive

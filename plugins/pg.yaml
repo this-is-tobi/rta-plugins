@@ -1,0 +1,75 @@
+# rta-plugin-pg, as rta read it out of the binary.
+#
+# Everything here except the platform URLs came from the artifact's own
+# declaration, so this file cannot disagree with the plugin it describes.
+# `rta plugin install` derives all of it again from the bytes it downloads
+# and refuses the install if the two differ, naming this index.
+#
+# Regenerate with `rta plugin manifest` rather than editing.
+name: pg
+version: 0.1.0
+summary: "PostgreSQL: connection health, schema, rows and activity"
+homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/pg
+platforms:
+- os: darwin
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.1.0/rta-plugin-pg_0.1.0_darwin_amd64.tar.gz
+  sha256: 124d1d6b88a7491f654361b25707f13683349a03419442ec0b8c9d62726e6e65
+  bin: rta-plugin-pg
+- os: darwin
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.1.0/rta-plugin-pg_0.1.0_darwin_arm64.tar.gz
+  sha256: a896d876c581c4438c8fdad4478ad02e660e35386849d6db1f669f5947c92684
+  bin: rta-plugin-pg
+- os: linux
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.1.0/rta-plugin-pg_0.1.0_linux_amd64.tar.gz
+  sha256: df9db10d8c6ad2f9a6da4c981cbe95be0f887148a01269cb579e550719b72895
+  bin: rta-plugin-pg
+- os: linux
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.1.0/rta-plugin-pg_0.1.0_linux_arm64.tar.gz
+  sha256: 55050be2b438bee006530488f5f7eef13cc894ad3180086138bee4903aec2ed9
+  bin: rta-plugin-pg
+- os: windows
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.1.0/rta-plugin-pg_0.1.0_windows_amd64.tar.gz
+  sha256: b27b02b62c1f431e6482373fbce6dbf4b9da86d72e52350a5f9e1e6413dd218e
+  bin: rta-plugin-pg.exe
+- os: windows
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.1.0/rta-plugin-pg_0.1.0_windows_arm64.tar.gz
+  sha256: 28fee725471560cf6bf721c41cf102b0bbeff698dfb274b23fb3e1f33aa2df35
+  bin: rta-plugin-pg.exe
+capabilities:
+- id: pg.status
+  summary: Whether the database answers, and what it is
+  safety: read
+- id: pg.table.list
+  summary: List tables with their row estimates and sizes
+  safety: read
+- id: pg.query
+  summary: Run a read-only query
+  safety: write
+- id: pg.schema.dump
+  summary: Describe a schema's tables, columns and keys — no values
+  safety: read
+- id: pg.table.dump
+  summary: Read every row of one named table
+  safety: write
+  grant: true
+- id: pg.dump
+  summary: Back up the whole database to a file, for a person at a terminal
+  safety: write
+- id: pg.restore
+  summary: Restore a pg.dump backup into a database, for a person at a terminal
+  safety: destructive
+- id: pg.database.list
+  summary: List databases on this server, with their sizes
+  safety: read
+- id: pg.activity
+  summary: What every connected session is doing right now
+  safety: write
+- id: pg.overview
+  summary: Everything about this connection at a glance
+  safety: read

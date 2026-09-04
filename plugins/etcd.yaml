@@ -1,0 +1,66 @@
+# rta-plugin-etcd, as rta read it out of the binary.
+#
+# Everything here except the platform URLs came from the artifact's own
+# declaration, so this file cannot disagree with the plugin it describes.
+# `rta plugin install` derives all of it again from the bytes it downloads
+# and refuses the install if the two differ, naming this index.
+#
+# Regenerate with `rta plugin manifest` rather than editing.
+name: etcd
+version: 0.1.0
+summary: "etcd v3: cluster health, members, leases and the keyspace"
+homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/etcd
+platforms:
+- os: darwin
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fetcd%2Fv0.1.0/rta-plugin-etcd_0.1.0_darwin_amd64.tar.gz
+  sha256: ed823cdeed17cdf96802f6fac634a59d131d0dee796c23e8aa76d94179af4747
+  bin: rta-plugin-etcd
+- os: darwin
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fetcd%2Fv0.1.0/rta-plugin-etcd_0.1.0_darwin_arm64.tar.gz
+  sha256: d46520acffc6f295764dcaf315529a5d0dc3b3fdfed1e391176751e047de5ff6
+  bin: rta-plugin-etcd
+- os: linux
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fetcd%2Fv0.1.0/rta-plugin-etcd_0.1.0_linux_amd64.tar.gz
+  sha256: e19af527230112d1f0387aa267780ee3fc7fe4267ce8702eb1100859ee985782
+  bin: rta-plugin-etcd
+- os: linux
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fetcd%2Fv0.1.0/rta-plugin-etcd_0.1.0_linux_arm64.tar.gz
+  sha256: a70ec1d7dc8b50dec7cafa6394d7b7d44e74a0ff5d38584fc8e4306d95f9104d
+  bin: rta-plugin-etcd
+- os: windows
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fetcd%2Fv0.1.0/rta-plugin-etcd_0.1.0_windows_amd64.tar.gz
+  sha256: 38b59df6988b2a6d8f02078fa69a6963db17d715c8b8bc73005a911596898d4f
+  bin: rta-plugin-etcd.exe
+- os: windows
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fetcd%2Fv0.1.0/rta-plugin-etcd_0.1.0_windows_arm64.tar.gz
+  sha256: 69fc787af0a2678bcb5fde75ec6ab2e43d3af265cf64db7f4d390a4a1ba2edf5
+  bin: rta-plugin-etcd.exe
+capabilities:
+- id: etcd.overview
+  summary: Whether this cluster is healthy, and what it is made of
+  safety: read
+- id: etcd.member.list
+  summary: Who is in this cluster, and how each one is reachable
+  safety: read
+- id: etcd.lease.list
+  summary: Outstanding leases and how long each has left
+  safety: read
+- id: etcd.kv.list
+  summary: Key names under a prefix — never their contents
+  safety: read
+- id: etcd.kv.tree
+  summary: The shape of the keyspace in one call — names only
+  safety: read
+- id: etcd.kv.get
+  summary: What one key holds
+  safety: write
+  grant: true
+- id: etcd.snapshot
+  summary: Write a point-in-time snapshot of the whole keyspace, for a person at a terminal
+  safety: write

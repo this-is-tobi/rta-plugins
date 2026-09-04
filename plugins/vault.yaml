@@ -1,0 +1,97 @@
+# rta-plugin-vault, as rta read it out of the binary.
+#
+# Everything here except the platform URLs came from the artifact's own
+# declaration, so this file cannot disagree with the plugin it describes.
+# `rta plugin install` derives all of it again from the bytes it downloads
+# and refuses the install if the two differ, naming this index.
+#
+# Regenerate with `rta plugin manifest` rather than editing.
+name: vault
+version: 0.1.0
+summary: "HashiCorp Vault: secrets, tokens, leases, policies and transit encryption"
+homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/vault
+platforms:
+- os: darwin
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.1.0/rta-plugin-vault_0.1.0_darwin_amd64.tar.gz
+  sha256: e41d3c08937e941248a7647542440fad86686c94ce250c1e52dda38ed7d6a2aa
+  bin: rta-plugin-vault
+- os: darwin
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.1.0/rta-plugin-vault_0.1.0_darwin_arm64.tar.gz
+  sha256: a2b444d6d5aabff37e8c6898799e8c999a5fc356cc547a9f0711b5ea11eff822
+  bin: rta-plugin-vault
+- os: linux
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.1.0/rta-plugin-vault_0.1.0_linux_amd64.tar.gz
+  sha256: 90375d5225cf410c0d039d7499a8f5652a94fe8c3678696ef3a65e03dd3db28c
+  bin: rta-plugin-vault
+- os: linux
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.1.0/rta-plugin-vault_0.1.0_linux_arm64.tar.gz
+  sha256: 3766cfd539737da9f946c36c3c9882c56f08eed9790bc7a5ac958616e94cd562
+  bin: rta-plugin-vault
+- os: windows
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.1.0/rta-plugin-vault_0.1.0_windows_amd64.tar.gz
+  sha256: 829f6202265b5658b9f14c3825cfb73dfdfdba3a05fc4a0a6e2935b7fd645f73
+  bin: rta-plugin-vault.exe
+- os: windows
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.1.0/rta-plugin-vault_0.1.0_windows_arm64.tar.gz
+  sha256: d87a6bf6ec64ae59f3a13eb07ee4e7503e57a029f829bbe7ad123209adfc5960
+  bin: rta-plugin-vault.exe
+capabilities:
+- id: vault.overview
+  summary: Seal state, the current token and the policy list at a glance
+  safety: read
+- id: vault.seal.status
+  summary: Whether Vault is initialized, sealed, and what it takes to unseal it
+  safety: read
+- id: vault.kv.list
+  summary: List secret names at a path — never values
+  safety: read
+- id: vault.kv.tree
+  summary: The whole shape of a KV mount in one call — names only
+  safety: read
+- id: vault.kv.get
+  summary: Reveal a secret's current version
+  safety: write
+  grant: true
+- id: vault.kv.set
+  summary: Set (or overwrite) a secret
+  safety: write
+  grant: true
+- id: vault.token.status
+  summary: What the current token can do, and when it expires
+  safety: read
+- id: vault.lease.show
+  summary: A lease's TTL and renewability
+  safety: read
+- id: vault.policy.list
+  summary: Every ACL policy defined on this Vault
+  safety: read
+- id: vault.policy.get
+  summary: One policy's own rules, as HCL
+  safety: read
+- id: vault.transit.encrypt
+  summary: Encrypt caller-supplied plaintext with a Vault-managed key
+  safety: write
+- id: vault.transit.decrypt
+  summary: Decrypt ciphertext back to its plaintext
+  safety: write
+  grant: true
+- id: vault.wrap.set
+  summary: Wrap data into a single-use, TTL'd token
+  safety: write
+  grant: true
+- id: vault.wrap.get
+  summary: Unwrap a single-use token, once
+  safety: write
+  grant: true
+- id: vault.snapshot
+  summary: Write a raft storage snapshot, for a person at a terminal
+  safety: write
+- id: vault.restore
+  summary: Restore a vault.snapshot file into a Vault, for a person at a terminal
+  safety: destructive

@@ -1,0 +1,71 @@
+# rta-plugin-mysql, as rta read it out of the binary.
+#
+# Everything here except the platform URLs came from the artifact's own
+# declaration, so this file cannot disagree with the plugin it describes.
+# `rta plugin install` derives all of it again from the bytes it downloads
+# and refuses the install if the two differ, naming this index.
+#
+# Regenerate with `rta plugin manifest` rather than editing.
+name: mysql
+version: 0.1.0
+summary: "MySQL: connection health, schema, rows and activity"
+homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/mysql
+platforms:
+- os: darwin
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmysql%2Fv0.1.0/rta-plugin-mysql_0.1.0_darwin_amd64.tar.gz
+  sha256: 52fcebec0d461eec6ef1011eb5e1be35c32c8c79b21215805e8d07e3b8e7ed60
+  bin: rta-plugin-mysql
+- os: darwin
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmysql%2Fv0.1.0/rta-plugin-mysql_0.1.0_darwin_arm64.tar.gz
+  sha256: ef2893f29412957c75a2c423c8ec7f3585d7e77ff465412a803792099d2364a8
+  bin: rta-plugin-mysql
+- os: linux
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmysql%2Fv0.1.0/rta-plugin-mysql_0.1.0_linux_amd64.tar.gz
+  sha256: 7f835e8a2d510f1e5620268d9ef08514f89df6247fb1b04b058b10d77ea1b261
+  bin: rta-plugin-mysql
+- os: linux
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmysql%2Fv0.1.0/rta-plugin-mysql_0.1.0_linux_arm64.tar.gz
+  sha256: d0bfd5e1f4a574af4d5cf9358385cd90da6e5389881a83e2fe1fc1b15ee3a74c
+  bin: rta-plugin-mysql
+- os: windows
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmysql%2Fv0.1.0/rta-plugin-mysql_0.1.0_windows_amd64.tar.gz
+  sha256: 0ad1325cccf7cf21f33358e3767746332079e013eaa0c7b0da06eedbeef8db53
+  bin: rta-plugin-mysql.exe
+- os: windows
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmysql%2Fv0.1.0/rta-plugin-mysql_0.1.0_windows_arm64.tar.gz
+  sha256: 08f6d12d002aae83ae099b5335145f20f017756334af3666f9ba56d541fa3dcd
+  bin: rta-plugin-mysql.exe
+capabilities:
+- id: mysql.overview
+  summary: Everything about this connection at a glance
+  safety: read
+- id: mysql.status
+  summary: Whether the database answers, and what it is
+  safety: read
+- id: mysql.database.list
+  summary: List databases on this server, with their sizes
+  safety: read
+- id: mysql.table.list
+  summary: List tables with their row estimates and sizes
+  safety: read
+- id: mysql.schema
+  summary: Describe a database's tables, columns and keys — no values
+  safety: read
+- id: mysql.query
+  summary: Run a read-only query
+  safety: write
+- id: mysql.activity
+  summary: What every connected session is doing right now
+  safety: write
+- id: mysql.dump
+  summary: Back up one database to a SQL file, for a person at a terminal
+  safety: write
+- id: mysql.restore
+  summary: Restore a mysql.dump file into a database, for a person at a terminal
+  safety: destructive
