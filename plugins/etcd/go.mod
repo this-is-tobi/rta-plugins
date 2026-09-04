@@ -1,11 +1,9 @@
-module github.com/this-is-tobi/rule-them-all/plugins/etcd
+module github.com/this-is-tobi/rta-plugins/plugins/etcd
 
 go 1.26.6
 
-replace github.com/this-is-tobi/rule-them-all => ../..
-
 require (
-	github.com/this-is-tobi/rule-them-all v0.0.0-00010101000000-000000000000
+	github.com/this-is-tobi/rule-them-all v0.6.0
 	go.etcd.io/etcd/client/v3 v3.7.1
 	google.golang.org/grpc v1.83.1
 )

@@ -3,19 +3,13 @@
 // as a stranger would. A stranger cannot reach into rta's internal packages,
 // and neither can this.
 //
-// The replace is the one concession to nothing being published yet. It is a
-// local path rather than a version, so `go build` here compiles against the
-// SDK in this working tree — which is the point: a change that breaks a plugin
-// author breaks this build, in the same commit that made it.
-module github.com/this-is-tobi/rule-them-all/plugins/mysql
+module github.com/this-is-tobi/rta-plugins/plugins/mysql
 
 go 1.26.6
 
-replace github.com/this-is-tobi/rule-them-all => ../..
-
 require (
 	github.com/go-sql-driver/mysql v1.10.0
-	github.com/this-is-tobi/rule-them-all v0.0.0-00010101000000-000000000000
+	github.com/this-is-tobi/rule-them-all v0.6.0
 )
 
 require (

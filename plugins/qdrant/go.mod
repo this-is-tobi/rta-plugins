@@ -1,10 +1,8 @@
-module github.com/this-is-tobi/rule-them-all/plugins/qdrant
+module github.com/this-is-tobi/rta-plugins/plugins/qdrant
 
 go 1.26.6
 
-replace github.com/this-is-tobi/rule-them-all => ../..
-
-require github.com/this-is-tobi/rule-them-all v0.0.0-00010101000000-000000000000
+require github.com/this-is-tobi/rule-them-all v0.6.0
 
 require (
 	github.com/fatih/color v1.13.0 // indirect

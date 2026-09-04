@@ -1,13 +1,8 @@
-module github.com/this-is-tobi/rule-them-all/plugins/docker
+module github.com/this-is-tobi/rta-plugins/plugins/docker
 
 go 1.26.6
 
-// The replace is the one concession to nothing being published yet: a path
-// relative to this file rather than an absolute one, so the module builds
-// from any checkout instead of only from the machine it was scaffolded on.
-replace github.com/this-is-tobi/rule-them-all => ../..
-
-require github.com/this-is-tobi/rule-them-all v0.0.0
+require github.com/this-is-tobi/rule-them-all v0.6.0
 
 require (
 	charm.land/glamour/v2 v2.0.1 // indirect

@@ -1,18 +1,13 @@
 // s3 is an external plugin — its own module, consuming the SDK exactly as a
-// stranger would, the same reasoning plugins/pg documents.
+// stranger would, the same reasoning pg documents.
 //
-// The replace is the one concession to nothing being published yet: a local
-// path rather than a version, so `go build` here compiles against the SDK in
-// this working tree.
-module github.com/this-is-tobi/rule-them-all/plugins/s3
+module github.com/this-is-tobi/rta-plugins/plugins/s3
 
 go 1.26.6
 
-replace github.com/this-is-tobi/rule-them-all => ../..
-
 require (
 	github.com/minio/minio-go/v7 v7.3.0
-	github.com/this-is-tobi/rule-them-all v0.0.0-00010101000000-000000000000
+	github.com/this-is-tobi/rule-them-all v0.6.0
 )
 
 require (
