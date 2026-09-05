@@ -88,12 +88,25 @@ func connFields() []plugin.Field {
 	}
 }
 
+// clusterField is the cluster a capability works on: a flag rather than a
+// positional, so a profile can carry it (`set: {cluster: shop-prod}`) and the
+// day-to-day call is `rta cnpg status` with nothing typed. Config is refused
+// on a positional — args fill positionals left to right, so a config-filled
+// first argument would change what a typed one means — and kubectl draws the
+// same line: the scope is a flag, the record is the argument. Required, so a
+// call with neither a flag nor a configured value is refused before it
+// reaches the cluster, naming both ways to supply one.
+func clusterField(help string) plugin.Field {
+	return plugin.Field{Name: "cluster", Type: plugin.String, Required: true, Config: "cluster",
+		Help: help, Live: true, Suggest: suggestClusters}
+}
+
 func nsFields() []plugin.Field {
 	return []plugin.Field{
 		// Live, because the Suggest contacts the cluster: that read must be
 		// something a completion press asked for, never something typing
 		// caused. plugins/kube pins the same rule on its own namespace field.
-		{Name: "namespace", Type: plugin.String,
+		{Name: "namespace", Type: plugin.String, Config: "namespace",
 			Help: "namespace to read — the context's own when omitted",
 			Live: true, Suggest: suggestNamespaces},
 	}
@@ -163,12 +176,8 @@ func Plugin() plugin.Plugin {
 					"against the same 30-day window rta's other certificate checks use, and the " +
 					"replication posture, resource bounds and superuser-access switch are read " +
 					"from the spec.",
-				Inputs: []plugin.Field{
-					{Name: "name", Type: plugin.String, Positional: true, Required: true,
-						Help: "the cluster to read",
-						Live: true, Suggest: suggestClusters},
-				},
-				Run: runStatus,
+				Inputs: []plugin.Field{clusterField("the cluster to read")},
+				Run:    runStatus,
 			}),
 			backupListCapability(),
 			backupRequestCapability(),
@@ -218,7 +227,7 @@ func runStatus(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr != nil {
 		return nil, verr
 	}
-	name := req.String("name")
+	name := req.String("cluster")
 	if verr := checkName("cluster", name); verr != nil {
 		return nil, verr
 	}

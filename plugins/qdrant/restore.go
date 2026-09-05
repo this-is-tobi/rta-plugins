@@ -134,7 +134,7 @@ func checkSnapshotFile(path string) *view.Error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return view.Errorf("qdrant.restore.missing", "no snapshot at %s", path).
-			WithHint("`rta qdrant dump <collection> --out <path>` writes one; this restores " +
+			WithHint("`rta qdrant dump --collection <collection> --out <path>` writes one; this restores " +
 				"what that wrote")
 	}
 	if info.IsDir() {

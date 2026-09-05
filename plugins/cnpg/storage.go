@@ -146,9 +146,7 @@ func storageCapability() plugin.Capability {
 			"column that looked like usage and was capacity would be worse than no " +
 			"column.",
 		Run: runStorage,
-	}, plugin.Field{Name: "cluster", Type: plugin.String, Positional: true, Required: true,
-		Help: "the cluster whose volumes to read",
-		Live: true, Suggest: suggestClusters})
+	}, clusterField("the cluster whose volumes to read"))
 }
 
 func runStorage(ctx context.Context, req plugin.Request) (view.View, error) {
@@ -162,7 +160,7 @@ func runStorage(ctx context.Context, req plugin.Request) (view.View, error) {
 	}
 	if name == "" {
 		return nil, view.Errorf("cnpg.storage.nocluster", "no cluster named").
-			WithHint("`rta cnpg list` shows what is there")
+			WithHint("pass --cluster, or set plugins.cnpg.cluster in the config or a profile; `rta cnpg list` shows what is there")
 	}
 	var list pvcList
 	// The label selector goes to the API server rather than being filtered

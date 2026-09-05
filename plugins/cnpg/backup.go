@@ -189,7 +189,7 @@ func backupListCapability() plugin.Capability {
 			"of them — the names of the secrets holding your keys are not part of any " +
 			"question a backup listing answers.",
 		Run: runBackupList,
-	}, plugin.Field{Name: "cluster", Type: plugin.String, Positional: true,
+	}, plugin.Field{Name: "cluster", Type: plugin.String, Config: "cluster",
 		Help: "only this cluster's backups — every one in the namespace when omitted",
 		Live: true, Suggest: suggestClusters})
 }
@@ -255,7 +255,7 @@ func backupErrors(rows []backupObject) view.Table {
 func emptyBackupBody(cluster string, s selection) string {
 	if cluster != "" {
 		return "No backups of " + cluster + " in " + s.where() + ".\n\n" +
-			"`rta cnpg status " + cluster + "` says whether anything is configured to take one."
+			"`rta cnpg status --cluster " + cluster + "` says whether anything is configured to take one."
 	}
 	return "No CloudNativePG backups in " + s.where() + "."
 }
@@ -307,9 +307,7 @@ func backupRequestCapability() plugin.Capability {
 			"'do what you would have done anyway'.",
 		Run: runBackupRequest,
 	},
-		plugin.Field{Name: "cluster", Type: plugin.String, Positional: true, Required: true,
-			Help: "the cluster to back up",
-			Live: true, Suggest: suggestClusters},
+		clusterField("the cluster to back up"),
 		// The three overrides carry the CRD's own enums, so a wrong value is
 		// refused by rta with the list in hand rather than by the API server
 		// with a schema error.

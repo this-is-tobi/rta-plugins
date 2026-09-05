@@ -78,7 +78,7 @@ func serviceAccountCapabilities() []plugin.Capability {
 			Inputs: []plugin.Field{
 				{Name: "name", Type: plugin.String, Positional: true, Required: true,
 					Help: "name for the new ServiceAccount, Role and RoleBinding (all three share it)"},
-				{Name: "namespace", Type: plugin.String, Positional: true, Required: true,
+				{Name: "namespace", Type: plugin.String, Required: true, Config: "namespace",
 					// Live for nsFields' reason: this Suggest contacts the
 					// cluster, so it answers a deliberate completion press
 					// only, never a keystroke.
@@ -138,7 +138,7 @@ func serviceAccountCapabilities() []plugin.Capability {
 			Inputs: []plugin.Field{
 				{Name: "name", Type: plugin.String, Positional: true, Required: true,
 					Help: "the ServiceAccount to revoke"},
-				{Name: "namespace", Type: plugin.String, Positional: true, Required: true,
+				{Name: "namespace", Type: plugin.String, Required: true, Config: "namespace",
 					// Live for nsFields' reason: a cluster read answers a
 					// press, not a keystroke.
 					Help: "namespace it was provisioned in",

@@ -37,7 +37,7 @@ func TestPluginPassesTheConformanceSuite(t *testing.T) {
 			// capability without needing a cluster to exist — and the fake
 			// above answers for it, so the failure being checked is produced
 			// without leaving this machine.
-			"cnpg.status": {"name": "absent"},
+			"cnpg.status": {"cluster": "absent"},
 			// The same, for the one capability that writes — and here the
 			// dry run is worth driving for its own sake rather than only to
 			// satisfy the rule: it reads the cluster before it decides
@@ -421,7 +421,7 @@ func TestAValueThatWouldBeReadAsAFlagIsRefused(t *testing.T) {
 			t.Errorf("context %q was accepted", bad)
 		}
 		if _, err := runStatus(context.Background(),
-			req(map[string]any{"name": bad})); err == nil {
+			req(map[string]any{"cluster": bad})); err == nil {
 			t.Errorf("cluster name %q was accepted", bad)
 		}
 	}

@@ -41,7 +41,7 @@ type collectionInfo struct {
 }
 
 func collectionField(help string) plugin.Field {
-	return plugin.Field{Name: "collection", Type: plugin.String, Positional: true, Required: true,
+	return plugin.Field{Name: "collection", Type: plugin.String, Required: true, Config: "collection",
 		Help: help, Live: true, Suggest: suggestCollections}
 }
 
