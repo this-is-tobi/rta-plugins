@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/this-is-tobi/rule-them-all/pkg/view"
+	"github.com/this-is-tobi/rta/pkg/view"
 )
 
 // A bucket is not a directory and does not behave like one: a build-artifact

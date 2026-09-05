@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/this-is-tobi/rule-them-all/pkg/plugin"
-	"github.com/this-is-tobi/rule-them-all/pkg/sdk/sdktest"
-	"github.com/this-is-tobi/rule-them-all/pkg/view"
+	"github.com/this-is-tobi/rta/pkg/plugin"
+	"github.com/this-is-tobi/rta/pkg/sdk/sdktest"
+	"github.com/this-is-tobi/rta/pkg/view"
 )
 
 // The suite this plugin is held to as a stranger's plugin, before anything

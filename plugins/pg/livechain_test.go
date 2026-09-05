@@ -23,7 +23,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/this-is-tobi/rule-them-all/pkg/view"
+	"github.com/this-is-tobi/rta/pkg/view"
 )
 
 func liveValues(t *testing.T, values map[string]any) map[string]any {

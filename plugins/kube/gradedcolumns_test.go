@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/this-is-tobi/rule-them-all/pkg/view"
+	"github.com/this-is-tobi/rta/pkg/view"
 )
 
 // Which percentages are graded, and which are deliberately not.

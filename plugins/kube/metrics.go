@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/this-is-tobi/rule-them-all/pkg/format"
-	"github.com/this-is-tobi/rule-them-all/pkg/plugin"
-	"github.com/this-is-tobi/rule-them-all/pkg/view"
+	"github.com/this-is-tobi/rta/pkg/format"
+	"github.com/this-is-tobi/rta/pkg/plugin"
+	"github.com/this-is-tobi/rta/pkg/view"
 )
 
 // podMetricColumns and nodeMetricColumns are named rather than inline because

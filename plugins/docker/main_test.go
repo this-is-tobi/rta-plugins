@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/this-is-tobi/rule-them-all/pkg/sdk/sdktest"
+	"github.com/this-is-tobi/rta/pkg/sdk/sdktest"
 )
 
 // sdktest is the definition of "a correct plugin" — no exemption for docker,

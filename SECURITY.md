@@ -14,4 +14,4 @@ Every plugin here is pre-1.0 and versioned on its own. Only the latest release o
 
 ## Scope
 
-In scope: the ten plugin binaries this repository releases, the manifests under `index/` (the index rta installs them from), and the release pipeline that produces both. rta's own verification of a plugin — digest checking, declaration checking, confinement — is [rule-them-all](https://github.com/this-is-tobi/rule-them-all)'s scope; report those there.
+In scope: the ten plugin binaries this repository releases, the manifests under `index/` (the index rta installs them from), and the release pipeline that produces both. rta's own verification of a plugin — digest checking, declaration checking, confinement — is [rta](https://github.com/this-is-tobi/rta)'s scope; report those there.

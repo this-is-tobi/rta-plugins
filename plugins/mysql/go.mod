@@ -9,7 +9,7 @@ go 1.26.6
 
 require (
 	github.com/go-sql-driver/mysql v1.10.0
-	github.com/this-is-tobi/rule-them-all v0.6.0
+	github.com/this-is-tobi/rta v0.8.0
 )
 
 require (

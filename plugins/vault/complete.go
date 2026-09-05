@@ -7,7 +7,7 @@ import (
 
 	vaultapi "github.com/hashicorp/vault/api"
 
-	"github.com/this-is-tobi/rule-them-all/pkg/plugin"
+	"github.com/this-is-tobi/rta/pkg/plugin"
 )
 
 // Live completion (Field.Live): each Suggest here is

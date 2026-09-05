@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/this-is-tobi/rule-them-all/pkg/plugin"
+	"github.com/this-is-tobi/rta/pkg/plugin"
 )
 
 // The floor is the whole content of the verdict — get it backwards and every

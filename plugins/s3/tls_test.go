@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/this-is-tobi/rule-them-all/pkg/view"
+	"github.com/this-is-tobi/rta/pkg/view"
 )
 
 // A self-hosted S3-compatible endpoint behind a tunnel is commonly its own
