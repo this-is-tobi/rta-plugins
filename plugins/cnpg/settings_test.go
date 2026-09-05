@@ -309,8 +309,15 @@ func TestTheVolumeTableNeverShowsAPercentage(t *testing.T) {
 			t.Errorf("column %q promises usage this cannot compute", col.Name)
 		}
 	}
-	if desc := storageCapability().Description; !strings.Contains(desc, "does not report how full") {
+	desc := storageCapability().Description
+	if !strings.Contains(desc, "does not report how full") {
 		t.Error("the capability does not say what it cannot answer")
+	}
+	// A refusal that stops there sends the reader guessing. The graded
+	// number exists, one capability over, behind the permission that is the
+	// reason it is not here — so the refusal says which.
+	if !strings.Contains(desc, "rta kube pvc usage") || !strings.Contains(desc, "nodes/proxy") {
+		t.Error("the capability does not say where the answer lives, or what it costs")
 	}
 }
 
