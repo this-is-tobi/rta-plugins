@@ -69,11 +69,11 @@ func s3ObjectTreeCapability() plugin.Capability {
 			"says when it stopped rather than looking like a smaller bucket.",
 		Run: runObjectTree,
 	}, bucketField("bucket to walk"),
-		plugin.Field{Name: "prefix", Type: plugin.String, Help: "start here rather than at the root",
+		plugin.Field{Name: "prefix", Type: plugin.String, Config: "prefix", Help: "start here rather than at the root",
 			Live: true, Suggest: suggestKeys("prefix")},
-		plugin.Field{Name: "depth", Type: plugin.Int, Default: 4, Min: 1, Max: 20,
+		plugin.Field{Name: "depth", Type: plugin.Int, Config: "depth", Default: 4, Min: 1, Max: 20,
 			Help: "how many levels to expand"},
-		plugin.Field{Name: "limit", Type: plugin.Int, Default: defaultTreeKeys, Min: 1, Max: 100000,
+		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: defaultTreeKeys, Min: 1, Max: 100000,
 			Help: "how many keys to read before stopping"})
 }
 

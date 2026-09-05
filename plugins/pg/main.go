@@ -273,9 +273,9 @@ func Plugin() plugin.Plugin {
 					})
 				},
 			},
-				plugin.Field{Name: "schema", Type: plugin.String, Default: "",
+				plugin.Field{Name: "schema", Type: plugin.String, Config: "schema", Default: "",
 					Help: "only this schema; empty means all"},
-				plugin.Field{Name: "limit", Type: plugin.Int, Default: 50, Min: 1, Max: 1000,
+				plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 50, Min: 1, Max: 1000,
 					Help: "how many tables to show"}),
 
 			cap(plugin.Capability{
@@ -355,7 +355,7 @@ func Plugin() plugin.Plugin {
 				// a slice in the plugin, through the host, and at a model's
 				// context — an unbounded allocation driven by an argument, and
 				// a bulk read of a table nobody consented to row by row.
-				plugin.Field{Name: "limit", Type: plugin.Int, Default: 200, Min: 1, Max: 10000,
+				plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 200, Min: 1, Max: 10000,
 					Help: "maximum rows to return; a larger result set is refused, not shortened"}),
 
 			cap(plugin.Capability{
@@ -383,7 +383,7 @@ func Plugin() plugin.Plugin {
 			},
 				plugin.Field{Name: "schema", Type: plugin.String, Default: "public", Positional: true,
 					Help: "schema to describe"},
-				plugin.Field{Name: "limit", Type: plugin.Int, Default: 100, Min: 1, Max: maxSchemaTables,
+				plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 100, Min: 1, Max: maxSchemaTables,
 					Help: "how many tables to describe"}),
 
 			cap(plugin.Capability{
@@ -434,7 +434,7 @@ func Plugin() plugin.Plugin {
 					Help: "table to dump, as schema.table (required over MCP; bare names are resolved for a person)"},
 				plugin.Field{Name: "columns", Type: plugin.StringSlice,
 					Help: "only these columns; empty means all"},
-				plugin.Field{Name: "limit", Type: plugin.Int, Default: 1000, Min: 1, Max: maxDumpRows,
+				plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 1000, Min: 1, Max: maxDumpRows,
 					Help: "maximum rows to return; a larger table is refused, not shortened"}),
 
 			cap(plugin.Capability{
@@ -481,13 +481,13 @@ func Plugin() plugin.Plugin {
 				// capability's, and Local is the contract's.
 				plugin.Field{Name: "out", Type: plugin.Path, Local: true,
 					Help: "file to write; refused if it already exists"},
-				plugin.Field{Name: "format", Type: plugin.String, Default: "plain",
+				plugin.Field{Name: "format", Type: plugin.String, Config: "dump.format", Default: "plain",
 					Options: []string{"plain", "custom", "directory"},
 					Help: "plain is SQL for psql; custom is one compressed file for pg_restore; " +
 						"directory is one compressed file per table, and the only one --jobs can use"},
-				plugin.Field{Name: "jobs", Type: plugin.Int, Default: 1, Min: 1, Max: 32,
+				plugin.Field{Name: "jobs", Type: plugin.Int, Config: "jobs", Default: 1, Min: 1, Max: 32,
 					Help: "dump this many tables at once (needs --format directory)"},
-				plugin.Field{Name: "include", Type: plugin.String, Default: "all",
+				plugin.Field{Name: "include", Type: plugin.String, Config: "dump.include", Default: "all",
 					Options: []string{"all", "schema", "data"},
 					Help:    "what to put in the file"}),
 
@@ -527,12 +527,12 @@ func Plugin() plugin.Plugin {
 					Required: true,
 					Help: "the dump to restore — plain SQL, a custom-format file, or a " +
 						"directory-format dump; the format is read from the bytes, not the name"},
-				plugin.Field{Name: "jobs", Type: plugin.Int, Default: 1, Min: 1, Max: 32,
+				plugin.Field{Name: "jobs", Type: plugin.Int, Config: "jobs", Default: 1, Min: 1, Max: 32,
 					Help: "restore this many objects at once (custom or directory format; trades " +
 						"the single-transaction guarantee for speed)"},
 				plugin.Field{Name: "clean", Type: plugin.Bool,
 					Help: "drop existing objects before recreating them (custom or directory format)"},
-				plugin.Field{Name: "no-owner", Type: plugin.Bool,
+				plugin.Field{Name: "no-owner", Type: plugin.Bool, Config: "restore.no-owner",
 					Help: "skip ownership changes so restored objects belong to the connecting " +
 						"role (custom or directory format)"}),
 
@@ -575,7 +575,7 @@ func Plugin() plugin.Plugin {
 					})
 				},
 			},
-				plugin.Field{Name: "limit", Type: plugin.Int, Default: 50, Min: 1, Max: 1000,
+				plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 50, Min: 1, Max: 1000,
 					Help: "how many sessions to show"}),
 
 			cap(plugin.Capability{

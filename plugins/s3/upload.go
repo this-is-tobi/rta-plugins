@@ -79,13 +79,13 @@ func s3BucketUploadCapability() plugin.Capability {
 		plugin.Field{Name: "dir", Type: plugin.Path, Local: true, Positional: true,
 			Required: true,
 			Help:     "directory whose files become objects — what s3.bucket.download wrote"},
-		plugin.Field{Name: "prefix", Type: plugin.String, Live: true, Suggest: suggestKeys("prefix"),
+		plugin.Field{Name: "prefix", Type: plugin.String, Config: "prefix", Live: true, Suggest: suggestKeys("prefix"),
 			Help: "key prefix to upload under; empty means the bucket root"},
 		plugin.Field{Name: "overwrite", Type: plugin.Bool,
 			Help: "allow replacing remote objects whose keys collide; others are left as they are"},
-		plugin.Field{Name: "parallel", Type: plugin.Int, Default: 8, Min: 1, Max: 64,
+		plugin.Field{Name: "parallel", Type: plugin.Int, Config: "parallel", Default: 8, Min: 1, Max: 64,
 			Help: "how many objects to upload at once"},
-		plugin.Field{Name: "limit", Type: plugin.Int, Default: downloadLimit, Min: 1, Max: 1000000,
+		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: downloadLimit, Min: 1, Max: 1000000,
 			Help: "maximum files to upload; a larger directory is refused, not truncated"})
 }
 

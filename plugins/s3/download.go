@@ -74,13 +74,13 @@ func s3BucketDownloadCapability() plugin.Capability {
 		Run: runBucketDownload,
 	},
 		bucketField("bucket to copy"),
-		plugin.Field{Name: "prefix", Type: plugin.String, Live: true, Suggest: suggestKeys("prefix"),
+		plugin.Field{Name: "prefix", Type: plugin.String, Config: "prefix", Live: true, Suggest: suggestKeys("prefix"),
 			Help: "only objects under this prefix; empty means the whole bucket"},
 		plugin.Field{Name: "out", Type: plugin.Path, Local: true,
 			Help: "directory to create and write into; refused if it already exists"},
-		plugin.Field{Name: "parallel", Type: plugin.Int, Default: 8, Min: 1, Max: 64,
+		plugin.Field{Name: "parallel", Type: plugin.Int, Config: "parallel", Default: 8, Min: 1, Max: 64,
 			Help: "how many objects to download at once"},
-		plugin.Field{Name: "limit", Type: plugin.Int, Default: downloadLimit, Min: 1, Max: 1000000,
+		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: downloadLimit, Min: 1, Max: 1000000,
 			Help: "maximum objects to copy; a larger bucket is refused, not truncated"})
 }
 

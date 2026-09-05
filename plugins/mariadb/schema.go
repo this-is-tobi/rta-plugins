@@ -60,7 +60,7 @@ func tableListCapability() plugin.Capability {
 			})
 		},
 	}, schemaField(),
-		plugin.Field{Name: "limit", Type: plugin.Int, Default: 200, Min: 1, Max: 10000,
+		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 200, Min: 1, Max: 10000,
 			Help: "how many tables to show"})
 }
 
@@ -148,7 +148,7 @@ func schemaCapability() plugin.Capability {
 	}, schemaField(),
 		plugin.Field{Name: "table", Type: plugin.String, Default: "",
 			Help: "expand only this table", Live: true, Suggest: suggestTables},
-		plugin.Field{Name: "limit", Type: plugin.Int, Default: 100, Min: 1, Max: maxSchemaTables,
+		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 100, Min: 1, Max: maxSchemaTables,
 			Help: "how many tables to expand"})
 }
 

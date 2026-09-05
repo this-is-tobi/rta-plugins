@@ -32,7 +32,7 @@ func wrapSetCapability() plugin.Capability {
 		Run: runWrapSet,
 	}, plugin.Field{Name: "data", Type: plugin.SecretSlice, Required: true,
 		Help: "key=value, repeated for more than one field"},
-		plugin.Field{Name: "ttl", Type: plugin.String, Default: "5m", Suggest: suggestWrapTTL,
+		plugin.Field{Name: "ttl", Type: plugin.String, Config: "wrap.ttl", Default: "5m", Suggest: suggestWrapTTL,
 			Help: "how long the token stays valid, unread — not the data's own lifetime"})
 }
 

@@ -311,13 +311,13 @@ func backupRequestCapability() plugin.Capability {
 		// The three overrides carry the CRD's own enums, so a wrong value is
 		// refused by rta with the list in hand rather than by the API server
 		// with a schema error.
-		plugin.Field{Name: "method", Type: plugin.String,
+		plugin.Field{Name: "method", Type: plugin.String, Config: "backup.method",
 			Options: backupMethods,
 			Help:    "how to take it — the cluster's own choice when omitted"},
-		plugin.Field{Name: "target", Type: plugin.String,
+		plugin.Field{Name: "target", Type: plugin.String, Config: "backup.target",
 			Options: []string{"primary", "prefer-standby"},
 			Help:    "which instance performs it — the cluster's own choice when omitted"},
-		plugin.Field{Name: "online", Type: plugin.String,
+		plugin.Field{Name: "online", Type: plugin.String, Config: "backup.online",
 			Options: []string{"true", "false"},
 			Help: "hot or cold — only with --method volumeSnapshot, and the cluster's " +
 				"own choice when omitted"})

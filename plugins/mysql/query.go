@@ -47,7 +47,7 @@ func queryCapability() plugin.Capability {
 		Run: runQuery,
 	}, plugin.Field{Name: "sql", Type: plugin.String, Positional: true, Required: true,
 		Help: "the statement to run"},
-		plugin.Field{Name: "limit", Type: plugin.Int, Default: 50, Min: 1, Max: 1000,
+		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 50, Min: 1, Max: 1000,
 			Help: "how many rows to allow before refusing"})
 }
 
@@ -129,7 +129,7 @@ func activityCapability() plugin.Capability {
 				return activityView(ctx, db, req, true)
 			})
 		},
-	}, plugin.Field{Name: "limit", Type: plugin.Int, Default: 50, Min: 1, Max: 1000,
+	}, plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 50, Min: 1, Max: 1000,
 		Help: "how many sessions to show"})
 }
 

@@ -47,10 +47,10 @@ func s3ObjectListCapability() plugin.Capability {
 			"say so reads exactly like a bucket with that little in it.",
 		Run: runObjectList,
 	}, bucketField("bucket to list"),
-		plugin.Field{Name: "prefix", Type: plugin.String, Help: "only keys starting with this",
+		plugin.Field{Name: "prefix", Type: plugin.String, Config: "prefix", Help: "only keys starting with this",
 			Live: true, Suggest: suggestKeys("prefix")},
-		plugin.Field{Name: "recursive", Type: plugin.Bool, Help: "ignore the \"/\" delimiter and list everything under prefix"},
-		plugin.Field{Name: "limit", Type: plugin.Int, Default: listLimit, Min: 1, Max: 10000,
+		plugin.Field{Name: "recursive", Type: plugin.Bool, Config: "recursive", Help: "ignore the \"/\" delimiter and list everything under prefix"},
+		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: listLimit, Min: 1, Max: 10000,
 			Help: "how many objects to return"},
 		plugin.Field{Name: "after", Type: plugin.String,
 			Help: "continue from the key the last page ended at"})
@@ -231,7 +231,7 @@ func s3ObjectSetCapability() plugin.Capability {
 		plugin.Field{Name: "file", Type: plugin.Path, Local: true, Help: "upload this file's content instead"},
 		plugin.Field{Name: "content-type", Type: plugin.String, Suggest: suggestContentTypes,
 			Help: "MIME type; guessed from --file's extension if omitted"},
-		plugin.Field{Name: "storage-class", Type: plugin.String, Suggest: suggestStorageClasses,
+		plugin.Field{Name: "storage-class", Type: plugin.String, Config: "storage-class", Suggest: suggestStorageClasses,
 			Help: "e.g. STANDARD, STANDARD_IA, GLACIER — left to the server's default if omitted"})
 }
 
