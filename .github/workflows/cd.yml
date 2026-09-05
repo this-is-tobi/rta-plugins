@@ -130,8 +130,8 @@ jobs:
     # Exact, not floating: the rta that generates a manifest decides what the
     # manifest says, so it is part of the supply chain.
     - name: Install rta
-      # renovate: datasource=go depName=github.com/this-is-tobi/rule-them-all
-      run: go install github.com/this-is-tobi/rule-them-all/cmd/rta@v0.7.0
+      # renovate: datasource=go depName=github.com/this-is-tobi/rta
+      run: go install github.com/this-is-tobi/rta/cmd/rta@v0.8.0
 
     # Every leg uploaded its dist/<plugin>/ under its own artifact name;
     # merged back into one dist/, which is the layout index-release reads.
