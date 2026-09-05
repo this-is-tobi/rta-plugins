@@ -136,7 +136,7 @@ TIDY_PLUGINS     := $(PLUGINS:%=tidy-%)
 DOWNLOAD_PLUGINS := $(PLUGINS:%=download-%)
 
 .PHONY: help setup tidy fmt fmt-check build install trust check cross \
-	name-check replace-check docs-check index release index-release \
+	name-check replace-check docs-check docs docs-drift index release index-release \
 	dev dev-off canary ci list clean \
 	$(CHECK_PLUGINS) $(BUILD_PLUGINS) $(INSTALL_PLUGINS) $(TIDY_PLUGINS) $(DOWNLOAD_PLUGINS)
 
@@ -264,6 +264,27 @@ replace-check: name-check
 # one moment somebody is looking. rta's recipes chapter plans for the same
 # set from its side, by a list kept by hand there; this is the half that can
 # read the declaration.
+# A plugin's README.md is its declaration rendered, never prose somebody
+# keeps in step by hand: `rta plugin doc` runs the binary the way a load does
+# and writes the page from what it declares, so the page cannot disagree with
+# the plugin beside it. docs-drift is the gate that keeps the committed copy
+# honest. It steps aside, loudly, on an rta too old to have the command — the
+# alternative is a CI that fails on every machine until rta ships it.
+docs: build ## Regenerate every plugin's README.md from its binary's declaration
+	@command -v $(RTA) >/dev/null || { echo "cannot run '$(RTA)': install rta, or pass RTA=/path/to/rta"; exit 1; }
+	@for p in $(PLUGIN_LIST); do \
+		$(RTA) plugin doc $(BUILDDIR)/rta-plugin-$$p > plugins/$$p/README.md || exit 1; \
+		echo "==> plugins/$$p/README.md"; \
+	done
+
+docs-drift: build ## Fail if a plugin's README.md is behind its binary's declaration
+	@if ! $(RTA) plugin --help 2>/dev/null | grep -qE '^ +doc '; then \
+		echo "docs-drift: '$(RTA) plugin doc' is unavailable, README drift not checked"; exit 0; fi; \
+	fail=0; for p in $(PLUGIN_LIST); do \
+		$(RTA) plugin doc $(BUILDDIR)/rta-plugin-$$p | diff -q - plugins/$$p/README.md >/dev/null \
+			|| { echo "plugins/$$p/README.md is behind its declaration; run 'make docs'"; fail=1; }; \
+	done; exit $$fail
+
 docs-check: name-check ## Fail if README's counts or a backup's receipt disagree with the declarations
 	@fail=0; for p in $(PLUGINS); do \
 		src=$$(ls plugins/$$p/*.go | grep -v '_test\.go$$'); \
@@ -374,7 +395,7 @@ canary: name-check ## Check every plugin against rta at RTA_REF (default main), 
 
 ##@ Everything
 
-ci: fmt-check name-check replace-check docs-check check cross ## Everything CI runs
+ci: fmt-check name-check replace-check docs-check check docs-drift cross ## Everything CI runs
 	@printf "\nci: green — every module built, vetted, tested and cross-compiled.\n\n"
 
 ##@ Housekeeping
