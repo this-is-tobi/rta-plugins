@@ -220,6 +220,28 @@ func TestADryRunAgainstARealClusterWritesNothing(t *testing.T) {
 	}
 }
 
+// Whether a real server actually sends dbSizeQuota — the field the storage
+// row is graded against, which arrived in 3.6 and which a fake would report
+// whatever the test wrote into it.
+func TestARealServerReportsTheQuotaTheStorageRowIsGradedAgainst(t *testing.T) {
+	endpoint := liveEndpoint(t)
+	c := liveClient(t, endpoint)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	st, err := c.Status(ctx, endpoint)
+	if err != nil {
+		t.Fatalf("status: %v", err)
+	}
+	tbl := storageTable(st)
+	t.Logf("size %s, in use %s, quota %s, use %s", tbl.Rows[0][0], tbl.Rows[0][1], tbl.Rows[0][2], tbl.Rows[0][3])
+	if st.DbSizeQuota <= 0 {
+		t.Fatalf("a %s server reported no quota, so every storage row would be blank", st.Version)
+	}
+	if !strings.HasSuffix(tbl.Rows[0][3], "%") {
+		t.Errorf("use = %q, want a percentage", tbl.Rows[0][3])
+	}
+}
+
 func livePair(t *testing.T, kv view.KeyValue, key string) string {
 	t.Helper()
 	for _, p := range kv.Pairs {
