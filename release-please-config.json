@@ -30,6 +30,7 @@
     "plugins/mysql": { "component": "plugins/mysql" },
     "plugins/pg": { "component": "plugins/pg" },
     "plugins/qdrant": { "component": "plugins/qdrant" },
+    "plugins/redis": { "component": "plugins/redis" },
     "plugins/s3": { "component": "plugins/s3" },
     "plugins/vault": { "component": "plugins/vault" }
   }
