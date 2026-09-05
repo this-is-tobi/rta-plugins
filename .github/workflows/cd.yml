@@ -128,10 +128,12 @@ jobs:
         cache-dependency-path: plugins/*/go.sum
 
     # Exact, not floating: the rta that generates a manifest decides what the
-    # manifest says, so it is part of the supply chain.
+    # manifest says, so it is part of the supply chain. The pin lives in
+    # .rta-version rather than here so that the bump workflow can move it
+    # without touching a workflow file — which an App token may not do
+    # without a permission that would apply to every repository it is on.
     - name: Install rta
-      # renovate: datasource=go depName=github.com/this-is-tobi/rta
-      run: go install github.com/this-is-tobi/rta/cmd/rta@v0.8.0
+      run: go install "github.com/this-is-tobi/rta/cmd/rta@$(cat .rta-version)"
 
     # Every leg uploaded its dist/<plugin>/ under its own artifact name;
     # merged back into one dist/, which is the layout index-release reads.

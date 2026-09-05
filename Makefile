@@ -387,20 +387,21 @@ dev-off: ## Remove the workspace; builds pin go.mod's rta again
 # and the wrong signal for a project re-architecting before v1. This builds
 # and tests every plugin against rta at RTA_REF instead, and a red run says
 # "the SDK moved under you" without blocking a release.
-# The SDK bump, in one move: every go.mod, every go.sum, and the two workflow
-# lines that `go install` a released rta — the manifest generator in cd.yml
-# and the README generator in ci.yml. Those two are pinned on purpose (the
-# rta that renders a claim decides what the claim says), so they move with
-# the modules rather than drifting behind them. bump-rta.yml runs this on a
-# schedule; running it by hand is the same thing sooner.
-bump-rta: name-check ## Pin every module and workflow to rta RTA_VERSION (e.g. RTA_VERSION=v0.9.0)
+# The SDK bump, in one move: every go.mod, every go.sum, and .rta-version —
+# the pin the workflows `go install` the manifest generator (cd.yml) and the
+# README generator (ci.yml) from. Those are pinned on purpose (the rta that
+# renders a claim decides what the claim says), and the pin lives in a plain
+# file rather than in the workflow lines so that moving it never touches
+# .github/workflows/ — a path an App token may not write without a
+# permission that would apply to every repository the App is on. bump-rta.yml
+# runs this on a schedule; running it by hand is the same thing sooner.
+bump-rta: name-check ## Pin every module and .rta-version to rta RTA_VERSION (e.g. RTA_VERSION=v0.9.0)
 	@test -n "$(RTA_VERSION)" || { echo "bump-rta needs RTA_VERSION=vX.Y.Z"; exit 1; }
 	@for p in $(PLUGIN_LIST); do \
 		echo "==> plugins/$$p ($(RTA_VERSION))"; \
 		(cd plugins/$$p && go get github.com/this-is-tobi/rta@$(RTA_VERSION) >/dev/null 2>&1 && go mod tidy) || exit 1; \
 	done
-	@sed -i.bak -E 's#(github.com/this-is-tobi/rta/cmd/rta@)v[0-9]+\.[0-9]+\.[0-9]+#\1$(RTA_VERSION)#' .github/workflows/*.yml && rm -f .github/workflows/*.yml.bak
-	@echo "==> workflow pins: $$(grep -ho 'cmd/rta@v[0-9.]*' .github/workflows/*.yml | sort -u | tr '\n' ' ')"
+	@printf '%s\n' "$(RTA_VERSION)" > .rta-version && echo "==> .rta-version ($(RTA_VERSION))"
 
 canary: name-check ## Check every plugin against rta at RTA_REF (default main), without touching go.mod
 	@tmp=$$(mktemp -d); \
