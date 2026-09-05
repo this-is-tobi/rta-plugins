@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -20,11 +21,13 @@ func overviewCapability() plugin.Capability {
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Detailed:   true,
-		Description: "The endpoint's own status — version, database size, who it thinks the " +
-			"leader is, and how far behind its raft log is — with the member list beside it.\n\n" +
-			"The alarms are the row to read. etcd raises NOSPACE when it hits its quota and then " +
-			"refuses every write while continuing to answer reads, which looks like a working " +
-			"cluster from anywhere except here.\n\n" +
+		Description: "The endpoint's own status — version, who it thinks the leader is, and how " +
+			"far behind its raft log is — with its storage and the member list beside it.\n\n" +
+			"The storage row is the one to watch. etcd raises NOSPACE when the database file " +
+			"reaches its quota and then refuses every write while continuing to answer reads, " +
+			"which looks like a working cluster from anywhere except here. The use column is " +
+			"graded against that quota, and a server older than 3.6 does not report one, so " +
+			"the column is blank there rather than guessed.\n\n" +
 			"--detail adds every member's own view, which is how a split is visible: members that " +
 			"disagree about who the leader is are not a cluster.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
@@ -45,8 +48,6 @@ func overviewView(ctx context.Context, c *clientv3.Client, req plugin.Request) (
 	pairs := []view.Pair{
 		{Key: "endpoint", Value: endpoint},
 		{Key: "version", Value: st.Version},
-		{Key: "database size", Value: format.Bytes(uint64(st.DbSize))},
-		{Key: "database in use", Value: format.Bytes(uint64(st.DbSizeInUse))},
 		{Key: "member id", Value: hexID(st.Header.MemberId)},
 		{Key: "leader", Value: leaderText(st)},
 		{Key: "raft term", Value: strconv.FormatUint(st.RaftTerm, 10)},
@@ -65,6 +66,7 @@ func overviewView(ctx context.Context, c *clientv3.Client, req plugin.Request) (
 
 	p := plugin.NewPage(ctx, req)
 	p.Put("status", view.KeyValue{Pairs: pairs})
+	p.Put("storage", storageTable(st))
 
 	members, err := memberTable(ctx, c, req)
 	if err != nil {
@@ -80,6 +82,84 @@ func overviewView(ctx context.Context, c *clientv3.Client, req plugin.Request) (
 		p.Put("health", health)
 	}
 	return p.View(), nil
+}
+
+// storageTable is the endpoint's own backend: how large the database file is,
+// how much of it is live data, and how close it is to the quota that stops
+// writes.
+//
+// **A table rather than three more pairs in the status block, because a
+// percentage in a KeyValue cannot be graded.** view.Pair carries a key and a
+// string and nothing else — there are no column kinds in a KeyValue — and
+// grading is the entire point of showing this one. `use %` declares
+// view.KindUsage, the kind for a figure where 100 is a wall rather than a
+// total, which is exactly what a backend quota is: etcd raises NOSPACE at it,
+// then refuses every write while still answering reads, and that is the
+// failure that looks like a healthy cluster from everywhere except here.
+func storageTable(st *clientv3.StatusResponse) view.Table {
+	return view.Table{
+		Columns: []view.Column{
+			{Name: "Size", Kind: view.KindBytes},
+			{Name: "In use", Kind: view.KindBytes},
+			{Name: "Quota", Kind: view.KindBytes},
+			{Name: "Use %", Kind: view.KindUsage},
+		},
+		Rows: [][]string{{
+			format.Bytes(uint64(st.DbSize)),
+			format.Bytes(uint64(st.DbSizeInUse)),
+			quotaBytes(st.DbSizeQuota),
+			quotaCell(st.DbSize, st.DbSizeQuota),
+		}},
+		Total: 1,
+	}
+}
+
+// quotaShare is how much of its backend quota a member's database file takes,
+// as the percentage that is printed, and whether the server said enough to
+// work one out.
+//
+// **DbSize, not DbSizeInUse.** The quota is checked against the physical file,
+// so a database whose pages are mostly free still alarms; the difference
+// between the two is what a defragment would give back, which is why the table
+// prints both beside this.
+//
+// **A quota of zero is a server that did not report one, not a server without
+// one.** dbSizeQuota arrived in etcd 3.6 and an older member answers the same
+// StatusResponse with the field absent — while still having a quota, 2 GiB by
+// default. Filling that blank with the default would grade a real number
+// against an invented denominator, on the one screen somebody opens to find
+// out whether they are near it. Nothing is reported instead, and the renderer
+// paints a cell it cannot read neutral, which is the colour "this was not
+// measured" is supposed to have.
+//
+// Rounded here, once, so that the number printed is the number graded: 89.96
+// prints as "90.0%" and has to land in the band the renderer will put "90.0%"
+// in, not the one the raw value falls in. `sys disk` carried exactly that bug
+// — amber beside green about a single measurement — until it rounded first.
+func quotaShare(dbSize, quota int64) (float64, bool) {
+	if quota <= 0 || dbSize < 0 {
+		return 0, false
+	}
+	return math.Round(float64(dbSize)/float64(quota)*1000) / 10, true
+}
+
+// quotaCell renders the graded cell, or the "-" this file's tables already use
+// for a fact a member did not supply.
+func quotaCell(dbSize, quota int64) string {
+	share, ok := quotaShare(dbSize, quota)
+	if !ok {
+		return "-"
+	}
+	return strconv.FormatFloat(share, 'f', 1, 64) + "%"
+}
+
+// quotaBytes is the denominator itself, blanked the same way for the same
+// reason — a "0 B" quota would read like a cluster that can hold nothing.
+func quotaBytes(quota int64) string {
+	if quota <= 0 {
+		return "-"
+	}
+	return format.Bytes(uint64(quota))
 }
 
 // leaderText spells out the case a raw ID hides. A member reporting leader 0
@@ -173,11 +253,13 @@ func memberHealthTable(ctx context.Context, c *clientv3.Client, req plugin.Reque
 		{Name: "Leader"},
 		{Name: "Term", Kind: view.KindNumber},
 		{Name: "Size", Kind: view.KindBytes},
+		{Name: "Quota", Kind: view.KindBytes},
+		{Name: "Use %", Kind: view.KindUsage},
 		{Name: "Health", Kind: view.KindStatus},
 	}}
 	for _, m := range resp.Members {
 		if len(m.ClientURLs) == 0 {
-			t.Rows = append(t.Rows, []string{hexID(m.ID), "-", "-", "-", "-", "unstarted"})
+			t.Rows = append(t.Rows, []string{hexID(m.ID), "-", "-", "-", "-", "-", "-", "unstarted"})
 			continue
 		}
 		// Bounded per member: one unreachable member must not make this call
@@ -190,7 +272,7 @@ func memberHealthTable(ctx context.Context, c *clientv3.Client, req plugin.Reque
 			// answer somebody came here for, and ending the walk at the first
 			// one would turn "here is which member is down" into nothing.
 			t.Rows = append(t.Rows, []string{
-				hexID(m.ID), m.ClientURLs[0], "-", "-", "-", "unreachable",
+				hexID(m.ID), m.ClientURLs[0], "-", "-", "-", "-", "-", "unreachable",
 			})
 			continue
 		}
@@ -202,7 +284,8 @@ func memberHealthTable(ctx context.Context, c *clientv3.Client, req plugin.Reque
 		}
 		t.Rows = append(t.Rows, []string{
 			hexID(m.ID), m.ClientURLs[0], hexID(st.Leader),
-			strconv.FormatUint(st.RaftTerm, 10), format.Bytes(uint64(st.DbSize)), health,
+			strconv.FormatUint(st.RaftTerm, 10), format.Bytes(uint64(st.DbSize)),
+			quotaBytes(st.DbSizeQuota), quotaCell(st.DbSize, st.DbSizeQuota), health,
 		})
 	}
 	t.Total = len(t.Rows)
