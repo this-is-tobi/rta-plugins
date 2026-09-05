@@ -83,14 +83,13 @@ jobs:
       with:
         client-id: ${{ secrets.APP_CLIENT_ID }}
         private-key: ${{ secrets.APP_PRIVATE_KEY }}
+        # Contents and pull requests, and nothing about workflows: the pin
+        # the two workflows install lives in .rta-version precisely so this
+        # bump never has to touch a file under .github/workflows/, which an
+        # App token cannot do without a permission that would apply to every
+        # repository the App is installed on.
         permission-contents: write
         permission-pull-requests: write
-        # The bump moves the two `go install .../cmd/rta@` lines in cd.yml
-        # and ci.yml, and GitHub refuses a push that touches a workflow file
-        # from any App token without this — the first dispatch of this
-        # workflow failed on exactly that. The App must hold the Workflows
-        # permission in its own settings for the mint to succeed.
-        permission-workflows: write
 
     - name: Commit, push and open the pull request
       if: steps.target.outputs.version != ''
@@ -110,6 +109,6 @@ jobs:
         gh pr create --base main --head "$branch" \
           --title "build: every plugin builds against rta $VERSION" \
           --body "$(printf '%s\n\n%s\n\n%s' \
-            "Every plugin's go.mod pins rta $VERSION; go.sum and the workflow pins (\`go install .../cmd/rta@\`) follow." \
+            "Every plugin's go.mod pins rta $VERSION; go.sum and .rta-version, which the workflows install from, follow." \
             "Release notes: https://github.com/this-is-tobi/rta/releases/tag/$VERSION" \
             "Opened by the bump workflow. CI is the review: a red check here means the SDK moved under a plugin.")"
