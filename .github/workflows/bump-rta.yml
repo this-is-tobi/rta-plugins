@@ -85,6 +85,12 @@ jobs:
         private-key: ${{ secrets.APP_PRIVATE_KEY }}
         permission-contents: write
         permission-pull-requests: write
+        # The bump moves the two `go install .../cmd/rta@` lines in cd.yml
+        # and ci.yml, and GitHub refuses a push that touches a workflow file
+        # from any App token without this — the first dispatch of this
+        # workflow failed on exactly that. The App must hold the Workflows
+        # permission in its own settings for the mint to succeed.
+        permission-workflows: write
 
     - name: Commit, push and open the pull request
       if: steps.target.outputs.version != ''
