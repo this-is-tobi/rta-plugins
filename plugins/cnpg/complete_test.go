@@ -102,7 +102,7 @@ func TestClusterReadingSuggestsAreLiveAndLocalOnesAreNot(t *testing.T) {
 				continue
 			}
 			switch f.Name {
-			case "namespace", "name":
+			case "namespace", "cluster":
 				if !f.Live {
 					t.Errorf("%s: the %s Suggest reads the cluster and must be Live", c.ID, f.Name)
 				}

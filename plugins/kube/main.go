@@ -99,7 +99,7 @@ func nsFields() []plugin.Field {
 		// typing caused — the per-keystroke channel re-evaluates plain
 		// Suggests on every sibling edit, which is exactly the cadence
 		// suggestNamespaces's own comment promises it is not called at.
-		{Name: "namespace", Type: plugin.String, Positional: true,
+		{Name: "namespace", Type: plugin.String, Config: "namespace",
 			Help: "namespace to read — the context's own when omitted",
 			Live: true, Suggest: suggestNamespaces},
 		{Name: "all-namespaces", Type: plugin.Bool,

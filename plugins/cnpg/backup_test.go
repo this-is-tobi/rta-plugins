@@ -704,7 +704,7 @@ func TestAnEmptyListingSaysWhichKindOfEmptyItIs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if body := v.(view.Text).Body; !strings.Contains(body, "rta cnpg status shop") {
+	if body := v.(view.Text).Body; !strings.Contains(body, "rta cnpg status --cluster shop") {
 		t.Errorf("a named cluster with no backups says %q, and points nowhere", body)
 	}
 
