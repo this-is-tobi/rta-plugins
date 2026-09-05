@@ -226,7 +226,7 @@ func leaseListCapability() plugin.Capability {
 				return leaseTable(ctx, c, req)
 			})
 		},
-	}, plugin.Field{Name: "limit", Type: plugin.Int, Default: 200, Min: 1, Max: 10000,
+	}, plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 200, Min: 1, Max: 10000,
 		Help: "how many leases to show"})
 }
 

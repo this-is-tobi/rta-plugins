@@ -30,7 +30,7 @@ func s3ObjectPresignCapability() plugin.Capability {
 	}, bucketField("bucket the object is in"), keyField("object to presign"),
 		plugin.Field{Name: "method", Type: plugin.String, Default: "get", Options: []string{"get", "put"},
 			Help: "get for a download link, put for an upload link"},
-		plugin.Field{Name: "ttl", Type: plugin.Int, Default: 900, Min: 1, Max: 604800,
+		plugin.Field{Name: "ttl", Type: plugin.Int, Config: "presign.ttl", Default: 900, Min: 1, Max: 604800,
 			Help: "seconds the URL stays valid — S3's own cap is 7 days (604800)"})
 }
 

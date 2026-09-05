@@ -176,7 +176,7 @@ func databaseListCapability() plugin.Capability {
 				return databaseTable(ctx, db, req, req.Int("limit"))
 			})
 		},
-	}, plugin.Field{Name: "limit", Type: plugin.Int, Default: 100, Min: 1, Max: 10000,
+	}, plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 100, Min: 1, Max: 10000,
 		Help: "how many databases to show"})
 }
 

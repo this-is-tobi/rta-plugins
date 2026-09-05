@@ -91,7 +91,7 @@ func serviceAccountCapabilities() []plugin.Capability {
 					// validation and the enforcement one list.
 					Options: provisionableNames(),
 					Help:    "what the identity may do: a kube.* capability ID, or logs, workloads, services, rollout — repeatable"},
-				{Name: "ttl", Type: plugin.String, Required: true,
+				{Name: "ttl", Type: plugin.String, Config: "serviceaccount.ttl", Required: true,
 					Help: "how long the minted token should last, e.g. 15m, 1h, 24h"},
 				{Name: "out", Type: plugin.Path, Local: true,
 					Help: "write the kubeconfig to this file (0600) instead of printing it"},

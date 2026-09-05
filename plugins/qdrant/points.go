@@ -27,7 +27,7 @@ func pointsCountCapability() plugin.Capability {
 			"nothing about what it is.",
 		Run: runPointsCount,
 	}, collectionField("collection to count"),
-		plugin.Field{Name: "exact", Type: plugin.Bool, Default: true,
+		plugin.Field{Name: "exact", Type: plugin.Bool, Config: "count.exact", Default: true,
 			Help: "scan for an exact count rather than taking the estimate"})
 }
 
@@ -90,7 +90,7 @@ func pointsScrollCapability() plugin.Capability {
 			"collection and counts it, which is usually the question and costs none of this.",
 		Run: runPointsScroll,
 	}, collectionField("collection to read from"),
-		plugin.Field{Name: "limit", Type: plugin.Int, Default: 10, Min: 1, Max: 1000,
+		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 10, Min: 1, Max: 1000,
 			Help: "how many points to return"},
 		plugin.Field{Name: "offset", Type: plugin.String, Default: "",
 			Help: "continue from the id the last page ended at"},

@@ -102,7 +102,7 @@ func Plugin() plugin.Plugin {
 				Safety:     plugin.Read,
 				Idempotent: true,
 				Run:        runContainerList,
-			}, plugin.Field{Name: "all", Type: plugin.Bool,
+			}, plugin.Field{Name: "all", Type: plugin.Bool, Config: "all",
 				Help: "include stopped containers"}),
 			cap(plugin.Capability{
 				ID:      "docker.image.list",

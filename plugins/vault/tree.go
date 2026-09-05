@@ -62,7 +62,7 @@ func kvTreeCapability() plugin.Capability {
 		plugin.Field{Name: "path", Type: plugin.String, Positional: true, Default: "",
 			Help: "start here; empty walks the whole mount",
 			Live: true, Suggest: suggestPaths},
-		plugin.Field{Name: "depth", Type: plugin.Int, Default: 4, Min: 1, Max: 20,
+		plugin.Field{Name: "depth", Type: plugin.Int, Config: "depth", Default: 4, Min: 1, Max: 20,
 			Help: "how many levels to expand"})
 }
 

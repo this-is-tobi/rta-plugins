@@ -122,7 +122,7 @@ func dumpCapability() plugin.Capability {
 		// different mistakes.
 		plugin.Field{Name: "out", Type: plugin.Path, Local: true,
 			Help: "file to write; refused if it already exists"},
-		plugin.Field{Name: "include", Type: plugin.String, Default: "all",
+		plugin.Field{Name: "include", Type: plugin.String, Config: "dump.include", Default: "all",
 			Options: []string{"all", "schema", "data"},
 			Help:    "what to put in the file"})
 }
