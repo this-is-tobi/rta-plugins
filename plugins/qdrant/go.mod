@@ -2,7 +2,7 @@ module github.com/this-is-tobi/rta-plugins/plugins/qdrant
 
 go 1.26.6
 
-require github.com/this-is-tobi/rta v0.9.0
+require github.com/this-is-tobi/rta v0.10.0
 
 require (
 	github.com/fatih/color v1.13.0 // indirect
