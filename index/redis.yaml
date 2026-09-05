@@ -1,0 +1,72 @@
+# rta-plugin-redis, as rta read it out of the binary.
+#
+# Everything here except the platform URLs came from the artifact's own
+# declaration, so this file cannot disagree with the plugin it describes.
+# `rta plugin install` derives all of it again from the bytes it downloads
+# and refuses the install if the two differ, naming this index.
+#
+# Regenerate with `rta plugin manifest` rather than editing.
+name: redis
+version: 0.1.0
+summary: "Redis: health, memory, persistence, replication, the keyspace and the slow log"
+homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/redis
+platforms:
+- os: darwin
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fredis%2Fv0.1.0/rta-plugin-redis_0.1.0_darwin_amd64.tar.gz
+  sha256: d9b4f03f76eb2e7106972f015d31dfe6cc99dfe9507d86ae25dc81db145c3d1e
+  bin: rta-plugin-redis
+- os: darwin
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fredis%2Fv0.1.0/rta-plugin-redis_0.1.0_darwin_arm64.tar.gz
+  sha256: 2f04814206b8ca0689cf71770061158b114150fdd22b8c5791edc8fe4456f38d
+  bin: rta-plugin-redis
+- os: linux
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fredis%2Fv0.1.0/rta-plugin-redis_0.1.0_linux_amd64.tar.gz
+  sha256: 037f95174fc735603ff8602b1aea5495530c2f31af06bac6270a965d4d278e6a
+  bin: rta-plugin-redis
+- os: linux
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fredis%2Fv0.1.0/rta-plugin-redis_0.1.0_linux_arm64.tar.gz
+  sha256: 17a5c2b307c78e390a951ba3c7bfcaa1277dac71d86709021e34ff3e7ef35733
+  bin: rta-plugin-redis
+- os: windows
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fredis%2Fv0.1.0/rta-plugin-redis_0.1.0_windows_amd64.tar.gz
+  sha256: 4b6d45160106c9dec299dea01cd7d352c29adccf09c162a7656b763f6b50e173
+  bin: rta-plugin-redis.exe
+- os: windows
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fredis%2Fv0.1.0/rta-plugin-redis_0.1.0_windows_arm64.tar.gz
+  sha256: c83873ace0b008eb913ce8682b028da144e60e13bd9da7d3a0c2e784b39e1c9c
+  bin: rta-plugin-redis.exe
+capabilities:
+- id: redis.overview
+  summary: Whether this server is healthy, and what it is made of
+  safety: read
+- id: redis.client.list
+  summary: Who is connected, from where, and what each connection is doing
+  safety: read
+- id: redis.cluster
+  summary: "The cluster as this node sees it: state, slots, and every node's role and health"
+  safety: read
+- id: redis.key.list
+  summary: Key names matching a pattern — never their contents
+  safety: read
+- id: redis.key.tree
+  summary: The shape of the keyspace in one call — names only
+  safety: read
+- id: redis.key.get
+  summary: What one key holds
+  safety: write
+  grant: true
+- id: redis.config.get
+  summary: What the server is configured with
+  safety: write
+- id: redis.slowlog
+  summary: The commands that took longest, with what they were called with
+  safety: write
+- id: redis.memory
+  summary: Where the memory goes, and what the server thinks about it
+  safety: read
