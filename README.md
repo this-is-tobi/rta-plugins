@@ -9,6 +9,7 @@ The first-party plugins for [rta](https://github.com/this-is-tobi/rta), and the 
 | [`mariadb`](./plugins/mariadb/) | MariaDB, adding Galera cluster state, replica status, and a `dump`/`restore` pair spelled the way that client spells it | 11 |
 | [`etcd`](./plugins/etcd/) | etcd v3: cluster health, members, leases, the keyspace, and a snapshot of the whole backend | 7 |
 | [`qdrant`](./plugins/qdrant/) | Qdrant: collections, their configuration and index health | 7 |
+| [`redis`](./plugins/redis/) | Redis: health, memory, persistence, replication, the keyspace and the slow log — over RESP spoken in-package, no client library | 9 |
 | [`s3`](./plugins/s3/) | S3-compatible object storage | 14 |
 | [`vault`](./plugins/vault/) | HashiCorp Vault | 16 |
 | [`kube`](./plugins/kube/) | Kubernetes, through the `kubectl` you already have | 19 |
@@ -57,7 +58,7 @@ gh attestation verify checksums.txt --owner this-is-tobi
 
 ## Writing your own
 
-rta's [Writing a plugin](https://github.com/this-is-tobi/rta/blob/main/docs/40-plugins/20-writing-a-plugin.md) is the guide; `rta plugin new` scaffolds one that builds and runs. These ten are worked examples, each adding one idea, in the order worth reading them (`eol`, the smallest, is built into rta itself and is the one to read first):
+rta's [Writing a plugin](https://github.com/this-is-tobi/rta/blob/main/docs/40-plugins/20-writing-a-plugin.md) is the guide; `rta plugin new` scaffolds one that builds and runs. These eleven are worked examples, each adding one idea, in the order worth reading them (`eol`, the smallest, is built into rta itself and is the one to read first):
 
 | Read | For |
 | --- | --- |
@@ -69,6 +70,7 @@ rta's [Writing a plugin](https://github.com/this-is-tobi/rta/blob/main/docs/40-p
 | [`s3`](./plugins/s3/) | Live completion from the service, and a download that refuses any key landing outside the directory you named |
 | [`vault`](./plugins/vault/) | A plugin where almost everything is a secret, and what that does to every declaration |
 | [`etcd`](./plugins/etcd/) · [`qdrant`](./plugins/qdrant/) | Tree views, and a plugin whose whole subject is a keyspace |
+| [`redis`](./plugins/redis/) | Speaking a wire protocol in-package when the client library would triple the binary |
 | [`docker`](./plugins/docker/) | A local daemon socket rather than a network endpoint |
 
 Third-party plugins are not yet accepted into this index. Publish your own — an index is a git repository with one directory in it, and `rta plugin index add <name> <repository>` attaches it like any other.
