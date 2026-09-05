@@ -65,7 +65,7 @@ GIT_AS_RTA := -c user.email=rta@localhost -c user.name=rta -c commit.gpgsign=fal
 RTA ?= rta
 
 # The rta checkout `dev` points the workspace at, and the ref `canary` clones.
-RTA_DIR ?= ../rule-them-all
+RTA_DIR ?= ../rta
 RTA_REF ?= main
 
 # VERSION is what a build stamps into `var version` — empty means "read it
@@ -351,12 +351,12 @@ index-release: name-check ## Regenerate index/<name>.yaml for PLUGINS_RELEASED f
 # The edit loop against an unreleased rta. go.work is never committed (see
 # .gitignore): every go.mod keeps pinning a released rta, which is what CI
 # and releases build, while this machine builds against the checkout.
-dev: ## Point a workspace at RTA_DIR (default ../rule-them-all) for an SDK edit loop
+dev: ## Point a workspace at RTA_DIR (default ../rta) for an SDK edit loop
 	@test -f "$(RTA_DIR)/go.mod" || { echo "$(RTA_DIR) is not an rta checkout — RTA_DIR=<path>"; exit 1; }
 	@rm -f go.work go.work.sum
 	@go work init $(PLUGINS:%=./plugins/%)
-	@go work edit -replace github.com/this-is-tobi/rule-them-all=$(RTA_DIR)
-	@echo "go.work points github.com/this-is-tobi/rule-them-all at $(RTA_DIR). 'make dev-off' removes it."
+	@go work edit -replace github.com/this-is-tobi/rta=$(RTA_DIR)
+	@echo "go.work points github.com/this-is-tobi/rta at $(RTA_DIR). 'make dev-off' removes it."
 
 dev-off: ## Remove the workspace; builds pin go.mod's rta again
 	@rm -f go.work go.work.sum && echo "go.work removed"
@@ -368,7 +368,7 @@ dev-off: ## Remove the workspace; builds pin go.mod's rta again
 # "the SDK moved under you" without blocking a release.
 canary: name-check ## Check every plugin against rta at RTA_REF (default main), without touching go.mod
 	@tmp=$$(mktemp -d); \
-	git clone --quiet --depth 1 --branch $(RTA_REF) https://github.com/this-is-tobi/rule-them-all "$$tmp/rta" || exit 1; \
+	git clone --quiet --depth 1 --branch $(RTA_REF) https://github.com/this-is-tobi/rta "$$tmp/rta" || exit 1; \
 	$(MAKE) dev RTA_DIR="$$tmp/rta" && $(MAKE) check; rc=$$?; \
 	$(MAKE) dev-off; rm -rf "$$tmp"; exit $$rc
 

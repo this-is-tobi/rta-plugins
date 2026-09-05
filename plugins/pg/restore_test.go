@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/this-is-tobi/rule-them-all/pkg/view"
+	"github.com/this-is-tobi/rta/pkg/view"
 )
 
 // needsRestoreTools skips a test whose subject sits past the tool lookup,

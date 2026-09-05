@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/this-is-tobi/rule-them-all/pkg/plugin"
-	"github.com/this-is-tobi/rule-them-all/pkg/view"
+	"github.com/this-is-tobi/rta/pkg/plugin"
+	"github.com/this-is-tobi/rta/pkg/view"
 )
 
 // quotaColumns: the % is used against the quota's own hard limit, so it has a

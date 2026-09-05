@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/this-is-tobi/rule-them-all/pkg/plugin"
+	"github.com/this-is-tobi/rta/pkg/plugin"
 )
 
 // Completion for the three things somebody types here: a context, a

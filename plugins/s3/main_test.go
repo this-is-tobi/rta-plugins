@@ -10,8 +10,8 @@ import (
 
 	"github.com/minio/minio-go/v7"
 
-	"github.com/this-is-tobi/rule-them-all/pkg/plugin"
-	"github.com/this-is-tobi/rule-them-all/pkg/sdk/sdktest"
+	"github.com/this-is-tobi/rta/pkg/plugin"
+	"github.com/this-is-tobi/rta/pkg/sdk/sdktest"
 )
 
 // sdktest is the definition of "a correct plugin" — no exemption for s3.

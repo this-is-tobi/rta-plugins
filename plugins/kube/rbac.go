@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/this-is-tobi/rule-them-all/pkg/view"
+	"github.com/this-is-tobi/rta/pkg/view"
 )
 
 // The Role half of kube.serviceaccount.provision: turning a caller-chosen

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/this-is-tobi/rule-them-all/pkg/format"
-	"github.com/this-is-tobi/rule-them-all/pkg/view"
+	"github.com/this-is-tobi/rta/pkg/format"
+	"github.com/this-is-tobi/rta/pkg/view"
 )
 
 // ErrTooManyRows and ErrTooLarge are the two ways a result set refuses to

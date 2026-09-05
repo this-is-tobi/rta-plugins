@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/this-is-tobi/rule-them-all/pkg/plugin"
+	"github.com/this-is-tobi/rta/pkg/plugin"
 )
 
 // selfSignedPEM builds a base64'd PEM the way a `kubernetes.io/tls` Secret's

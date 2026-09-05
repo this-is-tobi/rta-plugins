@@ -39,8 +39,8 @@
 package main
 
 import (
-	"github.com/this-is-tobi/rule-them-all/pkg/plugin"
-	"github.com/this-is-tobi/rule-them-all/pkg/sdk"
+	"github.com/this-is-tobi/rta/pkg/plugin"
+	"github.com/this-is-tobi/rta/pkg/sdk"
 )
 
 func main() { sdk.Serve(Plugin()) }

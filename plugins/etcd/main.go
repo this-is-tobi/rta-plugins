@@ -47,9 +47,9 @@ import (
 
 	clientv3 "go.etcd.io/etcd/client/v3"
 
-	"github.com/this-is-tobi/rule-them-all/pkg/plugin"
-	"github.com/this-is-tobi/rule-them-all/pkg/sdk"
-	"github.com/this-is-tobi/rule-them-all/pkg/view"
+	"github.com/this-is-tobi/rta/pkg/plugin"
+	"github.com/this-is-tobi/rta/pkg/sdk"
+	"github.com/this-is-tobi/rta/pkg/view"
 )
 
 func main() { sdk.Serve(Plugin()) }

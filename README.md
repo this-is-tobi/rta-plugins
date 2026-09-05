@@ -1,6 +1,6 @@
 # rta plugins
 
-The first-party plugins for [rta](https://github.com/this-is-tobi/rule-them-all), and the index rta installs them from. Each is a separate binary you install only if you want it — none is linked into `rta`, so the ones you skip cost you nothing.
+The first-party plugins for [rta](https://github.com/this-is-tobi/rta), and the index rta installs them from. Each is a separate binary you install only if you want it — none is linked into `rta`, so the ones you skip cost you nothing.
 
 | Plugin | Service | Capabilities |
 | --- | --- | --- |
@@ -27,7 +27,7 @@ rta plugin search postgres
 rta plugin install pg
 ```
 
-Install is where claims meet evidence: rta fetches the release archive, hashes it, launches it in the same sandbox any load uses, and refuses if what it declares is not what the index said. Installing is the trust decision. [Using plugins](https://github.com/this-is-tobi/rule-them-all/blob/main/docs/40-plugins/10-plugins.md) is the whole model — trust, credential grants, confinement, upgrades.
+Install is where claims meet evidence: rta fetches the release archive, hashes it, launches it in the same sandbox any load uses, and refuses if what it declares is not what the index said. Installing is the trust decision. [Using plugins](https://github.com/this-is-tobi/rta/blob/main/docs/40-plugins/10-plugins.md) is the whole model — trust, credential grants, confinement, upgrades.
 
 ## The layout
 
@@ -57,7 +57,7 @@ gh attestation verify checksums.txt --owner this-is-tobi
 
 ## Writing your own
 
-rta's [Writing a plugin](https://github.com/this-is-tobi/rule-them-all/blob/main/docs/40-plugins/20-writing-a-plugin.md) is the guide; `rta plugin new` scaffolds one that builds and runs. These ten are worked examples, each adding one idea, in the order worth reading them (`eol`, the smallest, is built into rta itself and is the one to read first):
+rta's [Writing a plugin](https://github.com/this-is-tobi/rta/blob/main/docs/40-plugins/20-writing-a-plugin.md) is the guide; `rta plugin new` scaffolds one that builds and runs. These ten are worked examples, each adding one idea, in the order worth reading them (`eol`, the smallest, is built into rta itself and is the one to read first):
 
 | Read | For |
 | --- | --- |
@@ -75,6 +75,6 @@ Third-party plugins are not yet accepted into this index. Publish your own — a
 
 ## Development
 
-`make ci` runs what CI runs. Every module pins a released rta; `make dev RTA_DIR=../rule-them-all` points a workspace at a checkout for an SDK edit loop, and `make dev-off` removes it. A `replace` never lands in a go.mod.
+`make ci` runs what CI runs. Every module pins a released rta; `make dev RTA_DIR=../rta` points a workspace at a checkout for an SDK edit loop, and `make dev-off` removes it. A `replace` never lands in a go.mod.
 
 Security reports: [SECURITY.md](./SECURITY.md).

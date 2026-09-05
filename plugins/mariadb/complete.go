@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/this-is-tobi/rule-them-all/pkg/plugin"
+	"github.com/this-is-tobi/rta/pkg/plugin"
 )
 
 // Live completion talks to the real server, which is the only way to complete

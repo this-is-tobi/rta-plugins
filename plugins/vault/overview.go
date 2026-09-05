@@ -6,8 +6,8 @@ import (
 
 	vaultapi "github.com/hashicorp/vault/api"
 
-	"github.com/this-is-tobi/rule-them-all/pkg/plugin"
-	"github.com/this-is-tobi/rule-them-all/pkg/view"
+	"github.com/this-is-tobi/rta/pkg/plugin"
+	"github.com/this-is-tobi/rta/pkg/view"
 )
 
 // vault.overview composes seal status, the current token and the policy
