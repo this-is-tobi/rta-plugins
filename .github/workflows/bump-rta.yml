@@ -1,0 +1,109 @@
+# A new rta release becomes a pull request here within the hour.
+#
+# Polling, on purpose. A push from rta's release workflow would need a token
+# in rta that can act on this repository, and this repository's whole reason
+# to exist apart from rta is that no such credential exists anywhere: an
+# index a foreign token can rewrite is an index that can point a plugin at
+# any artifact it likes. Reading rta's public releases needs nothing, so the
+# only cost of polling is the delay between checks, and the schedule below
+# is that delay. `workflow_dispatch` is the zero-delay path when somebody is
+# watching.
+#
+# The pull request is opened as the App rather than with GITHUB_TOKEN, for
+# the reason cd.yml already gives: a pull request GITHUB_TOKEN opens gets no
+# CI, and an SDK bump nobody has built is the one change that must not merge
+# on trust. The bump is a `build:` commit, so release-please cuts a release
+# of every plugin from it — which is right, since the SDK is compiled into
+# every binary.
+name: Bump rta
+
+on:
+  schedule:
+  - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: rta version to bump to (default the latest release)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    name: Open a pull request for a new rta release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - name: Checks-out repository
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Find the release to bump to, and whether it is new here
+      id: target
+      env:
+        GH_TOKEN: ${{ github.token }}
+        WANTED: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        if [ -n "$WANTED" ]; then
+          version="$WANTED"
+        else
+          version=$(gh api repos/this-is-tobi/rta/releases/latest --jq .tag_name)
+        fi
+        pinned=$(awk '/github.com\/this-is-tobi\/rta / {print $2}' plugins/pg/go.mod)
+        echo "release $version, pinned $pinned"
+        if [ "$version" = "$pinned" ]; then
+          echo "up to date"; exit 0
+        fi
+        if [ -n "$(gh pr list --head "bump-rta-$version" --state all --json number --jq '.[].number')" ]; then
+          echo "a pull request for $version already exists"; exit 0
+        fi
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+
+    - name: Setup Go
+      if: steps.target.outputs.version != ''
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version-file: plugins/pg/go.mod
+        cache: true
+        cache-dependency-path: plugins/*/go.sum
+
+    - name: Bump every module and the workflow pins
+      if: steps.target.outputs.version != ''
+      run: make bump-rta RTA_VERSION=${{ steps.target.outputs.version }}
+
+    - name: Mint the App token
+      if: steps.target.outputs.version != ''
+      id: app-token
+      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+      with:
+        client-id: ${{ secrets.APP_CLIENT_ID }}
+        private-key: ${{ secrets.APP_PRIVATE_KEY }}
+        permission-contents: write
+        permission-pull-requests: write
+
+    - name: Commit, push and open the pull request
+      if: steps.target.outputs.version != ''
+      env:
+        GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        VERSION: ${{ steps.target.outputs.version }}
+      run: |
+        set -euo pipefail
+        branch="bump-rta-$VERSION"
+        git config user.name github-actions[bot]
+        git config user.email github-actions[bot]@users.noreply.github.com
+        git checkout -b "$branch"
+        git add -A
+        git commit -m "build: every plugin builds against rta $VERSION" \
+          -m "The SDK is compiled into every binary, so every plugin follows an rta release. Opened by the bump workflow from https://github.com/this-is-tobi/rta/releases/tag/$VERSION"
+        git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$branch"
+        gh pr create --base main --head "$branch" \
+          --title "build: every plugin builds against rta $VERSION" \
+          --body "$(printf '%s\n\n%s\n\n%s' \
+            "Every plugin's go.mod pins rta $VERSION; go.sum and the workflow pins (\`go install .../cmd/rta@\`) follow." \
+            "Release notes: https://github.com/this-is-tobi/rta/releases/tag/$VERSION" \
+            "Opened by the bump workflow. CI is the review: a red check here means the SDK moved under a plugin.")"

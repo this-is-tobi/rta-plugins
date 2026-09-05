@@ -92,8 +92,15 @@ jobs:
         cache: true
         cache-dependency-path: plugins/*/go.sum
 
+    # Exact, not floating, for the reason cd.yml pins the manifest generator:
+    # the rta that renders a README decides what the README says. bump-rta
+    # moves this line with the modules.
+    - name: Install rta
+      # renovate: datasource=go depName=github.com/this-is-tobi/rta
+      run: go install github.com/this-is-tobi/rta/cmd/rta@v0.9.0
+
     - name: Guards, then build, vet, test and format-check every module
-      run: make fmt-check name-check replace-check docs-check && make -k check
+      run: make fmt-check name-check replace-check docs-check && make -k check && make docs-drift
 
   # Every target a release ships, compiled to /dev/null: what this checks is
   # that the build constraints resolve on every platform, not that the binary
