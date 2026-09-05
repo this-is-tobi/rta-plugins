@@ -23,8 +23,12 @@ import (
 // through the node proxy — a different mechanism, a different permission, and
 // one that does not work through every proxy people put in front of a cluster,
 // which is the property this whole plugin is built around. plugins/kube's
-// `pvc.list` refuses the same column for the same reason. What is here is
-// capacity, phase and class: the facts a claim actually carries.
+// `pvc.list` refuses the same column for the same reason, and `kube.pvc.usage`
+// is where it lives instead: graded worst-first, for whoever holds
+// `nodes/proxy` — a permission that is the whole kubelet API, exec included,
+// which is why it is a capability of its own over there and not a flag here.
+// What is here is capacity, phase and class: the facts a claim actually
+// carries.
 
 // pvcSelector is the label CloudNativePG puts on every volume it creates for a
 // cluster, which is how these are found. A label rather than a name prefix,
@@ -144,7 +148,8 @@ func storageCapability() plugin.Capability {
 			"different permission, and one that does not survive every proxy people put " +
 			"in front of a cluster, which is the property this plugin is built around. A " +
 			"column that looked like usage and was capacity would be worse than no " +
-			"column.",
+			"column. `rta kube pvc usage` reports it, graded and worst first, for whoever " +
+			"holds nodes/proxy.",
 		Run: runStorage,
 	}, plugin.Field{Name: "cluster", Type: plugin.String, Positional: true, Required: true,
 		Help: "the cluster whose volumes to read",
