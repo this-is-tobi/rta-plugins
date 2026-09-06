@@ -7,39 +7,39 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: vault
-version: 0.3.2
+version: 0.4.0
 summary: "HashiCorp Vault: secrets, tokens, leases, policies and transit encryption"
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/vault
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.3.2/rta-plugin-vault_0.3.2_darwin_amd64.tar.gz
-  sha256: 9b4913cc28fe29979dc7c9fe2d0c418eb9b9f5cdbf85329cbfedcf4661f5bdc3
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.4.0/rta-plugin-vault_0.4.0_darwin_amd64.tar.gz
+  sha256: 07771bfd2b60e5c210744b5d1e110308fdfd7c78dc051ba1a28f109c27b0e1eb
   bin: rta-plugin-vault
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.3.2/rta-plugin-vault_0.3.2_darwin_arm64.tar.gz
-  sha256: 677709825283de88524d8f86b90225798f030f9594ad1cf153d89cc0b16a2a50
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.4.0/rta-plugin-vault_0.4.0_darwin_arm64.tar.gz
+  sha256: f10b859cadaca1e3a975d8c4f581f6e84c0ceab93157ad785314770fc70a36d0
   bin: rta-plugin-vault
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.3.2/rta-plugin-vault_0.3.2_linux_amd64.tar.gz
-  sha256: cb8df9e08e92825e1ecc72207ee8b3d93e8e85b7c0c3bae791c2c50dd0a27748
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.4.0/rta-plugin-vault_0.4.0_linux_amd64.tar.gz
+  sha256: c7faf868d5a2d9c0f63f401569a59cd75e00bd74c855d4689c325d4141d1f267
   bin: rta-plugin-vault
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.3.2/rta-plugin-vault_0.3.2_linux_arm64.tar.gz
-  sha256: 28cd0a1600da2b9ea17fe0771b2c86d62d406e78d0698a037f9d1c09e3038158
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.4.0/rta-plugin-vault_0.4.0_linux_arm64.tar.gz
+  sha256: c3cfc2bfb13d38aacc9a52565721fc19ceade5e60fae7192f9a890784ad55289
   bin: rta-plugin-vault
 - os: windows
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.3.2/rta-plugin-vault_0.3.2_windows_amd64.tar.gz
-  sha256: 1fd358040095f3f2b02791356a0228ab03500890d9949cba5b78de6c8f732163
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.4.0/rta-plugin-vault_0.4.0_windows_amd64.tar.gz
+  sha256: 7c46c12f4348162f2931093a4a10da20c41a0f9eef66164c6700d85fea85cfe7
   bin: rta-plugin-vault.exe
 - os: windows
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.3.2/rta-plugin-vault_0.3.2_windows_arm64.tar.gz
-  sha256: c46757523be206ba6b9d5ed172fb6b59c11095f6f98697039b56f285dab628ce
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.4.0/rta-plugin-vault_0.4.0_windows_arm64.tar.gz
+  sha256: 7b76c1e9fad926e90e29b3c8e3820ec0050d18489aaa95ab688368c38b0bd388
   bin: rta-plugin-vault.exe
 capabilities:
 - id: vault.overview
@@ -55,13 +55,27 @@ capabilities:
   summary: The whole shape of a KV mount in one call — names only
   safety: read
 - id: vault.kv.get
-  summary: Reveal a secret's current version
+  summary: Reveal a secret's current version, or an earlier one
   safety: write
   grant: true
 - id: vault.kv.set
   summary: Set (or overwrite) a secret
   safety: write
   grant: true
+- id: vault.kv.history
+  summary: A secret's versions — which is current, which are deleted or destroyed — never values
+  safety: read
+- id: vault.kv.delete
+  summary: Delete a secret's current version, or the versions named — undoable
+  safety: write
+  grant: true
+- id: vault.kv.undelete
+  summary: Bring back deleted versions of a secret
+  safety: write
+  grant: true
+- id: vault.kv.destroy
+  summary: Destroy versions of a secret for good, for a person at a terminal
+  safety: destructive
 - id: vault.token.status
   summary: What the current token can do, and when it expires
   safety: read
