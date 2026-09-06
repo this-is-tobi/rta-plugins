@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.2.1...plugins/qdrant/v0.3.0) (2026-09-06)
+
+
+### Features
+
+* what moves a whole store, or mints an identity, is declared for the person at the terminal ([858d399](https://github.com/this-is-tobi/rta-plugins/commit/858d3998105b6799a534522daf3114bc0c80126d))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.11.0 ([e2a63c9](https://github.com/this-is-tobi/rta-plugins/commit/e2a63c9e32dfa8f8a969ea47ee77a8a5540af691))
+
 ## [0.2.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.2.0...plugins/qdrant/v0.2.1) (2026-09-05)
 
 

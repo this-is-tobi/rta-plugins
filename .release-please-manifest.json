@@ -1,1 +1,1 @@
-{"plugins/cnpg":"0.2.1","plugins/docker":"0.2.1","plugins/etcd":"0.2.1","plugins/kube":"0.2.1","plugins/mariadb":"0.2.1","plugins/mysql":"0.2.1","plugins/pg":"0.2.1","plugins/qdrant":"0.2.1","plugins/s3":"0.2.1","plugins/vault":"0.2.1","plugins/redis":"0.1.0"}
+{"plugins/cnpg":"0.2.2","plugins/docker":"0.2.2","plugins/etcd":"0.3.0","plugins/kube":"0.3.0","plugins/mariadb":"0.3.0","plugins/mysql":"0.3.0","plugins/pg":"0.3.0","plugins/qdrant":"0.3.0","plugins/s3":"0.3.0","plugins/vault":"0.3.0","plugins/redis":"0.1.1"}
