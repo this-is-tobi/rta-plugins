@@ -62,7 +62,6 @@ Refused when the cluster configures no backup at all. CloudNativePG accepts such
 | idempotent           | false                                                                                                                                                                  |
 | cli                  | rta cnpg backup request \[--cluster \<string>\] \[--method \<string>\] \[--target \<string>\] \[--online \<string>\] \[--namespace \<string>\] \[--context \<string>\] |
 | mcp-tool             | cnpg_backup_request                                                                                                                                                    |
-| mcp exposure         | off by default — \`rta mcp serve --allow-write cnpg\`                                                                                                                  |
 | grant required (mcp) | yes — a person must run \`rta grant allow cnpg.backup.request\`, optionally naming one cluster                                                                         |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`                                     |
 | input:cluster        | string, required, completes, from config plugins.cnpg.cluster — the cluster to back up                                                                                 |
