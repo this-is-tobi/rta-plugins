@@ -4,38 +4,85 @@ HashiCorp Vault: secrets, tokens, leases, policies and transit encryption
 
 ## Capabilities
 
-| Capability            | Safety      | Summary                                                                |
-|-----------------------|-------------|------------------------------------------------------------------------|
-| vault.kv.get          | write       | Reveal a secret's current version                                      |
-| vault.kv.list         | read        | List secret names at a path — never values                             |
-| vault.kv.set          | write       | Set (or overwrite) a secret                                            |
-| vault.kv.tree         | read        | The whole shape of a KV mount in one call — names only                 |
-| vault.lease.show      | read        | A lease's TTL and renewability                                         |
-| vault.overview        | read        | Seal state, the current token and the policy list at a glance          |
-| vault.policy.get      | read        | One policy's own rules, as HCL                                         |
-| vault.policy.list     | read        | Every ACL policy defined on this Vault                                 |
-| vault.restore         | destructive | Restore a vault.snapshot file into a Vault, for a person at a terminal |
-| vault.seal.status     | read        | Whether Vault is initialized, sealed, and what it takes to unseal it   |
-| vault.snapshot        | write       | Write a raft storage snapshot, for a person at a terminal              |
-| vault.token.status    | read        | What the current token can do, and when it expires                     |
-| vault.transit.decrypt | write       | Decrypt ciphertext back to its plaintext                               |
-| vault.transit.encrypt | write       | Encrypt caller-supplied plaintext with a Vault-managed key             |
-| vault.wrap.get        | write       | Unwrap a single-use token, once                                        |
-| vault.wrap.set        | write       | Wrap data into a single-use, TTL'd token                               |
+| Capability            | Safety      | Summary                                                                               |
+|-----------------------|-------------|---------------------------------------------------------------------------------------|
+| vault.kv.delete       | write       | Delete a secret's current version, or the versions named — undoable                   |
+| vault.kv.destroy      | destructive | Destroy versions of a secret for good, for a person at a terminal                     |
+| vault.kv.get          | write       | Reveal a secret's current version, or an earlier one                                  |
+| vault.kv.history      | read        | A secret's versions — which is current, which are deleted or destroyed — never values |
+| vault.kv.list         | read        | List secret names at a path — never values                                            |
+| vault.kv.set          | write       | Set (or overwrite) a secret                                                           |
+| vault.kv.tree         | read        | The whole shape of a KV mount in one call — names only                                |
+| vault.kv.undelete     | write       | Bring back deleted versions of a secret                                               |
+| vault.lease.show      | read        | A lease's TTL and renewability                                                        |
+| vault.overview        | read        | Seal state, the current token and the policy list at a glance                         |
+| vault.policy.get      | read        | One policy's own rules, as HCL                                                        |
+| vault.policy.list     | read        | Every ACL policy defined on this Vault                                                |
+| vault.restore         | destructive | Restore a vault.snapshot file into a Vault, for a person at a terminal                |
+| vault.seal.status     | read        | Whether Vault is initialized, sealed, and what it takes to unseal it                  |
+| vault.snapshot        | write       | Write a raft storage snapshot, for a person at a terminal                             |
+| vault.token.status    | read        | What the current token can do, and when it expires                                    |
+| vault.transit.decrypt | write       | Decrypt ciphertext back to its plaintext                                              |
+| vault.transit.encrypt | write       | Encrypt caller-supplied plaintext with a Vault-managed key                            |
+| vault.wrap.get        | write       | Unwrap a single-use token, once                                                       |
+| vault.wrap.set        | write       | Wrap data into a single-use, TTL'd token                                              |
 
 ## Configuration
 
 Under `plugins: vault:` in rta's configuration, or in a profile's `set:`. An installed plugin's section is pinned to the artifact — `plugins: vault@<digest>:` — and `rta doctor` prints the exact line. The caller always wins, so a configured value is a default, never a lock.
 
-| Key           | Read by                                                                                                                                                                                                                                                                             | Help                                                                       |
-|---------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------|
-| address       | vault.kv.get, vault.kv.list, vault.kv.set, vault.kv.tree, vault.lease.show, vault.overview, vault.policy.get, vault.policy.list, vault.restore, vault.seal.status, vault.snapshot, vault.token.status, vault.transit.decrypt, vault.transit.encrypt, vault.wrap.get, vault.wrap.set | Vault server address                                                       |
-| ca-file       | vault.kv.get, vault.kv.list, vault.kv.set, vault.kv.tree, vault.lease.show, vault.overview, vault.policy.get, vault.policy.list, vault.restore, vault.seal.status, vault.snapshot, vault.token.status, vault.transit.decrypt, vault.transit.encrypt, vault.wrap.get, vault.wrap.set | PEM bundle to verify the server against, beyond the host's own trust store |
-| depth         | vault.kv.tree                                                                                                                                                                                                                                                                       | how many levels to expand                                                  |
-| kv-mount      | vault.kv.get, vault.kv.list, vault.kv.set, vault.kv.tree                                                                                                                                                                                                                            | the KV v2 secrets engine's mount path                                      |
-| namespace     | vault.kv.get, vault.kv.list, vault.kv.set, vault.kv.tree, vault.lease.show, vault.overview, vault.policy.get, vault.policy.list, vault.restore, vault.seal.status, vault.snapshot, vault.token.status, vault.transit.decrypt, vault.transit.encrypt, vault.wrap.get, vault.wrap.set | Vault Enterprise namespace — empty for OSS or the root namespace           |
-| transit-mount | vault.transit.decrypt, vault.transit.encrypt                                                                                                                                                                                                                                        | the transit secrets engine's mount path                                    |
-| wrap.ttl      | vault.wrap.set                                                                                                                                                                                                                                                                      | how long the token stays valid, unread — not the data's own lifetime       |
+| Key           | Read by                                                                                                                                                                                                                                                                                                                                                     | Help                                                                       |
+|---------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------|
+| address       | vault.kv.delete, vault.kv.destroy, vault.kv.get, vault.kv.history, vault.kv.list, vault.kv.set, vault.kv.tree, vault.kv.undelete, vault.lease.show, vault.overview, vault.policy.get, vault.policy.list, vault.restore, vault.seal.status, vault.snapshot, vault.token.status, vault.transit.decrypt, vault.transit.encrypt, vault.wrap.get, vault.wrap.set | Vault server address                                                       |
+| ca-file       | vault.kv.delete, vault.kv.destroy, vault.kv.get, vault.kv.history, vault.kv.list, vault.kv.set, vault.kv.tree, vault.kv.undelete, vault.lease.show, vault.overview, vault.policy.get, vault.policy.list, vault.restore, vault.seal.status, vault.snapshot, vault.token.status, vault.transit.decrypt, vault.transit.encrypt, vault.wrap.get, vault.wrap.set | PEM bundle to verify the server against, beyond the host's own trust store |
+| depth         | vault.kv.tree                                                                                                                                                                                                                                                                                                                                               | how many levels to expand                                                  |
+| kv-mount      | vault.kv.delete, vault.kv.destroy, vault.kv.get, vault.kv.history, vault.kv.list, vault.kv.set, vault.kv.tree, vault.kv.undelete                                                                                                                                                                                                                            | the KV v2 secrets engine's mount path                                      |
+| namespace     | vault.kv.delete, vault.kv.destroy, vault.kv.get, vault.kv.history, vault.kv.list, vault.kv.set, vault.kv.tree, vault.kv.undelete, vault.lease.show, vault.overview, vault.policy.get, vault.policy.list, vault.restore, vault.seal.status, vault.snapshot, vault.token.status, vault.transit.decrypt, vault.transit.encrypt, vault.wrap.get, vault.wrap.set | Vault Enterprise namespace — empty for OSS or the root namespace           |
+| transit-mount | vault.transit.decrypt, vault.transit.encrypt                                                                                                                                                                                                                                                                                                                | the transit secrets engine's mount path                                    |
+| wrap.ttl      | vault.wrap.set                                                                                                                                                                                                                                                                                                                                              | how long the token stays valid, unread — not the data's own lifetime       |
+
+## vault.kv.delete
+
+A soft delete, which is what `vault kv delete` does: the data of the versions named is hidden and vault.kv.undelete brings it back — nothing here is destroyed. With no --versions, the current version. The metadata and every other version stay, so vault.kv.get still answers for those and vault.kv.history lists the deleted ones as deleted. Needs the grant vault.kv.set needs, naming the path, because hiding the current version is what a reader of that path sees as the secret going away.
+
+| Field                | Value                                                                                                                                                                                   |
+|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                   | vault.kv.delete                                                                                                                                                                         |
+| summary              | Delete a secret's current version, or the versions named — undoable                                                                                                                     |
+| safety               | write                                                                                                                                                                                   |
+| idempotent           | true                                                                                                                                                                                    |
+| cli                  | rta vault kv delete \[--mount \<string>\] \<path> \[--versions \<stringSlice>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]         |
+| mcp-tool             | vault_kv_delete                                                                                                                                                                         |
+| grant required (mcp) | yes — a person must run \`rta grant allow vault.kv.delete\`, optionally naming one path                                                                                                 |
+| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
+| input:mount          | string, default secret, completes, from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                                                           |
+| input:path           | string, required, completes — the secret's path within the mount                                                                                                                        |
+| input:versions       | stringSlice — version numbers, as vault.kv.history lists them; none means the current version                                                                                           |
+| input:address        | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
+| input:namespace      | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
+| input:token          | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
+| input:ca-file        | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
+
+## vault.kv.destroy
+
+The versions named are gone: the data is erased and the chain keeps only the fact that a version of that number existed. **Refuses MCP outright**, on the reasoning vault.snapshot states from the other side — vault.kv.delete hides a version and takes a grant because undelete undoes it; nothing undoes this, so no grant can name what it costs. vault.kv.history shows what you are about to lose.
+
+| Field           | Value                                                                                                                                                                                   |
+|-----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id              | vault.kv.destroy                                                                                                                                                                        |
+| summary         | Destroy versions of a secret for good, for a person at a terminal                                                                                                                       |
+| safety          | destructive                                                                                                                                                                             |
+| idempotent      | true                                                                                                                                                                                    |
+| cli             | rta vault kv destroy \[--mount \<string>\] \<path> \[--versions \<stringSlice>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]        |
+| mcp-tool        | none — for the person at the terminal, never an agent                                                                                                                                   |
+| profiles        | --profile \<name> runs this against a configured connection                                                                                                                             |
+| input:mount     | string, default secret, completes, from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                                                           |
+| input:path      | string, required, completes — the secret's path within the mount                                                                                                                        |
+| input:versions  | stringSlice, required — version numbers, as vault.kv.history lists them                                                                                                                 |
+| input:address   | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
+| input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
+| input:token     | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
+| input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
 
 ## vault.kv.get
 
@@ -44,19 +91,40 @@ Write, the same as builtin/kv's kv.get, for the same reason: revealing a secret'
 | Field                | Value                                                                                                                                                                                   |
 |----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | id                   | vault.kv.get                                                                                                                                                                            |
-| summary              | Reveal a secret's current version                                                                                                                                                       |
+| summary              | Reveal a secret's current version, or an earlier one                                                                                                                                    |
 | safety               | write                                                                                                                                                                                   |
 | idempotent           | true                                                                                                                                                                                    |
-| cli                  | rta vault kv get \[--mount \<string>\] \<path> \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                                          |
+| cli                  | rta vault kv get \[--mount \<string>\] \<path> \[--version \<int>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                     |
 | mcp-tool             | vault_kv_get                                                                                                                                                                            |
 | grant required (mcp) | yes — a person must run \`rta grant allow vault.kv.get\`, optionally naming one path                                                                                                    |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
 | input:mount          | string, default secret, completes, from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                                                           |
 | input:path           | string, required, completes — the secret's path within the mount                                                                                                                        |
+| input:version        | int, default 0 — a specific version, as vault.kv.history numbers them; 0 is the current one                                                                                             |
 | input:address        | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
 | input:namespace      | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
 | input:token          | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
 | input:ca-file        | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
+
+## vault.kv.history
+
+The structured equivalent of `vault kv metadata get`: every version the engine still knows about, when each was written, and whether it is the current one, deleted (hidden, and vault.kv.undelete brings it back) or destroyed (gone). Read, like vault.kv.list, for the same reason: this is the shape of the chain and never a link of it — no version's data is fetched. The count is how many earlier values a rotation could still reach, which is what `vault kv get --version` reads.
+
+| Field           | Value                                                                                                                                                                                   |
+|-----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id              | vault.kv.history                                                                                                                                                                        |
+| summary         | A secret's versions — which is current, which are deleted or destroyed — never values                                                                                                   |
+| safety          | read                                                                                                                                                                                    |
+| idempotent      | true                                                                                                                                                                                    |
+| cli             | rta vault kv history \[--mount \<string>\] \<path> \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                                      |
+| mcp-tool        | vault_kv_history                                                                                                                                                                        |
+| profiles        | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
+| input:mount     | string, default secret, completes, from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                                                           |
+| input:path      | string, required, completes — the secret's path within the mount                                                                                                                        |
+| input:address   | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
+| input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
+| input:token     | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
+| input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
 
 ## vault.kv.list
 
@@ -124,6 +192,28 @@ Bounded in both directions, and it says when it stopped. A folder the token may 
 | input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
 | input:token     | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
+
+## vault.kv.undelete
+
+The other half of vault.kv.delete: the versions named become readable again, exactly as they were. A destroyed version cannot come back this way or any other; vault.kv.history says which is which before you ask.
+
+| Field                | Value                                                                                                                                                                                   |
+|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                   | vault.kv.undelete                                                                                                                                                                       |
+| summary              | Bring back deleted versions of a secret                                                                                                                                                 |
+| safety               | write                                                                                                                                                                                   |
+| idempotent           | true                                                                                                                                                                                    |
+| cli                  | rta vault kv undelete \[--mount \<string>\] \<path> \[--versions \<stringSlice>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]       |
+| mcp-tool             | vault_kv_undelete                                                                                                                                                                       |
+| grant required (mcp) | yes — a person must run \`rta grant allow vault.kv.undelete\`, optionally naming one path                                                                                               |
+| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
+| input:mount          | string, default secret, completes, from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                                                           |
+| input:path           | string, required, completes — the secret's path within the mount                                                                                                                        |
+| input:versions       | stringSlice, required — version numbers, as vault.kv.history lists them                                                                                                                 |
+| input:address        | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
+| input:namespace      | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
+| input:token          | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
+| input:ca-file        | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
 
 ## vault.lease.show
 

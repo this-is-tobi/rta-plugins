@@ -71,7 +71,7 @@ func runKVList(ctx context.Context, req plugin.Request) (view.View, error) {
 func kvGetCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.kv.get",
-		Summary:    "Reveal a secret's current version",
+		Summary:    "Reveal a secret's current version, or an earlier one",
 		Safety:     plugin.Write,
 		NeedsGrant: true,
 		Scope:      "path",
@@ -81,12 +81,23 @@ func kvGetCapability() plugin.Capability {
 			"(but not destroyed) version reports which, rather than an empty secret that looks the " +
 			"same as one that was never there.",
 		Run: runKVGet,
-	}, mountField(), pathField("the secret's path within the mount"))
+	}, mountField(), pathField("the secret's path within the mount"),
+		plugin.Field{Name: "version", Type: plugin.Int, Default: 0, Min: 0,
+			Help: "a specific version, as vault.kv.history numbers them; 0 is the current one"})
 }
 
 func runKVGet(ctx context.Context, req plugin.Request) (view.View, error) {
 	return withClient(req, func(client *vaultapi.Client) (view.View, error) {
-		secret, err := client.KVv2(req.String("mount")).Get(ctx, req.String("path"))
+		engine := client.KVv2(req.String("mount"))
+		var (
+			secret *vaultapi.KVSecret
+			err    error
+		)
+		if v := req.Int("version"); v > 0 {
+			secret, err = engine.GetVersion(ctx, req.String("path"), v)
+		} else {
+			secret, err = engine.Get(ctx, req.String("path"))
+		}
 		if err != nil {
 			return nil, classify(err, req)
 		}

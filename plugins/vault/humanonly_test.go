@@ -9,8 +9,9 @@ import "testing"
 // operator consenting to a call that could never run.
 func TestMovingTheWholeVaultIsNeverATool(t *testing.T) {
 	want := map[string]bool{
-		"vault.snapshot": true,
-		"vault.restore":  true,
+		"vault.snapshot":   true,
+		"vault.restore":    true,
+		"vault.kv.destroy": true,
 	}
 	seen := 0
 	for _, c := range Plugin().Capabilities {

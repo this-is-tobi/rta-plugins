@@ -37,6 +37,10 @@ func conformanceInputs(dir string) map[string]map[string]any {
 	return map[string]map[string]any{
 		"vault.kv.get":          conn(map[string]any{"path": "app/db"}),
 		"vault.kv.set":          conn(map[string]any{"path": "app/db", "data": []string{"password=s3cret"}}),
+		"vault.kv.history":      conn(map[string]any{"path": "app/db"}),
+		"vault.kv.delete":       conn(map[string]any{"path": "app/db"}),
+		"vault.kv.undelete":     conn(map[string]any{"path": "app/db", "versions": []string{"1"}}),
+		"vault.kv.destroy":      conn(map[string]any{"path": "app/db", "versions": []string{"1"}}),
 		"vault.transit.encrypt": conn(map[string]any{"key": "app", "plaintext": "hello"}),
 		"vault.transit.decrypt": conn(map[string]any{"key": "app", "ciphertext": "vault:v1:xxxx"}),
 		"vault.wrap.set":        conn(map[string]any{"data": []string{"password=s3cret"}}),
@@ -201,8 +205,14 @@ func TestEveryCapabilityIsNoPreview(t *testing.T) {
 // enforcement mechanism, the struct field is.
 func TestWriteAndDestructiveCapabilitiesNeedAGrant(t *testing.T) {
 	want := map[string]bool{
-		"vault.kv.get":          true,
-		"vault.kv.set":          true,
+		"vault.kv.get":      true,
+		"vault.kv.set":      true,
+		"vault.kv.history":  false, // the shape of the chain, never a link of it
+		"vault.kv.delete":   true,
+		"vault.kv.undelete": true,
+		// Refuses SurfaceMCP like snapshot and restore: nothing undoes it, so
+		// no grant can name what it costs, and the unset NeedsGrant follows.
+		"vault.kv.destroy":      false,
 		"vault.transit.encrypt": false, // uses the caller's own plaintext, nothing revealed
 		"vault.transit.decrypt": true,
 		"vault.wrap.set":        true,
