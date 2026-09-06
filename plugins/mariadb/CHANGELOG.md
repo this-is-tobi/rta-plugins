@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.3.0...plugins/mariadb/v0.3.1) (2026-09-06)
+
+
+### Dependencies
+
+* every plugin builds against rta v0.12.0 ([887d933](https://github.com/this-is-tobi/rta-plugins/commit/887d933329fad6206abdcd576ebe509915c46931))
+
 ## [0.3.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.2.1...plugins/mariadb/v0.3.0) (2026-09-06)
 
 
