@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.3.2...plugins/vault/v0.4.0) (2026-09-06)
+
+
+### Features
+
+* **vault:** a secret's versions can be listed, read back, deleted, undeleted and destroyed ([784f19a](https://github.com/this-is-tobi/rta-plugins/commit/784f19a3c7d5e2285602c7c3be2669d579b982b7))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.14.0 ([4165a34](https://github.com/this-is-tobi/rta-plugins/commit/4165a3402bcbcbb4065a292d74942ebaa96950b2))
+
 ## [0.3.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.3.1...plugins/vault/v0.3.2) (2026-09-06)
 
 

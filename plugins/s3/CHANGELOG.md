@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.3.2...plugins/s3/v0.3.3) (2026-09-06)
+
+
+### Dependencies
+
+* every plugin builds against rta v0.14.0 ([4165a34](https://github.com/this-is-tobi/rta-plugins/commit/4165a3402bcbcbb4065a292d74942ebaa96950b2))
+
 ## [0.3.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.3.1...plugins/s3/v0.3.2) (2026-09-06)
 
 
