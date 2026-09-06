@@ -438,9 +438,10 @@ func Plugin() plugin.Plugin {
 					Help: "maximum rows to return; a larger table is refused, not shortened"}),
 
 			cap(plugin.Capability{
-				ID:      "pg.dump",
-				Summary: "Back up the whole database to a file, for a person at a terminal",
-				Safety:  plugin.Write,
+				ID:        "pg.dump",
+				HumanOnly: true,
+				Summary:   "Back up the whole database to a file, for a person at a terminal",
+				Safety:    plugin.Write,
 				// Not idempotent, and the reason is the guarantee: running it
 				// twice at the same --out refuses rather than overwriting.
 				Idempotent: false,
@@ -492,8 +493,9 @@ func Plugin() plugin.Plugin {
 					Help:    "what to put in the file"}),
 
 			cap(plugin.Capability{
-				ID:      "pg.restore",
-				Summary: "Restore a pg.dump backup into a database, for a person at a terminal",
+				ID:        "pg.restore",
+				HumanOnly: true,
+				Summary:   "Restore a pg.dump backup into a database, for a person at a terminal",
 				// Destructive, because that is what it is: it writes a file's
 				// whole contents into a live database, and with --clean it
 				// drops objects on the way in. The class buys the --yes gate

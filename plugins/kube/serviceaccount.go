@@ -41,17 +41,19 @@ const minTokenTTL = 10 * time.Minute
 func serviceAccountCapabilities() []plugin.Capability {
 	return []plugin.Capability{
 		cap(plugin.Capability{
-			ID:      "kube.serviceaccount.provision",
-			Summary: "Mint a scoped ServiceAccount, Role and token for an agent to use",
-			// Safety: Write, deliberately with no NeedsGrant or Scope. This
-			// mirrors keys.backup, not kube.context.set: refusing SurfaceMCP
-			// outright is chosen *instead of* a grant, not alongside one —
-			// NeedsGrant would trigger a full consent/notification flow in
-			// internal/mcp/bridge.go *before* Run ever executes, for a call
-			// that this Run refuses unconditionally the moment it starts.
-			// That would spend an operator's attention on a decision that
-			// cannot matter. The real gate is the SurfaceMCP check below:
-			// operator-only, from the CLI/TUI, same as keys.backup/.restore.
+			ID:        "kube.serviceaccount.provision",
+			HumanOnly: true,
+			Summary:   "Mint a scoped ServiceAccount, Role and token for an agent to use",
+			// HumanOnly, and Write with no NeedsGrant or Scope, the way
+			// keys.backup is declared. HumanOnly is what keeps this out of an
+			// agent's tool list altogether: before the flag existed the
+			// capability was advertised and then refused by Run, and under
+			// the one-gate model an advertised Write costs a grant first —
+			// the operator would have been asked to consent to a call that
+			// was always going to be refused. NeedsGrant is left off for the
+			// same reason. The SurfaceMCP check in Run stays because a plugin
+			// binary travels to whichever rta is installed, and a host older
+			// than 0.11.0 does not read the flag.
 			//
 			// One consequence worth being explicit about: this combination
 			// means no CLI/TUI confirmation prompt either — that prompt is

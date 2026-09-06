@@ -44,8 +44,9 @@ var restoreTools = []string{"mysql"}
 
 func restoreCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:      "mysql.restore",
-		Summary: "Restore a mysql.dump file into a database, for a person at a terminal",
+		ID:        "mysql.restore",
+		HumanOnly: true,
+		Summary:   "Restore a mysql.dump file into a database, for a person at a terminal",
 		// Destructive, because that is what it is: the dump's SQL drops and
 		// recreates the tables it carries. The class buys the --yes gate.
 		Safety:     plugin.Destructive,

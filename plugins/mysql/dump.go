@@ -48,11 +48,14 @@ import (
 // refusal can name what it looked for.
 var dumpTools = []string{"mysqldump"}
 
-// humanOnly is this plugin's copy of the gate builtin/keys opens with and
-// pg.dump repeats. It comes first, before a connection is opened, so an
-// agent's call never spends the operator's password on a question that was
-// always going to be answered no. The hint is the caller's, because the dump
-// and the restore refuse for mirrored reasons.
+// humanOnly is the handler's half of the HumanOnly the dump and the restore
+// declare. The declaration is what keeps them out of an agent's tool list; the
+// check stays because a plugin binary travels to whichever rta is
+// installed, and a host older than 0.11.0 does not read the flag.
+// It comes first, before a connection is opened, so an agent's call never
+// spends the operator's password on a question that was always going to be
+// answered no. The hint is the caller's, because the dump and the restore
+// refuse for mirrored reasons.
 func humanOnly(req plugin.Request, id, hint string) *view.Error {
 	if req.Surface() != plugin.SurfaceMCP {
 		return nil
@@ -63,9 +66,10 @@ func humanOnly(req plugin.Request, id, hint string) *view.Error {
 
 func dumpCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:      "mysql.dump",
-		Summary: "Back up one database to a SQL file, for a person at a terminal",
-		Safety:  plugin.Write,
+		ID:        "mysql.dump",
+		HumanOnly: true,
+		Summary:   "Back up one database to a SQL file, for a person at a terminal",
+		Safety:    plugin.Write,
 		// Running it twice at the same --out refuses rather than overwriting.
 		Idempotent: false,
 		Description: "The whole database as a SQL file you can restore. **Refuses MCP outright " +

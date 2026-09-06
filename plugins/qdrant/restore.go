@@ -47,8 +47,9 @@ import (
 
 func restoreCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:      "qdrant.restore",
-		Summary: "Restore a qdrant.dump snapshot into a collection, for a person at a terminal",
+		ID:        "qdrant.restore",
+		HumanOnly: true,
+		Summary:   "Restore a qdrant.dump snapshot into a collection, for a person at a terminal",
 		// Destructive, because that is what it is: recovery replaces the
 		// collection wholesale. The class buys the --yes gate a person
 		// should have to type through.

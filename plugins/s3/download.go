@@ -49,9 +49,10 @@ const unsafeShown = 10
 
 func s3BucketDownloadCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:      "s3.bucket.download",
-		Summary: "Copy a bucket to a local directory, for a person at a terminal",
-		Safety:  plugin.Write,
+		ID:        "s3.bucket.download",
+		HumanOnly: true,
+		Summary:   "Copy a bucket to a local directory, for a person at a terminal",
+		Safety:    plugin.Write,
 		// Running it twice at the same --out refuses rather than merging into
 		// a directory whose contents would then be from two different times.
 		Idempotent: false,
@@ -84,13 +85,15 @@ func s3BucketDownloadCapability() plugin.Capability {
 			Help: "maximum objects to copy; a larger bucket is refused, not truncated"})
 }
 
-// humanOnly is this plugin's copy of the gate builtin/keys opens with, which
-// pg.dump and vault.snapshot repeat. It comes first, before a client is
-// built, so an agent's call never spends the operator's credentials on a
-// question that was always going to be answered no. The hint is the
-// caller's, because the download and the upload refuse for mirrored reasons
-// — everything leaving, everything arriving — and one blended hint would
-// explain neither.
+// humanOnly is the handler's half of the HumanOnly the download and the
+// upload declare. The declaration is what keeps them out of an agent's tool list; the
+// check stays because a plugin binary travels to whichever rta is
+// installed, and a host older than 0.11.0 does not read the flag.
+// It comes first, before a client is built, so an agent's call never
+// spends the operator's credentials on a question that was always going
+// to be answered no. The hint is the caller's, because the download and
+// the upload refuse for mirrored reasons — everything leaving, everything
+// arriving — and one blended hint would explain neither.
 func humanOnly(req plugin.Request, id, hint string) *view.Error {
 	if req.Surface() != plugin.SurfaceMCP {
 		return nil

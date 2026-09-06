@@ -45,8 +45,9 @@ var restoreTools = []string{"mariadb", "mysql"}
 
 func restoreCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:      "mariadb.restore",
-		Summary: "Restore a mariadb.dump file into a database, for a person at a terminal",
+		ID:        "mariadb.restore",
+		HumanOnly: true,
+		Summary:   "Restore a mariadb.dump file into a database, for a person at a terminal",
 		// Destructive, because that is what it is: the dump's SQL drops and
 		// recreates the tables it carries. The class buys the --yes gate.
 		Safety:     plugin.Destructive,
