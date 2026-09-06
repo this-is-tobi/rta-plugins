@@ -128,8 +128,8 @@ github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+
 github.com/stretchr/testify v1.7.2/go.mod h1:R6va5+xMeoiuVRoj+gSkQ7d3FALtqAAGI1FQKckRals=
 github.com/stretchr/testify v1.12.0 h1:K6Mr6jO9JICuend/5xzTM03ydSV3vdNRYAdPSukj8uI=
 github.com/stretchr/testify v1.12.0/go.mod h1:bOYBZb5qJ00vPzWfIqBUZPaxK8jWiXc6d3ErP4Ca9Gw=
-github.com/this-is-tobi/rta v0.10.0 h1:F3FbTl303JcL46ymab1hVSt/Tq7rH3lrYxZqhhYLNQ0=
-github.com/this-is-tobi/rta v0.10.0/go.mod h1:1q33Mslq4Cp5S/iX45vxycKOJFUE+XmXo8bMYr4CKps=
+github.com/this-is-tobi/rta v0.11.0 h1:lYOTCxU+rTbwdVdbTKKX2azK1ijUjVVSNlwENlx16Bk=
+github.com/this-is-tobi/rta v0.11.0/go.mod h1:1q33Mslq4Cp5S/iX45vxycKOJFUE+XmXo8bMYr4CKps=
 github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e h1:JVG44RsyaB9T2KIHavMF/ppJZNG9ZpyihvCd0w101no=
 github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e/go.mod h1:RbqR21r5mrJuqunuUZ/Dhy/avygyECGrLceyNeo4LiM=
 github.com/yuin/goldmark v1.7.1/go.mod h1:uzxRWxtg69N339t3louHJ7+O03ezfj6PlliRlaOzY1E=
