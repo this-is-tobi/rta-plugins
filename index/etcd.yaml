@@ -7,39 +7,39 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: etcd
-version: 0.3.1
+version: 0.3.2
 summary: "etcd v3: cluster health, members, leases and the keyspace"
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/etcd
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fetcd%2Fv0.3.1/rta-plugin-etcd_0.3.1_darwin_amd64.tar.gz
-  sha256: 57de37942e34a9c6aa9542a19c77d15d8dcdb8f435f674cb01110ba9431e644e
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fetcd%2Fv0.3.2/rta-plugin-etcd_0.3.2_darwin_amd64.tar.gz
+  sha256: 3675fe0448ce7aa24a1f3dc080cc86c7c90bf6966a037809b733c0bb714c8cad
   bin: rta-plugin-etcd
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fetcd%2Fv0.3.1/rta-plugin-etcd_0.3.1_darwin_arm64.tar.gz
-  sha256: ae112d20837174479a226e05d8d49f7ea59bd39a364c98a7e33440c69c8a1800
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fetcd%2Fv0.3.2/rta-plugin-etcd_0.3.2_darwin_arm64.tar.gz
+  sha256: 2d45632e947617f930a44134e4a21ac8ff0d3fe7d9eb327440977afb763aa3c0
   bin: rta-plugin-etcd
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fetcd%2Fv0.3.1/rta-plugin-etcd_0.3.1_linux_amd64.tar.gz
-  sha256: ade812fe669a67c2257c0f5737e038d40a5a843ee0c71f63231907096f46c282
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fetcd%2Fv0.3.2/rta-plugin-etcd_0.3.2_linux_amd64.tar.gz
+  sha256: baf5858954d525262c30f256f9a0c8fbd6b5790c50fce7d55718ad9793642682
   bin: rta-plugin-etcd
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fetcd%2Fv0.3.1/rta-plugin-etcd_0.3.1_linux_arm64.tar.gz
-  sha256: ba9a5935a750a1db61dccc56745a4e9718b85d9ca5a9d1d6a6374292ebd9ba3f
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fetcd%2Fv0.3.2/rta-plugin-etcd_0.3.2_linux_arm64.tar.gz
+  sha256: 33644592186709b7bdc7b9da97e86477e1a8bdeadbcf6080d41a9c5ab8f9a99c
   bin: rta-plugin-etcd
 - os: windows
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fetcd%2Fv0.3.1/rta-plugin-etcd_0.3.1_windows_amd64.tar.gz
-  sha256: 0a84b83cd77761a588bed0f6818e1d58f23c1d21a52941406da3b1d58fcec665
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fetcd%2Fv0.3.2/rta-plugin-etcd_0.3.2_windows_amd64.tar.gz
+  sha256: 61aeea248702d0238dad957fd570c1f528da2e927b929190cf50f68c1000fb7c
   bin: rta-plugin-etcd.exe
 - os: windows
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fetcd%2Fv0.3.1/rta-plugin-etcd_0.3.1_windows_arm64.tar.gz
-  sha256: 8b98be94827b6a617cc76fa9919cbf839627356d582c57777ef07edfc2fd0705
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fetcd%2Fv0.3.2/rta-plugin-etcd_0.3.2_windows_arm64.tar.gz
+  sha256: 0fb5cd96b0291dec92493a3825357f26a698f790b25ddf3bf4b476b15adf28e4
   bin: rta-plugin-etcd.exe
 capabilities:
 - id: etcd.overview
