@@ -11,7 +11,7 @@ The first-party plugins for [rta](https://github.com/this-is-tobi/rta), and the 
 | [`qdrant`](./plugins/qdrant/) | Qdrant: collections, their configuration and index health | 7 |
 | [`redis`](./plugins/redis/) | Redis: health, memory, persistence, replication, the keyspace and the slow log — over RESP spoken in-package, no client library | 9 |
 | [`s3`](./plugins/s3/) | S3-compatible object storage | 14 |
-| [`vault`](./plugins/vault/) | HashiCorp Vault | 16 |
+| [`vault`](./plugins/vault/) | HashiCorp Vault | 20 |
 | [`kube`](./plugins/kube/) | Kubernetes, through the `kubectl` you already have | 19 |
 | [`cnpg`](./plugins/cnpg/) | CloudNativePG: clusters, their health, replication, backups and volumes, and asking for a backup now | 5 |
 | [`docker`](./plugins/docker/) | Containers and images over the local daemon socket | 7 |
