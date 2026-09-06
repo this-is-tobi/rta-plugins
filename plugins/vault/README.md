@@ -206,22 +206,21 @@ The other half of vault.snapshot — the file back into a Vault. **Refuses MCP o
 
 A snapshot from a different cluster is refused by Vault itself unless --force skips the identity check — after which the Vault can only be unsealed with the source cluster's unseal keys or KMS. The refusal names the flag and that consequence together, because the flag without the keys bricks the Vault. Needs raft (integrated) storage, like the snapshot it restores.
 
-| Field                | Value                                                                                                                                                                                   |
-|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id                   | vault.restore                                                                                                                                                                           |
-| summary              | Restore a vault.snapshot file into a Vault, for a person at a terminal                                                                                                                  |
-| safety               | destructive                                                                                                                                                                             |
-| idempotent           | false                                                                                                                                                                                   |
-| cli                  | rta vault restore \<file> \[--force \<bool>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                                           |
-| mcp-tool             | none — for the person at the terminal, never an agent                                                                                                                                   |
-| grant required (mcp) | yes — a person must run \`rta grant allow vault.restore\`                                                                                                                               |
-| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
-| input:file           | path, required, local (never offered to MCP callers) — the snapshot to restore — what vault.snapshot wrote                                                                              |
-| input:force          | bool — restore a snapshot from a different cluster (skips Vault's identity check; unsealing afterwards needs the source cluster's unseal keys or KMS)                                   |
-| input:address        | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
-| input:namespace      | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
-| input:token          | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
-| input:ca-file        | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
+| Field           | Value                                                                                                                                                                                   |
+|-----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id              | vault.restore                                                                                                                                                                           |
+| summary         | Restore a vault.snapshot file into a Vault, for a person at a terminal                                                                                                                  |
+| safety          | destructive                                                                                                                                                                             |
+| idempotent      | false                                                                                                                                                                                   |
+| cli             | rta vault restore \<file> \[--force \<bool>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                                           |
+| mcp-tool        | none — for the person at the terminal, never an agent                                                                                                                                   |
+| profiles        | --profile \<name> runs this against a configured connection                                                                                                                             |
+| input:file      | path, required, local (never offered to MCP callers) — the snapshot to restore — what vault.snapshot wrote                                                                              |
+| input:force     | bool — restore a snapshot from a different cluster (skips Vault's identity check; unsealing afterwards needs the source cluster's unseal keys or KMS)                                   |
+| input:address   | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
+| input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
+| input:token     | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
+| input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
 
 ## vault.seal.status
 
@@ -249,21 +248,20 @@ A snapshot rather than a KV export, and the difference is whether it restores. A
 
 It is also the safer artifact. What lands on disk is still sealed — restoring needs the same unseal keys or the same KMS — where an export would be every secret in the clear. Needs raft (integrated) storage and a token allowed to read sys/storage/raft/snapshot; with any other storage backend Vault has no such endpoint and this says so. Written with O_EXCL at mode 0600, never over an existing file, and a run that fails takes its partial file with it.
 
-| Field                | Value                                                                                                                                                                                   |
-|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id                   | vault.snapshot                                                                                                                                                                          |
-| summary              | Write a raft storage snapshot, for a person at a terminal                                                                                                                               |
-| safety               | write                                                                                                                                                                                   |
-| idempotent           | false                                                                                                                                                                                   |
-| cli                  | rta vault snapshot \[--out \<path>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                                                    |
-| mcp-tool             | none — for the person at the terminal, never an agent                                                                                                                                   |
-| grant required (mcp) | yes — a person must run \`rta grant allow vault.snapshot\`                                                                                                                              |
-| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
-| input:out            | path, local (never offered to MCP callers) — file to write the snapshot to; refused if it already exists                                                                                |
-| input:address        | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
-| input:namespace      | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
-| input:token          | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
-| input:ca-file        | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
+| Field           | Value                                                                                                                                                                                   |
+|-----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id              | vault.snapshot                                                                                                                                                                          |
+| summary         | Write a raft storage snapshot, for a person at a terminal                                                                                                                               |
+| safety          | write                                                                                                                                                                                   |
+| idempotent      | false                                                                                                                                                                                   |
+| cli             | rta vault snapshot \[--out \<path>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                                                    |
+| mcp-tool        | none — for the person at the terminal, never an agent                                                                                                                                   |
+| profiles        | --profile \<name> runs this against a configured connection                                                                                                                             |
+| input:out       | path, local (never offered to MCP callers) — file to write the snapshot to; refused if it already exists                                                                                |
+| input:address   | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
+| input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
+| input:token     | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
+| input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
 
 ## vault.token.status
 
