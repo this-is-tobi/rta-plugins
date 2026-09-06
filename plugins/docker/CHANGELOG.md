@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.2.1...plugins/docker/v0.2.2) (2026-09-06)
+
+
+### Dependencies
+
+* every plugin builds against rta v0.11.0 ([e2a63c9](https://github.com/this-is-tobi/rta-plugins/commit/e2a63c9e32dfa8f8a969ea47ee77a8a5540af691))
+
 ## [0.2.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.2.0...plugins/docker/v0.2.1) (2026-09-05)
 
 
