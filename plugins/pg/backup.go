@@ -47,12 +47,15 @@ import (
 // exists so the "not installed" refusal can name what it looked for.
 var dumpTools = []string{"pg_dump"}
 
-// humanOnly is this plugin's copy of the gate builtin/keys opens with. It
-// comes first in the handler, before the connection is opened, so an agent's
-// call never spends the operator's password on a question that was always
-// going to be answered no. The hint is the caller's, because the dump and
-// the restore refuse for mirrored reasons — everything leaving, everything
-// arriving — and one blended hint would explain neither.
+// humanOnly is the handler's half of the HumanOnly the dump and the restore
+// declare. The declaration is what keeps them out of an agent's tool list; the
+// check stays because a plugin binary travels to whichever rta is
+// installed, and a host older than 0.11.0 does not read the flag.
+// It comes first in the handler, before the connection is opened, so an
+// agent's call never spends the operator's password on a question that was
+// always going to be answered no. The hint is the caller's, because the
+// dump and the restore refuse for mirrored reasons — everything leaving,
+// everything arriving — and one blended hint would explain neither.
 func humanOnly(req plugin.Request, id, hint string) *view.Error {
 	if req.Surface() != plugin.SurfaceMCP {
 		return nil

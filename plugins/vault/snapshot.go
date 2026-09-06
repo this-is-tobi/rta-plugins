@@ -43,9 +43,10 @@ import (
 
 func snapshotCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:      "vault.snapshot",
-		Summary: "Write a raft storage snapshot, for a person at a terminal",
-		Safety:  plugin.Write,
+		ID:        "vault.snapshot",
+		HumanOnly: true,
+		Summary:   "Write a raft storage snapshot, for a person at a terminal",
+		Safety:    plugin.Write,
 		// Running it twice at the same --out refuses rather than overwriting.
 		Idempotent: false,
 		Description: "Vault's own backup: the whole storage, as Vault stores it. **Refuses MCP " +
@@ -68,10 +69,13 @@ func snapshotCapability() plugin.Capability {
 			Help: "file to write the snapshot to; refused if it already exists"})
 }
 
-// humanOnly is this plugin's copy of the gate builtin/keys opens with, and
-// pg.dump repeats. It comes first, before a client is built, so an agent's
-// call never spends the operator's token on a question that was always going
-// to be answered no. The hint is the caller's, because the snapshot and the
+// humanOnly is the handler's half of the HumanOnly the snapshot and the
+// restore declare. The declaration is what keeps them out of an agent's tool list; the
+// check stays because a plugin binary travels to whichever rta is
+// installed, and a host older than 0.11.0 does not read the flag.
+// It comes first, before a client is built, so an agent's call never
+// spends the operator's token on a question that was always going to be
+// answered no. The hint is the caller's, because the snapshot and the
 // restore refuse for mirrored reasons — everything leaving, everything
 // arriving — and one blended hint would explain neither.
 func humanOnly(req plugin.Request, id, hint string) *view.Error {

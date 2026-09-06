@@ -48,8 +48,9 @@ import (
 
 func s3BucketUploadCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:      "s3.bucket.upload",
-		Summary: "Copy a local directory into a bucket, for a person at a terminal",
+		ID:        "s3.bucket.upload",
+		HumanOnly: true,
+		Summary:   "Copy a local directory into a bucket, for a person at a terminal",
 		// Destructive, not Write like the download: with --overwrite this
 		// replaces remote objects, and the class buys the --yes gate a
 		// person should have to type through before a directory becomes a

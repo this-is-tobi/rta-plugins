@@ -82,8 +82,9 @@ const snapshotPageSize = 512
 
 func snapshotCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:      "etcd.snapshot",
-		Summary: "Write a point-in-time snapshot of the whole keyspace, for a person at a terminal",
+		ID:        "etcd.snapshot",
+		HumanOnly: true,
+		Summary:   "Write a point-in-time snapshot of the whole keyspace, for a person at a terminal",
 		// **Write for what it discloses, not for what it changes.** Nothing
 		// here mutates the cluster; the file is every key and every value it
 		// holds. That is the same reading etcd.kv.get gets next door, at the
@@ -119,10 +120,13 @@ func snapshotCapability() plugin.Capability {
 			Help: "file to write the snapshot to; refused if it already exists"})
 }
 
-// humanOnly is this plugin's copy of the gate builtin/keys opens with, and
-// pg.dump and vault.snapshot repeat. It comes first in the handler, before a
-// client is built, so an agent's call never spends the operator's credential
-// on a question that was always going to be answered no.
+// humanOnly is the handler's half of the HumanOnly the snapshot declares.
+// The declaration is what keeps it out of an agent's tool list; the check
+// stays because a plugin binary travels to whichever rta is installed, and
+// a host older than 0.11.0 does not read the flag. It comes first in the
+// handler, before a client is built, so an agent's call never spends the
+// operator's credential on a question that was always going to be answered
+// no.
 func humanOnly(req plugin.Request, id, hint string) *view.Error {
 	if req.Surface() != plugin.SurfaceMCP {
 		return nil

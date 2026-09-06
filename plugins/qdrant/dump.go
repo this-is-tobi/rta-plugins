@@ -47,9 +47,12 @@ import (
 // up has misunderstood its job. A delete that fails is reported on the
 // receipt rather than failing the dump: the file is safely local either way.
 
-// humanOnly is this plugin's copy of the gate builtin/keys opens with. It
-// comes first in the handler, before anything reaches the network, so an
-// agent's call never touches the instance on a question that was always
+// humanOnly is the handler's half of the HumanOnly the dump and the restore
+// declare. The declaration is what keeps them out of an agent's tool list; the
+// check stays because a plugin binary travels to whichever rta is
+// installed, and a host older than 0.11.0 does not read the flag.
+// It comes first in the handler, before anything reaches the network, so
+// an agent's call never touches the instance on a question that was always
 // going to be answered no. The hint is the caller's, because the dump and
 // the restore refuse for mirrored reasons — everything leaving, everything
 // arriving — and one blended hint would explain neither.
@@ -63,9 +66,10 @@ func humanOnly(req plugin.Request, id, hint string) *view.Error {
 
 func dumpCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:      "qdrant.dump",
-		Summary: "Back up one collection to a snapshot file, for a person at a terminal",
-		Safety:  plugin.Write,
+		ID:        "qdrant.dump",
+		HumanOnly: true,
+		Summary:   "Back up one collection to a snapshot file, for a person at a terminal",
+		Safety:    plugin.Write,
 		// Not idempotent, and the reason is the guarantee: running it twice
 		// at the same --out refuses rather than overwriting.
 		Idempotent: false,
