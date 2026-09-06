@@ -36,7 +36,6 @@ Image, command, state, restart policy, mounts, networks and environment. **Write
 | idempotent           | true                                                                                                                                                                  |
 | cli                  | rta docker container inspect \<container> \[--host \<string>\] \[--context \<string>\]                                                                                |
 | mcp-tool             | docker_container_inspect                                                                                                                                              |
-| mcp exposure         | off by default — \`rta mcp serve --allow-write docker\`                                                                                                               |
 | grant required (mcp) | yes — a person must run \`rta grant allow docker.container.inspect\`, optionally naming one container                                                                 |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                  |
 | input:container      | string, required, completes — the container to inspect                                                                                                                |
@@ -72,7 +71,6 @@ Stop then start, keeping the container's id, volumes and configuration. What it 
 | idempotent           | true                                                                                                                                                                  |
 | cli                  | rta docker container restart \<container> \[--host \<string>\] \[--context \<string>\]                                                                                |
 | mcp-tool             | docker_container_restart                                                                                                                                              |
-| mcp exposure         | off by default — \`rta mcp serve --allow-write docker\`                                                                                                               |
 | grant required (mcp) | yes — a person must run \`rta grant allow docker.container.restart\`, optionally naming one container                                                                 |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                  |
 | input:container      | string, required, completes — the container to restart                                                                                                                |
@@ -91,7 +89,6 @@ Deletes the container and its writable layer — everything written inside it th
 | idempotent           | false                                                                                                                                                                 |
 | cli                  | rta docker container rm \<container> \[--host \<string>\] \[--context \<string>\]                                                                                     |
 | mcp-tool             | docker_container_rm                                                                                                                                                   |
-| mcp exposure         | off by default — \`rta mcp serve --allow-destructive docker.container.rm\`                                                                                            |
 | grant required (mcp) | yes — a person must run \`rta grant allow docker.container.rm\`, optionally naming one container                                                                      |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                  |
 | input:container      | string, required, completes — the container to remove — it must be stopped                                                                                            |
@@ -110,7 +107,6 @@ Sends SIGTERM and gives the container time to exit before the daemon kills it. R
 | idempotent           | true                                                                                                                                                                  |
 | cli                  | rta docker container stop \<container> \[--host \<string>\] \[--context \<string>\]                                                                                   |
 | mcp-tool             | docker_container_stop                                                                                                                                                 |
-| mcp exposure         | off by default — \`rta mcp serve --allow-write docker\`                                                                                                               |
 | grant required (mcp) | yes — a person must run \`rta grant allow docker.container.stop\`, optionally naming one container                                                                    |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                  |
 | input:container      | string, required, completes — the container to stop                                                                                                                   |

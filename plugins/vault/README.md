@@ -49,7 +49,6 @@ Write, the same as builtin/kv's kv.get, for the same reason: revealing a secret'
 | idempotent           | true                                                                                                                                                                                    |
 | cli                  | rta vault kv get \[--mount \<string>\] \<path> \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                                          |
 | mcp-tool             | vault_kv_get                                                                                                                                                                            |
-| mcp exposure         | off by default — \`rta mcp serve --allow-write vault\`                                                                                                                                  |
 | grant required (mcp) | yes — a person must run \`rta grant allow vault.kv.get\`, optionally naming one path                                                                                                    |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
 | input:mount          | string, default secret, completes, from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                                                           |
@@ -91,7 +90,6 @@ The same overwrite risk builtin/kv's kv.set carries, needing the same grant, and
 | idempotent           | false                                                                                                                                                                                   |
 | cli                  | rta vault kv set \[--mount \<string>\] \<path> \[--data \<secretSlice>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                |
 | mcp-tool             | vault_kv_set                                                                                                                                                                            |
-| mcp exposure         | off by default — \`rta mcp serve --allow-write vault\`                                                                                                                                  |
 | grant required (mcp) | yes — a person must run \`rta grant allow vault.kv.set\`, optionally naming one path                                                                                                    |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
 | input:mount          | string, default secret, completes, from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                                                           |
@@ -215,8 +213,7 @@ A snapshot from a different cluster is refused by Vault itself unless --force sk
 | safety               | destructive                                                                                                                                                                             |
 | idempotent           | false                                                                                                                                                                                   |
 | cli                  | rta vault restore \<file> \[--force \<bool>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                                           |
-| mcp-tool             | vault_restore                                                                                                                                                                           |
-| mcp exposure         | off by default — \`rta mcp serve --allow-destructive vault.restore\`                                                                                                                    |
+| mcp-tool             | none — for the person at the terminal, never an agent                                                                                                                                   |
 | grant required (mcp) | yes — a person must run \`rta grant allow vault.restore\`                                                                                                                               |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
 | input:file           | path, required, local (never offered to MCP callers) — the snapshot to restore — what vault.snapshot wrote                                                                              |
@@ -252,21 +249,21 @@ A snapshot rather than a KV export, and the difference is whether it restores. A
 
 It is also the safer artifact. What lands on disk is still sealed — restoring needs the same unseal keys or the same KMS — where an export would be every secret in the clear. Needs raft (integrated) storage and a token allowed to read sys/storage/raft/snapshot; with any other storage backend Vault has no such endpoint and this says so. Written with O_EXCL at mode 0600, never over an existing file, and a run that fails takes its partial file with it.
 
-| Field           | Value                                                                                                                                                                                   |
-|-----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id              | vault.snapshot                                                                                                                                                                          |
-| summary         | Write a raft storage snapshot, for a person at a terminal                                                                                                                               |
-| safety          | write                                                                                                                                                                                   |
-| idempotent      | false                                                                                                                                                                                   |
-| cli             | rta vault snapshot \[--out \<path>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                                                    |
-| mcp-tool        | vault_snapshot                                                                                                                                                                          |
-| mcp exposure    | off by default — \`rta mcp serve --allow-write vault\`                                                                                                                                  |
-| profiles        | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
-| input:out       | path, local (never offered to MCP callers) — file to write the snapshot to; refused if it already exists                                                                                |
-| input:address   | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
-| input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
-| input:token     | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
-| input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
+| Field                | Value                                                                                                                                                                                   |
+|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                   | vault.snapshot                                                                                                                                                                          |
+| summary              | Write a raft storage snapshot, for a person at a terminal                                                                                                                               |
+| safety               | write                                                                                                                                                                                   |
+| idempotent           | false                                                                                                                                                                                   |
+| cli                  | rta vault snapshot \[--out \<path>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                                                    |
+| mcp-tool             | none — for the person at the terminal, never an agent                                                                                                                                   |
+| grant required (mcp) | yes — a person must run \`rta grant allow vault.snapshot\`                                                                                                                              |
+| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
+| input:out            | path, local (never offered to MCP callers) — file to write the snapshot to; refused if it already exists                                                                                |
+| input:address        | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
+| input:namespace      | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
+| input:token          | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
+| input:ca-file        | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
 
 ## vault.token.status
 
@@ -298,7 +295,6 @@ The reveal half of transit: whoever holds the ciphertext gets the plaintext back
 | idempotent           | true                                                                                                                                                                                    |
 | cli                  | rta vault transit decrypt \[--mount \<string>\] \<key> \[--ciphertext \<text>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]         |
 | mcp-tool             | vault_transit_decrypt                                                                                                                                                                   |
-| mcp exposure         | off by default — \`rta mcp serve --allow-write vault\`                                                                                                                                  |
 | grant required (mcp) | yes — a person must run \`rta grant allow vault.transit.decrypt\`, optionally naming one key                                                                                            |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
 | input:mount          | string, default transit, completes, from config plugins.vault.transit-mount — the transit secrets engine's mount path                                                                   |
@@ -313,23 +309,23 @@ The reveal half of transit: whoever holds the ciphertext gets the plaintext back
 
 Write, not Read+NeedsGrant like vault.kv.get: nothing here is revealed to the caller that they did not already hand over — the plaintext is theirs, only the ciphertext comes back — but the key material is materially used to produce it, which is what keeps this off Read (the same distinction gpg.sign's design draws for a signature: no key exposure, real use). The key itself never leaves Vault; that is the whole point of the transit engine.
 
-| Field           | Value                                                                                                                                                                                   |
-|-----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id              | vault.transit.encrypt                                                                                                                                                                   |
-| summary         | Encrypt caller-supplied plaintext with a Vault-managed key                                                                                                                              |
-| safety          | write                                                                                                                                                                                   |
-| idempotent      | false                                                                                                                                                                                   |
-| cli             | rta vault transit encrypt \[--mount \<string>\] \<key> \[--plaintext \<secret>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]        |
-| mcp-tool        | vault_transit_encrypt                                                                                                                                                                   |
-| mcp exposure    | off by default — \`rta mcp serve --allow-write vault\`                                                                                                                                  |
-| profiles        | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
-| input:mount     | string, default transit, completes, from config plugins.vault.transit-mount — the transit secrets engine's mount path                                                                   |
-| input:key       | string, required, completes — the transit key's name                                                                                                                                    |
-| input:plaintext | secret, required — the value to encrypt                                                                                                                                                 |
-| input:address   | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
-| input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
-| input:token     | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
-| input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
+| Field                | Value                                                                                                                                                                                   |
+|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                   | vault.transit.encrypt                                                                                                                                                                   |
+| summary              | Encrypt caller-supplied plaintext with a Vault-managed key                                                                                                                              |
+| safety               | write                                                                                                                                                                                   |
+| idempotent           | false                                                                                                                                                                                   |
+| cli                  | rta vault transit encrypt \[--mount \<string>\] \<key> \[--plaintext \<secret>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]        |
+| mcp-tool             | vault_transit_encrypt                                                                                                                                                                   |
+| grant required (mcp) | yes — a person must run \`rta grant allow vault.transit.encrypt\`                                                                                                                       |
+| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
+| input:mount          | string, default transit, completes, from config plugins.vault.transit-mount — the transit secrets engine's mount path                                                                   |
+| input:key            | string, required, completes — the transit key's name                                                                                                                                    |
+| input:plaintext      | secret, required — the value to encrypt                                                                                                                                                 |
+| input:address        | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
+| input:namespace      | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
+| input:token          | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
+| input:ca-file        | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
 
 ## vault.wrap.get
 
@@ -343,7 +339,6 @@ Consumes the token: a second call against the same token gets Vault's own "wrapp
 | idempotent           | false                                                                                                                                                                                   |
 | cli                  | rta vault wrap get \<wrapping-token> \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                                                    |
 | mcp-tool             | vault_wrap_get                                                                                                                                                                          |
-| mcp exposure         | off by default — \`rta mcp serve --allow-write vault\`                                                                                                                                  |
 | grant required (mcp) | yes — a person must run \`rta grant allow vault.wrap.get\`                                                                                                                              |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
 | input:wrapping-token | secret, required — the wrapping token vault.wrap.set returned — a different token from --token, this plugin's own auth credential                                                       |
@@ -364,7 +359,6 @@ The recipient calls vault.wrap.get with the token this returns, once — Vault d
 | idempotent           | false                                                                                                                                                                                   |
 | cli                  | rta vault wrap set \[--data \<secretSlice>\] \[--ttl \<string>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                        |
 | mcp-tool             | vault_wrap_set                                                                                                                                                                          |
-| mcp exposure         | off by default — \`rta mcp serve --allow-write vault\`                                                                                                                                  |
 | grant required (mcp) | yes — a person must run \`rta grant allow vault.wrap.set\`                                                                                                                              |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
 | input:data           | secretSlice, required — key=value, repeated for more than one field                                                                                                                     |
