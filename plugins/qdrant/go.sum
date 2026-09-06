@@ -38,8 +38,8 @@ github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+
 github.com/stretchr/testify v1.7.2/go.mod h1:R6va5+xMeoiuVRoj+gSkQ7d3FALtqAAGI1FQKckRals=
 github.com/stretchr/testify v1.12.0 h1:K6Mr6jO9JICuend/5xzTM03ydSV3vdNRYAdPSukj8uI=
 github.com/stretchr/testify v1.12.0/go.mod h1:bOYBZb5qJ00vPzWfIqBUZPaxK8jWiXc6d3ErP4Ca9Gw=
-github.com/this-is-tobi/rta v0.12.0 h1:p+l5ZD7w1Iyk5vdq1F6bk4sVoukCRKD0BFYvUfwox2o=
-github.com/this-is-tobi/rta v0.12.0/go.mod h1:1q33Mslq4Cp5S/iX45vxycKOJFUE+XmXo8bMYr4CKps=
+github.com/this-is-tobi/rta v0.13.0 h1:eP6IXbGiKmDik+8c8vP/GkDQanquQn2IVt9FHe4+6C4=
+github.com/this-is-tobi/rta v0.13.0/go.mod h1:1q33Mslq4Cp5S/iX45vxycKOJFUE+XmXo8bMYr4CKps=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
 go.opentelemetry.io/auto/sdk v1.2.1/go.mod h1:KRTj+aOaElaLi+wW1kO/DZRXwkF4C5xPbEe3ZiIhN7Y=
 go.opentelemetry.io/otel v1.45.0 h1:pdrWmLHofpubmArBv1LgFSv1Z0Ie/ppdZzu+kUN5EeU=
