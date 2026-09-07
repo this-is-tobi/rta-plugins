@@ -141,7 +141,7 @@ func s3ObjectGetCapability() plugin.Capability {
 			"same way http.get bounds a response body. --out never overwrites: a destination that " +
 			"already exists is refused, and a download that fails partway removes what it wrote.",
 		Run: runObjectGet,
-	}, bucketField("bucket the object is in"), keyField("object to reveal"),
+	}, boundBucketField("bucket the object is in"), keyField("object to reveal"),
 		plugin.Field{Name: "out", Type: plugin.Path, Local: true, Help: "write the content to this file instead of printing it (refused if it exists)"})
 }
 
@@ -226,7 +226,7 @@ func s3ObjectSetCapability() plugin.Capability {
 			"large files with multipart upload internally, so there is no separate multipart " +
 			"capability to reach for.",
 		Run: runObjectSet,
-	}, bucketField("bucket to write to"), keyField("object to set"),
+	}, boundBucketField("bucket to write to"), keyField("object to set"),
 		plugin.Field{Name: "value", Type: plugin.Text, Positional: true, Help: "content to upload"},
 		plugin.Field{Name: "file", Type: plugin.Path, Local: true, Help: "upload this file's content instead"},
 		plugin.Field{Name: "content-type", Type: plugin.String, Suggest: suggestContentTypes,
@@ -312,7 +312,7 @@ func s3ObjectRemoveCapability() plugin.Capability {
 			"call — --dry-run does not probe for existence first, since that would report a " +
 			"failure the real call would not.",
 		Run: runObjectRemove,
-	}, bucketField("bucket the object is in"), keyField("object to delete"))
+	}, boundBucketField("bucket the object is in"), keyField("object to delete"))
 }
 
 func runObjectRemove(ctx context.Context, req plugin.Request) (view.View, error) {

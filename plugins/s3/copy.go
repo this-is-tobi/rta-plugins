@@ -11,7 +11,7 @@ import (
 
 func copyFields(bucketHelp, keyHelp string) []plugin.Field {
 	return []plugin.Field{
-		bucketField(bucketHelp),
+		boundBucketField(bucketHelp),
 		keyField(keyHelp),
 		// Local, because a grant on this capability is checked against `key`
 		// alone — internal/grant's scopes() reads exactly one field — and a

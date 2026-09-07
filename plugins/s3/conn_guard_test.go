@@ -57,6 +57,29 @@ func TestNoCallerChosenFieldNamesADestination(t *testing.T) {
 	}
 }
 
+// The container half of a record — the bucket a key sits in — is caller
+// input just like the key itself, but Scope only ever names "key": scopes()
+// checks the key alone, so a bucket left caller-settable would let a grant
+// on one key's scope authorize the identical key name in any bucket the
+// credentials reach. That is the vault.kv.get "mount" hole, one container in.
+//
+// Written against the declaration so a capability that starts scoping on
+// "key" without also binding its bucket is caught the day it ships, not
+// after somebody notices the grant does not mean what it says.
+func TestScopedByKeyBindsItsBucket(t *testing.T) {
+	for _, c := range Plugin().Capabilities {
+		if c.Scope != "key" {
+			continue
+		}
+		for _, f := range c.Inputs {
+			if f.Name == "bucket" && !f.Local {
+				t.Errorf("%s scopes on key but declares bucket caller-settable — "+
+					"a grant on one key authorizes it in any bucket", c.ID)
+			}
+		}
+	}
+}
+
 // A grant that cannot be narrowed is a grant nobody narrows. scopes() derives
 // the record a call is checked against from the field Scope names, so a gated
 // capability declaring no Scope derives "" — and `grant allow <cap> <record>`
