@@ -75,6 +75,13 @@ func pointsScrollCapability() plugin.Capability {
 		// can name it too, and the narrow consent is actually available.
 		Safety:     plugin.Write,
 		NeedsGrant: true,
+		// Without this, `rta grant allow qdrant.points.scroll
+		// support-tickets` — the exact consent the description advertises
+		// — parsed and sealed but matched nothing: scopes() derives the
+		// record from the field Scope names, and an empty Scope derives
+		// "", so the only grant that ever worked was the unscoped one
+		// covering every collection.
+		Scope:      "collection",
 		Idempotent: true,
 		Description: "Points from one collection, with their payloads.\n\n" +
 			"**Classified write for what it discloses, not what it changes.** The payloads are " +
