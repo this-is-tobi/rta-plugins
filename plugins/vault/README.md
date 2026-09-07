@@ -55,7 +55,7 @@ A soft delete, which is what `vault kv delete` does: the data of the versions na
 | mcp-tool             | vault_kv_delete                                                                                                                                                                         |
 | grant required (mcp) | yes — a person must run \`rta grant allow vault.kv.delete\`, optionally naming one path                                                                                                 |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
-| input:mount          | string, default secret, completes, from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                                                           |
+| input:mount          | string, default secret, completes, local (never offered to MCP callers), from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                     |
 | input:path           | string, required, completes — the secret's path within the mount                                                                                                                        |
 | input:versions       | stringSlice — version numbers, as vault.kv.history lists them; none means the current version                                                                                           |
 | input:address        | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
@@ -76,7 +76,7 @@ The versions named are gone: the data is erased and the chain keeps only the fac
 | cli             | rta vault kv destroy \[--mount \<string>\] \<path> \[--versions \<stringSlice>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]        |
 | mcp-tool        | none — for the person at the terminal, never an agent                                                                                                                                   |
 | profiles        | --profile \<name> runs this against a configured connection                                                                                                                             |
-| input:mount     | string, default secret, completes, from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                                                           |
+| input:mount     | string, default secret, completes, local (never offered to MCP callers), from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                     |
 | input:path      | string, required, completes — the secret's path within the mount                                                                                                                        |
 | input:versions  | stringSlice, required — version numbers, as vault.kv.history lists them                                                                                                                 |
 | input:address   | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
@@ -98,7 +98,7 @@ Write, the same as builtin/kv's kv.get, for the same reason: revealing a secret'
 | mcp-tool             | vault_kv_get                                                                                                                                                                            |
 | grant required (mcp) | yes — a person must run \`rta grant allow vault.kv.get\`, optionally naming one path                                                                                                    |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
-| input:mount          | string, default secret, completes, from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                                                           |
+| input:mount          | string, default secret, completes, local (never offered to MCP callers), from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                     |
 | input:path           | string, required, completes — the secret's path within the mount                                                                                                                        |
 | input:version        | int, default 0 — a specific version, as vault.kv.history numbers them; 0 is the current one                                                                                             |
 | input:address        | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
@@ -119,7 +119,7 @@ The structured equivalent of `vault kv metadata get`: every version the engine s
 | cli             | rta vault kv history \[--mount \<string>\] \<path> \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                                      |
 | mcp-tool        | vault_kv_history                                                                                                                                                                        |
 | profiles        | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
-| input:mount     | string, default secret, completes, from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                                                           |
+| input:mount     | string, default secret, completes, local (never offered to MCP callers), from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                     |
 | input:path      | string, required, completes — the secret's path within the mount                                                                                                                        |
 | input:address   | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
 | input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
@@ -139,7 +139,7 @@ The structured equivalent of `vault kv list`: names only, the same Read/Write sp
 | cli             | rta vault kv list \[--mount \<string>\] \[path\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                                        |
 | mcp-tool        | vault_kv_list                                                                                                                                                                           |
 | profiles        | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
-| input:mount     | string, default secret, completes, from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                                                           |
+| input:mount     | string, default secret, completes, local (never offered to MCP callers), from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                     |
 | input:path      | string, default , completes — list under this path; empty lists the mount's root                                                                                                        |
 | input:address   | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
 | input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
@@ -160,7 +160,7 @@ The same overwrite risk builtin/kv's kv.set carries, needing the same grant, and
 | mcp-tool             | vault_kv_set                                                                                                                                                                            |
 | grant required (mcp) | yes — a person must run \`rta grant allow vault.kv.set\`, optionally naming one path                                                                                                    |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
-| input:mount          | string, default secret, completes, from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                                                           |
+| input:mount          | string, default secret, completes, local (never offered to MCP callers), from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                     |
 | input:path           | string, required, completes — the secret's path within the mount                                                                                                                        |
 | input:data           | secretSlice, required — key=value, repeated for more than one field                                                                                                                     |
 | input:address        | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
@@ -185,7 +185,7 @@ Bounded in both directions, and it says when it stopped. A folder the token may 
 | cli             | rta vault kv tree \[--mount \<string>\] \[path\] \[--depth \<int>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                     |
 | mcp-tool        | vault_kv_tree                                                                                                                                                                           |
 | profiles        | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
-| input:mount     | string, default secret, completes, from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                                                           |
+| input:mount     | string, default secret, completes, local (never offered to MCP callers), from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                     |
 | input:path      | string, default , completes — start here; empty walks the whole mount                                                                                                                   |
 | input:depth     | int, default 4, from config plugins.vault.depth — how many levels to expand                                                                                                             |
 | input:address   | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
@@ -207,7 +207,7 @@ The other half of vault.kv.delete: the versions named become readable again, exa
 | mcp-tool             | vault_kv_undelete                                                                                                                                                                       |
 | grant required (mcp) | yes — a person must run \`rta grant allow vault.kv.undelete\`, optionally naming one path                                                                                               |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
-| input:mount          | string, default secret, completes, from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                                                           |
+| input:mount          | string, default secret, completes, local (never offered to MCP callers), from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                     |
 | input:path           | string, required, completes — the secret's path within the mount                                                                                                                        |
 | input:versions       | stringSlice, required — version numbers, as vault.kv.history lists them                                                                                                                 |
 | input:address        | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
@@ -385,7 +385,7 @@ The reveal half of transit: whoever holds the ciphertext gets the plaintext back
 | mcp-tool             | vault_transit_decrypt                                                                                                                                                                   |
 | grant required (mcp) | yes — a person must run \`rta grant allow vault.transit.decrypt\`, optionally naming one key                                                                                            |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
-| input:mount          | string, default transit, completes, from config plugins.vault.transit-mount — the transit secrets engine's mount path                                                                   |
+| input:mount          | string, default transit, completes, local (never offered to MCP callers), from config plugins.vault.transit-mount — the transit secrets engine's mount path                             |
 | input:key            | string, required, completes — the transit key's name                                                                                                                                    |
 | input:ciphertext     | text, required — the vault:v#:... ciphertext to decrypt                                                                                                                                 |
 | input:address        | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
@@ -407,7 +407,7 @@ Write, not Read+NeedsGrant like vault.kv.get: nothing here is revealed to the ca
 | mcp-tool             | vault_transit_encrypt                                                                                                                                                                   |
 | grant required (mcp) | yes — a person must run \`rta grant allow vault.transit.encrypt\`                                                                                                                       |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
-| input:mount          | string, default transit, completes, from config plugins.vault.transit-mount — the transit secrets engine's mount path                                                                   |
+| input:mount          | string, default transit, completes, local (never offered to MCP callers), from config plugins.vault.transit-mount — the transit secrets engine's mount path                             |
 | input:key            | string, required, completes — the transit key's name                                                                                                                                    |
 | input:plaintext      | secret, required — the value to encrypt                                                                                                                                                 |
 | input:address        | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |

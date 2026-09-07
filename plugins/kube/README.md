@@ -362,5 +362,5 @@ A TokenRequest bearer token has no independent early-revocation API — it stays
 | grant required (mcp) | yes — a person must run \`rta grant allow kube.serviceaccount.revoke\`, optionally naming one name                                                   |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow kube --profile \<name>\`                   |
 | input:name           | string, required — the ServiceAccount to revoke                                                                                                      |
-| input:namespace      | string, required, completes, from config plugins.kube.namespace — namespace it was provisioned in                                                    |
+| input:namespace      | string, required, completes, local (never offered to MCP callers), from config plugins.kube.namespace — namespace it was provisioned in              |
 | input:context        | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted |
