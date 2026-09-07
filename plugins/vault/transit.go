@@ -17,8 +17,11 @@ import (
 // on "secret" — still a Field, not a literal, for the deployment that
 // renamed it.
 func transitMountField() plugin.Field {
+	// Local for the same reason as vault/kv.go's mountField: Scope covers
+	// "key" only, not the mount, so a caller-settable mount would let a
+	// grant reach the identical key name in a mount it never named.
 	return plugin.Field{Name: "mount", Type: plugin.String, Default: "transit", Config: "transit-mount",
-		Help: "the transit secrets engine's mount path", Live: true, Suggest: suggestMounts("transit")}
+		Local: true, Help: "the transit secrets engine's mount path", Live: true, Suggest: suggestMounts("transit")}
 }
 
 func transitEncryptCapability() plugin.Capability {

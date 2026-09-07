@@ -19,8 +19,11 @@ import (
 // Vault routinely has several KV mounts under different names, so this is a
 // Field with that default rather than a literal baked into the path.
 func mountField() plugin.Field {
+	// Local: a grant's Scope covers "path" only, not the mount — so an
+	// MCP-settable mount would let a grant on vault.kv.get app/db-password
+	// authorize the identical path in a mount the grant never named.
 	return plugin.Field{Name: "mount", Type: plugin.String, Default: "secret", Config: "kv-mount",
-		Help: "the KV v2 secrets engine's mount path", Live: true, Suggest: suggestMounts("kv")}
+		Local: true, Help: "the KV v2 secrets engine's mount path", Live: true, Suggest: suggestMounts("kv")}
 }
 
 func pathField(help string) plugin.Field {

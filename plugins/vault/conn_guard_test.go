@@ -23,6 +23,26 @@ func TestEveryConnectionInputIsLocal(t *testing.T) {
 	}
 }
 
+// The mount is the container a scoped record sits in — kv.get/kv.set scope
+// on "path", transit.decrypt scopes on "key" — but neither ever scopes on
+// "mount" itself, so a caller-settable mount would let a grant on one
+// record authorize the identical name in a mount the grant never named.
+// Written against the declaration, so a gated capability that adds a mount
+// input without binding it is caught the day it ships.
+func TestEveryGatedCapabilityBindsItsMount(t *testing.T) {
+	for _, c := range Plugin().Capabilities {
+		if !c.NeedsGrant {
+			continue
+		}
+		for _, f := range c.Inputs {
+			if f.Name == "mount" && !f.Local {
+				t.Errorf("%s: gated capability declares mount caller-settable — "+
+					"a grant on %q authorizes it in any mount", c.ID, c.Scope)
+			}
+		}
+	}
+}
+
 // Only a genuine credential opts into EnvFallback. A field that merely
 // chooses a destination must not be fillable from an ambient variable the
 // MCP server happened to inherit — the EnvFallback distinction this leans on.
