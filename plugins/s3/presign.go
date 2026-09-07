@@ -27,7 +27,7 @@ func s3ObjectPresignCapability() plugin.Capability {
 			"this call is the one gated moment, not each use of the link. --method put grants " +
 			"write access to a caller-chosen key instead of read access to an existing one.",
 		Run: runObjectPresign,
-	}, bucketField("bucket the object is in"), keyField("object to presign"),
+	}, boundBucketField("bucket the object is in"), keyField("object to presign"),
 		plugin.Field{Name: "method", Type: plugin.String, Default: "get", Options: []string{"get", "put"},
 			Help: "get for a download link, put for an upload link"},
 		plugin.Field{Name: "ttl", Type: plugin.Int, Config: "presign.ttl", Default: 900, Min: 1, Max: 604800,
