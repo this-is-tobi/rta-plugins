@@ -313,6 +313,47 @@ func TestKeyGetMasksTheValueAndRefusesAMissingKey(t *testing.T) {
 	}
 }
 
+// The asymmetry this test used to miss: string and hash mask their own
+// value, and list, set and sorted set — the identical kind of stored value,
+// one member per row — reached the screen in the clear.
+func TestKeyGetMasksListSetAndZSetMembersToo(t *testing.T) {
+	srv := newFakeServer(t, map[string]string{
+		"TYPE mylist": "+list\r\n", "TTL mylist": ":-1\r\n",
+		"LRANGE mylist 0 100": array(bulk("secret-a"), bulk("secret-b")),
+		"LLEN mylist":         ":2\r\n",
+
+		"TYPE myset": "+set\r\n", "TTL myset": ":-1\r\n",
+		"SRANDMEMBER myset 101": array(bulk("secret-c")),
+		"SCARD myset":           ":1\r\n",
+
+		"TYPE myzset": "+zset\r\n", "TTL myzset": ":-1\r\n",
+		"ZRANGE myzset 0 100 WITHSCORES": array(bulk("secret-d"), bulk("1")),
+		"ZCARD myzset":                   ":1\r\n",
+	})
+	for _, tc := range []struct{ key, secret string }{
+		{"mylist", "secret-a"},
+		{"myset", "secret-c"},
+		{"myzset", "secret-d"},
+	} {
+		t.Run(tc.key, func(t *testing.T) {
+			v, err := run(t, "redis.key.get", srv, map[string]any{"key": tc.key})
+			if err != nil {
+				t.Fatal(err)
+			}
+			tbl := sectionOf(t, v.(view.Sections), "members").(view.Table)
+			if len(tbl.Redacted) != 1 || tbl.Redacted[0] != "Member" {
+				t.Fatalf("members table Redacted = %v, want [Member]", tbl.Redacted)
+			}
+			redacted := view.Redact(tbl).(view.Table)
+			for _, row := range redacted.Rows {
+				if strings.Contains(row[0], tc.secret) {
+					t.Errorf("%s reached the redacted output in the clear: %v", tc.secret, row)
+				}
+			}
+		})
+	}
+}
+
 func TestConfigGetMasksCredentials(t *testing.T) {
 	srv := newFakeServer(t, map[string]string{
 		"CONFIG GET *": array(bulk("maxmemory"), bulk("0"), bulk("requirepass"), bulk("hunter2"), bulk("masterauth"), bulk("")),

@@ -380,7 +380,10 @@ func collectionView(meta []view.Pair, items []string, total int64) view.View {
 		truncated = true
 	}
 	meta = append(meta, view.Pair{Key: "members", Value: strconv.FormatInt(total, 10)})
-	t := view.Table{Columns: []view.Column{{Name: "Member"}}}
+	// The string and hash cases below mask their own "value" pair; a list,
+	// set or sorted set holds the identical kind of value, one member per
+	// row, and this was the one shape that reached the screen in the clear.
+	t := view.Table{Columns: []view.Column{{Name: "Member"}}, Redacted: []string{"Member"}}
 	for _, it := range items {
 		t.Rows = append(t.Rows, []string{it})
 	}
