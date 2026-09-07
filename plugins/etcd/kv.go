@@ -315,6 +315,14 @@ func kvGetCapability() plugin.Capability {
 		// too, and the narrow consent is actually available here.
 		Safety:     plugin.Write,
 		NeedsGrant: true,
+		// Without this, `rta grant allow etcd.kv.get /registry/.../api` —
+		// the exact consent the comment above and the description below
+		// both advertise — parsed and sealed but matched nothing:
+		// internal/grant's scopes() derives the record from the field
+		// Scope names, and an empty Scope derives "", so the only grant
+		// that ever actually worked was the capability-wide one naming a
+		// key was supposed to make unnecessary.
+		Scope:      "key",
 		Idempotent: true,
 		Description: "The value stored at one key, with its version and lease.\n\n" +
 			"**Classified write for what it discloses, not what it changes.** A Kubernetes " +
