@@ -140,8 +140,8 @@ func replicationOf(t *testing.T, columns []string, row []driver.Value) view.KeyV
 // all, so the lag figure on its own is not an answer.
 func TestAStoppedReplicaIsNotReportedAsCaughtUp(t *testing.T) {
 	kv := replicationOf(t,
-		[]string{"Master_Host", "Slave_IO_Running", "Slave_SQL_Running", "Seconds_Behind_Master", "Last_Error"},
-		[]driver.Value{[]byte("primary.internal"), []byte("No"), []byte("No"), nil, []byte("could not connect")})
+		[]string{"Master_Host", "Slave_IO_Running", "Slave_SQL_Running", "Seconds_Behind_Master", "Last_Errno"},
+		[]driver.Value{[]byte("primary.internal"), []byte("No"), []byte("No"), nil, []byte("2003")})
 
 	verdict := valueOf(kv, "verdict")
 	if !strings.Contains(verdict, "STOPPED") {
@@ -153,8 +153,56 @@ func TestAStoppedReplicaIsNotReportedAsCaughtUp(t *testing.T) {
 	if lag := valueOf(kv, "lag"); !strings.Contains(lag, "unknown") {
 		t.Errorf("NULL lag rendered as %q — indistinguishable from caught up", lag)
 	}
-	if valueOf(kv, "last error") != "could not connect" {
-		t.Errorf("the error was dropped: %q", valueOf(kv, "last error"))
+	if got := valueOf(kv, "last error"); !strings.Contains(got, "errno 2003") {
+		t.Errorf("the errno was dropped: %q", got)
+	}
+}
+
+// **The fact stays, the disclosure does not.** Last_Error carries the
+// failing statement verbatim — row literals included — on a Read capability
+// with no grant. Only the errno may appear here; the message belongs behind
+// mariadb.query.
+func TestReplicationErrorTextNeverReachesTheReadTier(t *testing.T) {
+	kv := replicationOf(t,
+		[]string{"Master_Host", "Slave_IO_Running", "Slave_SQL_Running", "Seconds_Behind_Master",
+			"Last_Errno", "Last_Error", "Last_IO_Errno", "Last_IO_Error"},
+		[]driver.Value{[]byte("primary.internal"), []byte("No"), []byte("No"), nil,
+			[]byte("1062"), []byte("INSERT INTO users (email, ssn) VALUES ('a@b.com', '123-45-6789')"),
+			[]byte("2003"), []byte("could not connect to primary.internal:3306")})
+
+	for _, secret := range []string{
+		"INSERT INTO users",
+		"a@b.com",
+		"123-45-6789",
+		"could not connect to primary.internal",
+	} {
+		if strings.Contains(valueOf(kv, "last error"), secret) || strings.Contains(valueOf(kv, "last io error"), secret) {
+			t.Errorf("the failing statement reached the read tier: %q / %q",
+				valueOf(kv, "last error"), valueOf(kv, "last io error"))
+		}
+	}
+	if got := valueOf(kv, "last error"); !strings.Contains(got, "errno 1062") || !strings.Contains(got, "mariadb.query") {
+		t.Errorf("last error = %q, want the errno and a pointer to mariadb.query", got)
+	}
+	if got := valueOf(kv, "last io error"); !strings.Contains(got, "errno 2003") || !strings.Contains(got, "mariadb.query") {
+		t.Errorf("last io error = %q, want the errno and a pointer to mariadb.query", got)
+	}
+}
+
+// A zero errno means no error, on either field — not "run mariadb.query to
+// find out", which would send an operator chasing a replica that is fine.
+func TestReplicationZeroErrnoIsNotReportedAsAnError(t *testing.T) {
+	kv := replicationOf(t,
+		[]string{"Master_Host", "Slave_IO_Running", "Slave_SQL_Running", "Seconds_Behind_Master",
+			"Last_Errno", "Last_IO_Errno"},
+		[]driver.Value{[]byte("primary.internal"), []byte("Yes"), []byte("Yes"), []byte("0"),
+			[]byte("0"), []byte("0")})
+
+	if valueOf(kv, "last error") != "" {
+		t.Errorf("last error = %q, want no row for errno 0", valueOf(kv, "last error"))
+	}
+	if valueOf(kv, "last io error") != "" {
+		t.Errorf("last io error = %q, want no row for errno 0", valueOf(kv, "last io error"))
 	}
 }
 
