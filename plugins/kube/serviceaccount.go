@@ -140,7 +140,14 @@ func serviceAccountCapabilities() []plugin.Capability {
 			Inputs: []plugin.Field{
 				{Name: "name", Type: plugin.String, Positional: true, Required: true,
 					Help: "the ServiceAccount to revoke"},
+				// Local: Scope covers "name" alone, so a caller-settable
+				// namespace would let a grant to revoke one identity reach
+				// the identically-named ServiceAccount in a namespace the
+				// grant never named — the label check above guards against
+				// deleting an unrelated object, not against which namespace
+				// an MCP caller may point the Destructive delete at.
 				{Name: "namespace", Type: plugin.String, Required: true, Config: "namespace",
+					Local: true,
 					// Live for nsFields' reason: a cluster read answers a
 					// press, not a keystroke.
 					Help: "namespace it was provisioned in",

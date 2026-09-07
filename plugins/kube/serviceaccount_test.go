@@ -187,6 +187,23 @@ func TestRevokeIsReachableOverMCPUnlikeProvision(t *testing.T) {
 	}
 }
 
+// revoke scopes its grant on "name" alone, so its namespace must be Local:
+// an MCP-settable one would let a grant to revoke one identity reach the
+// identically-named ServiceAccount in a namespace the grant never named.
+func TestRevokeBindsItsNamespace(t *testing.T) {
+	for _, c := range Plugin().Capabilities {
+		if c.ID != "kube.serviceaccount.revoke" {
+			continue
+		}
+		for _, f := range c.Inputs {
+			if f.Name == "namespace" && !f.Local {
+				t.Error("kube.serviceaccount.revoke declares namespace caller-settable — " +
+					"a grant on one identity's name authorizes it in any namespace")
+			}
+		}
+	}
+}
+
 func TestProvisionRejectsAMalformedTTLBeforeAnyClusterCall(t *testing.T) {
 	failIfInvoked(t)
 	_, err := runServiceAccountProvision(context.Background(), saReq(plugin.SurfaceCLI, false, map[string]any{
