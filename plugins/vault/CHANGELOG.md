@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.4.0...plugins/vault/v0.4.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **vault:** a mount that does not exist is named, not shown as an empty one ([7331134](https://github.com/this-is-tobi/rta-plugins/commit/7331134b1d4c3d80acf913dedbdcaab7ae8e3abc))
+
 ## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.3.2...plugins/vault/v0.4.0) (2026-09-06)
 
 
