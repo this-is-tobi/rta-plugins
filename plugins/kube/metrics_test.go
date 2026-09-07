@@ -1,6 +1,66 @@
 package main
 
-import "testing"
+import (
+	"context"
+	"testing"
+
+	"github.com/this-is-tobi/rta/pkg/plugin"
+	"github.com/this-is-tobi/rta/pkg/view"
+)
+
+// checkName's own char class — needed for context names shaped like
+// "arn:aws:eks:..." — allows the dots and slashes a namespace embedded
+// directly into a raw API path must not: this is the exact string that
+// reaches nodes/proxy, the subresource rbac.go refuses to grant, if
+// namespace were trusted at face value.
+func TestCheckNamespaceLabelRejectsTraversal(t *testing.T) {
+	bad := []string{
+		"x/../../../../../api/v1/nodes/some-node/proxy",
+		"../secrets",
+		"prod/../../nodes",
+		"prod.staging",
+		"prod:staging",
+	}
+	for _, v := range bad {
+		if verr := checkNamespaceLabel(v); verr == nil {
+			t.Errorf("checkNamespaceLabel(%q) = nil, want a refusal", v)
+		}
+	}
+
+	good := []string{"", "default", "prod", "kube-system", "team-a-staging"}
+	for _, v := range good {
+		if verr := checkNamespaceLabel(v); verr != nil {
+			t.Errorf("checkNamespaceLabel(%q) = %v, want nil", v, verr)
+		}
+	}
+}
+
+// The second, independent layer inside getRawJSON itself: even a path
+// built from a field neither checkName nor checkNamespaceLabel happened to
+// validate must not reach kubectl carrying a traversal segment. Refused
+// before run() is ever called, so this needs no kubectl binary on PATH.
+func TestGetRawJSONRejectsPathTraversal(t *testing.T) {
+	verr := getRawJSON(context.Background(), selection{},
+		"/apis/metrics.k8s.io/v1beta1/namespaces/x/../../../../../api/v1/nodes/n/proxy", &struct{}{})
+	if verr == nil {
+		t.Fatal("a path containing .. was accepted")
+	}
+	if verr.Code != "kube.path.invalid" {
+		t.Errorf("code = %q, want kube.path.invalid", verr.Code)
+	}
+}
+
+// The end-to-end shape of the bug: an MCP-settable namespace reaching
+// runMetricsPod must be refused before any path is built from it, not
+// merely logged or silently truncated.
+func TestMetricsPodRefusesATraversalNamespace(t *testing.T) {
+	req := plugin.NewRequest(map[string]any{"namespace": "x/../../../../../api/v1/nodes/n/proxy"}, false, false)
+	_, err := runMetricsPod(context.Background(), req)
+	ve := view.AsError(err, "x")
+	if ve == nil || ve.Code != "kube.name.invalid" {
+		t.Fatalf("err = %v, want kube.name.invalid", err)
+	}
+}
 
 func TestCPUCores(t *testing.T) {
 	cases := []struct {
