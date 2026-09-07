@@ -229,11 +229,25 @@ func replicationView(ctx context.Context, db *sql.DB, req plugin.Request) (view.
 		{Key: "sql thread", Value: sqlRunning},
 		{Key: "lag", Value: lagText(lag)},
 	}
-	if e := pick("last_error", "last_sql_error"); e != "" {
-		pairs = append(pairs, view.Pair{Key: "last error", Value: e})
+	// The fact stays in the read tier; the text does not. Last_Error and
+	// Last_SQL_Error carry the failing statement verbatim — including
+	// whatever row literals were in it, e.g. `INSERT INTO users (email,
+	// ssn) VALUES (...)` — and this capability is Read, on the default MCP
+	// surface, precisely because everything else it reports is a number
+	// the server publishes about itself and not a value anybody stored.
+	// This is the one field where "is replication broken" and "what did
+	// the failing row contain" happen to share a column, and only the
+	// first belongs here — activityView draws the same line around its
+	// own INFO column for the identical reason. The errno is still a
+	// useful fact with no disclosure in it, so it stays; the message goes
+	// behind mariadb.query, which needs a grant and returns rows.
+	if n := pick("last_errno", "last_sql_errno"); n != "" && n != "0" {
+		pairs = append(pairs, view.Pair{Key: "last error", Value: "errno " + n +
+			" — run mariadb.query \"SHOW REPLICA STATUS\" for the message (needs a grant)"})
 	}
-	if e := pick("last_io_error"); e != "" {
-		pairs = append(pairs, view.Pair{Key: "last io error", Value: e})
+	if n := pick("last_io_errno"); n != "" && n != "0" {
+		pairs = append(pairs, view.Pair{Key: "last io error", Value: "errno " + n +
+			" — run mariadb.query \"SHOW REPLICA STATUS\" for the message (needs a grant)"})
 	}
 	pairs = append(pairs, view.Pair{Key: "verdict", Value: replicaVerdict(ioRunning, sqlRunning, lag)})
 	return view.KeyValue{Pairs: pairs}, nil
