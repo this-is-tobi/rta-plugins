@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
+	"strings"
 
 	vaultapi "github.com/hashicorp/vault/api"
 
@@ -42,6 +44,50 @@ func kvListCapability() plugin.Capability {
 			Live: true, Suggest: suggestPaths})
 }
 
+// unknownMount tells the two answers apart that Vault gives as one.
+//
+// **A LIST against a mount that does not exist is a 404, and the client turns
+// a 404 into an empty result with no error** — the identical value an
+// existing mount holding nothing produces. So a mount named `homleab` where
+// the Vault has `homelab` printed an empty table and a tree saying "0
+// secrets", and the operator reads their own typo as the secrets having gone
+// missing. There is nothing in the answer to notice, which is what makes it
+// worth a second request: the failure is silent, and silence about a
+// secret store is the wrong kind.
+//
+// Asked only once a listing has come back empty, so the ordinary path costs
+// no extra round trip.
+//
+// **Silent when sys/mounts cannot be read, and that is the important half.**
+// A token allowed to list one mount and not to enumerate the engines is an
+// ordinary least-privilege setup — the policy a CI role gets — and turning
+// its honest empty listing into "no such mount" would be inventing a failure
+// out of a permission. The same rule the completion helpers hold: unable to
+// tell means say nothing.
+func unknownMount(ctx context.Context, client *vaultapi.Client, req plugin.Request) *view.Error {
+	mount := req.String("mount")
+	mounts, err := client.Sys().ListMountsWithContext(ctx)
+	if err != nil {
+		return nil
+	}
+	var kv []string
+	for path, m := range mounts {
+		if m.Type == "kv" {
+			kv = append(kv, strings.TrimSuffix(path, "/"))
+		}
+	}
+	if slices.Contains(kv, mount) {
+		return nil
+	}
+	sort.Strings(kv)
+	hint := "this Vault has no KV mount at all"
+	if len(kv) > 0 {
+		hint = "its KV mounts are: " + strings.Join(kv, ", ")
+	}
+	return view.Errorf("vault.kv.mount.unknown",
+		"%s has no KV mount named %q", req.String("address"), mount).WithHint(hint)
+}
+
 func runKVList(ctx context.Context, req plugin.Request) (view.View, error) {
 	return withClient(req, func(client *vaultapi.Client) (view.View, error) {
 		secret, err := client.Logical().ListWithContext(ctx, req.String("mount")+"/metadata/"+req.String("path"))
@@ -64,6 +110,11 @@ func runKVList(ctx context.Context, req plugin.Request) (view.View, error) {
 			}
 		}
 		t.Total = len(t.Rows)
+		if t.Total == 0 {
+			if verr := unknownMount(ctx, client, req); verr != nil {
+				return nil, verr
+			}
+		}
 		return t, nil
 	})
 }
