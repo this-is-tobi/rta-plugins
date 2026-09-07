@@ -79,6 +79,13 @@ func runKVTree(ctx context.Context, req plugin.Request) (view.View, error) {
 			return nil, classify(err, req)
 		}
 		children := w.expand(start, names, req.Int("depth")-1)
+		// A tree of nothing is the same "0 secrets" a missing mount produces,
+		// so it asks the same question the listing does.
+		if len(children) == 0 {
+			if verr := unknownMount(ctx, client, req); verr != nil {
+				return nil, verr
+			}
+		}
 
 		label := w.mount
 		if start != "" {
