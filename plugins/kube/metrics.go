@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -76,7 +78,38 @@ func rawArgs(s selection, path string) []string {
 	return out
 }
 
+// namespaceLabelRe is a Kubernetes namespace name and nothing wider: an
+// RFC 1123 label. checkName's own char class allows dots, colons and
+// slashes — needed for context names shaped like "arn:aws:eks:..." or
+// "kind-rta-lab" — and a namespace inherits that permissiveness for free
+// the moment it is concatenated into a raw API path rather than escaped:
+// "x/../../../../../api/v1/nodes/<node>/proxy" is a namespace checkName
+// accepts, and it reaches the whole kubelet API, the exact subresource
+// rbac.go refuses to grant.
+var namespaceLabelRe = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
+
+func checkNamespaceLabel(v string) *view.Error {
+	if v == "" {
+		return nil
+	}
+	if !namespaceLabelRe.MatchString(v) {
+		return view.Errorf("kube.name.invalid", "%q is not a usable namespace name", v).
+			WithHint("namespace names are lowercase letters, digits and dashes — this one goes " +
+				"into an API server URL, so it is held to that and nothing wider")
+	}
+	return nil
+}
+
 func getRawJSON(ctx context.Context, s selection, path string, out any) *view.Error {
+	// A second, independent check on the path itself rather than trusting
+	// every caller to have validated its own inputs before building one —
+	// the same belt-and-suspenders fetchSummary's checkNodeName and this
+	// file's checkNamespaceLabel already are individually, closed here so
+	// a future raw path assembled from a field neither of them covers
+	// cannot reopen the same traversal.
+	if strings.Contains(path, "..") {
+		return view.Errorf("kube.path.invalid", "%q is not a safe API path", path)
+	}
 	raw, verr := run(ctx, rawArgs(s, path)...)
 	if verr != nil {
 		if verr.Code == "kube.notfound" {
@@ -124,6 +157,16 @@ func runMetricsPod(ctx context.Context, req plugin.Request) (view.View, error) {
 	}
 	path := "/apis/metrics.k8s.io/v1beta1/pods"
 	if !s.AllNS && s.Namespace != "" {
+		// Re-validated here, at the point the path is built, rather than
+		// trusted from selectionOf's own checkName call — the same reason
+		// fetchSummary re-checks node: a later caller reaching this
+		// function by another route must not be able to skip it by not
+		// knowing it was needed, and checkName's wider char class (it
+		// must also accept context names) does not catch a namespace
+		// shaped like a traversal.
+		if verr := checkNamespaceLabel(s.Namespace); verr != nil {
+			return nil, verr
+		}
 		path = "/apis/metrics.k8s.io/v1beta1/namespaces/" + s.Namespace + "/pods"
 	}
 	var metrics list[podMetricsItem]
