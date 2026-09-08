@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.3.3...plugins/etcd/v0.3.4) (2026-09-08)
+
+
+### Bug Fixes
+
+* **etcd:** scope kv.get's grant to the key it names ([cee35f5](https://github.com/this-is-tobi/rta-plugins/commit/cee35f5d768f9256f696bceec6e692640edb8615))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.15.0 ([a8203b7](https://github.com/this-is-tobi/rta-plugins/commit/a8203b7c0377c3c9440dd1940a34d74679840270))
+
 ## [0.3.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.3.2...plugins/etcd/v0.3.3) (2026-09-06)
 
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.5](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.4...plugins/redis/v0.1.5) (2026-09-08)
+
+
+### Bug Fixes
+
+* **redis:** mask collection members the same way a scalar value is ([893094b](https://github.com/this-is-tobi/rta-plugins/commit/893094b8c2f9d493908671e5696c27d212211150))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.15.0 ([a8203b7](https://github.com/this-is-tobi/rta-plugins/commit/a8203b7c0377c3c9440dd1940a34d74679840270))
+
 ## [0.1.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.3...plugins/redis/v0.1.4) (2026-09-06)
 
 

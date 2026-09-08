@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.3.3...plugins/mariadb/v0.3.4) (2026-09-08)
+
+
+### Bug Fixes
+
+* **mariadb:** drop the failing statement out of replication.status ([bfbcbd9](https://github.com/this-is-tobi/rta-plugins/commit/bfbcbd99d5b7904868ff816541623f4750c8ddd4))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.15.0 ([a8203b7](https://github.com/this-is-tobi/rta-plugins/commit/a8203b7c0377c3c9440dd1940a34d74679840270))
+
 ## [0.3.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.3.2...plugins/mariadb/v0.3.3) (2026-09-06)
 
 
