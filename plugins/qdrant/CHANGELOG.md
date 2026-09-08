@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.3...plugins/qdrant/v0.3.4) (2026-09-08)
+
+
+### Bug Fixes
+
+* **qdrant:** scope points.scroll's grant to the collection it names ([f3af3bb](https://github.com/this-is-tobi/rta-plugins/commit/f3af3bbcfff26d96e680e4f4930071d8f682e66b))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.15.0 ([a8203b7](https://github.com/this-is-tobi/rta-plugins/commit/a8203b7c0377c3c9440dd1940a34d74679840270))
+
 ## [0.3.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.2...plugins/qdrant/v0.3.3) (2026-09-06)
 
 

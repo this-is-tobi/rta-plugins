@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.3.3...plugins/kube/v0.3.4) (2026-09-08)
+
+
+### Bug Fixes
+
+* **kube:** bind the namespace on serviceaccount.revoke ([cc78fe1](https://github.com/this-is-tobi/rta-plugins/commit/cc78fe102d72c1814d87bfc1c55638abebd4c903))
+* **kube:** validate the namespace before it reaches a raw API path ([e468da1](https://github.com/this-is-tobi/rta-plugins/commit/e468da128fc213c2f173525a8afe8714894fc57b))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.15.0 ([a8203b7](https://github.com/this-is-tobi/rta-plugins/commit/a8203b7c0377c3c9440dd1940a34d74679840270))
+
 ## [0.3.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.3.2...plugins/kube/v0.3.3) (2026-09-06)
 
 

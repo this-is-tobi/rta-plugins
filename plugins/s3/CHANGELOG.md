@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.3.3...plugins/s3/v0.3.4) (2026-09-08)
+
+
+### Bug Fixes
+
+* **s3:** bind the source bucket on every key-scoped capability ([d4af73a](https://github.com/this-is-tobi/rta-plugins/commit/d4af73af4ff9b79974401c0a2c904706716c457c))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.15.0 ([a8203b7](https://github.com/this-is-tobi/rta-plugins/commit/a8203b7c0377c3c9440dd1940a34d74679840270))
+
 ## [0.3.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.3.2...plugins/s3/v0.3.3) (2026-09-06)
 
 

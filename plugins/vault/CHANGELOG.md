@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.4.1...plugins/vault/v0.4.2) (2026-09-08)
+
+
+### Bug Fixes
+
+* **vault:** bind the mount on kv and transit capabilities ([16555c6](https://github.com/this-is-tobi/rta-plugins/commit/16555c69839d72495140c1fa4b995cab6830d3d0))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.15.0 ([a8203b7](https://github.com/this-is-tobi/rta-plugins/commit/a8203b7c0377c3c9440dd1940a34d74679840270))
+
 ## [0.4.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.4.0...plugins/vault/v0.4.1) (2026-09-07)
 
 
