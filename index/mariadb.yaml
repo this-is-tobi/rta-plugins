@@ -7,39 +7,39 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: mariadb
-version: 0.3.5
+version: 0.3.6
 summary: "MariaDB: connection health, schema, rows, activity and cluster state"
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/mariadb
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmariadb%2Fv0.3.5/rta-plugin-mariadb_0.3.5_darwin_amd64.tar.gz
-  sha256: 647a2e4e386ff0ed25e9ce17b5337b805faa0adcbafeab7f77043113ae792e7a
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmariadb%2Fv0.3.6/rta-plugin-mariadb_0.3.6_darwin_amd64.tar.gz
+  sha256: 0cb18805d2596fbe0be224d6733e0fedba282afdd3941f2e091a966d5308e284
   bin: rta-plugin-mariadb
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmariadb%2Fv0.3.5/rta-plugin-mariadb_0.3.5_darwin_arm64.tar.gz
-  sha256: 273d3e0ad508df2072d1256d2e503533b98d4981f7c47ffd8170ed665639e3a6
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmariadb%2Fv0.3.6/rta-plugin-mariadb_0.3.6_darwin_arm64.tar.gz
+  sha256: 67edb482355dc76e420ff9ba47c721de796034696d05e7d89661f3df4a2123d0
   bin: rta-plugin-mariadb
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmariadb%2Fv0.3.5/rta-plugin-mariadb_0.3.5_linux_amd64.tar.gz
-  sha256: c10c07b947883e6b0b0ac1515df94773405003f5204fa44b041f6f0ef466984b
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmariadb%2Fv0.3.6/rta-plugin-mariadb_0.3.6_linux_amd64.tar.gz
+  sha256: 6a665e575ab71d7271528158561df11156d2059114deebbd11c915f8f088f7e1
   bin: rta-plugin-mariadb
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmariadb%2Fv0.3.5/rta-plugin-mariadb_0.3.5_linux_arm64.tar.gz
-  sha256: 3863fef8a2f8a6a70a366c01e60f9b769959c9ffd1678abd55d85a40c1edd63d
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmariadb%2Fv0.3.6/rta-plugin-mariadb_0.3.6_linux_arm64.tar.gz
+  sha256: 4744c9334c300e89ac96539f86ccf92d2d6f3df253eb2ade4d94c46c7e985013
   bin: rta-plugin-mariadb
 - os: windows
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmariadb%2Fv0.3.5/rta-plugin-mariadb_0.3.5_windows_amd64.tar.gz
-  sha256: 459b7656c6764dd1e1008b901df3535be02d6c6ed5e781d9e80fcb84bbfc61a9
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmariadb%2Fv0.3.6/rta-plugin-mariadb_0.3.6_windows_amd64.tar.gz
+  sha256: 4c2f6180256ce663feb4fb15c1898bbf7b4a016a49b95647db61552f63a23ab2
   bin: rta-plugin-mariadb.exe
 - os: windows
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmariadb%2Fv0.3.5/rta-plugin-mariadb_0.3.5_windows_arm64.tar.gz
-  sha256: 52c525f0fa7dca08cf412a6c784d0f3415ce48a53ca905fc66c265ad9a31e90a
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmariadb%2Fv0.3.6/rta-plugin-mariadb_0.3.6_windows_arm64.tar.gz
+  sha256: b3c2a751008139098def555d529b2f983a2951e8dff2de2ab1394c3671a3fbf4
   bin: rta-plugin-mariadb.exe
 capabilities:
 - id: mariadb.dump
