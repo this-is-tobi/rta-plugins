@@ -1,0 +1,80 @@
+# rta-plugin-keycloak, as rta read it out of the binary.
+#
+# Everything here except the platform URLs came from the artifact's own
+# declaration, so this file cannot disagree with the plugin it describes.
+# `rta plugin install` derives all of it again from the bytes it downloads
+# and refuses the install if the two differ, naming this index.
+#
+# Regenerate with `rta plugin manifest` rather than editing.
+name: keycloak
+version: 0.1.0
+summary: "Keycloak: users, clients, roles, flows, sessions, events — and a realm graded against named controls"
+homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/keycloak
+platforms:
+- os: darwin
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkeycloak%2Fv0.1.0/rta-plugin-keycloak_0.1.0_darwin_amd64.tar.gz
+  sha256: 8645de3b6bc84127406d50090b44719275759691a5a38df9fffa49dfcc8cc505
+  bin: rta-plugin-keycloak
+- os: darwin
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkeycloak%2Fv0.1.0/rta-plugin-keycloak_0.1.0_darwin_arm64.tar.gz
+  sha256: 421ed0d840e144fa6d9bcfe7b49b136a485304af51fb1031c7921bd1218df40f
+  bin: rta-plugin-keycloak
+- os: linux
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkeycloak%2Fv0.1.0/rta-plugin-keycloak_0.1.0_linux_amd64.tar.gz
+  sha256: 1119a66cf489af5dba54d426e9cb517a1c9bb040af83e7eb7a066b45a8abce65
+  bin: rta-plugin-keycloak
+- os: linux
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkeycloak%2Fv0.1.0/rta-plugin-keycloak_0.1.0_linux_arm64.tar.gz
+  sha256: c7f975893717e5fdeec4b4d8a593bc4900553700ff0ab77e7126f22ef477526e
+  bin: rta-plugin-keycloak
+- os: windows
+  arch: amd64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkeycloak%2Fv0.1.0/rta-plugin-keycloak_0.1.0_windows_amd64.tar.gz
+  sha256: 0ff65ad73f7daae54cd9d1ee9e3d58eb643ce6c72df9f30b7ec5651ba55015f3
+  bin: rta-plugin-keycloak.exe
+- os: windows
+  arch: arm64
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkeycloak%2Fv0.1.0/rta-plugin-keycloak_0.1.0_windows_arm64.tar.gz
+  sha256: 2693e24fecc77f7669e68b182d888199476a117859c83659179fb6f71701454c
+  bin: rta-plugin-keycloak.exe
+capabilities:
+- id: keycloak.overview
+  summary: "One realm at a glance: size, protections, event logging, the flows in force"
+  safety: read
+- id: keycloak.user.list
+  summary: Who exists in the realm, whether each is enabled, verified and has a second factor
+  safety: read
+- id: keycloak.user.show
+  summary: "One user: profile, credential types, effective roles, groups and sessions"
+  safety: read
+- id: keycloak.client.list
+  summary: "Every client: public or confidential, which grants it may use, whether it enforces PKCE"
+  safety: read
+- id: keycloak.client.show
+  summary: "One client: grants, redirect URIs, origins, scopes, the settings that matter, its service account's roles"
+  safety: read
+- id: keycloak.role.list
+  summary: The realm's roles, or one client's, and which are composites
+  safety: read
+- id: keycloak.flow.list
+  summary: The authentication flows, and which one each kind of login is bound to
+  safety: read
+- id: keycloak.flow.show
+  summary: "One flow's steps as a tree: each authenticator and whether it is required, alternative, conditional or disabled"
+  safety: read
+- id: keycloak.session.list
+  summary: "Who is signed in: sessions per client, or the sessions of one user or one client"
+  safety: read
+- id: keycloak.event.list
+  summary: "Login events, newest first: logins, failures, token refreshes, who and from where"
+  safety: read
+- id: keycloak.event.admin
+  summary: "Admin events, newest first: what was created, changed or deleted in the realm, by whom"
+  safety: read
+- id: keycloak.audit
+  summary: "Grade the realm: second factor, brute force, passwords, clients, tokens, events, admins — each against a named control"
+  safety: read
