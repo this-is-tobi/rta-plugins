@@ -1,0 +1,11 @@
+{
+  "id": "b5a9fdbe-c1c3-487f-9eab-6f0372a9e08a",
+  "username": "service-account-rta-audit",
+  "emailVerified": false,
+  "enabled": true,
+  "createdTimestamp": 1789330617389,
+  "totp": false,
+  "disableableCredentialTypes": [],
+  "requiredActions": [],
+  "notBefore": 0
+}

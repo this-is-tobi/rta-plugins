@@ -25,6 +25,7 @@
     "plugins/cnpg": { "component": "plugins/cnpg" },
     "plugins/docker": { "component": "plugins/docker" },
     "plugins/etcd": { "component": "plugins/etcd" },
+    "plugins/keycloak": { "component": "plugins/keycloak" },
     "plugins/kube": { "component": "plugins/kube" },
     "plugins/mariadb": { "component": "plugins/mariadb" },
     "plugins/mysql": { "component": "plugins/mysql" },

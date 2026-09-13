@@ -1,0 +1,19 @@
+{
+  "id": "442b7121-0502-4400-9317-6cf37a6eb06c",
+  "username": "carol",
+  "emailVerified": false,
+  "enabled": true,
+  "createdTimestamp": 1789330684745,
+  "totp": true,
+  "disableableCredentialTypes": [],
+  "requiredActions": [],
+  "notBefore": 0,
+  "access": {
+    "manageGroupMembership": false,
+    "resetPassword": false,
+    "view": true,
+    "mapRoles": false,
+    "impersonate": false,
+    "manage": false
+  }
+}

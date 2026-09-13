@@ -1,0 +1,110 @@
+[
+  {
+    "id": "ed86befa-4481-460d-8a9d-fe5b5010505a",
+    "time": 1789330819278,
+    "type": "CLIENT_LOGIN",
+    "realmId": "ab98c85f-ff4f-4dd8-88f9-f10cd7333adb",
+    "clientId": "rta-audit",
+    "userId": "b5a9fdbe-c1c3-487f-9eab-6f0372a9e08a",
+    "ipAddress": "192.168.65.1",
+    "details": {
+      "token_id": "trrtcc:b6f53e9c-11f9-cd44-c6e0-a751782cfa43",
+      "grant_type": "client_credentials",
+      "scope": "profile email",
+      "client_auth_method": "client-secret",
+      "username": "service-account-rta-audit"
+    }
+  },
+  {
+    "id": "14db536d-8478-42ed-8850-2fe0257b9d31",
+    "time": 1789330685049,
+    "type": "CLIENT_LOGIN_ERROR",
+    "realmId": "ab98c85f-ff4f-4dd8-88f9-f10cd7333adb",
+    "clientId": "rta-audit",
+    "ipAddress": "192.168.65.1",
+    "error": "invalid_client_credentials",
+    "details": {
+      "grant_type": "client_credentials"
+    }
+  },
+  {
+    "id": "80de8541-e110-4128-95fb-733acc60bd57",
+    "time": 1789330684924,
+    "type": "LOGIN_ERROR",
+    "realmId": "ab98c85f-ff4f-4dd8-88f9-f10cd7333adb",
+    "clientId": "spa",
+    "ipAddress": "192.168.65.1",
+    "error": "resolve_required_actions",
+    "details": {
+      "reason": "Account is not fully set up",
+      "auth_method": "openid-connect",
+      "grant_type": "password",
+      "client_auth_method": "client-secret",
+      "username": "alice"
+    }
+  },
+  {
+    "id": "99d18506-14fd-44a0-8bfb-70da388a6f00",
+    "time": 1789330684888,
+    "type": "LOGIN_ERROR",
+    "realmId": "ab98c85f-ff4f-4dd8-88f9-f10cd7333adb",
+    "clientId": "spa",
+    "ipAddress": "192.168.65.1",
+    "error": "resolve_required_actions",
+    "details": {
+      "reason": "Account is not fully set up",
+      "auth_method": "openid-connect",
+      "grant_type": "password",
+      "client_auth_method": "client-secret",
+      "username": "alice"
+    }
+  },
+  {
+    "id": "36404a9b-d46f-4900-95f8-0caf095ba7a6",
+    "time": 1789330684641,
+    "type": "CLIENT_LOGIN",
+    "realmId": "ab98c85f-ff4f-4dd8-88f9-f10cd7333adb",
+    "clientId": "rta-audit",
+    "userId": "b5a9fdbe-c1c3-487f-9eab-6f0372a9e08a",
+    "ipAddress": "192.168.65.1",
+    "details": {
+      "token_id": "trrtcc:592ee863-038a-53a6-2ed5-c394fff36bd4",
+      "grant_type": "client_credentials",
+      "scope": "profile email",
+      "client_auth_method": "client-secret",
+      "username": "service-account-rta-audit"
+    }
+  },
+  {
+    "id": "555377b8-f936-40a9-8114-b1efbeacd93c",
+    "time": 1789330617816,
+    "type": "CLIENT_LOGIN",
+    "realmId": "ab98c85f-ff4f-4dd8-88f9-f10cd7333adb",
+    "clientId": "rta-audit",
+    "userId": "b5a9fdbe-c1c3-487f-9eab-6f0372a9e08a",
+    "ipAddress": "192.168.65.1",
+    "details": {
+      "token_id": "trrtcc:ca28fab7-fcf1-1ed2-71cb-c63dfba5e56e",
+      "grant_type": "client_credentials",
+      "scope": "profile email",
+      "client_auth_method": "client-secret",
+      "username": "service-account-rta-audit"
+    }
+  },
+  {
+    "id": "b9871abf-d87d-46a0-bb1d-cdb08d80c679",
+    "time": 1789330617771,
+    "type": "LOGIN_ERROR",
+    "realmId": "ab98c85f-ff4f-4dd8-88f9-f10cd7333adb",
+    "clientId": "spa",
+    "ipAddress": "192.168.65.1",
+    "error": "resolve_required_actions",
+    "details": {
+      "reason": "Account is not fully set up",
+      "auth_method": "openid-connect",
+      "grant_type": "password",
+      "client_auth_method": "client-secret",
+      "username": "alice"
+    }
+  }
+]
