@@ -1,0 +1,17 @@
+[
+  {
+    "id": "00191715-ece1-4379-8090-6c0607d96ebd",
+    "username": "alice",
+    "email": "alice@example.com",
+    "emailVerified": false,
+    "enabled": true,
+    "createdTimestamp": 1789330617603,
+    "totp": false,
+    "disableableCredentialTypes": [],
+    "requiredActions": [],
+    "notBefore": 0,
+    "access": {
+      "manage": false
+    }
+  }
+]

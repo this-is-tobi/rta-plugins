@@ -1,0 +1,68 @@
+{
+  "realmMappings": [
+    {
+      "id": "ecc9bd5f-c017-4271-be24-8956bf0b75a9",
+      "name": "default-roles-demo",
+      "description": "${role_default-roles}",
+      "composite": true,
+      "clientRole": false,
+      "containerId": "ab98c85f-ff4f-4dd8-88f9-f10cd7333adb"
+    }
+  ],
+  "clientMappings": {
+    "realm-management": {
+      "id": "69cc227e-d072-4cfa-aeef-7a83ad3590b8",
+      "client": "realm-management",
+      "mappings": [
+        {
+          "id": "38d51bec-df7f-4176-9e0d-cfe60ea99bc9",
+          "name": "view-users",
+          "description": "${role_view-users}",
+          "composite": true,
+          "clientRole": true,
+          "containerId": "69cc227e-d072-4cfa-aeef-7a83ad3590b8"
+        },
+        {
+          "id": "8bca384b-4494-4111-8033-cd13bbd24b78",
+          "name": "view-authorization",
+          "description": "${role_view-authorization}",
+          "composite": false,
+          "clientRole": true,
+          "containerId": "69cc227e-d072-4cfa-aeef-7a83ad3590b8"
+        },
+        {
+          "id": "0e85a17e-eb0c-4f0b-8e93-bfd5912d4a42",
+          "name": "view-events",
+          "description": "${role_view-events}",
+          "composite": false,
+          "clientRole": true,
+          "containerId": "69cc227e-d072-4cfa-aeef-7a83ad3590b8"
+        },
+        {
+          "id": "659781d2-93bf-450b-be5e-989be270b15a",
+          "name": "view-realm",
+          "description": "${role_view-realm}",
+          "composite": false,
+          "clientRole": true,
+          "containerId": "69cc227e-d072-4cfa-aeef-7a83ad3590b8"
+        },
+        {
+          "id": "17ec0752-bc29-440c-baed-1e9f912740c8",
+          "name": "view-identity-providers",
+          "description": "${role_view-identity-providers}",
+          "composite": false,
+          "clientRole": true,
+          "containerId": "69cc227e-d072-4cfa-aeef-7a83ad3590b8"
+        },
+        {
+          "id": "598f10fd-c90e-4730-8976-153e88c533ce",
+          "name": "view-clients",
+          "description": "${role_view-clients}",
+          "composite": true,
+          "clientRole": true,
+          "containerId": "69cc227e-d072-4cfa-aeef-7a83ad3590b8"
+        }
+      ]
+    }
+  }
+}

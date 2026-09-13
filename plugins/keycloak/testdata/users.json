@@ -1,0 +1,45 @@
+[
+  {
+    "id": "00191715-ece1-4379-8090-6c0607d96ebd",
+    "username": "alice",
+    "email": "alice@example.com",
+    "emailVerified": false,
+    "enabled": true,
+    "createdTimestamp": 1789330617603,
+    "totp": false,
+    "disableableCredentialTypes": [],
+    "requiredActions": [],
+    "notBefore": 0,
+    "access": {
+      "manage": false
+    }
+  },
+  {
+    "id": "d44e6423-20a8-4991-8106-5d9bc580e31d",
+    "username": "bob",
+    "emailVerified": false,
+    "enabled": true,
+    "createdTimestamp": 1789330617643,
+    "totp": false,
+    "disableableCredentialTypes": [],
+    "requiredActions": [],
+    "notBefore": 0,
+    "access": {
+      "manage": false
+    }
+  },
+  {
+    "id": "442b7121-0502-4400-9317-6cf37a6eb06c",
+    "username": "carol",
+    "emailVerified": false,
+    "enabled": true,
+    "createdTimestamp": 1789330684745,
+    "totp": true,
+    "disableableCredentialTypes": [],
+    "requiredActions": [],
+    "notBefore": 0,
+    "access": {
+      "manage": false
+    }
+  }
+]

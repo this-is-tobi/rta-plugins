@@ -15,6 +15,7 @@ The first-party plugins for [rta](https://github.com/this-is-tobi/rta), and the 
 | [`kube`](./plugins/kube/) | Kubernetes, through the `kubectl` you already have | 19 |
 | [`cnpg`](./plugins/cnpg/) | CloudNativePG: clusters, their health, replication, backups and volumes, and asking for a backup now | 5 |
 | [`docker`](./plugins/docker/) | Containers and images over the local daemon socket | 7 |
+| [`keycloak`](./plugins/keycloak/) | Keycloak: users, clients, roles, flows, sessions and events, and a realm graded against named controls — stdlib HTTP against the Admin REST API, acting as a service account, never an administrator | 12 |
 
 Every one draws the same line in the same place: the read tier describes the thing, and anything that returns a value somebody stored is a write. `mysql.schema` tells you a database's shape and `mysql.query` returns its rows. That is what makes read worth granting.
 
@@ -58,7 +59,7 @@ gh attestation verify checksums.txt --owner this-is-tobi
 
 ## Writing your own
 
-rta's [Writing a plugin](https://github.com/this-is-tobi/rta/blob/main/docs/40-plugins/20-writing-a-plugin.md) is the guide; `rta plugin new` scaffolds one that builds and runs. These eleven are worked examples, each adding one idea, in the order worth reading them (`eol`, the smallest, is built into rta itself and is the one to read first):
+rta's [Writing a plugin](https://github.com/this-is-tobi/rta/blob/main/docs/40-plugins/20-writing-a-plugin.md) is the guide; `rta plugin new` scaffolds one that builds and runs. These twelve are worked examples, each adding one idea, in the order worth reading them (`eol`, the smallest, is built into rta itself and is the one to read first):
 
 | Read | For |
 | --- | --- |
@@ -71,6 +72,7 @@ rta's [Writing a plugin](https://github.com/this-is-tobi/rta/blob/main/docs/40-p
 | [`vault`](./plugins/vault/) | A plugin where almost everything is a secret, and what that does to every declaration |
 | [`etcd`](./plugins/etcd/) · [`qdrant`](./plugins/qdrant/) | Tree views, and a plugin whose whole subject is a keyspace |
 | [`redis`](./plugins/redis/) | Speaking a wire protocol in-package when the client library would triple the binary |
+| [`keycloak`](./plugins/keycloak/) | A plugin whose whole reason to exist is an audit: `pkg/findings` from a plugin, a representation decoded into a shape that has no field for the secret it carries, and a credential exchanged for a five-minute token on every call |
 | [`docker`](./plugins/docker/) | A local daemon socket rather than a network endpoint |
 
 Third-party plugins are not yet accepted into this index. Publish your own — an index is a git repository with one directory in it, and `rta plugin index add <name> <repository>` attaches it like any other.

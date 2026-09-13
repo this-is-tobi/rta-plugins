@@ -1,0 +1,26 @@
+[
+  {
+    "id": "afdbdc28-63c0-4cd6-bedf-f790c32c4021",
+    "name": "offline_access",
+    "description": "${role_offline-access}",
+    "composite": false,
+    "clientRole": false,
+    "containerId": "ab98c85f-ff4f-4dd8-88f9-f10cd7333adb"
+  },
+  {
+    "id": "ecc9bd5f-c017-4271-be24-8956bf0b75a9",
+    "name": "default-roles-demo",
+    "description": "${role_default-roles}",
+    "composite": true,
+    "clientRole": false,
+    "containerId": "ab98c85f-ff4f-4dd8-88f9-f10cd7333adb"
+  },
+  {
+    "id": "470be013-46d9-49e5-ab2c-eaae523c15f2",
+    "name": "uma_authorization",
+    "description": "${role_uma_authorization}",
+    "composite": false,
+    "clientRole": false,
+    "containerId": "ab98c85f-ff4f-4dd8-88f9-f10cd7333adb"
+  }
+]

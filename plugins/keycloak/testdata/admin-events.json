@@ -1,0 +1,100 @@
+[
+  {
+    "id": "f67a7d77-d494-4729-831a-8d3636289c25",
+    "time": 1789330684778,
+    "realmId": "ab98c85f-ff4f-4dd8-88f9-f10cd7333adb",
+    "authDetails": {
+      "realmId": "d4f156b2-7336-424f-b2dc-0bf9225f97f9",
+      "clientId": "1a6751b4-e239-444a-bcd3-1f32d33263ac",
+      "userId": "83bfa06f-6a29-49c6-a303-663472b4aa40",
+      "ipAddress": "192.168.65.1"
+    },
+    "operationType": "CREATE",
+    "resourceType": "USER",
+    "resourcePath": "users/442b7121-0502-4400-9317-6cf37a6eb06c"
+  },
+  {
+    "id": "0bfde80c-6941-4b72-bb2e-3061f98ec28b",
+    "time": 1789330617727,
+    "realmId": "ab98c85f-ff4f-4dd8-88f9-f10cd7333adb",
+    "authDetails": {
+      "realmId": "d4f156b2-7336-424f-b2dc-0bf9225f97f9",
+      "clientId": "1a6751b4-e239-444a-bcd3-1f32d33263ac",
+      "userId": "83bfa06f-6a29-49c6-a303-663472b4aa40",
+      "ipAddress": "192.168.65.1"
+    },
+    "operationType": "CREATE",
+    "resourceType": "CLIENT_ROLE_MAPPING",
+    "resourcePath": "users/00191715-ece1-4379-8090-6c0607d96ebd/role-mappings/clients/69cc227e-d072-4cfa-aeef-7a83ad3590b8"
+  },
+  {
+    "id": "82688a00-eaed-4b61-ab14-1fc646cc2397",
+    "time": 1789330617662,
+    "realmId": "ab98c85f-ff4f-4dd8-88f9-f10cd7333adb",
+    "authDetails": {
+      "realmId": "d4f156b2-7336-424f-b2dc-0bf9225f97f9",
+      "clientId": "1a6751b4-e239-444a-bcd3-1f32d33263ac",
+      "userId": "83bfa06f-6a29-49c6-a303-663472b4aa40",
+      "ipAddress": "192.168.65.1"
+    },
+    "operationType": "CREATE",
+    "resourceType": "CLIENT",
+    "resourcePath": "clients/aea40f30-c941-4411-a9d0-6367739c4337"
+  },
+  {
+    "id": "689a701e-7733-4af1-b682-a59e248ebff7",
+    "time": 1789330617644,
+    "realmId": "ab98c85f-ff4f-4dd8-88f9-f10cd7333adb",
+    "authDetails": {
+      "realmId": "d4f156b2-7336-424f-b2dc-0bf9225f97f9",
+      "clientId": "1a6751b4-e239-444a-bcd3-1f32d33263ac",
+      "userId": "83bfa06f-6a29-49c6-a303-663472b4aa40",
+      "ipAddress": "192.168.65.1"
+    },
+    "operationType": "CREATE",
+    "resourceType": "USER",
+    "resourcePath": "users/d44e6423-20a8-4991-8106-5d9bc580e31d"
+  },
+  {
+    "id": "a28130d8-563f-4783-8f86-08d6d3b134d3",
+    "time": 1789330617627,
+    "realmId": "ab98c85f-ff4f-4dd8-88f9-f10cd7333adb",
+    "authDetails": {
+      "realmId": "d4f156b2-7336-424f-b2dc-0bf9225f97f9",
+      "clientId": "1a6751b4-e239-444a-bcd3-1f32d33263ac",
+      "userId": "83bfa06f-6a29-49c6-a303-663472b4aa40",
+      "ipAddress": "192.168.65.1"
+    },
+    "operationType": "CREATE",
+    "resourceType": "USER",
+    "resourcePath": "users/00191715-ece1-4379-8090-6c0607d96ebd"
+  },
+  {
+    "id": "f623cd84-6cfc-47f9-859f-288c6aab81da",
+    "time": 1789330617578,
+    "realmId": "ab98c85f-ff4f-4dd8-88f9-f10cd7333adb",
+    "authDetails": {
+      "realmId": "d4f156b2-7336-424f-b2dc-0bf9225f97f9",
+      "clientId": "1a6751b4-e239-444a-bcd3-1f32d33263ac",
+      "userId": "83bfa06f-6a29-49c6-a303-663472b4aa40",
+      "ipAddress": "192.168.65.1"
+    },
+    "operationType": "CREATE",
+    "resourceType": "CLIENT_ROLE_MAPPING",
+    "resourcePath": "users/b5a9fdbe-c1c3-487f-9eab-6f0372a9e08a/role-mappings/clients/69cc227e-d072-4cfa-aeef-7a83ad3590b8"
+  },
+  {
+    "id": "3da16515-20f8-4425-a6d0-a8a6cae7fee3",
+    "time": 1789330617397,
+    "realmId": "ab98c85f-ff4f-4dd8-88f9-f10cd7333adb",
+    "authDetails": {
+      "realmId": "d4f156b2-7336-424f-b2dc-0bf9225f97f9",
+      "clientId": "1a6751b4-e239-444a-bcd3-1f32d33263ac",
+      "userId": "83bfa06f-6a29-49c6-a303-663472b4aa40",
+      "ipAddress": "192.168.65.1"
+    },
+    "operationType": "CREATE",
+    "resourceType": "CLIENT",
+    "resourcePath": "clients/db26b62b-a306-4750-a7da-592b8d994ebf"
+  }
+]
