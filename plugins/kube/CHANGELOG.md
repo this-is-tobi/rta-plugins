@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.8](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.3.7...plugins/kube/v0.3.8) (2026-09-14)
+
+
+### Bug Fixes
+
+* **kube:** parse the nanocore cpu usage metrics-server reports ([16f62c9](https://github.com/this-is-tobi/rta-plugins/commit/16f62c968ec44acc6300f9247f9893fced6b30aa))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.19.0 ([d034909](https://github.com/this-is-tobi/rta-plugins/commit/d0349098fc102306562ce8223ba4dbda6c3146d1))
+
 ## [0.3.7](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.3.6...plugins/kube/v0.3.7) (2026-09-13)
 
 
