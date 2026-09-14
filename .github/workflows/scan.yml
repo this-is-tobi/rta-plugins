@@ -81,11 +81,23 @@ jobs:
             >/dev/null || echo "::warning::could not upload the $m scan to the Security tab"
         done
 
+  # pull-requests: write is required and unused. GitHub validates a called
+  # workflow's jobs against the calling job's grant when it sets the run up
+  # — before any if: is evaluated — and scan-gitleaks ends in a scan-notif
+  # job that declares pull-requests: write at the job level unconditionally.
+  # Without the grant the whole run ends in startup_failure: no jobs, no
+  # log, no annotation anybody reads, silently, every Monday. actionlint
+  # cannot see this — it does not resolve a remote reusable workflow's
+  # permission requests — and rta's ci.yml carries the same grant for the
+  # same reason, where rta's cc2431e fixed the identical regression.
+  # scan-notif is skipped outright here: its if: tests PR_NUMBER, which a
+  # scheduled run never has.
   scan-secrets:
     name: Scan secrets
     uses: this-is-tobi/github-workflows/.github/workflows/scan-gitleaks.yml@v0
     permissions:
       contents: read
       security-events: write
+      pull-requests: write
     with:
       GITHUB_SECURITY_TAB: true
