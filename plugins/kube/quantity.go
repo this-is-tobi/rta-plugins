@@ -19,11 +19,22 @@ import (
 
 // parseCPU reads a CPU quantity in cores. "500m" is 0.5 cores; a bare
 // number is already cores, never millicores — that distinction is the
-// suffix, not the magnitude.
+// suffix, not the magnitude. "n" is nanocores: specs and quotas never use
+// it, but metrics-server's usage.cpu always does (e.g. "148912532n"), so a
+// parser written only against ResourceQuota/LimitRange/PVC shapes silently
+// zeroed out every real usage reading — parseFloat on a trailing "n" just
+// fails and the caller's `v, ok := parseCPU(...)` swallows the false.
 func parseCPU(s string) (float64, bool) {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return 0, false
+	}
+	if nano, ok := strings.CutSuffix(s, "n"); ok {
+		n, err := strconv.ParseFloat(nano, 64)
+		if err != nil {
+			return 0, false
+		}
+		return n / 1e9, true
 	}
 	if milli, ok := strings.CutSuffix(s, "m"); ok {
 		n, err := strconv.ParseFloat(milli, 64)
