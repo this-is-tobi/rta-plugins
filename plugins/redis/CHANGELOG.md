@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.10](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.9...plugins/redis/v0.1.10) (2026-09-14)
+
+
+### Dependencies
+
+* every plugin builds against rta v0.20.0 ([3c19f27](https://github.com/this-is-tobi/rta-plugins/commit/3c19f27c685ad039754bff6ffeaf458abf0ac4c9))
+
 ## [0.1.9](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.8...plugins/redis/v0.1.9) (2026-09-14)
 
 
