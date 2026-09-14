@@ -12,9 +12,12 @@ func TestParseCPU(t *testing.T) {
 		{"1", 1, true},
 		{"2.5", 2.5, true},
 		{"0m", 0, true},
+		{"148912532n", 0.148912532, true},
+		{"0n", 0, true},
 		{"", 0, false},
 		{"nope", 0, false},
 		{"m", 0, false},
+		{"n", 0, false},
 	}
 	for _, c := range cases {
 		got, ok := parseCPU(c.in)
