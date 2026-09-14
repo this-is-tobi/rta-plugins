@@ -7,39 +7,39 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: redis
-version: 0.1.9
+version: 0.1.10
 summary: "Redis: health, memory, persistence, replication, the keyspace and the slow log"
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/redis
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fredis%2Fv0.1.9/rta-plugin-redis_0.1.9_darwin_amd64.tar.gz
-  sha256: b79c7382891891a3c1cedc6d89124a86372b894dbd4640fe9d9ff5cd2fb1ff42
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fredis%2Fv0.1.10/rta-plugin-redis_0.1.10_darwin_amd64.tar.gz
+  sha256: 7e50ef64e938cc0a93f35a6c22833be965842392bbef3fd1e1768633f81f3ac8
   bin: rta-plugin-redis
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fredis%2Fv0.1.9/rta-plugin-redis_0.1.9_darwin_arm64.tar.gz
-  sha256: 91974b106dcdd6ac0438b20710b9e531370d7c4e4642aac30f1678c7c77ebe88
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fredis%2Fv0.1.10/rta-plugin-redis_0.1.10_darwin_arm64.tar.gz
+  sha256: 8da2aebbc3f2cf1e91f8296b2f9f2199d1da0506942707d35a8ff515d48069b8
   bin: rta-plugin-redis
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fredis%2Fv0.1.9/rta-plugin-redis_0.1.9_linux_amd64.tar.gz
-  sha256: 0684e1f9d67d3d7987ddeb583be1546ce24fc133b55c475727f5734daecf43d5
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fredis%2Fv0.1.10/rta-plugin-redis_0.1.10_linux_amd64.tar.gz
+  sha256: 731d516a2ca9a40b93defca81d92e8938285713f487b5bad472273d0ff6b4d55
   bin: rta-plugin-redis
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fredis%2Fv0.1.9/rta-plugin-redis_0.1.9_linux_arm64.tar.gz
-  sha256: 0ac67f061a1bd91c1047ba447ae05fc8a7bc2cc99fb1a8cd9a7e6f8a779fa35e
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fredis%2Fv0.1.10/rta-plugin-redis_0.1.10_linux_arm64.tar.gz
+  sha256: b9126a36553ec2798358ac4ac21c7004f0fb97330442b509a4c2b3df3039384f
   bin: rta-plugin-redis
 - os: windows
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fredis%2Fv0.1.9/rta-plugin-redis_0.1.9_windows_amd64.tar.gz
-  sha256: c769c7009efc5a051ae46926be4a26423d3245f220b7f4af22e0b633200669de
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fredis%2Fv0.1.10/rta-plugin-redis_0.1.10_windows_amd64.tar.gz
+  sha256: 05b19484d015d648480ecf2293ce23c52083be48c6fc0fbcc0e4c48a7bccd979
   bin: rta-plugin-redis.exe
 - os: windows
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fredis%2Fv0.1.9/rta-plugin-redis_0.1.9_windows_arm64.tar.gz
-  sha256: c579b850de9a801de23404ae8d7bab6867c98ecf22ab540af09470994208312c
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fredis%2Fv0.1.10/rta-plugin-redis_0.1.10_windows_arm64.tar.gz
+  sha256: 14779c6bbb723457632e473f7ceff21d92dfc04d2f50445cdc158174654add0e
   bin: rta-plugin-redis.exe
 capabilities:
 - id: redis.overview
