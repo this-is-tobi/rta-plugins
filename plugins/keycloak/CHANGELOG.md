@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.1.1...plugins/keycloak/v0.1.2) (2026-09-14)
+
+
+### Dependencies
+
+* every plugin builds against rta v0.20.0 ([3c19f27](https://github.com/this-is-tobi/rta-plugins/commit/3c19f27c685ad039754bff6ffeaf458abf0ac4c9))
+
 ## [0.1.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.1.0...plugins/keycloak/v0.1.1) (2026-09-14)
 
 
