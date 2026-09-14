@@ -1,0 +1,91 @@
+# What a pull request cannot see: a vulnerability published after the last
+# merge. ci.yml scans every module's dependencies on every pull request, and
+# canary.yml builds every plugin against rta main nightly, but nothing ran
+# govulncheck between pull requests — a CVE disclosed against pgx, or
+# against the SDK every plugin pins, waited for the next code change here to
+# be noticed. Same job as ci.yml's scan-deps, on a clock, reporting to the
+# security tab; gitleaks beside it for the same reason.
+name: Scan
+
+on:
+  schedule:
+  - cron: "37 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Each plugin is its own module with its own go.sum. govulncheck fails only
+  # on a vulnerability reachable from the module's own code, which is what
+  # keeps this worth failing on. The SARIF pass is the paper trail, one
+  # upload per module under its own govulncheck-<module> category — see
+  # ci.yml's job of the same name for why the category rides inside the file.
+  scan-deps:
+    name: Scan every module's dependencies
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+    - name: Checks-out repository
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Setup Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version-file: plugins/pg/go.mod
+        cache: true
+        cache-dependency-path: plugins/*/go.sum
+
+    # Exact, not a range: this is third-party code executed in the job.
+    - name: Install govulncheck
+      # renovate: datasource=go depName=golang.org/x/vuln/cmd/govulncheck
+      run: go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+
+    - name: Scan every module
+      id: scan
+      run: |-
+        mkdir -p "$RUNNER_TEMP/sarif"
+        failed=""
+        for m in $(make list); do
+          echo "==> plugins/$m"
+          (cd "plugins/$m" && govulncheck ./...) || failed="$failed plugins/$m"
+          (cd "plugins/$m" && govulncheck -format sarif ./...) > "$RUNNER_TEMP/sarif/$m.raw" || { rm -f "$RUNNER_TEMP/sarif/$m.raw"; continue; }
+          jq --arg id "govulncheck-$m/" '.runs[].automationDetails.id = $id' \
+            "$RUNNER_TEMP/sarif/$m.raw" > "$RUNNER_TEMP/sarif/$m.sarif" || rm -f "$RUNNER_TEMP/sarif/$m.sarif"
+          rm -f "$RUNNER_TEMP/sarif/$m.raw"
+        done
+        find "$RUNNER_TEMP/sarif" -name '*.sarif' -size -2c -delete
+        if ls "$RUNNER_TEMP"/sarif/*.sarif >/dev/null 2>&1; then
+          echo "sarif=true" >> "$GITHUB_OUTPUT"
+        fi
+        if [ -n "$failed" ]; then
+          echo "govulncheck failed or found a reachable vulnerability in:$failed"
+          exit 1
+        fi
+
+    - name: Upload scan results to the Security tab
+      if: ${{ always() && steps.scan.outputs.sarif == 'true' }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |-
+        for f in "$RUNNER_TEMP"/sarif/*.sarif; do
+          m=$(basename "$f" .sarif)
+          gh api "repos/${{ github.repository }}/code-scanning/sarifs" \
+            -f commit_sha="${{ github.sha }}" \
+            -f ref="${{ github.ref }}" \
+            -f sarif="$(gzip -c "$f" | base64 -w0)" \
+            >/dev/null || echo "::warning::could not upload the $m scan to the Security tab"
+        done
+
+  scan-secrets:
+    name: Scan secrets
+    uses: this-is-tobi/github-workflows/.github/workflows/scan-gitleaks.yml@v0
+    permissions:
+      contents: read
+      security-events: write
+    with:
+      GITHUB_SECURITY_TAB: true
