@@ -290,11 +290,12 @@ func describeSource(ctx context.Context, req plugin.Request, database string) (s
 		return source{}, classify(err, req)
 	}
 	s.readOnly = ro != 0
-	// Aria as well as InnoDB: it is MariaDB's own crash-safe engine and the
-	// default for system tables, but it is not transactional, so an Aria
-	// table is read live and outside the snapshot exactly as MyISAM is. The
-	// mysql twin's list is shorter because MySQL has no Aria — the kind of
-	// divergence that makes these two plugins rather than one.
+	// Only InnoDB sits inside --single-transaction's snapshot. Aria is
+	// MariaDB's own crash-safe engine and the default for system tables, but
+	// crash-safe is not transactional, so an Aria table is read live and
+	// outside the snapshot exactly as MyISAM is — and excluding InnoDB alone,
+	// rather than listing the engines that are not it, is what counts Aria
+	// without naming it. MySQL has no Aria and needs the very same query.
 	if err := db.QueryRowContext(ctx, `
 		select count(*) from information_schema.tables
 		where table_schema = ? and table_type = 'BASE TABLE'
