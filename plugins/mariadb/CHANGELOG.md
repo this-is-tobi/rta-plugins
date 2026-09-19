@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.11](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.3.10...plugins/mariadb/v0.3.11) (2026-09-19)
+
+
+### Bug Fixes
+
+* **mariadb:** the activity description names this plugin's own overview ([cc350ea](https://github.com/this-is-tobi/rta-plugins/commit/cc350eaa08b4573f781f1c5bd6b6db885336d642))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.22.0 ([58621b2](https://github.com/this-is-tobi/rta-plugins/commit/58621b2ad2a0ae86e56f727d470926464910dd41))
+
 ## [0.3.10](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.3.9...plugins/mariadb/v0.3.10) (2026-09-16)
 
 

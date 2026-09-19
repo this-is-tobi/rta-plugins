@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.11](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.3.10...plugins/s3/v0.3.11) (2026-09-19)
+
+
+### Bug Fixes
+
+* **s3:** a cancelled or early-stopped call no longer runs on for nobody ([c147fd6](https://github.com/this-is-tobi/rta-plugins/commit/c147fd639f8dc331a9e0a25e0feb200d166fe165))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.22.0 ([58621b2](https://github.com/this-is-tobi/rta-plugins/commit/58621b2ad2a0ae86e56f727d470926464910dd41))
+
 ## [0.3.10](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.3.9...plugins/s3/v0.3.10) (2026-09-16)
 
 
