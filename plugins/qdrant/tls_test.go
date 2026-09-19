@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
@@ -54,6 +55,35 @@ func TestCAFileTrustsATunneledServersOwnCertificate(t *testing.T) {
 	}
 	if table.Total != 0 {
 		t.Errorf("got %d collections from an empty fake server: %+v", table.Total, table.Rows)
+	}
+}
+
+// The client built for a ca-file states its TLS floor rather than inheriting
+// one. crypto/tls already refuses anything below 1.2 for a client, so the pin
+// changes no handshake today — it is there so the config says what it
+// accepts, which is what a reader and a gosec G402 pass check, and so this
+// client and plugins/keycloak's twin do not disagree about it.
+func TestTheClientStatesItsTLSFloor(t *testing.T) {
+	srv := httptest.NewTLSServer(http.NotFoundHandler())
+	defer srv.Close()
+	caPath := filepath.Join(t.TempDir(), "ca.pem")
+	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: srv.Certificate().Raw})
+	if err := os.WriteFile(caPath, pemBytes, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	client, verr := httpClient(req(t, "qdrant.collection.list", map[string]any{
+		"endpoint": "127.0.0.1:1", "ca-file": caPath,
+	}))
+	if verr != nil {
+		t.Fatalf("httpClient: %v", verr)
+	}
+	transport, ok := client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("transport is %T, want *http.Transport", client.Transport)
+	}
+	if got := transport.TLSClientConfig.MinVersion; got != tls.VersionTLS12 {
+		t.Errorf("MinVersion = %#x, want %#x (TLS 1.2) — the floor is stated, not inherited", got, tls.VersionTLS12)
 	}
 }
 
