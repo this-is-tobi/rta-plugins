@@ -121,7 +121,7 @@ func activityCapability() plugin.Capability {
 		Idempotent: true,
 		Description: "Classified write for what it discloses rather than what it changes: the info " +
 			"column carries whatever literals are in the statements currently running.\n\n" +
-			"`mysql overview --detail` keeps the same rows without that column — state, time and " +
+			"`mariadb overview --detail` keeps the same rows without that column — state, time and " +
 			"command — which answers \"is anything stuck\" without handing back anything anybody " +
 			"stored, so the glanceable form stays in the read tier.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {

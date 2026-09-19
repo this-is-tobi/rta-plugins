@@ -161,7 +161,7 @@ func checkDumpFile(path string) *view.Error {
 	return nil
 }
 
-// restoreArgs builds the mysql client's argv — never a shell string, never
+// restoreArgs builds the mariadb client's argv — never a shell string, never
 // the password (childEnv's MYSQL_PWD), option files ignored for the dump's
 // ambient-credential reason.
 func restoreArgs(req plugin.Request) []string {
@@ -191,8 +191,8 @@ func checkTarget(ctx context.Context, req plugin.Request, database string) *view
 	db, verr := connect(ctx, req)
 	if verr != nil {
 		// The driver has already classified an absent database (1049), but
-		// its hint points at `mysql database list` — the right next step for
-		// a typo in mysql.status and the wrong one here: half the time the
+		// its hint points at `mariadb database list` — the right next step for
+		// a typo in mariadb.status and the wrong one here: half the time the
 		// missing database is the fresh target somebody has not created yet.
 		// Same fact, restore's advice.
 		if verr.Code == "mariadb.database.notfound" {
