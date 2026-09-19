@@ -91,7 +91,7 @@ func s3ObjectCopyCapability() plugin.Capability {
 }
 
 func runObjectCopy(ctx context.Context, req plugin.Request) (view.View, error) {
-	return withClient(req, func(ctx context.Context, client *minio.Client) (view.View, error) {
+	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
 		srcBucket, srcKey := req.String("bucket"), req.String("key")
 		dstBucket, dstKey := destination(req)
 		if req.DryRun {
@@ -129,7 +129,7 @@ func s3ObjectRenameCapability() plugin.Capability {
 }
 
 func runObjectRename(ctx context.Context, req plugin.Request) (view.View, error) {
-	return withClient(req, func(ctx context.Context, client *minio.Client) (view.View, error) {
+	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
 		srcBucket, srcKey := req.String("bucket"), req.String("key")
 		dstBucket, dstKey := destination(req)
 		if req.DryRun {

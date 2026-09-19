@@ -139,6 +139,21 @@ func caTransport(ca string) (*http.Transport, *view.Error) {
 func classify(err error, req plugin.Request) *view.Error {
 	where := req.String("endpoint")
 
+	// Checked ahead of the network-error family below because a context
+	// error can arrive bare — the listing iterator hands back ctx.Err()
+	// directly, with no transport in between to wrap it in a *url.Error —
+	// and errors.Is still finds it wrapped, where a caller's own cancel
+	// reaches classify through a *url.Error that has already unwound the
+	// in-flight request.
+	if errors.Is(err, context.Canceled) {
+		return view.Errorf("s3.cancelled", "the call to %s was abandoned before it answered", where).
+			WithHint("whoever made this call stopped waiting for it — nothing here to fix")
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return view.Errorf("s3.conn.timeout", "%s did not answer in time", where).
+			WithHint("a firewall that drops rather than refuses looks exactly like this")
+	}
+
 	var errResp minio.ErrorResponse
 	if errors.As(err, &errResp) {
 		switch errResp.Code {
@@ -190,6 +205,22 @@ func classify(err error, req plugin.Request) *view.Error {
 		WithHint("`rta explain s3.overview` lists every input and where each one can come from")
 }
 
+// ctxErr is what a ListObjectsIter walk needs checked once it stops,
+// whatever stopped it. A context already done when the walk starts makes
+// minio-go's own iterator return having yielded nothing at all — no error
+// value, no round trip, the same shape as a bucket with nothing in it — so
+// a caller that only reacts to what came out of the loop reads a cancelled
+// call as an empty listing and answers as if the walk had actually run.
+// Checked after the loop rather than raced against inside it: that is the
+// one place a normal finish, a break at some caller-side bound, and this
+// silent stop all rejoin.
+func ctxErr(ctx context.Context, req plugin.Request) *view.Error {
+	if err := ctx.Err(); err != nil {
+		return classify(err, req)
+	}
+	return nil
+}
+
 func hostOnly(endpoint string) string {
 	host, _, err := stdnet.SplitHostPort(endpoint)
 	if err != nil {
@@ -199,13 +230,16 @@ func hostOnly(endpoint string) string {
 }
 
 // withClient is the shape every capability here has: connect, or return the
-// classified error; run.
-func withClient(req plugin.Request, fn func(context.Context, *minio.Client) (view.View, error)) (view.View, error) {
+// classified error; run. ctx is the call's own — the host cancels it when
+// the caller stops waiting, which is what makes a cancelled call stop
+// before it reaches the endpoint instead of running to completion for
+// nobody.
+func withClient(ctx context.Context, req plugin.Request, fn func(context.Context, *minio.Client) (view.View, error)) (view.View, error) {
 	client, verr := connect(req)
 	if verr != nil {
 		return nil, verr
 	}
-	return fn(context.Background(), client)
+	return fn(ctx, client)
 }
 
 // cap builds a capability with the shared connection inputs appended, so no

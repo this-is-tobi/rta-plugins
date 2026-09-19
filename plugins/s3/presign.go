@@ -35,7 +35,7 @@ func s3ObjectPresignCapability() plugin.Capability {
 }
 
 func runObjectPresign(ctx context.Context, req plugin.Request) (view.View, error) {
-	return withClient(req, func(ctx context.Context, client *minio.Client) (view.View, error) {
+	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
 		bucket, key := req.String("bucket"), req.String("key")
 		ttl := time.Duration(req.Int("ttl")) * time.Second
 

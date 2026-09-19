@@ -56,12 +56,12 @@ func suggestKeys(field string) func(context.Context, plugin.Request) []string {
 		if verr != nil {
 			return nil
 		}
-		// Cancelled on return, so an answer capped mid-listing also stops
-		// the goroutine feeding the channel.
-		ctx, cancel := context.WithCancel(ctx)
-		defer cancel()
+		// ListObjectsIter, not ListObjects: the iterator form runs the walk
+		// in this goroutine, pulled one page at a time by the range loop, so
+		// breaking out at the cap is the whole story — there is no feeder
+		// goroutine left running against a channel nobody reads any more.
 		var out []string
-		for obj := range client.ListObjects(ctx, bucket, minio.ListObjectsOptions{
+		for obj := range client.ListObjectsIter(ctx, bucket, minio.ListObjectsOptions{
 			Prefix: req.String(field),
 		}) {
 			if obj.Err != nil {
