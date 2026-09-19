@@ -6,12 +6,25 @@
 # plugin then builds the six archives and attaches them to that release;
 # attest-go attests each release by its tag. Last, one job reads the binaries
 # just built and regenerates the index entries under index/ — a manifest is never written
-# by hand — and commits them to main with this repository's own token. No
+# by hand — and commits them to main with this repository's own App. No
 # credential from any other repository is involved anywhere, which is the
 # reason the plugins live here rather than beside rta.
 #
-# The index commit is pushed with GITHUB_TOKEN on purpose: a push made with
-# it does not trigger workflows, so the commit cannot start a second CD run.
+# The index commit is pushed as the App rather than with GITHUB_TOKEN, and
+# that is main's ruleset deciding it rather than a preference: the ruleset
+# requires a pull request and names the App as the one actor exempt from it,
+# so a GITHUB_TOKEN push is refused outright (GH013) — which is how this job
+# failed the first time the ruleset was on. Pushing the index through a pull
+# request instead was the alternative and is the worse end of the trade, for
+# the reason rta's own chart bump gives: a pull request nobody is waiting on,
+# gating an index update for a release that has already happened.
+#
+# What that costs is the property this comment used to claim. A GITHUB_TOKEN
+# push cannot start a workflow run and an App push can, so the index commit
+# does start a second CD run. It is harmless and it cannot recur:
+# release-please sees a lone `chore` commit, reports no release, and every
+# job below needs one — including this one, which is therefore among the jobs
+# that skip.
 #
 # main only: no develop branch, no prerelease channel.
 name: CD
@@ -112,13 +125,28 @@ jobs:
     name: Update the index
     needs: [release, binaries]
     runs-on: ubuntu-latest
+    # Read, because the write this job does is the App's and not this token's.
     permissions:
-      contents: write
+      contents: read
     steps:
+    # Before the checkout, so the credential the checkout persists is the
+    # App's and the push below needs no special form. Contents and nothing
+    # else — index/*.yaml is the only thing this job writes, and the App is
+    # installed on every repository, so a wider permission here would be a
+    # wider permission everywhere.
+    - name: Mint the App token
+      id: app-token
+      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+      with:
+        client-id: ${{ secrets.APP_CLIENT_ID }}
+        private-key: ${{ secrets.APP_PRIVATE_KEY }}
+        permission-contents: write
+
     - name: Checks-out repository
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         ref: main
+        token: ${{ steps.app-token.outputs.token }}
 
     - name: Setup Go
       uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
