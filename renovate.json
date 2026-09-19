@@ -1,0 +1,35 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "semanticCommits": "enabled",
+  "timezone": "Europe/Paris",
+  "schedule": ["before 6am on monday"],
+  "osvVulnerabilityAlerts": true,
+  "postUpdateOptions": ["gomodTidy"],
+  "packageRules": [
+    {
+      "description": "Every bump lands as 'build' so it appears under the Dependencies changelog section, which release-please treats as releasable: a bumped module is a new binary for every plugin whose go.mod moved, and it reaches nobody without a release.",
+      "matchManagers": ["gomod", "github-actions"],
+      "semanticCommitType": "build",
+      "commitMessageTopic": "{{depName}}"
+    },
+    {
+      "description": "Non-major Go module bumps across the plugins land together: one commit and one round of patch releases a week rather than one per module per plugin. A vulnerable module skips both the grouping and the schedule through the OSV alerts above.",
+      "matchManagers": ["gomod"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "Go modules"
+    },
+    {
+      "description": "The SDK is compiled into every binary and every plugin follows an rta release: bump-rta.yml opens that pull request from the release itself, carrying its notes, and it has to be the only thing that does.",
+      "matchDepNames": ["github.com/this-is-tobi/rta"],
+      "enabled": false
+    },
+    {
+      "description": "Reusable workflows are called at the moving v0 major tag on purpose until github-workflows reaches v1 - don't pin or bump them.",
+      "matchDepNames": ["this-is-tobi/github-workflows"],
+      "enabled": false
+    }
+  ]
+}
