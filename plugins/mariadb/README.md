@@ -36,7 +36,7 @@ Under `plugins: mariadb:` in rta's configuration, or in a profile's `set:`. An i
 
 Classified write for what it discloses rather than what it changes: the info column carries whatever literals are in the statements currently running.
 
-`mysql overview --detail` keeps the same rows without that column — state, time and command — which answers "is anything stuck" without handing back anything anybody stored, so the glanceable form stays in the read tier.
+`mariadb overview --detail` keeps the same rows without that column — state, time and command — which answers "is anything stuck" without handing back anything anybody stored, so the glanceable form stays in the read tier.
 
 | Field                | Value                                                                                                                                                                                                                  |
 |----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
