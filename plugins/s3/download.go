@@ -121,7 +121,7 @@ func runBucketDownload(ctx context.Context, req plugin.Request) (view.View, erro
 		return nil, view.Errorf("s3.download.path", "resolving --out: %v", err)
 	}
 
-	return withClient(req, func(ctx context.Context, client *minio.Client) (view.View, error) {
+	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
 		// **List and check every key before writing anything.** Doing it in
 		// one pass would mean discovering a hostile key with half a bucket
 		// already on disk, and then having to decide whether to keep it.
@@ -185,7 +185,7 @@ func listForDownload(ctx context.Context, client *minio.Client,
 	req plugin.Request) ([]minio.ObjectInfo, *view.Error) {
 	limit := req.Int("limit")
 	var out []minio.ObjectInfo
-	for obj := range client.ListObjects(ctx, req.String("bucket"), minio.ListObjectsOptions{
+	for obj := range client.ListObjectsIter(ctx, req.String("bucket"), minio.ListObjectsOptions{
 		Prefix:    req.String("prefix"),
 		Recursive: true,
 	}) {
@@ -212,6 +212,9 @@ func listForDownload(ctx context.Context, client *minio.Client,
 					"one that did not run")
 		}
 		out = append(out, obj)
+	}
+	if verr := ctxErr(ctx, req); verr != nil {
+		return nil, verr
 	}
 	return out, nil
 }

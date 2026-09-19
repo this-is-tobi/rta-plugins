@@ -57,12 +57,12 @@ func s3ObjectListCapability() plugin.Capability {
 }
 
 func runObjectList(ctx context.Context, req plugin.Request) (view.View, error) {
-	return withClient(req, func(ctx context.Context, client *minio.Client) (view.View, error) {
+	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
 		bucket := req.String("bucket")
 		limit := req.Int("limit")
 		t := view.Table{Columns: []view.Column{{Name: "Key"}, {Name: "Size", Kind: view.KindNumber}, {Name: "Modified", Kind: view.KindTimestamp}}}
 		last := ""
-		for obj := range client.ListObjects(ctx, bucket, minio.ListObjectsOptions{
+		for obj := range client.ListObjectsIter(ctx, bucket, minio.ListObjectsOptions{
 			Prefix:     req.String("prefix"),
 			Recursive:  req.Bool("recursive"),
 			StartAfter: req.String("after"),
@@ -91,6 +91,9 @@ func runObjectList(ctx context.Context, req plugin.Request) (view.View, error) {
 			// piped into another tool instead of being looked at.
 			t.Rows = append(t.Rows, []string{obj.Key, format.Bytes(uint64(obj.Size)), obj.LastModified.Format("2006-01-02 15:04")})
 		}
+		if verr := ctxErr(ctx, req); verr != nil {
+			return nil, verr
+		}
 		t.Total = len(t.Rows)
 		return t, nil
 	})
@@ -107,7 +110,7 @@ func s3ObjectShowCapability() plugin.Capability {
 }
 
 func runObjectShow(ctx context.Context, req plugin.Request) (view.View, error) {
-	return withClient(req, func(ctx context.Context, client *minio.Client) (view.View, error) {
+	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
 		info, err := client.StatObject(ctx, req.String("bucket"), req.String("key"), minio.StatObjectOptions{})
 		if err != nil {
 			return nil, classify(err, req)
@@ -151,7 +154,7 @@ func s3ObjectGetCapability() plugin.Capability {
 const maxInline = 1 << 20 // 1 MiB
 
 func runObjectGet(ctx context.Context, req plugin.Request) (view.View, error) {
-	return withClient(req, func(ctx context.Context, client *minio.Client) (view.View, error) {
+	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
 		bucket, key := req.String("bucket"), req.String("key")
 		// GetObject is lazy: it validates the names and returns, and the
 		// HTTP request does not happen until the first Read. So the error
@@ -236,7 +239,7 @@ func s3ObjectSetCapability() plugin.Capability {
 }
 
 func runObjectSet(ctx context.Context, req plugin.Request) (view.View, error) {
-	return withClient(req, func(ctx context.Context, client *minio.Client) (view.View, error) {
+	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
 		bucket, key := req.String("bucket"), req.String("key")
 
 		var body io.Reader
@@ -316,7 +319,7 @@ func s3ObjectRemoveCapability() plugin.Capability {
 }
 
 func runObjectRemove(ctx context.Context, req plugin.Request) (view.View, error) {
-	return withClient(req, func(ctx context.Context, client *minio.Client) (view.View, error) {
+	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
 		bucket, key := req.String("bucket"), req.String("key")
 		if req.DryRun {
 			return view.Text{Body: "would remove " + bucket + "/" + key}, nil
