@@ -207,7 +207,8 @@ func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 		return nil, view.Errorf("qdrant.tls.ca.invalid", "%s holds no PEM certificate", ca).
 			WithHint("this wants the CA bundle, not the server's own certificate")
 	}
-	return &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: pool}}}, nil
+	// MinVersion is Go's own client default already; stated so the config says what it accepts, as plugins/keycloak's does.
+	return &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}}}, nil
 }
 
 // maxResponseBytes bounds one response. Points carry payloads and vectors, and
