@@ -193,15 +193,6 @@ type requiredActionRep struct {
 	DefaultAction bool   `json:"defaultAction"`
 }
 
-type eventsConfig struct {
-	EventsEnabled             bool     `json:"eventsEnabled"`
-	EventsExpiration          int64    `json:"eventsExpiration"`
-	EventsListeners           []string `json:"eventsListeners"`
-	EnabledEventTypes         []string `json:"enabledEventTypes"`
-	AdminEventsEnabled        bool     `json:"adminEventsEnabled"`
-	AdminEventsDetailsEnabled bool     `json:"adminEventsDetailsEnabled"`
-}
-
 type eventRep struct {
 	Time      int64             `json:"time"`
 	Type      string            `json:"type"`
@@ -276,5 +267,3 @@ func span(n int) string {
 	}
 	return (time.Duration(n) * time.Second).String()
 }
-
-func itoa(n int) string { return strconv.Itoa(n) }
