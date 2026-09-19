@@ -78,7 +78,7 @@ func s3ObjectTreeCapability() plugin.Capability {
 }
 
 func runObjectTree(ctx context.Context, req plugin.Request) (view.View, error) {
-	return withClient(req, func(ctx context.Context, client *minio.Client) (view.View, error) {
+	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
 		bucket := req.String("bucket")
 		prefix := req.String("prefix")
 		limit := req.Int("limit")
@@ -86,7 +86,7 @@ func runObjectTree(ctx context.Context, req plugin.Request) (view.View, error) {
 		root := &treeNode{}
 		read := 0
 		truncated := false
-		for obj := range client.ListObjects(ctx, bucket, minio.ListObjectsOptions{
+		for obj := range client.ListObjectsIter(ctx, bucket, minio.ListObjectsOptions{
 			Prefix:    prefix,
 			Recursive: true,
 		}) {
@@ -94,11 +94,11 @@ func runObjectTree(ctx context.Context, req plugin.Request) (view.View, error) {
 				return nil, classify(obj.Err, req)
 			}
 			if read == limit {
-				// Stopping mid-stream leaves the range unfinished, which
-				// minio-go handles through the context rather than through a
-				// close: the goroutine feeding the channel selects on
-				// ctx.Done(). Nothing here can leak it, because withClient's
-				// context is the call's own and ends with the call.
+				// Stopping mid-stream leaves the range unfinished — safely,
+				// because ListObjectsIter's walk runs pulled, one page at a
+				// time, in this same goroutine. break just stops calling it
+				// again; there is no feeder goroutine parked on a channel
+				// send that nobody is left to read.
 				truncated = true
 				break
 			}
@@ -120,6 +120,9 @@ func runObjectTree(ctx context.Context, req plugin.Request) (view.View, error) {
 				continue
 			}
 			root.insert(splitKey(rel), uint64(obj.Size))
+		}
+		if verr := ctxErr(ctx, req); verr != nil {
+			return nil, verr
 		}
 
 		label := bucket

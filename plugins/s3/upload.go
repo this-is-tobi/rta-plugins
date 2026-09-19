@@ -109,7 +109,7 @@ func runBucketUpload(ctx context.Context, req plugin.Request) (view.View, error)
 		return nil, verr
 	}
 
-	return withClient(req, func(ctx context.Context, client *minio.Client) (view.View, error) {
+	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
 		if verr := checkUploadTarget(ctx, client, req, prefix); verr != nil {
 			return nil, verr
 		}
@@ -248,9 +248,7 @@ func checkUploadTarget(ctx context.Context, client *minio.Client, req plugin.Req
 	if req.Bool("overwrite") {
 		return nil
 	}
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	for obj := range client.ListObjects(ctx, req.String("bucket"), minio.ListObjectsOptions{
+	for obj := range client.ListObjectsIter(ctx, req.String("bucket"), minio.ListObjectsOptions{
 		Prefix:    prefix,
 		Recursive: true,
 	}) {
@@ -263,6 +261,9 @@ func checkUploadTarget(ctx context.Context, client *minio.Client, req plugin.Req
 			WithHint("--overwrite replaces objects whose keys collide and leaves the rest, or " +
 				"upload under a fresh --prefix — the bucket does not care what the prefix is " +
 				"called")
+	}
+	if verr := ctxErr(ctx, req); verr != nil {
+		return verr
 	}
 	return nil
 }

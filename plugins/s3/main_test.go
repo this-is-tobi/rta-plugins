@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"net"
 	"net/url"
@@ -106,6 +107,10 @@ func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
 		{"refused", &net.OpError{Op: "dial", Err: errors.New("connection refused")}, "s3.conn.refused"},
 		{"unknown host", &net.DNSError{Err: "no such host", Name: "s3.internal"}, "s3.host.unknown"},
 		{"timed out", &url.Error{Op: "Get", URL: "http://x", Err: timeoutError{}}, "s3.conn.timeout"},
+		// The listing iterator hands a bare context error back, unwrapped by
+		// any transport, so both have to be recognised on their own.
+		{"deadline passed", context.DeadlineExceeded, "s3.conn.timeout"},
+		{"caller went away", context.Canceled, "s3.cancelled"},
 		{"anything else", errors.New("something unexpected"), "s3.conn.failed"},
 	}
 	for _, tc := range cases {

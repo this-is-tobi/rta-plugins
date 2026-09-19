@@ -35,7 +35,7 @@ func overviewCapability() plugin.Capability {
 }
 
 func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
-	return withClient(req, func(ctx context.Context, client *minio.Client) (view.View, error) {
+	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
 		buckets, err := client.ListBuckets(ctx)
 		if err != nil {
 			return nil, classify(err, req)
