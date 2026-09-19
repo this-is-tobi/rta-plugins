@@ -94,7 +94,12 @@ func connect(ctx context.Context, req plugin.Request) (*client, *view.Error) {
 		if host, _, splitErr := stdnet.SplitHostPort(addr); splitErr == nil {
 			cfg.ServerName = host
 		}
-		conn, err = tls.DialWithDialer(&dialer, "tcp", addr, cfg)
+		// tls.Dialer and not tls.DialWithDialer, which takes the deadline and
+		// drops the context: a caller who stopped waiting left this sitting
+		// on a handshake for the whole of dialTimeout with nobody to answer.
+		// The plain branch below always honoured ctx; this is the same
+		// promise for the TLS one.
+		conn, err = (&tls.Dialer{NetDialer: &dialer, Config: cfg}).DialContext(ctx, "tcp", addr)
 	} else {
 		conn, err = dialer.DialContext(ctx, "tcp", addr)
 	}
