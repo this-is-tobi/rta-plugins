@@ -211,7 +211,7 @@ func planUpload(root string, limit int) ([]upload, int64, *view.Error) {
 		return nil
 	})
 	switch {
-	case walkErr == errTooManyFiles:
+	case errors.Is(walkErr, errTooManyFiles):
 		return nil, 0, view.Errorf("s3.upload.toomany",
 			"%s holds more than %d files", root, limit).
 			WithHint("raise --limit, or upload a subdirectory — refused rather than truncated, " +
