@@ -167,7 +167,7 @@ func runObjectGet(ctx context.Context, req plugin.Request) (view.View, error) {
 		if err != nil {
 			return nil, classify(err, req)
 		}
-		defer obj.Close()
+		defer func() { _ = obj.Close() }()
 
 		if out := req.String("out"); out != "" {
 			if req.DryRun {
@@ -188,15 +188,27 @@ func runObjectGet(ctx context.Context, req plugin.Request) (view.View, error) {
 			if ferr != nil {
 				return nil, view.Errorf("s3.object.out", "opening %s: %v", out, ferr)
 			}
-			defer f.Close()
+			// Closed here and not deferred, the same three lines
+			// s3.bucket.download's fetchOne already runs. A Close that fails
+			// after a clean Copy is the truncated file this whole branch is
+			// built to avoid — the last buffered bytes never reached the
+			// disk, which is what a full filesystem or a network mount
+			// reports at exactly this moment — and a deferred close throws
+			// that answer away after the success message is already written.
 			n, cerr := io.Copy(f, obj)
-			if cerr != nil {
+			closeErr := f.Close()
+			if cerr != nil || closeErr != nil {
 				// The file did not exist before this call, so removing it
 				// leaves the operator where they started rather than with a
 				// truncated object under a name that says it is whole —
 				// s3.bucket.download's rule, one object at a time.
 				_ = os.Remove(expandHome(out))
+			}
+			if cerr != nil {
 				return nil, classify(cerr, req)
+			}
+			if closeErr != nil {
+				return nil, view.Errorf("s3.object.write", "finishing %s: %v", out, closeErr)
 			}
 			return view.Text{Body: "wrote " + strconv.FormatInt(n, 10) + " bytes to " + out}, nil
 		}
@@ -250,7 +262,7 @@ func runObjectSet(ctx context.Context, req plugin.Request) (view.View, error) {
 			if err != nil {
 				return nil, view.Errorf("s3.file.unreadable", "reading %s: %v", path, err)
 			}
-			defer f.Close()
+			defer func() { _ = f.Close() }()
 			if info, err := f.Stat(); err == nil {
 				size = info.Size()
 			}
