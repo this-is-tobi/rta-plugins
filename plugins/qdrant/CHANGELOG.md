@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.11](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.10...plugins/qdrant/v0.3.11) (2026-09-19)
+
+
+### Bug Fixes
+
+* **qdrant:** the client states its TLS floor ([9c69d88](https://github.com/this-is-tobi/rta-plugins/commit/9c69d88c6e3477fd70a41fbc4de91e8debcc41b8))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.22.0 ([58621b2](https://github.com/this-is-tobi/rta-plugins/commit/58621b2ad2a0ae86e56f727d470926464910dd41))
+
 ## [0.3.10](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.9...plugins/qdrant/v0.3.10) (2026-09-16)
 
 
