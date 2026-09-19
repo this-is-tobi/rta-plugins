@@ -560,9 +560,17 @@ func writeKubeconfig(path string, data []byte, force bool) *view.Error {
 	if err != nil {
 		return view.Errorf("kube.serviceaccount.out.unwritable", "creating %s: %v", path, err)
 	}
-	defer f.Close()
+	// Closed here and not deferred, the way writeAtomically below already
+	// does it. What this file holds is a bearer token, and a Close that
+	// fails after a clean Write is a token that is short its last bytes —
+	// unusable, under a path the operator was told was written, at a moment
+	// when the ServiceAccount backing it already exists on the cluster.
 	if _, err := f.Write(data); err != nil {
+		_ = f.Close()
 		return view.Errorf("kube.serviceaccount.out.unwritable", "writing %s: %v", path, err)
+	}
+	if err := f.Close(); err != nil {
+		return view.Errorf("kube.serviceaccount.out.unwritable", "finishing %s: %v", path, err)
 	}
 	return nil
 }
@@ -591,7 +599,7 @@ func writeAtomically(path string, data []byte, perm os.FileMode) error {
 	defer os.Remove(tmp.Name())
 
 	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		return fmt.Errorf("writing %s: %w", tmp.Name(), err)
 	}
 	if err := tmp.Close(); err != nil {
