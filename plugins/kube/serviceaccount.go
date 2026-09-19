@@ -616,18 +616,33 @@ func writeAtomically(path string, data []byte, perm os.FileMode) error {
 	return nil
 }
 
-// expandHome mirrors builtin/cert/cert.go's own helper — the shell expands an
-// unquoted ~, not a quoted one, and --out is exactly the flag somebody
-// quotes. Duplicated rather than imported: cert lives in a different Go
-// module, unreachable from here the same way every other cross-boundary
-// helper in this plugin already is.
+// expandHome resolves a leading ~ — the shell expands an unquoted one, not a
+// quoted one, and --out is exactly the flag somebody quotes.
+//
+// This is pathguard.ExpandTilde's rule, restated because this plugin is its
+// own Go module and cannot import an internal package, the same way
+// writeAtomically above restates atomicfile.Write. It was written against
+// builtin/cert's own copy instead, which matched "~/" and not a bare "~" —
+// and rta has since collapsed that copy and four others onto pathguard for
+// exactly that gap, so the helper this used to name no longer exists in the
+// shape it was taken from.
+//
+// The gap cost more here than it did there. `--out ~` fell through to a file
+// literally named "~" in whatever directory the operator was standing in,
+// holding a bearer token at mode 0600 — a credential left somewhere nobody
+// would think to look, where naming the home directory earns the refusal
+// that writing a file over a directory deserves.
+//
+// "~user" is deliberately not supported, for pathguard's reason: no --out
+// means another account's home, and a file literally named "~something" in
+// the current directory has to keep working.
 func expandHome(path string) string {
-	if !strings.HasPrefix(path, "~/") {
+	if path != "~" && !strings.HasPrefix(path, "~/") {
 		return path
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return path
 	}
-	return filepath.Join(home, path[2:])
+	return filepath.Join(home, strings.TrimPrefix(strings.TrimPrefix(path, "~"), "/"))
 }
