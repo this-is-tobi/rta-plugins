@@ -234,6 +234,21 @@ func TestClassifyDumpNamesTheFailure(t *testing.T) {
 	}
 }
 
+// MyISAM is not transactional: a MyISAM table is read live, outside
+// --single-transaction's snapshot, while the InnoDB tables beside it are
+// read from inside it. The receipt counts them rather than claiming a
+// guarantee they cannot have.
+func TestTheReceiptCountsTablesOutsideTheSnapshot(t *testing.T) {
+	c := source{liveTables: 3}.consistency()
+	if !strings.Contains(c, "3 non-transactional") {
+		t.Errorf("consistency() = %q, want the count of tables read live", c)
+	}
+	clean := source{}.consistency()
+	if strings.Contains(clean, "non-transactional") {
+		t.Errorf("consistency() = %q, want no caveat when every table is transactional", clean)
+	}
+}
+
 func capabilityByID(t *testing.T, id string) plugin.Capability {
 	t.Helper()
 	for _, c := range Plugin().Capabilities {
