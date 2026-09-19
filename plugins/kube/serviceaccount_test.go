@@ -428,3 +428,38 @@ func TestAFailedWriteLeavesThePreviousCredentialIntact(t *testing.T) {
 		t.Errorf("content = %q, want the previous credential untouched", got)
 	}
 }
+
+// A bare ~ is a home directory here too.
+//
+// This copy was written against builtin/cert's, which handled "~/x" and not
+// "~" — and rta has since collapsed all five of its own copies onto
+// pathguard.ExpandTilde precisely because two of them had that gap, so the
+// helper this one says it mirrors no longer exists in the shape it was
+// copied from. What the gap costs here is worse than what it cost there:
+// `--out ~` wrote a bearer token to a file literally named "~" in whatever
+// directory the operator happened to be standing in, silently, at mode 0600
+// — a credential somewhere nobody would look for it, rather than the refusal
+// that writing a file to a directory earns.
+//
+// ~user stays unsupported, for pathguard's reason: no input here means
+// another account's home, and a file literally named "~something" in the
+// current directory has to keep working.
+func TestExpandHomeResolvesABareTildeAsWellAsAPrefix(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("no home directory in this environment")
+	}
+	for _, c := range []struct{ in, want string }{
+		{"~", home},
+		{"~/", home},
+		{"~/kubeconfig", filepath.Join(home, "kubeconfig")},
+		{"~notme/keys", "~notme/keys"},
+		{"/already/absolute", "/already/absolute"},
+		{"relative/path", "relative/path"},
+		{"", ""},
+	} {
+		if got := expandHome(c.in); got != c.want {
+			t.Errorf("expandHome(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
