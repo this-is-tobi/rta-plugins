@@ -214,3 +214,45 @@ func TestADriverErrorIsStillClassified(t *testing.T) {
 		t.Fatalf("code = %q, want pg.conn.refused", got.Code)
 	}
 }
+
+// **PostgreSQL enforces row-level security by narrowing the query, not by
+// refusing it.**
+//
+// A policy that matches nothing for this role returns zero rows and no
+// error — the same shape an empty table returns — on the one capability
+// whose entire job is to show what is in a table. An operator who granted
+// pg.table.dump to look at `public.orders` and got back a well-formed table
+// with the right column headers and no rows has been told the table is
+// empty, when what happened is that a tenant-isolation policy keyed off a
+// session setting rta never sets filtered every row away.
+func TestAnEmptyDumpOfARowLevelSecurityTableSaysSo(t *testing.T) {
+	rel := relation{oid: 42, schema: "public", name: "orders"}
+
+	verr := rlsRefusal(rel, false, false)
+	if verr != nil {
+		t.Errorf("an ordinary empty table was refused: %v", verr)
+	}
+
+	verr = rlsRefusal(rel, true, false)
+	if verr == nil {
+		t.Fatal("an empty dump of a table with row-level security enabled said nothing about it")
+	}
+	if verr.Code != "pg.dump.rls" {
+		t.Errorf("code = %q, want pg.dump.rls", verr.Code)
+	}
+	if !strings.Contains(verr.Message, "public.orders") {
+		t.Errorf("message does not name the table: %q", verr.Message)
+	}
+	// The reader has to be able to tell which of the two it is, and the
+	// hint is the only place that can say how.
+	if verr.Hint == "" {
+		t.Error("the refusal does not say how to tell an empty table from a filtered one")
+	}
+
+	// FORCE ROW LEVEL SECURITY applies to the owner too, which is the case
+	// an owner-credentialled operator would otherwise rule out.
+	if forced := rlsRefusal(rel, true, true); forced == nil ||
+		!strings.Contains(forced.Hint+forced.Message, "owner") {
+		t.Errorf("a forced policy does not mention that it applies to the owner: %+v", forced)
+	}
+}
