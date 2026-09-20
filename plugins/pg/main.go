@@ -205,9 +205,23 @@ func activitySQL(withQuery bool) (string, view.Column) {
 	if withQuery {
 		tail, col = "left(coalesce(query, ''), 80)", view.Column{Name: "Query"}
 	}
+	// **A session this role may not see into is said so, not reported as
+	// zero seconds.** pg_stat_activity restricts query_start, state and
+	// wait_event to sessions the caller owns, unless the role holds
+	// pg_read_all_stats or better — which an application credential handed
+	// to rta will not. Wrapping the duration in coalesce(..., 0) turned a
+	// session stuck in a lock wait for six hours into `Seconds: 0` beside a
+	// blank State: a row that reads as a query which started this instant,
+	// on the screen somebody opened to find what is stuck.
+	//
+	// The duration is now left NULL, which renders as an empty cell — "absent
+	// rather than a value", the rule conn.go's cell already states — and
+	// State carries the reason, since it is the column PostgreSQL blanks for
+	// exactly the same reason and has room for a word.
 	return `
-		select pid, usename, application_name, state,
-		       coalesce(extract(epoch from now() - query_start)::int, 0),
+		select pid, usename, application_name,
+		       coalesce(state, 'not visible to this role'),
+		       extract(epoch from now() - query_start)::int,
 		       ` + tail + `
 		from pg_stat_activity
 		where datname = current_database() and pid <> pg_backend_pid()

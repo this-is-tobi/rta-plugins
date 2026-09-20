@@ -279,7 +279,63 @@ func dumpRows(ctx context.Context, q querier, req plugin.Request, rel relation) 
 	case err != nil:
 		return nil, classify(err, req)
 	}
+	// An empty result is the one answer this capability cannot give on its
+	// own: see rlsRefusal.
+	if len(t.Rows) == 0 {
+		if verr := rlsOf(ctx, q, rel); verr != nil {
+			return nil, verr
+		}
+	}
 	return t, nil
+}
+
+// rlsOf asks the catalogue whether an empty dump might be a policy rather
+// than an empty table. A failure to ask is not a failure to dump: the
+// caveat is an explanation of a result that is already in hand, so a
+// catalogue this connection cannot read leaves the table to speak for
+// itself rather than turning a successful dump into an error.
+func rlsOf(ctx context.Context, q querier, rel relation) *view.Error {
+	row := q.QueryRow(ctx,
+		`select relrowsecurity, relforcerowsecurity from pg_class where oid = $1`, rel.oid)
+	if row == nil {
+		return nil
+	}
+	var enabled, forced bool
+	if err := row.Scan(&enabled, &forced); err != nil {
+		return nil
+	}
+	return rlsRefusal(rel, enabled, forced)
+}
+
+// rlsRefusal turns an empty dump of a row-level-security table into the
+// answer it actually is.
+//
+// **PostgreSQL enforces row-level security by narrowing the query, not by
+// refusing it.** A policy that matches nothing for this role returns zero
+// rows and no error — the same shape an empty table returns — on the one
+// capability whose entire job is to show what is in a table. So an operator
+// who granted pg.table.dump to look at a table, and got a well-formed table
+// with the right headers and no rows, was told it is empty when a
+// tenant-isolation policy keyed off a session setting rta never sets had
+// filtered every row away.
+//
+// Refused rather than annotated, for the reason the row and size bounds a
+// few lines up are refused: a dump that is not the table's contents is a
+// different answer wearing the right shape, and a view.Table has nowhere to
+// say which one it is holding.
+func rlsRefusal(rel relation, enabled, forced bool) *view.Error {
+	if !enabled {
+		return nil
+	}
+	hint := "either the table is empty or a policy filtered every row away, and this cannot tell " +
+		"which — `select * from pg_policies where tablename = '" + rel.name + "'` names the policies, " +
+		"and a role they admit dumps what they admit"
+	if forced {
+		hint += ". FORCE ROW LEVEL SECURITY is set, so the policies apply to the table's owner too"
+	}
+	return view.Errorf("pg.dump.rls",
+		"%s returned no rows, and row-level security is enabled on it", rel.qualified()).
+		WithHint(hint)
 }
 
 // columnsOf lists a relation's live columns in declaration order.

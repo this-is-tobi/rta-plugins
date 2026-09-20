@@ -313,3 +313,26 @@ func TestTheConnectionIsNeverCallerChosen(t *testing.T) {
 		}
 	}
 }
+
+// **A duration PostgreSQL would not show this role is not a duration of zero.**
+//
+// pg_stat_activity restricts query_start, state and wait_event to sessions
+// the caller owns, unless the role holds pg_read_all_stats or better — the
+// ordinary case for an application credential handed to rta. Every other
+// role's session came back with those columns NULL, and the SQL wrapped the
+// duration in coalesce(..., 0): a session stuck in a lock wait for six hours
+// rendered as `Seconds: 0` with a blank State, which reads as a session that
+// started this instant rather than one this connection may not see into.
+func TestASessionThisRoleCannotSeeIntoIsNotReportedAsZeroSeconds(t *testing.T) {
+	for _, withQuery := range []bool{false, true} {
+		sql, _ := activitySQL(withQuery)
+		if strings.Contains(sql, "coalesce(extract(epoch from now() - query_start)") {
+			t.Errorf("a hidden query_start is still coalesced to a duration:\n%s", sql)
+		}
+		// And the row says why it is blank rather than leaving the reader to
+		// guess: state is the column PostgreSQL blanks for the same reason.
+		if !strings.Contains(sql, "not visible to this role") {
+			t.Errorf("nothing tells the reader the session is not visible to them:\n%s", sql)
+		}
+	}
+}
