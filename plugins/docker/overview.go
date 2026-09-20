@@ -69,6 +69,14 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 			v += fmt.Sprintf(" — %d dangling", dangling)
 		}
 		pairs = append(pairs, view.Pair{Key: "images", Value: v})
+	} else {
+		// **A dropped row reads as a compact report, not as a question
+		// nobody answered.** The images line simply vanished when the image
+		// query failed — a daemon that answers /containers/json and refuses
+		// /images/json is an ordinary socket-permission split — so a glance
+		// at the overview said nothing about images at all, which is also
+		// exactly what a host with no images would look like here.
+		pairs = append(pairs, view.Pair{Key: "images", Value: "unreadable — " + imgErr.Message})
 	}
 
 	if !req.Bool("detail") {
@@ -95,7 +103,14 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 		sections = append(sections, view.Section{
 			ID: "images", Title: "Largest images", View: imageTable(top)})
 	}
-	return view.Sections{Items: sections}, nil
+	page := view.Sections{Items: sections}
+	if imgErr != nil {
+		// Sections carries what the page could not produce, for the reason
+		// pkg/view states on the field itself: a degraded page that looks
+		// complete is how a check comes back green.
+		page.Warnings = append(page.Warnings, *imgErr)
+	}
+	return page, nil
 }
 
 func hintOf(e *view.Error) string {
