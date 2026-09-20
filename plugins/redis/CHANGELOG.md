@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.13](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.12...plugins/redis/v0.1.13) (2026-09-20)
+
+
+### Bug Fixes
+
+* **redis:** a TLS connection is dropped when the caller stops waiting ([28ab621](https://github.com/this-is-tobi/rta-plugins/commit/28ab6217f85348b2530482dd2ad0de18ba6f31d9))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.23.0 ([57431e7](https://github.com/this-is-tobi/rta-plugins/commit/57431e7e41a9e6d04ad1b958d1591152bae47ccb))
+
 ## [0.1.12](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.11...plugins/redis/v0.1.12) (2026-09-19)
 
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.12](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.3.11...plugins/s3/v0.3.12) (2026-09-20)
+
+
+### Bug Fixes
+
+* **s3:** a download that could not be closed says so instead of reporting success ([7fbcf8b](https://github.com/this-is-tobi/rta-plugins/commit/7fbcf8bf608e45ea450f20ac5f73bbc8b48223db))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.23.0 ([57431e7](https://github.com/this-is-tobi/rta-plugins/commit/57431e7e41a9e6d04ad1b958d1591152bae47ccb))
+
 ## [0.3.11](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.3.10...plugins/s3/v0.3.11) (2026-09-19)
 
 

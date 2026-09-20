@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.12](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.3.11...plugins/kube/v0.3.12) (2026-09-20)
+
+
+### Bug Fixes
+
+* **kube:** a bare ~ in --out is the home directory, not a file named "~" ([e5e7e2e](https://github.com/this-is-tobi/rta-plugins/commit/e5e7e2e17fef9cce4902998bfb0fefe502941aa7))
+* **kube:** a token file that could not be closed is reported, not called written ([5313efa](https://github.com/this-is-tobi/rta-plugins/commit/5313efa43c9859258dd27a9c516bfc2e95e45384))
+* **kube:** three reads that could not answer said nothing about it ([27ddd46](https://github.com/this-is-tobi/rta-plugins/commit/27ddd46ca3eb25f65fbf9a7c93f6999ee3c93c8b))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.23.0 ([57431e7](https://github.com/this-is-tobi/rta-plugins/commit/57431e7e41a9e6d04ad1b958d1591152bae47ccb))
+
 ## [0.3.11](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.3.10...plugins/kube/v0.3.11) (2026-09-19)
 
 

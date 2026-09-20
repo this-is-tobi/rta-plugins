@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.10](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.4.9...plugins/vault/v0.4.10) (2026-09-20)
+
+
+### Bug Fixes
+
+* **vault:** overview says which read failed, instead of dropping its row ([3121493](https://github.com/this-is-tobi/rta-plugins/commit/312149339e84b57415ec04d38153d0a0fad9f9cd))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.23.0 ([57431e7](https://github.com/this-is-tobi/rta-plugins/commit/57431e7e41a9e6d04ad1b958d1591152bae47ccb))
+
 ## [0.4.9](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.4.8...plugins/vault/v0.4.9) (2026-09-19)
 
 
