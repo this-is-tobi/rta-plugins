@@ -11,9 +11,14 @@
   "packageRules": [
     {
       "description": "Every bump lands as 'build' so it appears under the Dependencies changelog section, which release-please treats as releasable: a bumped module is a new binary for every plugin whose go.mod moved, and it reaches nobody without a release.",
-      "matchManagers": ["gomod", "github-actions"],
+      "matchManagers": ["gomod", "github-actions", "mise"],
       "semanticCommitType": "build",
       "commitMessageTopic": "{{depName}}"
+    },
+    {
+      "description": "The Go toolchain is the go directive in every plugin's go.mod and the pin in mise.toml. One pull request moves them all.",
+      "matchDepNames": ["go"],
+      "groupName": "Go toolchain"
     },
     {
       "description": "Non-major Go module bumps across the plugins land together: one commit and one round of patch releases a week rather than one per module per plugin. A vulnerable module skips both the grouping and the schedule through the OSV alerts above.",
@@ -23,7 +28,7 @@
     },
     {
       "description": "The SDK is compiled into every binary and every plugin follows an rta release: bump-rta.yml opens that pull request from the release itself, carrying its notes, and it has to be the only thing that does.",
-      "matchDepNames": ["github.com/this-is-tobi/rta"],
+      "matchDepNames": ["github.com/this-is-tobi/rta", "github.com/this-is-tobi/rta/**"],
       "enabled": false
     },
     {

@@ -81,4 +81,6 @@ Third-party plugins are not yet accepted into this index. Publish your own — a
 
 `make ci` runs what CI runs. Every module pins a released rta; `make dev RTA_DIR=../rta` points a workspace at a checkout for an SDK edit loop, and `make dev-off` removes it. A `replace` never lands in a go.mod.
 
+With [mise](https://mise.jdx.dev) installed, `mise trust && mise install` in the checkout fetches the Go the modules name and the rta release `.rta-version` pins — the one CI renders each README and the index with, so `make docs-drift` here compares against the same rta it does there.
+
 Security reports: [SECURITY.md](./SECURITY.md).
