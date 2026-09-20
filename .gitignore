@@ -16,3 +16,7 @@ coverage.out
 
 # Working notes, never shipped
 .local/
+
+# A person's own mise overrides, never the repository's (mise.toml is)
+mise.local.toml
+.mise.local.toml

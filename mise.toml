@@ -1,0 +1,23 @@
+# The toolchain for working on this repository, for people who use mise
+# (https://mise.jdx.dev): `mise trust && mise install` after cloning fetches
+# it.
+#
+# Go, at the version every plugin's go.mod names; Renovate moves this line
+# and the go.mod directives together (renovate.json).
+#
+# And rta itself, at the release .rta-version names: the one ci.yml installs
+# to render each README and cd.yml to write the index, and therefore the one
+# `make docs-drift` has to compare against — a README rendered by a different
+# rta than the pipeline's is a drift failure on one side and not the other.
+# Read from .rta-version rather than restated, so `make bump-rta` keeps
+# moving one pin. Installed through the Go module proxy exactly as the
+# workflows do (`go install ...@$(cat .rta-version)`), which verifies the
+# module against the checksum database; a release archive fetched by a
+# generic download backend would not be.
+#
+# Inside this checkout that rta shadows any other on $PATH. Someone
+# developing rta itself alongside these plugins can put their own build
+# first in mise.local.toml, which git ignores.
+[tools]
+go = "1.26.6"
+"go:github.com/this-is-tobi/rta/cmd/rta" = "{{ read_file(path='.rta-version') | trim }}"
