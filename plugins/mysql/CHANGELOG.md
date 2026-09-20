@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.12](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.3.11...plugins/mysql/v0.3.12) (2026-09-20)
+
+
+### Bug Fixes
+
+* **mysql:** what the grants hide is said, instead of passing for the whole ([fd9046f](https://github.com/this-is-tobi/rta-plugins/commit/fd9046f6ab151b7b46e5a9193c8725c3f303498e))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.23.0 ([57431e7](https://github.com/this-is-tobi/rta-plugins/commit/57431e7e41a9e6d04ad1b958d1591152bae47ccb))
+
 ## [0.3.11](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.3.10...plugins/mysql/v0.3.11) (2026-09-19)
 
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.14](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.2.13...plugins/docker/v0.2.14) (2026-09-20)
+
+
+### Bug Fixes
+
+* **docker:** overview says the image query failed, instead of dropping the line ([e2e919e](https://github.com/this-is-tobi/rta-plugins/commit/e2e919ebfc190b6594c65f1cf6980a98167995da))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.23.0 ([57431e7](https://github.com/this-is-tobi/rta-plugins/commit/57431e7e41a9e6d04ad1b958d1591152bae47ccb))
+
 ## [0.2.13](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.2.12...plugins/docker/v0.2.13) (2026-09-19)
 
 

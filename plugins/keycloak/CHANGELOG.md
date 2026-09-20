@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.1.5](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.1.4...plugins/keycloak/v0.1.5) (2026-09-20)
+
+
+### Bug Fixes
+
+* **keycloak:** a check the audit could not run is reported, not counted as clean ([0a06215](https://github.com/this-is-tobi/rta-plugins/commit/0a0621548c25c0148618bb9228b920c45f1e9edc))
+
+
+### Code Refactoring
+
+* **keycloak:** drop a type and a helper nothing calls ([259dcb1](https://github.com/this-is-tobi/rta-plugins/commit/259dcb17fb9e4c49aa7c4e89f1c76026992a800d))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.23.0 ([57431e7](https://github.com/this-is-tobi/rta-plugins/commit/57431e7e41a9e6d04ad1b958d1591152bae47ccb))
+
 ## [0.1.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.1.3...plugins/keycloak/v0.1.4) (2026-09-19)
 
 

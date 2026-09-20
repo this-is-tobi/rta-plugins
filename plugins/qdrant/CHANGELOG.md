@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.12](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.11...plugins/qdrant/v0.3.12) (2026-09-20)
+
+
+### Bug Fixes
+
+* **qdrant:** a count Qdrant did not report is not a count of zero ([93c7745](https://github.com/this-is-tobi/rta-plugins/commit/93c77459bce32cd8b84c8cce942c62a3b42aec41))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.23.0 ([57431e7](https://github.com/this-is-tobi/rta-plugins/commit/57431e7e41a9e6d04ad1b958d1591152bae47ccb))
+
 ## [0.3.11](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.10...plugins/qdrant/v0.3.11) (2026-09-19)
 
 
