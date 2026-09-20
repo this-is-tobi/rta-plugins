@@ -52,7 +52,21 @@ func compactOverview(ctx context.Context, client *vaultapi.Client, req plugin.Re
 		}
 	}
 
+	// **A read that failed is said, not skipped.** These two used to be
+	// wrapped in `if err == nil` alone, so a seal status this token may not
+	// read — an ordinary least-privilege token, not a broken one — came back
+	// as a page with one fewer row, which reads as a deliberately compact
+	// report rather than as a question nobody answered. "Is this Vault
+	// sealed" is the one thing this capability exists to say, and silence is
+	// the wrong way to say it.
+	//
+	// read counts what actually answered, because the rows can no longer:
+	// with a failure now occupying a row of its own, len(kv.Pairs) stopped
+	// being the difference between a Vault half-read and one that said
+	// nothing at all.
+	read := 0
 	if status, err := client.Sys().SealStatusWithContext(ctx); err == nil {
+		read++
 		state := "unsealed"
 		if status.Sealed {
 			state = "sealed"
@@ -61,17 +75,22 @@ func compactOverview(ctx context.Context, client *vaultapi.Client, req plugin.Re
 			state = "not initialized"
 		}
 		add("state", state+" · "+status.Version)
+	} else {
+		add("state", "unreadable — "+err.Error())
 	}
 	if secret, err := client.Auth().Token().LookupSelfWithContext(ctx); err == nil {
+		read++
 		if policies, ok := secret.Data["policies"]; ok {
 			add("token policies", cell(policies))
 		}
 		if ttl, ok := secret.Data["ttl"]; ok {
 			add("token ttl (seconds)", cell(ttl))
 		}
+	} else {
+		add("token", "unreadable — "+err.Error())
 	}
 
-	if len(kv.Pairs) == 0 {
+	if read == 0 {
 		return nil, view.Errorf("vault.overview.unavailable", "nothing could be read")
 	}
 	return kv, nil
