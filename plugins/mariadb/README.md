@@ -55,6 +55,7 @@ Classified write for what it discloses rather than what it changes: the info col
 | input:database       | string, default , local (never offered to MCP callers), from config plugins.mariadb.database — database to select (optional — the server is reachable without one)                                                     |
 | input:tls            | string, default preferred, one of: false\|preferred\|true\|skip-verify, local (never offered to MCP callers), from config plugins.mariadb.tls, filled by a profile's tunnel (the forward's tls) — TLS negotiation mode |
 | input:password       | secret, local (never offered to MCP callers), from $RTA_MARIADB_PASSWORD — password for the user                                                                                                                       |
+| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                           |
 
 ## mariadb.database.list
 
@@ -78,6 +79,7 @@ Only the databases this user may see: MySQL filters INFORMATION_SCHEMA by grant,
 | input:database | string, default , local (never offered to MCP callers), from config plugins.mariadb.database — database to select (optional — the server is reachable without one)                                                     |
 | input:tls      | string, default preferred, one of: false\|preferred\|true\|skip-verify, local (never offered to MCP callers), from config plugins.mariadb.tls, filled by a profile's tunnel (the forward's tls) — TLS negotiation mode |
 | input:password | secret, local (never offered to MCP callers), from $RTA_MARIADB_PASSWORD — password for the user                                                                                                                       |
+| dashboard      | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                               |
 
 ## mariadb.dump
 
@@ -108,6 +110,7 @@ Created with O_EXCL at 0600, never over an existing file; a failed run takes its
 | input:database | string, default , local (never offered to MCP callers), from config plugins.mariadb.database — database to select (optional — the server is reachable without one)                                                     |
 | input:tls      | string, default preferred, one of: false\|preferred\|true\|skip-verify, local (never offered to MCP callers), from config plugins.mariadb.tls, filled by a profile's tunnel (the forward's tls) — TLS negotiation mode |
 | input:password | secret, local (never offered to MCP callers), from $RTA_MARIADB_PASSWORD — password for the user                                                                                                                       |
+| dashboard      | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                           |
 
 ## mariadb.galera.status
 
@@ -132,6 +135,7 @@ Says so plainly when the server is not clustered at all, rather than returning a
 | input:database | string, default , local (never offered to MCP callers), from config plugins.mariadb.database — database to select (optional — the server is reachable without one)                                                     |
 | input:tls      | string, default preferred, one of: false\|preferred\|true\|skip-verify, local (never offered to MCP callers), from config plugins.mariadb.tls, filled by a profile's tunnel (the forward's tls) — TLS negotiation mode |
 | input:password | secret, local (never offered to MCP callers), from $RTA_MARIADB_PASSWORD — password for the user                                                                                                                       |
+| dashboard      | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                               |
 
 ## mariadb.overview
 
@@ -154,6 +158,7 @@ What server this is, how long it has been up, how much of its connection budget 
 | input:database | string, default , local (never offered to MCP callers), from config plugins.mariadb.database — database to select (optional — the server is reachable without one)                                                     |
 | input:tls      | string, default preferred, one of: false\|preferred\|true\|skip-verify, local (never offered to MCP callers), from config plugins.mariadb.tls, filled by a profile's tunnel (the forward's tls) — TLS negotiation mode |
 | input:password | secret, local (never offered to MCP callers), from $RTA_MARIADB_PASSWORD — password for the user                                                                                                                       |
+| dashboard      | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                               |
 | input:detail   | bool, default false — return the full detailed view instead of the compact summary                                                                                                                                     |
 
 ## mariadb.query
@@ -182,6 +187,7 @@ Over --limit rows it is refused rather than shortened: a truncated result set is
 | input:database       | string, default , local (never offered to MCP callers), from config plugins.mariadb.database — database to select (optional — the server is reachable without one)                                                     |
 | input:tls            | string, default preferred, one of: false\|preferred\|true\|skip-verify, local (never offered to MCP callers), from config plugins.mariadb.tls, filled by a profile's tunnel (the forward's tls) — TLS negotiation mode |
 | input:password       | secret, local (never offered to MCP callers), from $RTA_MARIADB_PASSWORD — password for the user                                                                                                                       |
+| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                           |
 
 ## mariadb.replication.status
 
@@ -206,6 +212,7 @@ Says so plainly when the server is not a replica, rather than returning an empty
 | input:database | string, default , local (never offered to MCP callers), from config plugins.mariadb.database — database to select (optional — the server is reachable without one)                                                     |
 | input:tls      | string, default preferred, one of: false\|preferred\|true\|skip-verify, local (never offered to MCP callers), from config plugins.mariadb.tls, filled by a profile's tunnel (the forward's tls) — TLS negotiation mode |
 | input:password | secret, local (never offered to MCP callers), from $RTA_MARIADB_PASSWORD — password for the user                                                                                                                       |
+| dashboard      | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                               |
 
 ## mariadb.restore
 
@@ -231,6 +238,7 @@ Stops at the first error, which is the strongest guarantee MySQL allows: DDL com
 | input:database | string, default , local (never offered to MCP callers), from config plugins.mariadb.database — database to select (optional — the server is reachable without one)                                                     |
 | input:tls      | string, default preferred, one of: false\|preferred\|true\|skip-verify, local (never offered to MCP callers), from config plugins.mariadb.tls, filled by a profile's tunnel (the forward's tls) — TLS negotiation mode |
 | input:password | secret, local (never offered to MCP callers), from $RTA_MARIADB_PASSWORD — password for the user                                                                                                                       |
+| dashboard      | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                           |
 
 ## mariadb.schema
 
@@ -258,6 +266,7 @@ Name one table to expand only that one, which is also how to see a database too 
 | input:database | string, default , local (never offered to MCP callers), from config plugins.mariadb.database — database to select (optional — the server is reachable without one)                                                     |
 | input:tls      | string, default preferred, one of: false\|preferred\|true\|skip-verify, local (never offered to MCP callers), from config plugins.mariadb.tls, filled by a profile's tunnel (the forward's tls) — TLS negotiation mode |
 | input:password | secret, local (never offered to MCP callers), from $RTA_MARIADB_PASSWORD — password for the user                                                                                                                       |
+| dashboard      | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                               |
 
 ## mariadb.status
 
@@ -278,6 +287,7 @@ The cheapest possible call: connect, ask the server what it is, disconnect. Usef
 | input:database | string, default , local (never offered to MCP callers), from config plugins.mariadb.database — database to select (optional — the server is reachable without one)                                                     |
 | input:tls      | string, default preferred, one of: false\|preferred\|true\|skip-verify, local (never offered to MCP callers), from config plugins.mariadb.tls, filled by a profile's tunnel (the forward's tls) — TLS negotiation mode |
 | input:password | secret, local (never offered to MCP callers), from $RTA_MARIADB_PASSWORD — password for the user                                                                                                                       |
+| dashboard      | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                               |
 
 ## mariadb.table.list
 
@@ -302,3 +312,4 @@ The row counts are estimates the storage engine keeps, not COUNT(*). InnoDB's ca
 | input:database | string, default , local (never offered to MCP callers), from config plugins.mariadb.database — database to select (optional — the server is reachable without one)                                                     |
 | input:tls      | string, default preferred, one of: false\|preferred\|true\|skip-verify, local (never offered to MCP callers), from config plugins.mariadb.tls, filled by a profile's tunnel (the forward's tls) — TLS negotiation mode |
 | input:password | secret, local (never offered to MCP callers), from $RTA_MARIADB_PASSWORD — password for the user                                                                                                                       |
+| dashboard      | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                               |
