@@ -198,3 +198,56 @@ func restoreEndToEnd(t *testing.T, arrange func(map[string]http.HandlerFunc) map
 		t.Errorf("the receipt's count is not the server's read-back: %q", holds)
 	}
 }
+
+// **A count Qdrant did not report is not a count of zero, and this guard
+// stands in front of a destructive write.**
+//
+// Qdrant leaves points_count out while a collection is still loading, so a
+// collection holding millions of points reports nil until it finishes. The
+// check read `PointsCount != nil && *PointsCount > 0`, so nil fell straight
+// through to "nothing to lose" and the restore overwrote it without
+// --replace ever being typed — the one flag whose whole job is to make that
+// intent explicit.
+func TestRestoreWillNotOverwriteACollectionWhoseCountWasNotReported(t *testing.T) {
+	f := newFakeQdrant(t, map[string]string{
+		// A real Qdrant answer for a collection that is still loading: a
+		// status, and no points_count at all.
+		"/collections/docs": `{"result":{"status":"yellow","segments_count":2},"status":"ok"}`,
+	})
+	verr := checkTarget(t.Context(), reqAt(t, f, "qdrant.restore", map[string]any{
+		"collection": "docs", "file": snapshotOnDisk(t, "bytes"),
+	}), "docs")
+
+	if verr == nil {
+		t.Fatal("a collection that did not report its point count was treated as empty and overwritten")
+	}
+	if !strings.Contains(verr.Hint, "--replace") {
+		t.Errorf("the refusal does not name the way through: %+v", verr)
+	}
+}
+
+// --replace is still the way through, since saying so is the whole point of
+// the flag.
+func TestReplaceStillOverwritesAnUncountedCollection(t *testing.T) {
+	f := newFakeQdrant(t, map[string]string{
+		"/collections/docs": `{"result":{"status":"yellow"},"status":"ok"}`,
+	})
+	if verr := checkTarget(t.Context(), reqAt(t, f, "qdrant.restore", map[string]any{
+		"collection": "docs", "replace": true, "file": snapshotOnDisk(t, "bytes"),
+	}), "docs"); verr != nil {
+		t.Fatalf("--replace was refused: %+v", verr)
+	}
+}
+
+// And a collection that reports zero really is empty, so recovery into a
+// freshly-created collection is not made to pass a flag it does not need.
+func TestACollectionReportingZeroPointsStillPasses(t *testing.T) {
+	f := newFakeQdrant(t, map[string]string{
+		"/collections/docs": `{"result":{"status":"green","points_count":0},"status":"ok"}`,
+	})
+	if verr := checkTarget(t.Context(), reqAt(t, f, "qdrant.restore", map[string]any{
+		"collection": "docs", "file": snapshotOnDisk(t, "bytes"),
+	}), "docs"); verr != nil {
+		t.Fatalf("an empty collection was refused: %+v", verr)
+	}
+}
