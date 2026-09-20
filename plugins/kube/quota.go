@@ -106,7 +106,18 @@ func runQuotaList(ctx context.Context, req plugin.Request) (view.View, error) {
 // second table — one sentence, not a page, for a signal that is "present or
 // not" far more often than it is something to read row by row.
 func quotaView(t view.Table, limits list[limitRangeItem], limitErr *view.Error) view.View {
-	if limitErr != nil || len(limits.Items) == 0 {
+	if limitErr != nil {
+		// **"Forbidden to list limit ranges" and "this namespace has none"
+		// are different facts**, and both rendered as the quota table on its
+		// own — so a reader concluded there are no limit ranges from a page
+		// that never managed to look. The quota rows still answer; the part
+		// that did not is said beside them.
+		return view.Sections{
+			Items:    []view.Section{{ID: "quotas", Title: "Resource quotas", View: t}},
+			Warnings: []view.Error{*limitErr},
+		}
+	}
+	if len(limits.Items) == 0 {
 		return t
 	}
 	return view.Sections{Items: []view.Section{

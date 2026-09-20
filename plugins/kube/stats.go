@@ -170,13 +170,15 @@ func fetchSummary(ctx context.Context, s selection, node string) (summaryStats, 
 // their kubelet is by definition not answering, so each one would cost the
 // full request timeout to learn something kube.node.list already says plainly.
 func fetchSummaries(ctx context.Context, s selection, nodes []nodeItem) []nodeSummary {
-	var wanted []string
+	var wanted, notReady []string
 	for _, n := range nodes {
 		if healthOfNode(n).ready {
 			wanted = append(wanted, n.Metadata.Name)
+			continue
 		}
+		notReady = append(notReady, n.Metadata.Name)
 	}
-	out := make([]nodeSummary, len(wanted))
+	out := make([]nodeSummary, len(wanted), len(wanted)+len(notReady))
 	sem := make(chan struct{}, summaryConcurrency)
 	var wg sync.WaitGroup
 	for i, name := range wanted {
@@ -190,6 +192,20 @@ func fetchSummaries(ctx context.Context, s selection, nodes []nodeItem) []nodeSu
 		}()
 	}
 	wg.Wait()
+	// **Skipped is still not asked, and the caller has to be able to say
+	// so.** Not attempting them stays right — their kubelet is by definition
+	// not answering, and each would cost a full request timeout to learn
+	// what kube.node.list already says plainly. But they used to vanish from
+	// the result entirely, so they never reached the failed/unsupported
+	// lists these capabilities already use to disclose a partial answer: a
+	// cluster with three dead nodes reported per-node usage for the rest and
+	// read as every node there is.
+	//
+	// Reported as a read that did not happen, which is exactly what it is.
+	for _, name := range notReady {
+		out = append(out, nodeSummary{node: name, err: view.Errorf("kube.node.notready",
+			"%s is not Ready, so its kubelet was not asked", name)})
+	}
 	return out
 }
 

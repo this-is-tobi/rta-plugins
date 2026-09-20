@@ -1,6 +1,11 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	"github.com/this-is-tobi/rta/pkg/view"
+)
 
 func TestQuotaPercentValue(t *testing.T) {
 	cases := []struct {
@@ -64,5 +69,40 @@ func TestQuotaPressure(t *testing.T) {
 	want := "prod/compute cpu: 90%"
 	if got[0] != want {
 		t.Errorf("quotaPressure[0] = %q, want %q", got[0], want)
+	}
+}
+
+// **"Forbidden to list limit ranges" and "this namespace has none" are
+// different facts**, and both rendered as the quota table on its own — so a
+// reader concluded there are no limit ranges from a page that never managed
+// to look. The rows that did answer still answer; the part that did not is
+// said beside them.
+func TestAForbiddenLimitRangeReadIsNotAnAbsenceOfLimitRanges(t *testing.T) {
+	quotas := view.Table{Columns: []view.Column{{Name: "Quota"}}, Rows: [][]string{{"compute"}}, Total: 1}
+	denied := view.Errorf("kube.forbidden", "limitranges is forbidden for this credential")
+
+	v := quotaView(quotas, list[limitRangeItem]{}, denied)
+	s, ok := v.(view.Sections)
+	if !ok {
+		t.Fatalf("a forbidden read returned %s, want Sections carrying the reason", view.TypeOf(v))
+	}
+	if len(s.Warnings) == 0 {
+		t.Fatal("a forbidden limit-range read left no trace, so it reads as a namespace with none")
+	}
+	if !strings.Contains(s.Warnings[0].Message, "forbidden") {
+		t.Errorf("warning = %q, want it to say the read was refused", s.Warnings[0].Message)
+	}
+	// The quota rows are not lost to the caveat.
+	if inner, ok := s.Items[0].View.(view.Table); !ok || len(inner.Rows) != 1 {
+		t.Errorf("the quota rows did not survive: %+v", s.Items)
+	}
+}
+
+// And a namespace that genuinely has none is still the bare table, so the
+// caveat keeps meaning something.
+func TestANamespaceWithNoLimitRangesIsStillJustTheTable(t *testing.T) {
+	quotas := view.Table{Columns: []view.Column{{Name: "Quota"}}, Rows: [][]string{{"compute"}}, Total: 1}
+	if _, ok := quotaView(quotas, list[limitRangeItem]{}, nil).(view.Table); !ok {
+		t.Error("a namespace with no limit ranges no longer renders as the quota table alone")
 	}
 }

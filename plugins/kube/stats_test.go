@@ -238,3 +238,51 @@ func itoa(n int) string {
 	}
 	return string(b)
 }
+
+// **Skipped is still not asked, and the answer has to say so.**
+//
+// Not attempting a NotReady node stays right — its kubelet is by definition
+// not answering, and each would cost a full request timeout to learn what
+// kube.node.list already says. But they used to vanish from the result
+// entirely, never reaching the failed/unsupported lists these capabilities
+// use to disclose a partial answer, so a cluster with dead nodes reported
+// per-node usage for the rest and read as every node there is.
+func TestNodesThatWereNotAskedAreStillReported(t *testing.T) {
+	nodes := []nodeItem{
+		nodeFrom(t, `{"metadata":{"name":"worker-1"},
+			"status":{"conditions":[{"type":"Ready","status":"True"}]}}`),
+		nodeFrom(t, `{"metadata":{"name":"worker-2"},
+			"status":{"conditions":[{"type":"Ready","status":"False"}]}}`),
+	}
+
+	summaries := fetchSummaries(t.Context(), selection{}, nodes)
+	var said bool
+	for _, s := range summaries {
+		if s.node == "worker-2" {
+			said = true
+			if s.err == nil {
+				t.Error("the node that was not asked came back as a successful read")
+			} else if !strings.Contains(s.err.Message, "not Ready") {
+				t.Errorf("err = %q, want it to say why it was not asked", s.err.Message)
+			}
+		}
+	}
+	if !said {
+		t.Fatalf("a NotReady node vanished from the summaries: %+v", summaries)
+	}
+	// And it reaches the disclosure the consumers already have: a row
+	// carrying why, which pressureRows renders as "could not be read".
+	rows, _ := pressureRows(summaries)
+	var row *pressureRow
+	for i := range rows {
+		if rows[i].node == "worker-2" {
+			row = &rows[i]
+		}
+	}
+	if row == nil {
+		t.Fatalf("the node that was not asked has no row: %+v", rows)
+	}
+	if row.failed == "" {
+		t.Errorf("row = %+v, want it to carry why the node was not read", *row)
+	}
+}
