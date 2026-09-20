@@ -395,3 +395,44 @@ func TestAResponseIsNeverReadWithoutABound(t *testing.T) {
 		t.Errorf("code = %q, want the truncated body to be reported as malformed", verr.Code)
 	}
 }
+
+// **The single-vector shape has "size" holding a number, not an object.**
+//
+// Qdrant reports one unnamed vector as {"size": n, "distance": "..."} and
+// named vectors as {"<name>": {"size": ...}, ...}. Telling them apart on
+// the presence of a "size" key alone meant a collection with a vector
+// actually named "size" was read as the first shape: the map itself was
+// described as one vector, and every named vector in it vanished from the
+// output with nothing to say they had.
+func TestAVectorNamedSizeIsStillANamedVector(t *testing.T) {
+	pairs := describeVectors(map[string]any{
+		"size":  map[string]any{"size": float64(768), "distance": "Cosine"},
+		"title": map[string]any{"size": float64(384), "distance": "Dot"},
+	})
+	var keys []string
+	for _, p := range pairs {
+		keys = append(keys, p.Key)
+	}
+	if len(pairs) != 2 {
+		t.Fatalf("pairs = %v, want one per named vector", keys)
+	}
+	for _, want := range []string{"vector size", "vector title"} {
+		var found bool
+		for _, k := range keys {
+			if k == want {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("no %q among %v", want, keys)
+		}
+	}
+}
+
+// And the genuine single-vector shape still reads as one vector.
+func TestAnUnnamedVectorIsStillTheSingleShape(t *testing.T) {
+	pairs := describeVectors(map[string]any{"size": float64(768), "distance": "Cosine"})
+	if len(pairs) != 1 || pairs[0].Key != "vectors" {
+		t.Fatalf("pairs = %+v, want the single unnamed vector", pairs)
+	}
+}

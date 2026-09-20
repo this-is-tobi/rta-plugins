@@ -164,7 +164,21 @@ func checkTarget(ctx context.Context, req plugin.Request, collection string) *vi
 	if req.Bool("replace") {
 		return nil
 	}
-	if info.PointsCount != nil && *info.PointsCount > 0 {
+	// **A count Qdrant did not report is not a count of zero**, and this
+	// guard stands in front of a write that replaces a collection wholesale.
+	// points_count is left out while a collection is still loading, so one
+	// holding millions of points answers nil until it finishes — and a nil
+	// fell through the check below to "an existing empty one, which has
+	// nothing to lose". Refused instead, because --replace exists precisely
+	// so that overwriting something is a thing somebody typed.
+	if info.PointsCount == nil {
+		return view.Errorf("qdrant.restore.uncounted",
+			"%q exists and did not report how many points it holds", collection).
+			WithHint("Qdrant leaves the count out while a collection is still loading, so this " +
+				"cannot tell an empty collection from a full one — check it, then --replace to " +
+				"hand it to the snapshot wholesale, or restore into a fresh name")
+	}
+	if *info.PointsCount > 0 {
 		return view.Errorf("qdrant.restore.notempty",
 			"%q already holds %d points", collection, *info.PointsCount).
 			WithHint("--replace hands the collection to the snapshot wholesale, or restore " +

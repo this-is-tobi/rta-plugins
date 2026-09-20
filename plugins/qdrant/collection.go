@@ -231,8 +231,15 @@ func runCollectionShow(ctx context.Context, req plugin.Request) (view.View, erro
 func describeVectors(v any) []view.Pair {
 	switch shape := v.(type) {
 	case map[string]any:
-		if _, single := shape["size"]; single {
-			return []view.Pair{{Key: "vectors", Value: vectorText("", shape)}}
+		// The single-vector shape has "size" holding a *number*. A named-
+		// vector map can also have a "size" key — a vector somebody named
+		// "size" — and checking only for the key's presence read that
+		// collection as the other shape, describing the map itself as one
+		// vector and dropping every named vector it holds.
+		if v, single := shape["size"]; single {
+			if _, named := v.(map[string]any); !named {
+				return []view.Pair{{Key: "vectors", Value: vectorText("", shape)}}
+			}
 		}
 		names := make([]string, 0, len(shape))
 		for name := range shape {
