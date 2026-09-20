@@ -211,6 +211,19 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 				percentOf(float64(used), float64(slots)))})
 	}
 
+	// The sibling reads above say "could not be read — <why>" when they
+	// fail; these two said nothing at all, so a credential without quota or
+	// certificate access produced an overview that simply had no quota and
+	// no certificate lines — which is also what a healthy cluster with
+	// neither under pressure looks like.
+	if f.quotaErr != nil {
+		pairs = append(pairs, view.Pair{Key: "quotas",
+			Value: "could not be read — " + f.quotaErr.Message})
+	}
+	if f.certErr != nil {
+		pairs = append(pairs, view.Pair{Key: "certificates",
+			Value: "could not be read — " + f.certErr.Message})
+	}
 	var pressure []string
 	if f.quotaErr == nil {
 		pressure = quotaPressure(f.quotas, quotaPressureThreshold)
