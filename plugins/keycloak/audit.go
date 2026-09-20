@@ -209,20 +209,51 @@ func (s *session) auditSecondFactor(ctx context.Context, r *findings.Report, rea
 		return
 	}
 	var examined, with int
-	var without []string
+	var without, unread []string
 	for _, u := range users {
 		if !u.Enabled || u.ServiceAccountClientID != "" {
 			continue
 		}
+		if u.TOTP {
+			examined++
+			with++
+			continue
+		}
+		has, known := s.hasWebAuthn(ctx, u.ID)
+		// A user whose credentials could not be read leaves the count
+		// entirely rather than joining either side of it: "7 of 20" is a
+		// claim about users whose status was established, and padding
+		// either number with a guess makes the sentence false in a way its
+		// two exact figures hide.
+		if !known {
+			unread = append(unread, u.Username)
+			continue
+		}
 		examined++
-		if u.TOTP || s.hasWebAuthn(ctx, u.ID) {
+		if has {
 			with++
 			continue
 		}
 		without = append(without, u.Username)
 	}
-	status, detail := gradeCoverage(examined, with, without)
-	r.Add(grpMFA, "coverage", status, detail, refMFA)
+	if examined > 0 || len(unread) == 0 {
+		status, detail := gradeCoverage(examined, with, without)
+		r.Add(grpMFA, "coverage", status, detail, refMFA)
+	}
+	if len(unread) > 0 {
+		sort.Strings(unread)
+		shown := unread
+		if len(shown) > 5 {
+			shown = shown[:5]
+		}
+		who := strings.Join(shown, ", ")
+		if len(unread) > 5 {
+			who += fmt.Sprintf(" and %d more", len(unread)-5)
+		}
+		r.Add(grpMFA, "coverage-unread", findings.Info,
+			fmt.Sprintf("%s left out of the count above — their credentials could not be read: %s",
+				findings.Plural(len(unread), "user"), who), findings.Reference{})
+	}
 	if len(users) >= max {
 		r.Add(grpMFA, "coverage-bound", findings.Info,
 			fmt.Sprintf("only the first %d users were examined — raise --max to cover the realm", max),
@@ -312,18 +343,24 @@ func gradeCoverage(examined, with int, without []string) (string, string) {
 // hasWebAuthn asks whether a user without an OTP has a WebAuthn credential
 // instead — the one question the user listing cannot answer, and the
 // reason the coverage check is bounded.
-func (s *session) hasWebAuthn(ctx context.Context, id string) bool {
+//
+// known is what separates "this user has no second factor" from "this
+// user's credentials could not be read". Returning only the bool folded the
+// second into the first, and the coverage row then named that user in a
+// list titled "without" — an exact-looking sentence about who is exposed,
+// with somebody in it whose status nobody had established.
+func (s *session) hasWebAuthn(ctx context.Context, id string) (has, known bool) {
 	var creds []credentialRep
 	if verr := s.get(ctx, "users/"+segment(id)+"/credentials", nil, &creds); verr != nil {
-		return false
+		return false, false
 	}
 	for _, c := range creds {
 		switch c.Type {
 		case "otp", "webauthn", "webauthn-passwordless":
-			return true
+			return true, true
 		}
 	}
-	return false
+	return false, true
 }
 
 // --- brute force -------------------------------------------------------------
@@ -524,13 +561,26 @@ func localhostURL(u string) bool {
 // a service account is an application that can administer the realm it
 // lives in, and its secret is then an administrator credential wherever it
 // is deployed.
+// A read that fails is a row of its own, not an early return. Excessive
+// service-account privilege is the finding this function exists to catch,
+// so a client whose service account could not be examined must not reach
+// auditClients' clean tally — which counts a client with no findings, and
+// cannot otherwise tell one that was checked and found sound from one
+// nobody managed to look at.
 func (s *session) auditServiceAccount(ctx context.Context, r *findings.Report, c clientRep) {
+	unread := func(what string, verr *view.Error) {
+		r.Add(grpClients, c.ClientID+"/service-account", findings.Info,
+			what+" could not be read: "+verr.Message+" — what it may do was not examined",
+			findings.Reference{})
+	}
 	var sa userRep
 	if verr := s.get(ctx, "clients/"+segment(c.ID)+"/service-account-user", nil, &sa); verr != nil {
+		unread("its service account", verr)
 		return
 	}
 	var mappings roleMappings
 	if verr := s.get(ctx, "users/"+segment(sa.ID)+"/role-mappings", nil, &mappings); verr != nil {
+		unread("its service account's roles", verr)
 		return
 	}
 	var manage, viewer []string
@@ -658,6 +708,12 @@ func (s *session) auditAdmins(ctx context.Context, r *findings.Report) {
 	for _, role := range []string{"realm-admin", "manage-users", "manage-clients", "manage-realm", "impersonation"} {
 		var users []userRep
 		if verr := s.get(ctx, "clients/"+segment(rm.ID)+"/roles/"+segment(role)+"/users", query("max", "100"), &users); verr != nil {
+			// Said rather than skipped: this group answers "who administers
+			// this realm", and a role whose holders could not be listed
+			// leaves that question open — while a group with no rows at all
+			// gets no heading, so silence here removes the question too.
+			r.Add(grpAdmins, role, findings.Info,
+				"who holds "+role+" could not be read: "+verr.Message, findings.Reference{})
 			continue
 		}
 		if len(users) == 0 {
