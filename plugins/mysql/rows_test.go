@@ -34,13 +34,43 @@ var fakeAnswer struct {
 	err     error
 }
 
+// fakeResult is one canned answer.
+type fakeResult struct {
+	columns []string
+	rows    [][]driver.Value
+	err     error
+}
+
+// fakeRoutes answers a statement that contains `match`, for a handler that
+// asks more than one question in a call — activityView reads the process
+// list and then the server's own connection count, and the two have to be
+// able to disagree or the test cannot reproduce the thing being fixed.
+//
+// A slice rather than a map so that two routes matching one statement
+// resolve in a stated order instead of at random. Empty, which is the usual
+// case, means every query gets fakeAnswer.
+var fakeRoutes []struct {
+	match  string
+	result fakeResult
+}
+
+// answerFor picks the canned answer for one statement.
+func answerFor(q string) fakeResult {
+	for _, r := range fakeRoutes {
+		if strings.Contains(q, r.match) {
+			return r.result
+		}
+	}
+	return fakeResult{columns: fakeAnswer.columns, rows: fakeAnswer.rows, err: fakeAnswer.err}
+}
+
 func (fakeDriver) Open(string) (driver.Conn, error) { return fakeConn{}, nil }
 
 type fakeConn struct{}
 
-func (fakeConn) Prepare(string) (driver.Stmt, error) { return fakeStmt{}, nil }
-func (fakeConn) Close() error                        { return nil }
-func (fakeConn) Begin() (driver.Tx, error)           { return fakeTx{}, nil }
+func (fakeConn) Prepare(q string) (driver.Stmt, error) { return fakeStmt{query: q}, nil }
+func (fakeConn) Close() error                          { return nil }
+func (fakeConn) Begin() (driver.Tx, error)             { return fakeTx{}, nil }
 
 // lastTxOptions records what the query path asked for, so a test can assert
 // the transaction was opened READ ONLY. Without ConnBeginTx here, database/sql
@@ -58,29 +88,33 @@ type fakeTx struct{}
 func (fakeTx) Commit() error   { return nil }
 func (fakeTx) Rollback() error { return nil }
 
-type fakeStmt struct{}
+type fakeStmt struct{ query string }
 
 func (fakeStmt) Close() error  { return nil }
 func (fakeStmt) NumInput() int { return -1 }
 func (fakeStmt) Exec([]driver.Value) (driver.Result, error) {
 	return nil, errors.New("not used")
 }
-func (fakeStmt) Query([]driver.Value) (driver.Rows, error) {
-	if fakeAnswer.err != nil {
-		return nil, fakeAnswer.err
+func (s fakeStmt) Query([]driver.Value) (driver.Rows, error) {
+	res := answerFor(s.query)
+	if res.err != nil {
+		return nil, res.err
 	}
-	return &fakeRows{}, nil
+	return &fakeRows{res: res}, nil
 }
 
-type fakeRows struct{ at int }
+type fakeRows struct {
+	res fakeResult
+	at  int
+}
 
-func (r *fakeRows) Columns() []string { return fakeAnswer.columns }
+func (r *fakeRows) Columns() []string { return r.res.columns }
 func (r *fakeRows) Close() error      { return nil }
 func (r *fakeRows) Next(dest []driver.Value) error {
-	if r.at >= len(fakeAnswer.rows) {
+	if r.at >= len(r.res.rows) {
 		return io.EOF
 	}
-	copy(dest, fakeAnswer.rows[r.at])
+	copy(dest, r.res.rows[r.at])
 	r.at++
 	return nil
 }
