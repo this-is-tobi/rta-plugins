@@ -414,17 +414,26 @@ func (c cluster) primaryFor() (string, bool) {
 // soonestCert is the certificate closest to expiry, because the one nearest
 // the cliff is the one the question is about — the operator rotates all of a
 // cluster's certificates together, so in practice they expire together too.
-func (c cluster) soonestCert() (name string, at time.Time, ok bool) {
+//
+// unparsed names the expirations it could not read. Skipping them silently
+// meant a cluster whose only certificate carried a timestamp in a spelling
+// parseWhen does not know produced no certificate row at all — and no row
+// is how this page says "nothing to worry about here", on the check that
+// answers whether TLS to the cluster is about to stop working.
+func (c cluster) soonestCert() (name string, at time.Time, ok bool, unparsed []string) {
 	for n, raw := range c.Status.Certificates.Expirations {
 		t, parsed := parseWhen(raw)
 		if !parsed {
+			unparsed = append(unparsed, n)
 			continue
 		}
 		if !ok || t.Before(at) {
 			name, at, ok = n, t, true
 		}
 	}
-	return name, at, ok
+	// Map iteration order is not an order, and this list is printed.
+	sort.Strings(unparsed)
+	return name, at, ok, unparsed
 }
 
 // parseWhen reads the two timestamp spellings the Cluster resource actually

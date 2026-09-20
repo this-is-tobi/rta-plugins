@@ -293,10 +293,21 @@ func statusView(c cluster) view.View {
 	if line := c.archivingLine(); line != "" {
 		overview = append(overview, view.Pair{Key: "WAL archiving", Value: line})
 	}
-	if name, at, ok := c.soonestCert(); ok {
-		v := "soonest expires in " + until(at) + " (" + name + ")"
-		if time.Until(at) <= 0 {
+	if name, at, ok, unparsed := c.soonestCert(); ok || len(unparsed) > 0 {
+		var v string
+		switch {
+		case ok && time.Until(at) <= 0:
 			v = name + " expired " + age(at) + " ago"
+		case ok:
+			v = "soonest expires in " + until(at) + " (" + name + ")"
+		}
+		if len(unparsed) > 0 {
+			note := "expiry unreadable for " + strings.Join(unparsed, ", ")
+			if v == "" {
+				v = note + " — this cannot say whether they are near expiry"
+			} else {
+				v += " · " + note
+			}
 		}
 		overview = append(overview, view.Pair{Key: "Certificates", Value: v})
 	}
@@ -441,7 +452,15 @@ func problemTable(c cluster) view.Table {
 		add("backup", "warn", "the most recent attempt failed "+age(lastFail)+
 			" ago — the last success is "+age(success)+" old")
 	}
-	if name, at, ok := c.soonestCert(); ok {
+	name, at, ok, unparsedCerts := c.soonestCert()
+	if len(unparsedCerts) > 0 {
+		// A certificate whose expiry could not be read is not a certificate
+		// that is fine: with no row at all, an expired one is indistinguishable
+		// from a cluster whose certificates are all healthy.
+		add("certificates", "warn", "expiry unreadable for "+strings.Join(unparsedCerts, ", ")+
+			" — whether they are expired or near it could not be determined")
+	}
+	if ok {
 		switch {
 		case time.Until(at) <= 0:
 			add("certificates", "fail", name+" expired "+age(at)+

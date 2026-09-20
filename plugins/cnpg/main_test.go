@@ -541,3 +541,44 @@ func TestEitherNamespaceFormAloneIsAccepted(t *testing.T) {
 		t.Errorf("--all-namespaces alone was not accepted: %+v %v", every, verr)
 	}
 }
+
+// **A certificate whose expiry could not be read is not a certificate that
+// is fine.**
+//
+// soonestCert skipped every expiration parseWhen could not read and
+// returned ok=false when none parsed, and both callers act only on ok — so
+// a cluster whose certificate timestamps come in a spelling this does not
+// know produced no certificate row in the overview and no certificate
+// problem, which is exactly how both surfaces say "nothing to worry about
+// here". The check that answers whether TLS to the cluster is about to stop
+// working answered it for a cluster it never read.
+func TestACertificateExpiryThatCannotBeReadIsSaidRatherThanSkipped(t *testing.T) {
+	c := healthy()
+	c.Status.Certificates.Expirations = map[string]string{
+		"app-db-server": "whenever the operator feels like it",
+	}
+
+	if got := problemsIn(t, c)["certificates"]; !strings.Contains(got, "unreadable") {
+		t.Errorf("certificates problem = %q, want it to say the expiry could not be read", got)
+	}
+	if v := overviewOf(t, c)["Certificates"]; !strings.Contains(v, "unreadable") {
+		t.Errorf("Certificates = %q, want it to say the expiry could not be read", v)
+	}
+}
+
+// And one unreadable expiry beside a readable one does not hide the reading
+// that did work: the soonest known expiry still leads, with the gap noted.
+func TestAnUnreadableExpiryDoesNotHideTheOnesThatParsed(t *testing.T) {
+	c := healthy()
+	c.Status.Certificates.Expirations = map[string]string{
+		"app-db-ca":     time.Now().Add(90 * 24 * time.Hour).UTC().Format("2006-01-02 15:04:05 -0700 MST"),
+		"app-db-server": "not a timestamp",
+	}
+	v := overviewOf(t, c)["Certificates"]
+	if !strings.Contains(v, "expires in") {
+		t.Errorf("Certificates = %q, want the expiry that did parse", v)
+	}
+	if !strings.Contains(v, "app-db-server") {
+		t.Errorf("Certificates = %q, want it to name the one it could not read", v)
+	}
+}
