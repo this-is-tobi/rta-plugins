@@ -69,6 +69,7 @@ Written into a directory this creates — never one that already exists, so a ba
 | input:access-key | string, local (never offered to MCP callers), from config plugins.s3.access-key — access key ID                                                                                                                                                                                 |
 | input:secret-key | secret, local (never offered to MCP callers), from $RTA_S3_SECRET_KEY — secret access key                                                                                                                                                                                       |
 | input:ca-file    | string, default , local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                                                             |
+| dashboard        | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                                                                                    |
 
 ## s3.bucket.list
 
@@ -87,6 +88,7 @@ Written into a directory this creates — never one that already exists, so a ba
 | input:access-key | string, local (never offered to MCP callers), from config plugins.s3.access-key — access key ID                                                                                                     |
 | input:secret-key | secret, local (never offered to MCP callers), from $RTA_S3_SECRET_KEY — secret access key                                                                                                           |
 | input:ca-file    | string, default , local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                 |
+| dashboard        | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                            |
 
 ## s3.bucket.upload
 
@@ -117,6 +119,7 @@ Regular files only: a symlink refuses the whole upload by name — a link pointi
 | input:access-key | string, local (never offered to MCP callers), from config plugins.s3.access-key — access key ID                                                                                                                                                                                            |
 | input:secret-key | secret, local (never offered to MCP callers), from $RTA_S3_SECRET_KEY — secret access key                                                                                                                                                                                                  |
 | input:ca-file    | string, default , local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                                                                        |
+| dashboard        | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                                                                                               |
 
 ## s3.object.copy
 
@@ -142,6 +145,7 @@ Copies server-side; the content never passes through this process. Refuses if --
 | input:access-key     | string, local (never offered to MCP callers), from config plugins.s3.access-key — access key ID                                                                                                                                                       |
 | input:secret-key     | secret, local (never offered to MCP callers), from $RTA_S3_SECRET_KEY — secret access key                                                                                                                                                             |
 | input:ca-file        | string, default , local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                                   |
+| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                                                          |
 
 ## s3.object.get
 
@@ -166,6 +170,7 @@ Writes the content to stdout with no framing; for the byte-exact copy, or anythi
 | input:access-key     | string, local (never offered to MCP callers), from config plugins.s3.access-key — access key ID                                                                                                                   |
 | input:secret-key     | secret, local (never offered to MCP callers), from $RTA_S3_SECRET_KEY — secret access key                                                                                                                         |
 | input:ca-file        | string, default , local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                               |
+| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                      |
 
 ## s3.object.list
 
@@ -193,6 +198,7 @@ Bounded: a bucket can hold millions of keys, so this returns --limit of them and
 | input:access-key | string, local (never offered to MCP callers), from config plugins.s3.access-key — access key ID                                                                                                                                                                                   |
 | input:secret-key | secret, local (never offered to MCP callers), from $RTA_S3_SECRET_KEY — secret access key                                                                                                                                                                                         |
 | input:ca-file    | string, default , local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                                                               |
+| dashboard        | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                                                                                          |
 
 ## s3.object.presign
 
@@ -218,6 +224,7 @@ The URL itself is a credential: anyone who has it can act on the object until --
 | input:access-key     | string, local (never offered to MCP callers), from config plugins.s3.access-key — access key ID                                                                                                                                             |
 | input:secret-key     | secret, local (never offered to MCP callers), from $RTA_S3_SECRET_KEY — secret access key                                                                                                                                                   |
 | input:ca-file        | string, default , local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                         |
+| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                                                |
 
 ## s3.object.rename
 
@@ -243,6 +250,7 @@ S3 has no native rename — this copies server-side, then removes the source. If
 | input:access-key     | string, local (never offered to MCP callers), from config plugins.s3.access-key — access key ID                                                                                                                                                         |
 | input:secret-key     | secret, local (never offered to MCP callers), from $RTA_S3_SECRET_KEY — secret access key                                                                                                                                                               |
 | input:ca-file        | string, default , local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                                     |
+| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                                                            |
 
 ## s3.object.rm
 
@@ -266,6 +274,7 @@ No history, no backup, no undo — the same loss `kv rm` is. S3's DELETE is idem
 | input:access-key     | string, local (never offered to MCP callers), from config plugins.s3.access-key — access key ID                                                                                                     |
 | input:secret-key     | secret, local (never offered to MCP callers), from $RTA_S3_SECRET_KEY — secret access key                                                                                                           |
 | input:ca-file        | string, default , local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                 |
+| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                        |
 
 ## s3.object.set
 
@@ -293,6 +302,7 @@ The content comes from the argument or from --file; PutObject handles large file
 | input:access-key     | string, local (never offered to MCP callers), from config plugins.s3.access-key — access key ID                                                                                                                                                                                         |
 | input:secret-key     | secret, local (never offered to MCP callers), from $RTA_S3_SECRET_KEY — secret access key                                                                                                                                                                                               |
 | input:ca-file        | string, default , local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                                                                     |
+| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                                                                                            |
 
 ## s3.object.show
 
@@ -313,6 +323,7 @@ The content comes from the argument or from --file; PutObject handles large file
 | input:access-key | string, local (never offered to MCP callers), from config plugins.s3.access-key — access key ID                                                                                                     |
 | input:secret-key | secret, local (never offered to MCP callers), from $RTA_S3_SECRET_KEY — secret access key                                                                                                           |
 | input:ca-file    | string, default , local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                 |
+| dashboard        | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                            |
 
 ## s3.object.tree
 
@@ -343,6 +354,7 @@ One request, however deep the result: the folders are built here from the keys, 
 | input:access-key | string, local (never offered to MCP callers), from config plugins.s3.access-key — access key ID                                                                                                                                                        |
 | input:secret-key | secret, local (never offered to MCP callers), from $RTA_S3_SECRET_KEY — secret access key                                                                                                                                                              |
 | input:ca-file    | string, default , local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                                    |
+| dashboard        | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                                                               |
 
 ## s3.overview
 
@@ -363,6 +375,7 @@ Whether this endpoint is reachable at all, and how many buckets the configured c
 | input:access-key | string, local (never offered to MCP callers), from config plugins.s3.access-key — access key ID                                                                                                     |
 | input:secret-key | secret, local (never offered to MCP callers), from $RTA_S3_SECRET_KEY — secret access key                                                                                                           |
 | input:ca-file    | string, default , local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                 |
+| dashboard        | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                            |
 | input:detail     | bool, default false — return the full detailed view instead of the compact summary                                                                                                                  |
 
 ## s3.policy.get
@@ -383,3 +396,4 @@ Whether this endpoint is reachable at all, and how many buckets the configured c
 | input:access-key | string, local (never offered to MCP callers), from config plugins.s3.access-key — access key ID                                                                                                     |
 | input:secret-key | secret, local (never offered to MCP callers), from $RTA_S3_SECRET_KEY — secret access key                                                                                                           |
 | input:ca-file    | string, default , local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                 |
+| dashboard        | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                            |
