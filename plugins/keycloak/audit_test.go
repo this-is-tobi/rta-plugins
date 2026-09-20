@@ -400,3 +400,67 @@ func TestEverySourceCitationLinksToWhereItIsRead(t *testing.T) {
 		}
 	}
 }
+
+// **An audit's job is to say what it found, and a check it could not run is
+// not a check that passed.**
+//
+// The service account rta itself audits with holds five separate view-*
+// roles, and a realm where it holds four of them is the ordinary
+// half-provisioned setup rather than a broken server. Every read in this
+// file says so when it fails — "the browser flow could not be read", "users
+// could not be listed", "clients could not be listed" — except the three
+// below, which returned early, skipped the row, or answered false. The
+// audit then graded the realm on what it had managed to look at, and said
+// nothing about the rest.
+func TestAServiceAccountThatCouldNotBeReadIsNotCountedClean(t *testing.T) {
+	f := newFakeKeycloak(t)
+	f.deny = []string{"/service-account-user"}
+	got := graded(t, run(t, f, "keycloak.audit", map[string]any{"detail": true}))
+
+	g, ok := got["rta-audit/service-account"]
+	if !ok {
+		t.Fatal("a service account that could not be read produced no finding — the client counts as clean")
+	}
+	if !strings.Contains(g.detail, "could not be read") {
+		t.Errorf("service-account detail = %q, want it to say the read failed", g.detail)
+	}
+	// And the clean tally cannot count a client whose service account was
+	// never examined: a finding was recorded, so it is not one of them.
+	if clean, ok := got["clean"]; ok && strings.HasPrefix(clean.detail, "4 clients") {
+		t.Errorf("clean = %q — a client nobody examined was counted as having no findings", clean.detail)
+	}
+}
+
+func TestARoleWhoseHoldersCannotBeReadSaysSo(t *testing.T) {
+	f := newFakeKeycloak(t)
+	f.deny = []string{"/roles/realm-admin/users"}
+	got := graded(t, run(t, f, "keycloak.audit", map[string]any{"detail": true}))
+	expect(t, got, "realm-admin", findings.Info, "could not be read")
+}
+
+// The MFA coverage count is a sentence with two exact numbers in it, so a
+// user whose credentials could not be read has to leave the count rather
+// than land silently on the "without a second factor" side of it — and be
+// named, since "who is not covered" is the question the row exists to
+// answer.
+func TestUsersWhoseCredentialsCannotBeReadLeaveTheCoverageCount(t *testing.T) {
+	f := newFakeKeycloak(t)
+	f.deny = []string{"/credentials"}
+	got := graded(t, run(t, f, "keycloak.audit", map[string]any{"detail": true}))
+
+	// The fixture realm has 3 enabled users: one holds an OTP, and alice
+	// and bob do not — their WebAuthn answer is what the denial hides.
+	expect(t, got, "coverage", findings.OK, "1 of 1 enabled users")
+	g, ok := got["coverage-unread"]
+	if !ok {
+		t.Fatal("two users whose credentials could not be read were counted as having no second factor")
+	}
+	if !strings.Contains(g.detail, "could not be read") {
+		t.Errorf("coverage-unread detail = %q, want it to say the credentials could not be read", g.detail)
+	}
+	for _, who := range []string{"alice", "bob"} {
+		if !strings.Contains(g.detail, who) {
+			t.Errorf("coverage-unread detail = %q, want it to name %s", g.detail, who)
+		}
+	}
+}

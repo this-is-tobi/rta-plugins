@@ -52,6 +52,11 @@ type fakeKeycloak struct {
 	requests []string // "METHOD path?query", in order
 	secrets  []string // every path the client secret was posted to
 	admin    bool     // answer /admin/serverinfo in full, as to a master-realm client
+	// deny answers 403 on any admin path holding one of these substrings —
+	// a service account short one view-* role, which is the ordinary
+	// half-provisioned setup rather than a broken server. The roles are
+	// granted separately, so seeing part of a realm is the common case.
+	deny []string
 }
 
 const fakeSecret = "fake-client-secret"
@@ -101,6 +106,13 @@ func (f *fakeKeycloak) serve(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"error":"HTTP 403 Forbidden"}`))
 		return
+	}
+	for _, d := range f.deny {
+		if strings.Contains(r.URL.Path, d) {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"error":"HTTP 403 Forbidden"}`))
+			return
+		}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if r.URL.Path == "/admin/serverinfo" {
