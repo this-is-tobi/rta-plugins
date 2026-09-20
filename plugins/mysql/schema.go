@@ -108,6 +108,9 @@ func tableTable(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 		return nil, classify(err, req)
 	}
 	t.Total = len(t.Rows)
+	if t.Total > 0 && !schemaFullyVisible(ctx, db, schema) {
+		t.Warnings = append(t.Warnings, partialListing("mysql.table.partial", schema, "this list"))
+	}
 	if t.Total == 0 {
 		// An empty result is ambiguous between "no such database" and "a
 		// database with nothing in it", and the two need different next steps.
@@ -158,6 +161,67 @@ type column struct {
 	nullable bool
 	key      string
 	extra    string
+}
+
+// schemaFullyVisible reports whether this account holds a privilege wide
+// enough that INFORMATION_SCHEMA cannot be hiding tables from it.
+//
+// **INFORMATION_SCHEMA lists only the tables the account holds some
+// privilege on.** A reporting account with SELECT on six tables of twenty
+// sees exactly six, with no error and no marker — and `SHOW TABLES` is
+// filtered identically, so the gap cannot be measured from inside MySQL at
+// all. The question therefore has to be asked from the other side: does
+// this account hold something that covers the whole schema? A global grant
+// (`ON *.*`) or a schema-wide one (“ ON `db`.* “) does; a list of
+// per-table grants does not.
+//
+// A privilege reached through a role is not expanded by SHOW GRANTS, so an
+// account whose privileges all arrive that way reads as narrow here and
+// gets the caveat. That is the right way to be wrong: the alternative is a
+// listing that states it is complete when it is not.
+//
+// A probe that cannot run says nothing. Its failure is evidence about the
+// probe, not about whether tables are hidden, and a caveat driven by it
+// would fire on servers that are not hiding anything.
+func schemaFullyVisible(ctx context.Context, db *sql.DB, schema string) bool {
+	rows, err := db.QueryContext(ctx, `SHOW GRANTS FOR CURRENT_USER()`)
+	if err != nil {
+		return true
+	}
+	defer func() { _ = rows.Close() }()
+	wide := []string{"ON *.*", "ON `" + schema + "`.*", "ON " + schema + ".*"}
+	for rows.Next() {
+		var line string
+		if err := rows.Scan(&line); err != nil {
+			return true
+		}
+		// `GRANT USAGE ON *.*` is the baseline line every account has and it
+		// means no privileges at all. Matching it on the scope alone would
+		// read every account on every server as wide, and this caveat would
+		// never fire once — which is how a guard passes its own tests and
+		// protects nothing.
+		if strings.HasPrefix(line, "GRANT USAGE ON ") {
+			continue
+		}
+		for _, w := range wide {
+			if strings.Contains(line, w) {
+				return true
+			}
+		}
+	}
+	return rows.Err() != nil
+}
+
+// partialListing is the caveat both listings carry when the grants may be
+// hiding tables, so the two cannot come to word it differently.
+func partialListing(code, schema, what string) view.Error {
+	return view.Error{
+		Code: code,
+		Message: "this account holds per-table privileges, and INFORMATION_SCHEMA lists only the " +
+			"tables it holds one on — there may be tables in " + schema + " missing from " + what,
+		Hint: "MySQL offers no way to count what it filtered out; a schema-wide grant " +
+			"(GRANT SELECT ON `" + schema + "`.*) makes the listing complete",
+	}
 }
 
 func schemaTree(ctx context.Context, db *sql.DB, req plugin.Request) (view.View, error) {
@@ -239,7 +303,20 @@ func schemaTree(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 		root.Children = append(root.Children, node)
 	}
 	root.Detail = fmt.Sprintf("%d tables", len(order))
-	return view.Tree{Roots: []view.Node{root}}, nil
+	tree := view.Tree{Roots: []view.Node{root}}
+	// A Tree has nowhere to carry a caveat, so one is wrapped the way
+	// plugins/kube's quotaView wraps its table: the shape changes only when
+	// there is something to say, and what it says is the reason.
+	//
+	// Only for the whole-schema view. With --table naming one table that was
+	// found, nothing about this answer is partial.
+	if req.String("table") == "" && !schemaFullyVisible(ctx, db, schema) {
+		return view.Sections{
+			Items:    []view.Section{{ID: "schema", Title: schema, View: tree}},
+			Warnings: []view.Error{partialListing("mysql.schema.partial", schema, "this shape")},
+		}, nil
+	}
+	return tree, nil
 }
 
 // columnDetail renders everything about a column except its contents. The key
