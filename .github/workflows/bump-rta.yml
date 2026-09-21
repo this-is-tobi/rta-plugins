@@ -76,6 +76,22 @@ jobs:
       if: steps.target.outputs.version != ''
       run: make bump-rta RTA_VERSION=${{ steps.target.outputs.version }}
 
+    # A README is `rta plugin doc` rendered from the plugin's declaration,
+    # and the rta doing the rendering decides what the page says: a release
+    # that adds a row to the explain card puts every README behind its
+    # declaration the moment the pin moves, and docs-drift would then fail
+    # this very pull request with nothing for a reviewer to fix but running
+    # `make docs` by hand. So the bump regenerates them with the rta it is
+    # bumping to, installed the way ci.yml and cd.yml install it: from the
+    # pin bump-rta just wrote.
+    - name: Install the rta being bumped to
+      if: steps.target.outputs.version != ''
+      run: go install "github.com/this-is-tobi/rta/cmd/rta@$(cat .rta-version)"
+
+    - name: Regenerate every README with it
+      if: steps.target.outputs.version != ''
+      run: make docs
+
     - name: Mint the App token
       if: steps.target.outputs.version != ''
       id: app-token
@@ -104,11 +120,11 @@ jobs:
         git checkout -b "$branch"
         git add -A
         git commit -m "build: every plugin builds against rta $VERSION" \
-          -m "The SDK is compiled into every binary, so every plugin follows an rta release. Opened by the bump workflow from https://github.com/this-is-tobi/rta/releases/tag/$VERSION"
+          -m "The SDK is compiled into every binary, so every plugin follows an rta release, and every README is rendered by it, so each is regenerated with the same release. Opened by the bump workflow from https://github.com/this-is-tobi/rta/releases/tag/$VERSION"
         git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$branch"
         gh pr create --base main --head "$branch" \
           --title "build: every plugin builds against rta $VERSION" \
           --body "$(printf '%s\n\n%s\n\n%s' \
-            "Every plugin's go.mod pins rta $VERSION; go.sum and .rta-version, which the workflows install from, follow." \
+            "Every plugin's go.mod pins rta $VERSION; go.sum and .rta-version, which the workflows install from, follow, and every README is regenerated with rta $VERSION since it renders the card the README carries." \
             "Release notes: https://github.com/this-is-tobi/rta/releases/tag/$VERSION" \
             "Opened by the bump workflow. CI is the review: a red check here means the SDK moved under a plugin.")"
