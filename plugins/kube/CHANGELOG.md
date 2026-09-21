@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.3.12...plugins/kube/v0.4.0) (2026-09-21)
+
+
+### Features
+
+* **kube:** a kube.overview tile re-runs every minute, not every few seconds ([778f998](https://github.com/this-is-tobi/rta-plugins/commit/778f9982ecdbc7f6a467aa01eedc382f48d5b1fb))
+
+
+### Bug Fixes
+
+* **kube:** a credential plugin that is not installed is said so, not reported as an expired one ([edbcf01](https://github.com/this-is-tobi/rta-plugins/commit/edbcf01899419227b4d2d818359c802eeac36923))
+* **kube:** a credential plugin that refused is a sign-in problem, named with its plugin ([b89d165](https://github.com/this-is-tobi/rta-plugins/commit/b89d165bc890849a2c7c44a2adf286b6db5c2c5f))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.24.0 ([ea45517](https://github.com/this-is-tobi/rta-plugins/commit/ea455173a5b24222c85fb9e46acc8b9d109af76e))
+* every plugin builds against rta v0.25.0 ([85e0797](https://github.com/this-is-tobi/rta-plugins/commit/85e07975746df2fba744f54ef3371944e09995a2))
+
 ## [0.3.12](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.3.11...plugins/kube/v0.3.12) (2026-09-20)
 
 
