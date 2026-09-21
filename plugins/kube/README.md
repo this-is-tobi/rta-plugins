@@ -246,7 +246,7 @@ Reads more than it names: every ResourceQuota and every TLS Secret in every name
 | mcp-tool      | kube_overview                                                                                                                                        |
 | profiles      | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow kube --profile \<name>\`                   |
 | input:context | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted |
-| dashboard     | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                             |
+| dashboard     | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every 1m                                      |
 | input:detail  | bool, default false — return the full detailed view instead of the compact summary                                                                   |
 
 ## kube.pod.list

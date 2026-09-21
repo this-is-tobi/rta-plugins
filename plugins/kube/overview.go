@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
@@ -55,6 +56,22 @@ func fetchOverview(ctx context.Context, all, nsSel selection) overviewFetch {
 	wg.Wait()
 	return f
 }
+
+// overviewRefresh is how often a dashboard tile of kube.overview is re-run,
+// for the person who names it in their config. A run is the five lists
+// above at once, two of them across every namespace and one of those every
+// TLS Secret the cluster holds — and a Secret read is a line in the API
+// server's audit log on any cluster that keeps one. At the dashboard's own
+// every-few-seconds pace that is hundreds of cluster-wide lists an hour per
+// open terminal, for an answer that does not move that fast: a kubelet
+// reports every ten seconds and the node controller waits forty more before
+// it calls the node NotReady, a crash-looping pod backs off for tens of
+// seconds and then minutes, and quota pressure and certificate expiry move
+// by the hour. A minute shows each of those as soon as the cluster has
+// decided it. The other kube capabilities keep the host's pace: a pod or
+// event list is one call, and a person who names one while a rollout runs
+// wants it to move.
+const overviewRefresh = time.Minute
 
 // quotaPressureThreshold is when a tracked resource is worth naming in an
 // overview meant to be read in passing: 80%, the point a person still has

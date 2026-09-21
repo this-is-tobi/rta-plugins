@@ -335,6 +335,7 @@ func Plugin() plugin.Plugin {
 			Safety:     plugin.Read,
 			Idempotent: true,
 			Detailed:   true,
+			Refresh:    overviewRefresh,
 			Run:        runOverview,
 		}),
 		{
