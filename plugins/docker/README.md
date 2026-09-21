@@ -59,7 +59,7 @@ Running containers by default; --all includes the stopped ones, which is usually
 | input:all     | bool, from config plugins.docker.all — include stopped containers                                                                                                     |
 | input:host    | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
 | input:context | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
-| dashboard     | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                              |
+| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add docker.container.list\` puts it there, re-run every few seconds                      |
 
 ## docker.container.restart
 
@@ -133,7 +133,7 @@ What is on this machine's disk. Dangling images — the untagged leftovers of a 
 | profiles      | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                  |
 | input:host    | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
 | input:context | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
-| dashboard     | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                              |
+| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add docker.image.list\` puts it there, re-run every few seconds                          |
 
 ## docker.overview
 
@@ -150,5 +150,5 @@ Whether the daemon answers, how many containers are up against how many exist, a
 | profiles      | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                  |
 | input:host    | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
 | input:context | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
-| dashboard     | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                              |
+| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add docker.overview\` puts it there, re-run every few seconds                            |
 | input:detail  | bool, default false — return the full detailed view instead of the compact summary                                                                                    |

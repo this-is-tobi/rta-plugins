@@ -128,7 +128,7 @@ The structured equivalent of `vault kv metadata get`: every version the engine s
 | input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
 | input:token     | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.kv.history\` puts it there, re-run every few seconds                                             |
 
 ## vault.kv.list
 
@@ -149,7 +149,7 @@ The structured equivalent of `vault kv list`: names only, the same Read/Write sp
 | input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
 | input:token     | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.kv.list\` puts it there, re-run every few seconds                                                |
 
 ## vault.kv.set
 
@@ -198,7 +198,7 @@ Bounded in both directions, and it says when it stopped. A folder the token may 
 | input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
 | input:token     | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.kv.tree\` puts it there, re-run every few seconds                                                |
 
 ## vault.kv.undelete
 
@@ -241,7 +241,7 @@ The structured equivalent of `vault lease lookup`: when a leased secret (a datab
 | input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
 | input:token     | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.lease.show\` puts it there, re-run every few seconds                                             |
 
 ## vault.overview
 
@@ -260,7 +260,7 @@ Whether this Vault is worth talking to at all, and what the configured token can
 | input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
 | input:token     | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.overview\` puts it there, re-run every few seconds                                               |
 | input:detail    | bool, default false — return the full detailed view instead of the compact summary                                                                                                      |
 
 ## vault.policy.get
@@ -279,7 +279,7 @@ Whether this Vault is worth talking to at all, and what the configured token can
 | input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
 | input:token     | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.policy.get\` puts it there, re-run every few seconds                                             |
 
 ## vault.policy.list
 
@@ -298,7 +298,7 @@ Names, not rules — vault.policy.get shows one policy's own document. A policy 
 | input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
 | input:token     | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.policy.list\` puts it there, re-run every few seconds                                            |
 
 ## vault.restore
 
@@ -342,7 +342,7 @@ The same shape builtin/kv's kv.status has, for the same reason: where the vault 
 | input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
 | input:token     | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.seal.status\` puts it there, re-run every few seconds                                            |
 
 ## vault.snapshot
 
@@ -385,7 +385,7 @@ Always the caller's own token (Vault's own `auth/token/lookup-self`) — looking
 | input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
 | input:token     | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.token.status\` puts it there, re-run every few seconds                                           |
 
 ## vault.transit.decrypt
 

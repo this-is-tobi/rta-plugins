@@ -80,7 +80,7 @@ Exists because pg.status's "no database named X" hint promises it. A hint naming
 | input:sslmode     | string, default prefer, one of: disable\|prefer\|require\|verify-ca\|verify-full, local (never offered to MCP callers), from config plugins.pg.sslmode, filled by a profile's tunnel (the forward's tls) — TLS negotiation mode                           |
 | input:password    | secret, local (never offered to MCP callers), from $RTA_PG_PASSWORD — password for the role                                                                                                                                                               |
 | input:sslrootcert | string, default , local (never offered to MCP callers), from config plugins.pg.sslrootcert — CA bundle to verify the server against — has no effect unless sslmode is require or stricter, and is overridden along with sslmode under a kube:/ssh: tunnel |
-| dashboard         | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                                                                  |
+| dashboard         | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add pg.database.list\` puts it there, re-run every few seconds                                                                                                               |
 
 ## pg.dump
 
@@ -134,7 +134,7 @@ The compact form is four figures worth a glance: role, size, active queries, cac
 | input:sslmode     | string, default prefer, one of: disable\|prefer\|require\|verify-ca\|verify-full, local (never offered to MCP callers), from config plugins.pg.sslmode, filled by a profile's tunnel (the forward's tls) — TLS negotiation mode                           |
 | input:password    | secret, local (never offered to MCP callers), from $RTA_PG_PASSWORD — password for the role                                                                                                                                                               |
 | input:sslrootcert | string, default , local (never offered to MCP callers), from config plugins.pg.sslrootcert — CA bundle to verify the server against — has no effect unless sslmode is require or stricter, and is overridden along with sslmode under a kube:/ssh: tunnel |
-| dashboard         | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                                                                  |
+| dashboard         | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add pg.overview\` puts it there, re-run every few seconds                                                                                                                    |
 | input:detail      | bool, default false — return the full detailed view instead of the compact summary                                                                                                                                                                        |
 
 ## pg.query
@@ -222,7 +222,7 @@ What that costs is stated in the output rather than left to be discovered: this 
 | input:sslmode     | string, default prefer, one of: disable\|prefer\|require\|verify-ca\|verify-full, local (never offered to MCP callers), from config plugins.pg.sslmode, filled by a profile's tunnel (the forward's tls) — TLS negotiation mode                           |
 | input:password    | secret, local (never offered to MCP callers), from $RTA_PG_PASSWORD — password for the role                                                                                                                                                               |
 | input:sslrootcert | string, default , local (never offered to MCP callers), from config plugins.pg.sslrootcert — CA bundle to verify the server against — has no effect unless sslmode is require or stricter, and is overridden along with sslmode under a kube:/ssh: tunnel |
-| dashboard         | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                                                                  |
+| dashboard         | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add pg.schema.dump\` puts it there, re-run every few seconds                                                                                                                 |
 
 ## pg.status
 
@@ -244,7 +244,7 @@ The first thing to run. Answers "can I reach it, as whom, and what is it" in one
 | input:sslmode     | string, default prefer, one of: disable\|prefer\|require\|verify-ca\|verify-full, local (never offered to MCP callers), from config plugins.pg.sslmode, filled by a profile's tunnel (the forward's tls) — TLS negotiation mode                           |
 | input:password    | secret, local (never offered to MCP callers), from $RTA_PG_PASSWORD — password for the role                                                                                                                                                               |
 | input:sslrootcert | string, default , local (never offered to MCP callers), from config plugins.pg.sslrootcert — CA bundle to verify the server against — has no effect unless sslmode is require or stricter, and is overridden along with sslmode under a kube:/ssh: tunnel |
-| dashboard         | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                                                                  |
+| dashboard         | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add pg.status\` puts it there, re-run every few seconds                                                                                                                      |
 
 ## pg.table.dump
 
@@ -298,4 +298,4 @@ Bounded on rows and on bytes, and over either bound it is refused rather than sh
 | input:sslmode     | string, default prefer, one of: disable\|prefer\|require\|verify-ca\|verify-full, local (never offered to MCP callers), from config plugins.pg.sslmode, filled by a profile's tunnel (the forward's tls) — TLS negotiation mode                           |
 | input:password    | secret, local (never offered to MCP callers), from $RTA_PG_PASSWORD — password for the role                                                                                                                                                               |
 | input:sslrootcert | string, default , local (never offered to MCP callers), from config plugins.pg.sslrootcert — CA bundle to verify the server against — has no effect unless sslmode is require or stricter, and is overridden along with sslmode under a kube:/ssh: tunnel |
-| dashboard         | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                                                                  |
+| dashboard         | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add pg.table.list\` puts it there, re-run every few seconds                                                                                                                  |
