@@ -148,7 +148,7 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 		case "kube.unauthorized":
 			answer = "answered, and did not accept this credential"
 		case "kube.noconfig", "kube.context.unknown", "kube.kubectl.missing", "kube.cancelled",
-			"kube.login":
+			"kube.login", "kube.credential.missing":
 			answer = "was never contacted"
 		case "kube.unreachable":
 			answer = "did not answer"

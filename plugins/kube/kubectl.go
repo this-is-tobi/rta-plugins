@@ -252,6 +252,17 @@ func classify(ctx context.Context, err error, stderr string, args []string) *vie
 			"%s, the context's credential plugin, refused: %s", exe, said).
 			WithHint(loginHint(exe))
 	}
+	// The same mechanism's other failure: the kubeconfig names a plugin
+	// this machine does not have — a kubeconfig copied from a colleague,
+	// or a laptop set up before the plugin was. Its first line is client-go's
+	// own log line, which carries the word credentials, so the switch below
+	// read it as an expired credential and told the person to sign in with
+	// a binary they do not have.
+	if exe, ok := credentialPluginMissing(stderr); ok {
+		return view.Errorf("kube.credential.missing",
+			"%s, the context's credential plugin, is not installed", exe).
+			WithHint("the kubeconfig's exec block for this context names it — install it, or put it on PATH")
+	}
 	msg := firstLine(stderr)
 	low := strings.ToLower(msg)
 	switch {
@@ -301,15 +312,43 @@ func credentialPluginRefused(stderr string) (exe, said string, ok bool) {
 	if m == nil {
 		return "", "", false
 	}
-	exe = m[1]
-	if i := strings.LastIndexAny(exe, `/\`); i >= 0 {
-		exe = exe[i+1:]
-	}
 	said = strings.TrimSpace(strings.TrimPrefix(firstLine(stderr), "ERROR:"))
 	if said == "" || strings.Contains(said, "getting credentials: exec:") {
 		said = "exit code " + m[2] + ", with nothing said"
 	}
-	return exe, said, true
+	return baseName(m[1]), said, true
+}
+
+// execPluginMissing is kubectl's line for an exec credential plugin the
+// kubeconfig names and this machine does not have: client-go's own words
+// for a bare name it found nowhere on PATH, and the operating system's for
+// a path that is not there.
+var execPluginMissing = regexp.MustCompile(
+	`getting credentials: exec: (?:executable (\S+) not found|fork/exec (\S+): no such file or directory)`)
+
+// credentialPluginMissing reports whether stderr is kubectl failing to
+// start the context's exec credential plugin at all, and which plugin, by
+// its base name.
+func credentialPluginMissing(stderr string) (exe string, ok bool) {
+	m := execPluginMissing.FindStringSubmatch(stderr)
+	if m == nil {
+		return "", false
+	}
+	exe = m[1]
+	if exe == "" {
+		exe = m[2]
+	}
+	return baseName(exe), true
+}
+
+// baseName is the last element of a path as the kubeconfig may spell it,
+// with either separator, since a kubeconfig written on Windows names its
+// plugin with backslashes wherever it is later read.
+func baseName(path string) string {
+	if i := strings.LastIndexAny(path, `/\`); i >= 0 {
+		return path[i+1:]
+	}
+	return path
 }
 
 // loginHint is the command that refreshes a credential plugin's session,
