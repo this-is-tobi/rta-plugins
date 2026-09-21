@@ -236,6 +236,22 @@ func classify(ctx context.Context, err error, stderr string, args []string) *vie
 			WithHint("this plugin drives kubectl rather than linking a Kubernetes client, so it " +
 				"needs the binary the operator already uses — install it, or put it on PATH")
 	}
+	// Ahead of the first-line switch, because the first line is then not
+	// kubectl's. A context whose user is an exec credential plugin — tsh,
+	// aws, gcloud, kubelogin — hands that plugin kubectl's own stderr, so a
+	// session that lapsed reads, in order: the plugin's word (`ERROR: Not
+	// logged in.`), a few lines of client-go's retry noise, and only then
+	// kubectl's diagnosis, `getting credentials: exec: executable
+	// /opt/homebrew/bin/tsh failed with exit code 1`. The switch below took
+	// the plugin's line, matched none of its words, and reported
+	// `kube.failed ERROR: Not logged in.` — no code a caller could act on,
+	// the word ERROR twice, and no hint, for the failure a person on
+	// Teleport hits every morning.
+	if exe, said, ok := credentialPluginRefused(stderr); ok {
+		return view.Errorf("kube.login",
+			"%s, the context's credential plugin, refused: %s", exe, said).
+			WithHint(loginHint(exe))
+	}
 	msg := firstLine(stderr)
 	low := strings.ToLower(msg)
 	switch {
@@ -270,6 +286,51 @@ func classify(ctx context.Context, err error, stderr string, args []string) *vie
 		return view.Errorf("kube.failed", "%s", msg)
 	}
 	return view.Errorf("kube.failed", "kubectl %s failed: %v", strings.Join(args, " "), err)
+}
+
+// execPluginFailed is kubectl's own line for an exec credential plugin that
+// exited non-zero, anywhere in stderr: the plugin's words come first.
+var execPluginFailed = regexp.MustCompile(`getting credentials: exec: executable (\S+) failed with exit code (\d+)`)
+
+// credentialPluginRefused reports whether stderr is an exec credential
+// plugin refusing, and if so which plugin — by its base name, since the
+// kubeconfig holds its full path — and what it said: its first line, less
+// the `ERROR:` tsh prefixes, or its exit code when it said nothing.
+func credentialPluginRefused(stderr string) (exe, said string, ok bool) {
+	m := execPluginFailed.FindStringSubmatch(stderr)
+	if m == nil {
+		return "", "", false
+	}
+	exe = m[1]
+	if i := strings.LastIndexAny(exe, `/\`); i >= 0 {
+		exe = exe[i+1:]
+	}
+	said = strings.TrimSpace(strings.TrimPrefix(firstLine(stderr), "ERROR:"))
+	if said == "" || strings.Contains(said, "getting credentials: exec:") {
+		said = "exit code " + m[2] + ", with nothing said"
+	}
+	return exe, said, true
+}
+
+// loginHint is the command that refreshes a credential plugin's session,
+// for the ones a kubeconfig commonly names. The plugin's own words above
+// usually say as much; the hint is for when they do not — `Not logged in.`
+// names no command — and it names the plugin either way, because a person
+// with three clusters behind three sign-ins wants to know which one lapsed.
+func loginHint(exe string) string {
+	switch exe {
+	case "tsh":
+		return "the Teleport session has lapsed — run `tsh login` in a terminal, then try again"
+	case "aws":
+		return "the AWS session has lapsed — run `aws sso login` for the profile this context uses, then try again"
+	case "gcloud":
+		return "the Google Cloud session has lapsed — run `gcloud auth login`, then try again"
+	case "az":
+		return "the Azure session has lapsed — run `az login`, then try again"
+	case "kubelogin", "kubectl-oidc_login":
+		return "the OIDC session has lapsed — run `kubectl` once in a terminal so " + exe + " can open the sign-in, then try again"
+	}
+	return "sign in with " + exe + " again — whatever refreshes its session — then try again"
 }
 
 // firstLine trims kubectl's stderr to the sentence worth showing.
