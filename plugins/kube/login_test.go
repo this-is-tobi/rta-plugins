@@ -95,3 +95,60 @@ func TestOverviewSaysALapsedSessionNeverReachedTheCluster(t *testing.T) {
 		t.Errorf("overview claimed silence over a sign-in problem:\n%s", body)
 	}
 }
+
+// A plugin the kubeconfig names and this machine does not have is the
+// mechanism's other failure, and it read as an expired credential: the
+// first line of stderr is client-go's own log line, which carries the word
+// credentials, so the hint told the person to sign in with a binary they
+// did not have. Both shapes kubectl prints, captured against a kubeconfig
+// naming a plugin that is not there: client-go's own words for a bare name
+// found nowhere on PATH, the operating system's for a path.
+const (
+	missingBare = `E0921 04:14:02.117054   94480 memcache.go:265] "Unhandled Error" err=<
+	couldn't get current server API group list: Get "https://127.0.0.1:1/api?timeout=32s": getting credentials: exec: executable acme-auth not found
+
+	It looks like you are trying to use a client-go credential plugin that is not installed.
+
+	To learn more about this feature, consult the documentation available at:
+	      https://kubernetes.io/docs/reference/access-authn-authz/authentication/#client-go-credential-plugins
+ >
+Unable to connect to the server: getting credentials: exec: executable acme-auth not found
+
+It looks like you are trying to use a client-go credential plugin that is not installed.
+
+To learn more about this feature, consult the documentation available at:
+      https://kubernetes.io/docs/reference/access-authn-authz/authentication/#client-go-credential-plugins
+`
+	missingPath = `E0921 04:13:36.061482   94227 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: Get \"https://127.0.0.1:1/api?timeout=32s\": getting credentials: exec: fork/exec /opt/acme/acme-auth: no such file or directory"
+Unable to connect to the server: getting credentials: exec: fork/exec /opt/acme/acme-auth: no such file or directory
+`
+)
+
+func TestAMissingCredentialPluginIsNamedAndNotMistakenForAnExpiredOne(t *testing.T) {
+	for name, stderr := range map[string]string{"a bare name": missingBare, "a path": missingPath} {
+		t.Run(name, func(t *testing.T) {
+			verr := classify(context.Background(), errors.New("exit status 1"), stderr, []string{"get", "namespaces"})
+			if verr.Code != "kube.credential.missing" {
+				t.Fatalf("code = %s, want kube.credential.missing: %v", verr.Code, verr)
+			}
+			if !strings.HasPrefix(verr.Message, "acme-auth,") {
+				t.Errorf("message = %q, want the plugin named by its base name", verr.Message)
+			}
+			if strings.Contains(verr.Hint, "sign in") || !strings.Contains(verr.Hint, "install") {
+				t.Errorf("hint = %q, want an install, not a sign-in", verr.Hint)
+			}
+		})
+	}
+}
+
+func TestOverviewSaysAMissingPluginNeverReachedTheCluster(t *testing.T) {
+	refusingKubectl(t, strings.TrimSpace(missingPath))
+	v, err := runOverview(context.Background(), plugin.NewRequest(map[string]any{}, false, false))
+	if err != nil {
+		t.Fatalf("overview refused outright instead of reporting: %v", err)
+	}
+	body := strings.ToLower(fmt.Sprintf("%#v", v))
+	if !strings.Contains(body, "was never contacted") || !strings.Contains(body, "acme-auth") {
+		t.Errorf("overview said:\n%s", body)
+	}
+}
