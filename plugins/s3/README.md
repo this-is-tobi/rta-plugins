@@ -88,7 +88,7 @@ Written into a directory this creates — never one that already exists, so a ba
 | input:access-key | string, local (never offered to MCP callers), from config plugins.s3.access-key — access key ID                                                                                                     |
 | input:secret-key | secret, local (never offered to MCP callers), from $RTA_S3_SECRET_KEY — secret access key                                                                                                           |
 | input:ca-file    | string, default , local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                 |
-| dashboard        | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                            |
+| dashboard        | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add s3.bucket.list\` puts it there, re-run every few seconds                                                           |
 
 ## s3.bucket.upload
 
@@ -198,7 +198,7 @@ Bounded: a bucket can hold millions of keys, so this returns --limit of them and
 | input:access-key | string, local (never offered to MCP callers), from config plugins.s3.access-key — access key ID                                                                                                                                                                                   |
 | input:secret-key | secret, local (never offered to MCP callers), from $RTA_S3_SECRET_KEY — secret access key                                                                                                                                                                                         |
 | input:ca-file    | string, default , local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                                                               |
-| dashboard        | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                                                                                          |
+| dashboard        | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add s3.object.list\` puts it there, re-run every few seconds                                                                                                                                         |
 
 ## s3.object.presign
 
@@ -323,7 +323,7 @@ The content comes from the argument or from --file; PutObject handles large file
 | input:access-key | string, local (never offered to MCP callers), from config plugins.s3.access-key — access key ID                                                                                                     |
 | input:secret-key | secret, local (never offered to MCP callers), from $RTA_S3_SECRET_KEY — secret access key                                                                                                           |
 | input:ca-file    | string, default , local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                 |
-| dashboard        | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                            |
+| dashboard        | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add s3.object.show\` puts it there, re-run every few seconds                                                           |
 
 ## s3.object.tree
 
@@ -354,7 +354,7 @@ One request, however deep the result: the folders are built here from the keys, 
 | input:access-key | string, local (never offered to MCP callers), from config plugins.s3.access-key — access key ID                                                                                                                                                        |
 | input:secret-key | secret, local (never offered to MCP callers), from $RTA_S3_SECRET_KEY — secret access key                                                                                                                                                              |
 | input:ca-file    | string, default , local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                                    |
-| dashboard        | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                                                               |
+| dashboard        | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add s3.object.tree\` puts it there, re-run every few seconds                                                                                                              |
 
 ## s3.overview
 
@@ -375,7 +375,7 @@ Whether this endpoint is reachable at all, and how many buckets the configured c
 | input:access-key | string, local (never offered to MCP callers), from config plugins.s3.access-key — access key ID                                                                                                     |
 | input:secret-key | secret, local (never offered to MCP callers), from $RTA_S3_SECRET_KEY — secret access key                                                                                                           |
 | input:ca-file    | string, default , local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                 |
-| dashboard        | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                            |
+| dashboard        | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add s3.overview\` puts it there, re-run every few seconds                                                              |
 | input:detail     | bool, default false — return the full detailed view instead of the compact summary                                                                                                                  |
 
 ## s3.policy.get
@@ -396,4 +396,4 @@ Whether this endpoint is reachable at all, and how many buckets the configured c
 | input:access-key | string, local (never offered to MCP callers), from config plugins.s3.access-key — access key ID                                                                                                     |
 | input:secret-key | secret, local (never offered to MCP callers), from $RTA_S3_SECRET_KEY — secret access key                                                                                                           |
 | input:ca-file    | string, default , local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                 |
-| dashboard        | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                            |
+| dashboard        | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add s3.policy.get\` puts it there, re-run every few seconds                                                            |

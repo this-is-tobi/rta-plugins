@@ -52,7 +52,7 @@ Reads the realm and grades what it finds: whether a second factor is required or
 | input:client-id     | string, default rta, local (never offered to MCP callers), from config plugins.keycloak.client-id — the confidential client whose service account this acts as                                                |
 | input:client-secret | secret, local (never offered to MCP callers), from $RTA_KEYCLOAK_CLIENT_SECRET — that client's secret, exchanged for a short-lived token on every call                                                        |
 | input:ca-file       | string, default , local (never offered to MCP callers), from config plugins.keycloak.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                     |
-| dashboard           | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                      |
+| dashboard           | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.audit\` puts it there, re-run every few seconds                                                                     |
 | input:detail        | bool, default false — return the full detailed view instead of the compact summary                                                                                                                            |
 
 ## keycloak.client.list
@@ -74,7 +74,7 @@ One row per registered client, built-in ones included: its kind (public, confide
 | input:client-id     | string, default rta, local (never offered to MCP callers), from config plugins.keycloak.client-id — the confidential client whose service account this acts as                                                |
 | input:client-secret | secret, local (never offered to MCP callers), from $RTA_KEYCLOAK_CLIENT_SECRET — that client's secret, exchanged for a short-lived token on every call                                                        |
 | input:ca-file       | string, default , local (never offered to MCP callers), from config plugins.keycloak.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                     |
-| dashboard           | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                      |
+| dashboard           | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.client.list\` puts it there, re-run every few seconds                                                               |
 
 ## keycloak.client.show
 
@@ -96,7 +96,7 @@ How one application authenticates: kind and protocol, the flows enabled, every r
 | input:client-id     | string, default rta, local (never offered to MCP callers), from config plugins.keycloak.client-id — the confidential client whose service account this acts as                                                |
 | input:client-secret | secret, local (never offered to MCP callers), from $RTA_KEYCLOAK_CLIENT_SECRET — that client's secret, exchanged for a short-lived token on every call                                                        |
 | input:ca-file       | string, default , local (never offered to MCP callers), from config plugins.keycloak.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                     |
-| dashboard           | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                      |
+| dashboard           | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.client.show\` puts it there, re-run every few seconds                                                               |
 
 ## keycloak.event.admin
 
@@ -118,7 +118,7 @@ The realm's administrative change log: each operation, the resource it touched, 
 | input:client-id     | string, default rta, local (never offered to MCP callers), from config plugins.keycloak.client-id — the confidential client whose service account this acts as                                                |
 | input:client-secret | secret, local (never offered to MCP callers), from $RTA_KEYCLOAK_CLIENT_SECRET — that client's secret, exchanged for a short-lived token on every call                                                        |
 | input:ca-file       | string, default , local (never offered to MCP callers), from config plugins.keycloak.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                     |
-| dashboard           | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                      |
+| dashboard           | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.event.admin\` puts it there, re-run every few seconds                                                               |
 
 ## keycloak.event.list
 
@@ -143,7 +143,7 @@ The realm's login event log, newest first — LOGIN, LOGIN_ERROR, LOGOUT, CODE_T
 | input:client-id     | string, default rta, local (never offered to MCP callers), from config plugins.keycloak.client-id — the confidential client whose service account this acts as                                                                                                 |
 | input:client-secret | secret, local (never offered to MCP callers), from $RTA_KEYCLOAK_CLIENT_SECRET — that client's secret, exchanged for a short-lived token on every call                                                                                                         |
 | input:ca-file       | string, default , local (never offered to MCP callers), from config plugins.keycloak.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                                      |
-| dashboard           | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                                                                       |
+| dashboard           | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.event.list\` puts it there, re-run every few seconds                                                                                                                 |
 
 ## keycloak.flow.list
 
@@ -164,7 +164,7 @@ Every top-level flow, built-in or custom, with the binding that puts it in force
 | input:client-id     | string, default rta, local (never offered to MCP callers), from config plugins.keycloak.client-id — the confidential client whose service account this acts as                                                |
 | input:client-secret | secret, local (never offered to MCP callers), from $RTA_KEYCLOAK_CLIENT_SECRET — that client's secret, exchanged for a short-lived token on every call                                                        |
 | input:ca-file       | string, default , local (never offered to MCP callers), from config plugins.keycloak.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                     |
-| dashboard           | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                      |
+| dashboard           | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.flow.list\` puts it there, re-run every few seconds                                                                 |
 
 ## keycloak.flow.show
 
@@ -186,7 +186,7 @@ The executions of one flow, nested the way the console nests them. Read it for t
 | input:client-id     | string, default rta, local (never offered to MCP callers), from config plugins.keycloak.client-id — the confidential client whose service account this acts as                                                |
 | input:client-secret | secret, local (never offered to MCP callers), from $RTA_KEYCLOAK_CLIENT_SECRET — that client's secret, exchanged for a short-lived token on every call                                                        |
 | input:ca-file       | string, default , local (never offered to MCP callers), from config plugins.keycloak.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                     |
-| dashboard           | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                      |
+| dashboard           | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.flow.show\` puts it there, re-run every few seconds                                                                 |
 
 ## keycloak.overview
 
@@ -207,7 +207,7 @@ Whether this realm is worth talking to and what state it is in: user and client 
 | input:client-id     | string, default rta, local (never offered to MCP callers), from config plugins.keycloak.client-id — the confidential client whose service account this acts as                                                |
 | input:client-secret | secret, local (never offered to MCP callers), from $RTA_KEYCLOAK_CLIENT_SECRET — that client's secret, exchanged for a short-lived token on every call                                                        |
 | input:ca-file       | string, default , local (never offered to MCP callers), from config plugins.keycloak.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                     |
-| dashboard           | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                      |
+| dashboard           | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.overview\` puts it there, re-run every few seconds                                                                  |
 | input:detail        | bool, default false — return the full detailed view instead of the compact summary                                                                                                                            |
 
 ## keycloak.role.list
@@ -230,7 +230,7 @@ Realm roles by default; --client names a client whose own roles to list instead 
 | input:client-id     | string, default rta, local (never offered to MCP callers), from config plugins.keycloak.client-id — the confidential client whose service account this acts as                                                |
 | input:client-secret | secret, local (never offered to MCP callers), from $RTA_KEYCLOAK_CLIENT_SECRET — that client's secret, exchanged for a short-lived token on every call                                                        |
 | input:ca-file       | string, default , local (never offered to MCP callers), from config plugins.keycloak.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                     |
-| dashboard           | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                      |
+| dashboard           | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.role.list\` puts it there, re-run every few seconds                                                                 |
 
 ## keycloak.session.list
 
@@ -254,7 +254,7 @@ By default the realm's session counts per client, active and offline — the one
 | input:client-id     | string, default rta, local (never offered to MCP callers), from config plugins.keycloak.client-id — the confidential client whose service account this acts as                                                                              |
 | input:client-secret | secret, local (never offered to MCP callers), from $RTA_KEYCLOAK_CLIENT_SECRET — that client's secret, exchanged for a short-lived token on every call                                                                                      |
 | input:ca-file       | string, default , local (never offered to MCP callers), from config plugins.keycloak.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                   |
-| dashboard           | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                                                    |
+| dashboard           | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.session.list\` puts it there, re-run every few seconds                                                                                            |
 
 ## keycloak.user.list
 
@@ -277,7 +277,7 @@ One row per user: username, email, enabled, email verified, whether an OTP is co
 | input:client-id     | string, default rta, local (never offered to MCP callers), from config plugins.keycloak.client-id — the confidential client whose service account this acts as                                                |
 | input:client-secret | secret, local (never offered to MCP callers), from $RTA_KEYCLOAK_CLIENT_SECRET — that client's secret, exchanged for a short-lived token on every call                                                        |
 | input:ca-file       | string, default , local (never offered to MCP callers), from config plugins.keycloak.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                     |
-| dashboard           | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                      |
+| dashboard           | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.user.list\` puts it there, re-run every few seconds                                                                 |
 
 ## keycloak.user.show
 
@@ -299,4 +299,4 @@ Everything the realm knows about one account except its secrets: the profile and
 | input:client-id     | string, default rta, local (never offered to MCP callers), from config plugins.keycloak.client-id — the confidential client whose service account this acts as                                                |
 | input:client-secret | secret, local (never offered to MCP callers), from $RTA_KEYCLOAK_CLIENT_SECRET — that client's secret, exchanged for a short-lived token on every call                                                        |
 | input:ca-file       | string, default , local (never offered to MCP callers), from config plugins.keycloak.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                     |
-| dashboard           | not on the automatic dashboard — it declines to run unasked; named in \`dashboard: tiles:\` it re-runs every few seconds                                                                                      |
+| dashboard           | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.user.show\` puts it there, re-run every few seconds                                                                 |
