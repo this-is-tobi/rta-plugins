@@ -71,7 +71,7 @@ func unknownMount(ctx context.Context, client *vaultapi.Client, req plugin.Reque
 	mount := req.String("mount")
 	mounts, err := client.Sys().ListMountsWithContext(ctx)
 	if err != nil {
-		return nil
+		return nil //nolint:nilerr // the silence is the point, and the doc comment says why: a token that may list a mount but not enumerate the engines must not have its empty listing turned into "no such mount"
 	}
 	var kv []string
 	for path, m := range mounts {
