@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -180,7 +181,7 @@ func checkTarget(ctx context.Context, req plugin.Request, collection string) *vi
 	}
 	if *info.PointsCount > 0 {
 		return view.Errorf("qdrant.restore.notempty",
-			"%q already holds %d points", collection, *info.PointsCount).
+			"%q already holds %s", collection, format.CountOf(int(*info.PointsCount), "point")). //nolint:gosec // a point count, never past an int
 			WithHint("--replace hands the collection to the snapshot wholesale, or restore " +
 				"into a fresh name — the snapshot does not care what the collection it lands " +
 				"in is called")
@@ -251,5 +252,5 @@ func countAfterRestore(ctx context.Context, req plugin.Request, collection strin
 	if info.PointsCount == nil {
 		return "unknown — the server reported no point count"
 	}
-	return fmt.Sprintf("%d points", *info.PointsCount)
+	return format.CountOf(int(*info.PointsCount), "point") //nolint:gosec // a point count, never past an int
 }

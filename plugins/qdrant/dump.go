@@ -292,7 +292,7 @@ func serverVersion(ctx context.Context, req plugin.Request) string {
 func describeContents(info collectionInfo, version string) string {
 	points := "point count unknown"
 	if info.PointsCount != nil {
-		points = fmt.Sprintf("%d points", *info.PointsCount)
+		points = format.CountOf(int(*info.PointsCount), "point") //nolint:gosec // a point count, never past an int
 	}
 	return fmt.Sprintf("%s at snapshot time, with indexes and collection config — from %s",
 		points, version)
