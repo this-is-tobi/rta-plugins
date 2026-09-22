@@ -331,10 +331,10 @@ func gradeCoverage(examined, with int, without []string) (string, string) {
 		who += fmt.Sprintf(" and %d more", len(without)-5)
 	}
 	detail := fmt.Sprintf("%d of %d enabled users have a second factor (OTP or WebAuthn)", with, examined)
-	switch {
-	case with == examined:
+	switch with {
+	case examined:
 		return findings.OK, detail
-	case with == 0:
+	case 0:
 		return findings.Fail, detail + " — without: " + who
 	}
 	return findings.Warn, detail + " — without: " + who
