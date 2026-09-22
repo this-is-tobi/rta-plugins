@@ -116,7 +116,7 @@ func runBucketDownload(ctx context.Context, req plugin.Request) (view.View, erro
 			WithHint("--out ./" + req.String("bucket") + "-backup — a bucket is a directory of " +
 				"files, not something to read in a terminal")
 	}
-	root, err := filepath.Abs(expandHome(out))
+	root, err := filepath.Abs(plugin.ExpandHome(out))
 	if err != nil {
 		return nil, view.Errorf("s3.download.path", "resolving --out: %v", err)
 	}

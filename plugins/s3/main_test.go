@@ -219,16 +219,3 @@ func TestDestinationHonorsAnExplicitDestBucket(t *testing.T) {
 		t.Errorf("destination = (%q, %q), want (dst, k2)", bucket, key)
 	}
 }
-
-func TestExpandHomeResolvesATildePath(t *testing.T) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		t.Skip("no home directory in this environment")
-	}
-	if got := expandHome("~/x"); got != filepath.Join(home, "x") {
-		t.Errorf("expandHome(~/x) = %q, want %q", got, filepath.Join(home, "x"))
-	}
-	if got := expandHome("/already/absolute"); got != "/already/absolute" {
-		t.Errorf("expandHome left an absolute path alone incorrectly: %q", got)
-	}
-}

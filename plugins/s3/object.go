@@ -180,7 +180,7 @@ func runObjectGet(ctx context.Context, req plugin.Request) (view.View, error) {
 			// reached the copy at all — left the operator with the empty
 			// remains of whatever they pointed it at. Refusing an existing
 			// destination is the same answer the rest of the family gives.
-			f, ferr := os.OpenFile(expandHome(out), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+			f, ferr := os.OpenFile(plugin.ExpandHome(out), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 			if errors.Is(ferr, fs.ErrExist) {
 				return nil, view.Errorf("s3.object.exists", "%s already exists", out).
 					WithHint("this never overwrites — remove it, or name a path that does not exist yet")
@@ -202,7 +202,7 @@ func runObjectGet(ctx context.Context, req plugin.Request) (view.View, error) {
 				// leaves the operator where they started rather than with a
 				// truncated object under a name that says it is whole —
 				// s3.bucket.download's rule, one object at a time.
-				_ = os.Remove(expandHome(out))
+				_ = os.Remove(plugin.ExpandHome(out))
 			}
 			if cerr != nil {
 				return nil, classify(cerr, req)
@@ -258,7 +258,7 @@ func runObjectSet(ctx context.Context, req plugin.Request) (view.View, error) {
 		var size int64 = -1
 		contentType := req.String("content-type")
 		if path := req.String("file"); path != "" {
-			f, err := os.Open(expandHome(path))
+			f, err := os.Open(plugin.ExpandHome(path))
 			if err != nil {
 				return nil, view.Errorf("s3.file.unreadable", "reading %s: %v", path, err)
 			}
