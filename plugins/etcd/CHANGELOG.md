@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.14](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.3.13...plugins/etcd/v0.3.14) (2026-09-22)
+
+
+### Bug Fixes
+
+* **etcd:** a one-key tree said "1 keys" ([1b9fc81](https://github.com/this-is-tobi/rta-plugins/commit/1b9fc81c1da32c3b9899ee97e6b786ab8f6152b3))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.26.0 ([0d9cc23](https://github.com/this-is-tobi/rta-plugins/commit/0d9cc23380589dd053184cc810060677d394d29a))
+
 ## [0.3.13](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.3.12...plugins/etcd/v0.3.13) (2026-09-21)
 
 

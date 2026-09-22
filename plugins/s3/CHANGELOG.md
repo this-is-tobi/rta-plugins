@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.14](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.3.13...plugins/s3/v0.3.14) (2026-09-22)
+
+
+### Bug Fixes
+
+* **s3:** a one-file upload said "would upload 1 files" ([5e307a1](https://github.com/this-is-tobi/rta-plugins/commit/5e307a1b4eafc460d789d36f66cb350de5048bba))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.26.0 ([0d9cc23](https://github.com/this-is-tobi/rta-plugins/commit/0d9cc23380589dd053184cc810060677d394d29a))
+
 ## [0.3.13](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.3.12...plugins/s3/v0.3.13) (2026-09-21)
 
 

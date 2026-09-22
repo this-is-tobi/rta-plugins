@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.15](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.14...plugins/redis/v0.1.15) (2026-09-22)
+
+
+### Bug Fixes
+
+* **redis:** a one-key tree said "1 keys" ([fedafd5](https://github.com/this-is-tobi/rta-plugins/commit/fedafd531d356299cfddc04819f1f3ae34a3976d))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.26.0 ([0d9cc23](https://github.com/this-is-tobi/rta-plugins/commit/0d9cc23380589dd053184cc810060677d394d29a))
+
 ## [0.1.14](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.13...plugins/redis/v0.1.14) (2026-09-21)
 
 
