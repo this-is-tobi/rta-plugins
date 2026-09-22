@@ -7,39 +7,39 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: qdrant
-version: 0.3.13
+version: 0.3.14
 summary: "Qdrant: collections, their configuration and index health"
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/qdrant
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fqdrant%2Fv0.3.13/rta-plugin-qdrant_0.3.13_darwin_amd64.tar.gz
-  sha256: 08aa878f72955ec2018f1dc4b2ac51396f354625c491995fb019b0ed74ebb911
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fqdrant%2Fv0.3.14/rta-plugin-qdrant_0.3.14_darwin_amd64.tar.gz
+  sha256: 47a9158cd6afd245b3a989e38f8402574b85e218e4d1da906293ee652001a430
   bin: rta-plugin-qdrant
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fqdrant%2Fv0.3.13/rta-plugin-qdrant_0.3.13_darwin_arm64.tar.gz
-  sha256: a9742ce7d11bc38f35905f9e7db172952f66a46e808c4a10bd3f4b69eb2951be
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fqdrant%2Fv0.3.14/rta-plugin-qdrant_0.3.14_darwin_arm64.tar.gz
+  sha256: d1655771e7a0fd4a9410c9b81ecd1090661d54028810664a042e1208ade29067
   bin: rta-plugin-qdrant
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fqdrant%2Fv0.3.13/rta-plugin-qdrant_0.3.13_linux_amd64.tar.gz
-  sha256: 1635ee785e09e1623c2337d2eba1457fc03e93edb280657349ed097eca5c62f3
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fqdrant%2Fv0.3.14/rta-plugin-qdrant_0.3.14_linux_amd64.tar.gz
+  sha256: 115e0e6026731b2a29e2a8b81a81c8ef6d29e0b6e42d526188f5a35282145091
   bin: rta-plugin-qdrant
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fqdrant%2Fv0.3.13/rta-plugin-qdrant_0.3.13_linux_arm64.tar.gz
-  sha256: 1b60b51ba48a4b9c63674b53fb4064fd2d359533533d43f95411a319161f47bf
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fqdrant%2Fv0.3.14/rta-plugin-qdrant_0.3.14_linux_arm64.tar.gz
+  sha256: 7eacf9cba08a0560c2b7d0b793a9cb7e230737661bba1eff2f2b720e0d8e2b70
   bin: rta-plugin-qdrant
 - os: windows
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fqdrant%2Fv0.3.13/rta-plugin-qdrant_0.3.13_windows_amd64.tar.gz
-  sha256: 91943d0ccedad3704b39e3ce3868d90b78956c7e887b7cf2ed81ffb08d57834b
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fqdrant%2Fv0.3.14/rta-plugin-qdrant_0.3.14_windows_amd64.tar.gz
+  sha256: df6de357be82b8cd5b1a2be275d0df75dd1fd22fe5bc41139f453022b2807b61
   bin: rta-plugin-qdrant.exe
 - os: windows
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fqdrant%2Fv0.3.13/rta-plugin-qdrant_0.3.13_windows_arm64.tar.gz
-  sha256: cf454be301713cc23a3d2ffe7aac7e1f2920ec81697da62624a21a05e1aebef4
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fqdrant%2Fv0.3.14/rta-plugin-qdrant_0.3.14_windows_arm64.tar.gz
+  sha256: 544f43bff91686433a0d18bf0cadcf632c9586726ab8b35c02615eaedf996850
   bin: rta-plugin-qdrant.exe
 capabilities:
 - id: qdrant.overview
