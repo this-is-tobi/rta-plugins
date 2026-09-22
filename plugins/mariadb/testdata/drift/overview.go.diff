@@ -1,0 +1,6 @@
+- // it is stated. MySQL reports something like "11.4.2-MySQL"; MySQL does
++ // it is stated. MariaDB reports something like "11.4.2-MariaDB"; MySQL does
+- // because the answer decides whether plugins/mysql has anything to add.
++ // because the answer decides whether plugins/mariadb has anything to add.
+- 	for _, marker := range []string{"MySQL", "Percona"} {
++ 	for _, marker := range []string{"MariaDB", "Percona"} {

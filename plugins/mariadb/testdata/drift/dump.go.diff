@@ -1,0 +1,153 @@
+- // **Three flags the mysql plugin passes are deliberately absent here**, and
+- // they are the reason this is not a thin alias over that one. MySQL's
+- // client is a fork that diverged: --set-gtid-purged and --no-tablespaces are
+- // MySQL 8 spellings its client does not know (GTID is opt-in through --gtid
+- // and off by default, and the tablespace DDL that needs PROCESS is a MySQL 8
+- // behaviour MySQL never grew), and TLS is asked for with the --ssl family
+- // rather than --ssl-mode. Passing a flag the client does not have is not a
+- // degraded dump, it is an immediate "unknown option" — which classifyDump
+- // names, because a client answering to the other fork's name is the failure
+- // somebody will actually hit.
+- //
+- // single instant — but Aria and MyISAM have no transactions to join and are
+- // read live, mid-write if a write is happening. Aria is the one that catches
+- // people here and not in the mysql twin: it is MySQL's own crash-safe
+- // engine, it is what system tables use, and being crash-safe is not being
+- // transactional. Claiming "one snapshot" over a database holding either
+- // would be the working-but-wrong receipt this family refuses to print, so
+- // the source is asked first and the caveat is counted, not assumed.
+- //
+- // **And the Galera question the mysql twin cannot ask.** A node that has
+- // lost quorum still accepts connections and still answers queries — from its
+- // own side of a partition. A dump taken there is a backup of that side, and
+- // the file does not know it, so the receipt says it while somebody is still
+- // looking.
++ // single instant — but a MyISAM table has no transactions to join and is
++ // read live, mid-write if a write is happening. Claiming "one snapshot" over
++ // a database with MyISAM tables would be the working-but-wrong receipt this
++ // family refuses to print, so the source is asked first and the caveat is
++ // counted, not assumed either way.
+- // dumpTools are tried in order: MySQL 10.5 introduced the mysql-* names
+- // and 11.0 made them primary, but every distribution still ships mysqldump
+- // as a symlink to the same binary, and plenty of machines have only that.
+- // The new name first so a host carrying both forks' clients gets MySQL's.
+- var dumpTools = []string{"mysqldump", "mysqldump"}
++ // dumpTools are tried in order; the list exists so the "not installed"
++ // refusal can name what it looked for.
++ var dumpTools = []string{"mysqldump"}
+- 			"included — the client omits routines and events by default, which is how dumps " +
++ 			"included — mysqldump omits routines and events by default, which is how dumps " +
+- 			"snapshot, and the receipt counts the non-transactional tables — Aria and MyISAM — " +
+- 			"read live outside it rather than claiming a guarantee they cannot have. On a Galera " +
+- 			"node the receipt also says whether the node held quorum: one that has lost it still " +
+- 			"answers queries, from its own side of the partition, and nothing about the resulting " +
+- 			"file would say so afterwards.\n\n" +
+- 			"MySQL's client is a fork, not an alias, so the flags differ from the mysql " +
+- 			"plugin's by necessity: TLS through the --ssl family rather than --ssl-mode, and no " +
+- 			"--set-gtid-purged or --no-tablespaces, which this client does not have — GTID stays " +
+- 			"out by default here, which is what that spelling has to ask for over there. A flag " +
+- 			"the installed client does not know is refused by name, since the likeliest cause is " +
+- 			"MySQL's own tools answering to it.\n\n" +
++ 			"snapshot, and the receipt counts the non-transactional tables that are read live " +
++ 			"outside it rather than claiming a guarantee they cannot have. GTID state is not " +
++ 			"carried (--set-gtid-purged=OFF): this file seeds a database, not a replica — " +
++ 			"carrying it makes the restore demand SUPER and fail on any server that is not " +
++ 			"brand new.\n\n" +
+- 				"Install the MySQL client tools — `brew install mysql` or " +
++ 				"Install the MySQL client tools — `brew install mysql-client` or " +
+- 		// assumed: mysqldump 11.4 has `--system=name` ("Any combination of:
++ 		// assumed: mariadb-dump 11.4 has `--system=name` ("Any combination of:
+- 			"data and no account able to read it. `mysqldump --system=users` is the " +
+- 			"other half"},
++ 			"data and no account able to read it. MySQL has no --system flag for them: " +
++ 			"`mysqldump mysql` is the other half"},
+- 	// galeraStatus is wsrep_cluster_status when this server is a Galera node
+- 	// and empty when it is not, which is the fact this plugin exists to know
+- 	// and the mysql twin cannot. A node that has lost quorum still accepts
+- 	// connections and still answers queries — it just answers them from a
+- 	// partition — so a dump taken there is a backup of one side of a split
+- 	// brain, and nothing about the file says so afterwards.
+- 	galeraStatus string
+- 	switch {
+- 	case s.galeraStatus == "":
+- 		// Standalone, or a build without Galera. Nothing to say.
+- 	case strings.EqualFold(s.galeraStatus, "Primary"):
+- 		where += " — a Galera node holding quorum"
+- 	default:
+- 		// The one that changes what the backup means, said while somebody is
+- 		// looking at the file they just made rather than left for the day
+- 		// they restore it.
+- 		where += fmt.Sprintf(" — **a Galera node whose cluster status is %s, not Primary**: "+
+- 			"this node has lost quorum and is serving its own side of a partition, so this "+
+- 			"dump is a backup of that side. `rta mysql cluster` has the whole picture",
+- 			s.galeraStatus)
+- 	}
+- 	// Only InnoDB sits inside --single-transaction's snapshot. Aria is
+- 	// MySQL's own crash-safe engine and the default for system tables, but
+- 	// crash-safe is not transactional, so an Aria table is read live and
+- 	// outside the snapshot exactly as MyISAM is — and excluding InnoDB alone,
+- 	// rather than listing the engines that are not it, is what counts Aria
+- 	// without naming it. MySQL has no Aria and needs the very same query.
+- 	// Galera state, best effort and deliberately not fatal: a server built
+- 	// without wsrep answers this with an empty provider (or nothing at all),
+- 	// and a standalone MySQL is not a broken cluster — the same reading
+- 	// cluster.go's own runCluster makes.
+- 	var name, status string
+- 	if err := db.QueryRowContext(ctx,
+- 		`show global status like 'wsrep_cluster_status'`).Scan(&name, &status); err == nil {
+- 		s.galeraStatus = status
+- 	}
+- // nowhere else. --no-defaults comes first because that is where the client
++ // nowhere else. --no-defaults comes first because that is where mysqldump
+- 		// No --no-tablespaces and no --set-gtid-purged here, unlike the mysql
+- 		// plugin: both are MySQL 8 spellings this client does not have, and a
+- 		// flag it does not have is an immediate "unknown option" rather than
+- 		// a lesser dump. MySQL needs neither anyway — GTID state is opt-in
+- 		// through --gtid and stays out by default, which is the portable-seed
+- 		// behaviour --set-gtid-purged=OFF has to ask for over there.
++ 		// mysqldump 8 asks the server for tablespace DDL, which needs the
++ 		// PROCESS privilege — a wall every application-level user hits for a
++ 		// feature (NDB/general tablespaces) their database does not use.
++ 		// Skipped so a user who can read the database can dump the database.
++ 		"--no-tablespaces",
++ 		// Portable seed, not replica state: with GTID carried, the restore
++ 		// demands SUPER and refuses any server that is not brand new. A
++ 		// replica is built with replication tooling, not with this file.
++ 		"--set-gtid-purged=OFF",
+- // with every in-process capability here — onto the MySQL client's own
+- // --ssl family. **Not --ssl-mode**, which is the MySQL 8 spelling: the
+- // --ssl/--ssl-verify-server-cert pair is what MySQL's client has carried
+- // across every version this is likely to meet, and choosing the spelling the
+- // installed fork does not know turns a working dump into "unknown option".
+- //
+- // The mapping is by *meaning*, matching the mysql plugin's: "true" both
+- // encrypts and verifies the server is who it claims (the driver's own
+- // behaviour for true), "skip-verify" encrypts without verifying,
+- // "preferred" is the client's default and passes nothing.
++ // with every in-process capability here — onto mysqldump/mysql's --ssl-mode.
++ // The mapping is by *meaning*: "true" verifies the server is who it claims
++ // (VERIFY_IDENTITY, the driver's own behaviour for true), "skip-verify"
++ // encrypts without verifying (REQUIRED), "preferred" is the client default
++ // and passes nothing.
+- 		return []string{"--skip-ssl"}
++ 		return []string{"--ssl-mode=DISABLED"}
+- 		return []string{"--ssl", "--ssl-verify-server-cert"}
++ 		return []string{"--ssl-mode=VERIFY_IDENTITY"}
+- 		return []string{"--ssl"}
++ 		return []string{"--ssl-mode=REQUIRED"}
+- 			WithHint("this is the server refusing a privilege, not rta — check SHOW GRANTS for " +
+- 				"the user this dump connects as")
++ 			WithHint("this is the server refusing a privilege, not rta — and not the tablespace " +
++ 				"wall, which --no-tablespaces already avoids. Check SHOW GRANTS")
+- 		// The version-skew failure, and here it is the likelier one: this
+- 		// plugin passes MySQL's --ssl family, so a *MySQL* client wearing
+- 		// the mysqldump name — the shape on a host with only MySQL's tools
+- 		// installed — refuses on the first of them.
++ 		// The version-skew failure: a flag this plugin passes that the
++ 		// installed client does not know — most often a MariaDB client
++ 		// answering to the mysqldump name.
+- 				"says which fork it really is. This plugin drives MySQL's client; for a " +
+- 				"MySQL server, the mysql plugin drives mysqldump with the flags that client " +
+- 				"actually has")
++ 				"says what it really is. For a MariaDB server, the mariadb plugin drives " +
++ 				"mariadb-dump with the flags that client actually has")

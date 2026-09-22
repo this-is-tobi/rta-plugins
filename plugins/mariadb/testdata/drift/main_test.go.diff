@@ -1,0 +1,12 @@
+- 		// the restore is Destructive besides — the dump's own DROP TABLE
++ 		// the restore is Destructive besides — mysqldump's own DROP TABLE
+- 		// Read: every value is a number the server publishes about itself.
+- 		// Cluster health is not a value anybody stored, and an operator who
+- 		// cannot see it is an operator who finds out about a split brain from
+- 		// their users.
+- 		"mysql.galera.status":      plugin.Read,
+- 		"mysql.replication.status": plugin.Read,
+- 		"11.4.2-MySQL":                   "MySQL",
+- 		"10.11.8-MySQL-1:10.11.8+maria~": "MySQL",
++ 		"11.4.2-MariaDB":                   "MariaDB",
++ 		"10.11.8-MariaDB-1:10.11.8+maria~": "MariaDB",

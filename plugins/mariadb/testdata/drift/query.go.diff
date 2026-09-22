@@ -1,0 +1,51 @@
++ 	"fmt"
++ 	if hidden := hiddenSessions(ctx, db); hidden > 0 {
++ 		t.Warnings = append(t.Warnings, view.Error{
++ 			Code: "mysql.activity.partial",
++ 			Message: fmt.Sprintf("at least %s on this server are not visible to this account, "+
++ 				"so they are missing from this table", format.CountOf(hidden, "session")),
++ 			Hint: "INFORMATION_SCHEMA.PROCESSLIST shows only this connection's own thread to an " +
++ 				"account without the PROCESS privilege — `GRANT PROCESS ON *.*` to see the rest",
++ 		})
++ 	}
++ // hiddenSessions reports how many of the server's connections this account
++ // was not allowed to see, or 0 when it can see them all.
++ //
++ // **INFORMATION_SCHEMA.PROCESSLIST is silently narrowed to this
++ // connection's own thread when the account lacks PROCESS**, which an
++ // application credential handed to rta generally does. There is no error and
++ // no marker: the listing simply comes back short, so a server with fifty
++ // stuck sessions answered with one row and a Total that looked
++ // authoritative, on the screen somebody opened because something is stuck.
++ //
++ // Threads_connected is a global status variable any account may read, and it
++ // counts every connection the server holds. The gap between it and what the
++ // listing shows is therefore *measured*, rather than inferred from SHOW
++ // GRANTS — which roles make unreliable, since a privilege arriving through
++ // one is not expanded there.
++ //
++ // Either read failing gives 0: this explains a result already in hand, and a
++ // caveat that cannot be computed must not turn a working capability into an
++ // error.
++ func hiddenSessions(ctx context.Context, db *sql.DB) int {
++ 	var visible int
++ 	if err := db.QueryRowContext(ctx,
++ 		`SELECT count(*) FROM INFORMATION_SCHEMA.PROCESSLIST`).Scan(&visible); err != nil {
++ 		return 0
++ 	}
++ 	var name string
++ 	var connected int
++ 	if err := db.QueryRowContext(ctx,
++ 		`SHOW STATUS LIKE 'Threads_connected'`).Scan(&name, &connected); err != nil {
++ 		return 0
++ 	}
++ 	// A connection can open or close between the two reads, so a gap of one
++ 	// is noise rather than a finding. Reporting that would put a warning on
++ 	// a busy server every time, which is how people learn to scroll past
++ 	// warnings.
++ 	if gap := connected - visible; gap > 1 {
++ 		return gap
++ 	}
++ 	return 0
++ }
++ 
