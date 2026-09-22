@@ -1,0 +1,4 @@
+- // The mysql and mysql plugins are one source tree twice over, and a
++ // The mysql and mariadb plugins are one source tree twice over, and a
+- 	forks := map[string]string{"mysql": "mysql", "mysql": "mysql"}
++ 	forks := map[string]string{"mysql": "mariadb", "mariadb": "mysql"}

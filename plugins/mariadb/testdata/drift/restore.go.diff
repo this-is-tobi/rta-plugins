@@ -1,0 +1,9 @@
+- // restoreTools are tried in order, for dumpTools' reason: MySQL's own
+- // client name first, the legacy symlink every distribution still ships
+- // second, so a host carrying both forks' clients gets MySQL's.
+- var restoreTools = []string{"mysql", "mysql"}
++ // restoreTools are tried in order; the list exists so the "not installed"
++ // refusal can name what it looked for.
++ var restoreTools = []string{"mysql"}
+- 				"Install the MySQL client tools — `brew install mysql` or " +
++ 				"Install the MySQL client tools — `brew install mysql-client` or " +

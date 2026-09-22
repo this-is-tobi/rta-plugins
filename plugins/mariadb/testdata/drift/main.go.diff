@@ -1,0 +1,43 @@
+- // Command rta-plugin-mysql talks to a MySQL server: what it is, what is
+- // in it, what shape that has, what is running, whether its cluster is healthy,
+- // and — behind the write tier — the rows themselves.
+- //
+- // # Why this is a separate artifact from plugins/mysql
+- //
+- // MySQL answers the MySQL wire protocol and carries the same
+- // INFORMATION_SCHEMA, so the connection handling, the row bounds and the
+- // schema queries here are the same work. They are duplicated rather than
+- // shared, and that is deliberate rather than an oversight.
+- //
+- // A plugin is the unit rta approves, and it approves an artifact's content
+- // digest rather than its name. Two plugins that shared a library would be two
+- // artifacts whose behaviour moves together while their approvals do not — so
+- // approving one would be partly approving the other, which is exactly the
+- // property digest-pinned trust exists to prevent. Every plugin in this
+- // repository carries its own connection handling for the same reason.
++ // Command rta-plugin-mysql talks to a MySQL server: what it is, what is in
++ // it, what shape that has, what is running, and — behind the write tier —
++ // the rows themselves.
+- // What is actually different is what MySQL has that MySQL does not: a Galera
+- // cluster's replication state, and MySQL's own replica status. Those are the
+- // two capabilities below that plugins/mysql has no equivalent of, and they are
+- // the reason somebody running MySQL wants this artifact rather than that one.
++ // It speaks to MariaDB too, since MariaDB answers the same wire protocol and
++ // carries the same INFORMATION_SCHEMA. What it does not do is know anything
++ // MariaDB-specific: a Galera cluster's replication state has no equivalent
++ // here and is not guessed at. plugins/mariadb is the one that knows about
++ // that, and it is a separate artifact for the reason every plugin is —
++ // approving one binary is not approving another.
+- // and export RTA_MARIADB_PASSWORD. Every capability here reaches off the box,
++ // and export RTA_MYSQL_PASSWORD. Every capability here reaches off the box,
+- // are nine of them and the one that forgot would leak a connection against
++ // are eight of them and the one that forgot would leak a connection against
+- 		Summary: "MySQL: connection health, schema, rows, activity and cluster state",
++ 		Summary: "MySQL: connection health, schema, rows and activity",
+- 			dumpCapability(),
+- 			restoreCapability(),
+- 			// The two MySQL has and MySQL does not.
+- 			galeraCapability(),
+- 			replicationCapability(),
++ 			dumpCapability(),
++ 			restoreCapability(),
