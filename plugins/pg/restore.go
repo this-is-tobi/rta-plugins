@@ -12,6 +12,9 @@ import (
 	"strings"
 	"time"
 
+	// Aliased: `format` is what this file calls a dump's own format, and the
+	// package must not be shadowed where a count is spelled.
+	rtaformat "github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -312,7 +315,7 @@ func checkTarget(ctx context.Context, req plugin.Request, format dumpFormat) (so
 			hint = "--clean drops what is there and recreates what the dump carries, or " + hint
 		}
 		return source{}, view.Errorf("pg.restore.notempty",
-			"%s already holds %d relations", req.String("database"), relations).
+			"%s already holds %s", req.String("database"), rtaformat.CountOf(relations, "relation")).
 			WithHint(hint)
 	}
 	return s, nil
