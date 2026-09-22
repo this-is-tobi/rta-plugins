@@ -209,9 +209,7 @@ func runCollectionShow(ctx context.Context, req plugin.Request) (view.View, erro
 		{Key: "replication factor", Value: strconv.FormatInt(info.Config.Params.ReplicationFactor, 10)},
 		{Key: "payload on disk", Value: strconv.FormatBool(info.Config.Params.OnDiskPayload)},
 	}
-	for _, v := range describeVectors(info.Config.Params.Vectors) {
-		pairs = append(pairs, v)
-	}
+	pairs = append(pairs, describeVectors(info.Config.Params.Vectors)...)
 	if info.Status == "yellow" {
 		pairs = append(pairs, view.Pair{
 			Key: "note",
