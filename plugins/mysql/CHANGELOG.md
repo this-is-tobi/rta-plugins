@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.14](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.3.13...plugins/mysql/v0.3.14) (2026-09-22)
+
+
+### Bug Fixes
+
+* **mysql:** a one-table schema said "1 tables" ([a49e505](https://github.com/this-is-tobi/rta-plugins/commit/a49e50505f030c1700904cb165c9d3e9029001b2))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.26.0 ([0d9cc23](https://github.com/this-is-tobi/rta-plugins/commit/0d9cc23380589dd053184cc810060677d394d29a))
+
 ## [0.3.13](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.3.12...plugins/mysql/v0.3.13) (2026-09-21)
 
 

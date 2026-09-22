@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.14](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.13...plugins/qdrant/v0.3.14) (2026-09-22)
+
+
+### Bug Fixes
+
+* **qdrant:** a one-point collection said "1 points" ([2eeee9d](https://github.com/this-is-tobi/rta-plugins/commit/2eeee9d758d0e36d4ebc7672f822f0d3d99ccd8c))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.26.0 ([0d9cc23](https://github.com/this-is-tobi/rta-plugins/commit/0d9cc23380589dd053184cc810060677d394d29a))
+
 ## [0.3.13](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.12...plugins/qdrant/v0.3.13) (2026-09-21)
 
 

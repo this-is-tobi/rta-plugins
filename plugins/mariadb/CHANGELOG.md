@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.14](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.3.13...plugins/mariadb/v0.3.14) (2026-09-22)
+
+
+### Bug Fixes
+
+* **mariadb:** a one-table schema said "1 tables" ([c6cc17c](https://github.com/this-is-tobi/rta-plugins/commit/c6cc17c95c6778e6106b4d92ca0ead2954b0d3ed))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.26.0 ([0d9cc23](https://github.com/this-is-tobi/rta-plugins/commit/0d9cc23380589dd053184cc810060677d394d29a))
+
 ## [0.3.13](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.3.12...plugins/mariadb/v0.3.13) (2026-09-21)
 
 

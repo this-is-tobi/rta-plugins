@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.14](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.3.13...plugins/pg/v0.3.14) (2026-09-22)
+
+
+### Bug Fixes
+
+* **pg:** a one-relation database said "1 relations" ([a389382](https://github.com/this-is-tobi/rta-plugins/commit/a3893822b5d3186fcad33ed8a123e7ae68451cfa))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.26.0 ([0d9cc23](https://github.com/this-is-tobi/rta-plugins/commit/0d9cc23380589dd053184cc810060677d394d29a))
+
 ## [0.3.13](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.3.12...plugins/pg/v0.3.13) (2026-09-21)
 
 
