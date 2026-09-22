@@ -128,7 +128,11 @@ func cap(c plugin.Capability, own ...plugin.Field) plugin.Capability {
 var version = "dev"
 
 func Plugin() plugin.Plugin {
-	capabilities := []plugin.Capability{
+	// prealloc reads the one append below as a loop to be sized for. It is not
+	// one: this is a literal of every capability in the plugin, joined once
+	// with the ServiceAccount family that lives in its own file, and a make()
+	// with a hand-counted capacity would be a number to keep right for nothing.
+	capabilities := []plugin.Capability{ //nolint:prealloc
 		{
 			ID:      "kube.context.list",
 			Summary: "Every context in this machine's kubeconfig, and which one is current",
