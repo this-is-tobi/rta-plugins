@@ -200,7 +200,11 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 
 	if f.podErr != nil {
 		pairs = append(pairs, view.Pair{Key: "pods", Value: "could not be read — " + f.podErr.Message})
-		return view.KeyValue{Pairs: pairs}, nil
+		// The error is reported in the view, on its own row, rather than
+		// returned: every node fact above it was read successfully, and a
+		// namespace whose pods a token cannot list is an ordinary
+		// least-privilege answer, not a failed overview.
+		return view.KeyValue{Pairs: pairs}, nil //nolint:nilerr
 	}
 	var unhealthy []podItem
 	var podNames []string
