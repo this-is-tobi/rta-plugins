@@ -224,9 +224,9 @@ func runServiceAccountProvision(ctx context.Context, req plugin.Request) (view.V
 	out := strings.TrimSpace(req.String("out"))
 	force := req.Bool("force")
 	if out != "" && !force {
-		if _, err := os.Stat(expandHome(out)); err == nil {
+		if _, err := os.Stat(plugin.ExpandHome(out)); err == nil {
 			return nil, view.Errorf("kube.serviceaccount.out.exists",
-				"%s already exists", expandHome(out)).
+				"%s already exists", plugin.ExpandHome(out)).
 				WithHint("name a path that does not exist yet, or pass --force to replace it — " +
 					"checked before anything was created on the cluster")
 		}
@@ -330,7 +330,14 @@ func runServiceAccountProvision(ctx context.Context, req plugin.Request) (view.V
 		}}, nil
 	}
 
-	path := expandHome(out)
+	// plugin.ExpandHome, not the raw --out: the shell expands an unquoted ~ and
+	// not a quoted one, and --out is exactly the flag somebody quotes. What that
+	// costs here is worse than a wrong-looking path — `--out ~` wrote a bearer
+	// token to a file literally named "~" in whatever directory the operator was
+	// standing in, at mode 0600, a credential nobody would think to look for,
+	// where naming the home directory earns the refusal that writing a file over
+	// a directory deserves.
+	path := plugin.ExpandHome(out)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, view.Errorf("kube.serviceaccount.out.unwritable", "creating %s: %v", filepath.Dir(path), err)
 	}
@@ -575,9 +582,10 @@ func writeKubeconfig(path string, data []byte, force bool) *view.Error {
 	return nil
 }
 
-// writeAtomically is internal/atomicfile.Write, restated here for the same
-// reason expandHome below is: this plugin is its own Go module and cannot
-// import an internal package, however small.
+// writeAtomically is internal/atomicfile.Write, restated here because this
+// plugin is its own Go module and cannot import an internal package, however
+// small. The tilde rule that used to be restated alongside it no longer is:
+// that one the SDK exports, as plugin.ExpandHome.
 //
 // Worth the duplication rather than a plain os.WriteFile, which truncates
 // before it writes. --out is frequently an existing kubeconfig, and a
@@ -614,35 +622,4 @@ func writeAtomically(path string, data []byte, perm os.FileMode) error {
 		return fmt.Errorf("replacing %s: %w", path, err)
 	}
 	return nil
-}
-
-// expandHome resolves a leading ~ — the shell expands an unquoted one, not a
-// quoted one, and --out is exactly the flag somebody quotes.
-//
-// This is pathguard.ExpandTilde's rule, restated because this plugin is its
-// own Go module and cannot import an internal package, the same way
-// writeAtomically above restates atomicfile.Write. It was written against
-// builtin/cert's own copy instead, which matched "~/" and not a bare "~" —
-// and rta has since collapsed that copy and four others onto pathguard for
-// exactly that gap, so the helper this used to name no longer exists in the
-// shape it was taken from.
-//
-// The gap cost more here than it did there. `--out ~` fell through to a file
-// literally named "~" in whatever directory the operator was standing in,
-// holding a bearer token at mode 0600 — a credential left somewhere nobody
-// would think to look, where naming the home directory earns the refusal
-// that writing a file over a directory deserves.
-//
-// "~user" is deliberately not supported, for pathguard's reason: no --out
-// means another account's home, and a file literally named "~something" in
-// the current directory has to keep working.
-func expandHome(path string) string {
-	if path != "~" && !strings.HasPrefix(path, "~/") {
-		return path
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return path
-	}
-	return filepath.Join(home, strings.TrimPrefix(strings.TrimPrefix(path, "~"), "/"))
 }
