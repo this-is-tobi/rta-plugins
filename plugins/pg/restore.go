@@ -134,7 +134,7 @@ func detectFormat(path string) (dumpFormat, *view.Error) {
 	if err != nil {
 		return "", view.Errorf("pg.restore.unreadable", "opening %s: %v", path, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	magic := make([]byte, len(customMagic))
 	n, err := io.ReadFull(f, magic)
 	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
