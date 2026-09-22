@@ -19,7 +19,11 @@ name: Bump rta
 
 on:
   schedule:
-  - cron: "*/30 * * * *"
+  # Every two hours, off the hour. It ran every thirty minutes — forty-eight
+  # times a day, each a checkout and a release lookup — for a pin that moves
+  # a few times a week, and a dispatch is the zero-delay path when somebody
+  # is watching a release land.
+  - cron: "47 */2 * * *"
   workflow_dispatch:
     inputs:
       version:
