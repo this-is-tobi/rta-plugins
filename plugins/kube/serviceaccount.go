@@ -338,7 +338,10 @@ func runServiceAccountProvision(ctx context.Context, req plugin.Request) (view.V
 	// where naming the home directory earns the refusal that writing a file over
 	// a directory deserves.
 	path := plugin.ExpandHome(out)
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	// 0750, not 0755: this directory is created to hold a bearer token, and
+	// nothing outside the operator's own account has business listing it. The
+	// file itself is 0600 either way — this narrows the path to it.
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return nil, view.Errorf("kube.serviceaccount.out.unwritable", "creating %s: %v", filepath.Dir(path), err)
 	}
 	if verr := writeKubeconfig(path, []byte(kubeconfigYAML), force); verr != nil {
