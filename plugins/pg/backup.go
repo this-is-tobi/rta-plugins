@@ -632,20 +632,18 @@ func lastLine(s string) string {
 	return lines[len(lines)-1]
 }
 
-// expandHome resolves a leading ~ the way every other consumer of a Path
-// input in this codebase does. Mirrors builtin/kv, builtin/keys and
-// plugins/s3's own copies rather than centralizing a shared helper: an
-// external plugin cannot reach internal/pathguard, and the rule is ten lines.
+// expandHome makes a Local path input absolute, with a leading ~ resolved.
+//
+// The tilde rule is plugin.ExpandHome now. This was a copy of it, as were seven
+// others across these plugins, because the host's own lives in an internal
+// package no plugin can import — and copies of this exact rule had already
+// drifted twice inside rta itself, handling "~/x" and not a bare "~", which is
+// what made the SDK export it in v0.26.0.
+//
+// filepath.Abs stays this function's own work, and is why the call site does not
+// simply call the SDK: the resolved path is stat'd before anything connects, and
+// it is what the dry run and the receipt name back to the operator, where a
+// relative "." answers nothing.
 func expandHome(p string) (string, error) {
-	if p != "~" && !strings.HasPrefix(p, "~/") {
-		return filepath.Abs(p)
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	if p == "~" {
-		return home, nil
-	}
-	return filepath.Join(home, p[2:]), nil
+	return filepath.Abs(plugin.ExpandHome(p))
 }
