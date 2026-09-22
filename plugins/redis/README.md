@@ -55,7 +55,7 @@ CLIENT LIST as a table: address, name, age, idle time, the last command and the 
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.redis.username — ACL user to authenticate as (Redis 6+); empty for the default user                                              |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_REDIS_PASSWORD — password, or the ACL user's password                                                                                                |
 | input:db        | int, default 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                                              |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.client.list\` puts it there, re-run every few seconds                                                                 |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.client.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                         |
 
 ## redis.cluster
 
@@ -80,7 +80,7 @@ The state row is the one that matters: `fail` means some slot has no reachable p
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.redis.username — ACL user to authenticate as (Redis 6+); empty for the default user                                          |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_REDIS_PASSWORD — password, or the ACL user's password                                                                                            |
 | input:db        | int, default 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                                          |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.cluster\` puts it there, re-run every few seconds                                                                 |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.cluster\`, or + on it in the TUI, puts it there, re-run every few seconds                                         |
 
 ## redis.config.get
 
@@ -165,7 +165,7 @@ Never a value: this is the read tier, and redis.key.get is where contents live. 
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.redis.username — ACL user to authenticate as (Redis 6+); empty for the default user                                                                          |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_REDIS_PASSWORD — password, or the ACL user's password                                                                                                                            |
 | input:db        | int, default 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                                                                          |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.key.list\` puts it there, re-run every few seconds                                                                                                |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.key.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                                                        |
 
 ## redis.key.tree
 
@@ -194,7 +194,7 @@ Names and counts only, never a value. Same read tier as redis.key.list.
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.redis.username — ACL user to authenticate as (Redis 6+); empty for the default user                                                                                                                       |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_REDIS_PASSWORD — password, or the ACL user's password                                                                                                                                                                         |
 | input:db        | int, default 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                                                                                                                       |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.key.tree\` puts it there, re-run every few seconds                                                                                                                                             |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.key.tree\`, or + on it in the TUI, puts it there, re-run every few seconds                                                                                                                     |
 
 ## redis.memory
 
@@ -217,7 +217,7 @@ MEMORY STATS as a table of where the bytes are — dataset, overhead, clients, r
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.redis.username — ACL user to authenticate as (Redis 6+); empty for the default user                                         |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_REDIS_PASSWORD — password, or the ACL user's password                                                                                           |
 | input:db        | int, default 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                                         |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.memory\` puts it there, re-run every few seconds                                                                 |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.memory\`, or + on it in the TUI, puts it there, re-run every few seconds                                         |
 
 ## redis.overview
 
@@ -244,7 +244,7 @@ The memory row is the one to watch. A server at maxmemory with `noeviction` refu
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.redis.username — ACL user to authenticate as (Redis 6+); empty for the default user                                                        |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_REDIS_PASSWORD — password, or the ACL user's password                                                                                                          |
 | input:db        | int, default 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                                                        |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.overview\` puts it there, re-run every few seconds                                                                              |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.overview\`, or + on it in the TUI, puts it there, re-run every few seconds                                                      |
 | input:detail    | bool, default false — return the full detailed view instead of the compact summary                                                                                                                                     |
 
 ## redis.slowlog

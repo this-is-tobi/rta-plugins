@@ -48,7 +48,7 @@ Names and counts only, never a point.
 | input:tls      | bool, default false, local (never offered to MCP callers), from config plugins.qdrant.tls, filled by a profile's tunnel (the forward's tls) — use HTTPS (a local Qdrant ordinarily does not)          |
 | input:api-key  | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                   |
 | input:ca-file  | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                               |
-| dashboard      | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.collection.list\` puts it there, re-run every few seconds                                                     |
+| dashboard      | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.collection.list\`, or + on it in the TUI, puts it there, re-run every few seconds                             |
 
 ## qdrant.collection.show
 
@@ -72,7 +72,7 @@ Configuration only, never a point — this describes the shape of the data and r
 | input:tls        | bool, default false, local (never offered to MCP callers), from config plugins.qdrant.tls, filled by a profile's tunnel (the forward's tls) — use HTTPS (a local Qdrant ordinarily does not)          |
 | input:api-key    | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                   |
 | input:ca-file    | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                               |
-| dashboard        | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.collection.show\` puts it there, re-run every few seconds                                                     |
+| dashboard        | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.collection.show\`, or + on it in the TUI, puts it there, re-run every few seconds                             |
 
 ## qdrant.dump
 
@@ -120,7 +120,7 @@ Describes collections and returns no point. Reading points is qdrant.points.scro
 | input:tls      | bool, default false, local (never offered to MCP callers), from config plugins.qdrant.tls, filled by a profile's tunnel (the forward's tls) — use HTTPS (a local Qdrant ordinarily does not)          |
 | input:api-key  | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                   |
 | input:ca-file  | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                               |
-| dashboard      | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.overview\` puts it there, re-run every few seconds                                                            |
+| dashboard      | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.overview\`, or + on it in the TUI, puts it there, re-run every few seconds                                    |
 | input:detail   | bool, default false — return the full detailed view instead of the compact summary                                                                                                                    |
 
 ## qdrant.points.count
@@ -146,7 +146,7 @@ A number, never a point. This is the read tier — it says how much is there and
 | input:tls        | bool, default false, local (never offered to MCP callers), from config plugins.qdrant.tls, filled by a profile's tunnel (the forward's tls) — use HTTPS (a local Qdrant ordinarily does not)          |
 | input:api-key    | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                   |
 | input:ca-file    | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                               |
-| dashboard        | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.points.count\` puts it there, re-run every few seconds                                                        |
+| dashboard        | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.points.count\`, or + on it in the TUI, puts it there, re-run every few seconds                                |
 
 ## qdrant.points.scroll
 
