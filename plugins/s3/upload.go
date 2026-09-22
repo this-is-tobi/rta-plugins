@@ -114,8 +114,8 @@ func runBucketUpload(ctx context.Context, req plugin.Request) (view.View, error)
 			return nil, verr
 		}
 		if req.DryRun {
-			return view.Text{Body: fmt.Sprintf("would upload %d files (%s) from %s into %s/%s",
-				len(plan), format.Bytes(uint64(total)), root, req.String("bucket"), prefix)}, nil
+			return view.Text{Body: fmt.Sprintf("would upload %s (%s) from %s into %s/%s",
+				format.CountOf(len(plan), "file"), format.Bytes(uint64(total)), root, req.String("bucket"), prefix)}, nil
 		}
 
 		started := time.Now()
