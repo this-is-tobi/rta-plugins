@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -224,7 +225,7 @@ func checkTarget(ctx context.Context, req plugin.Request, database string) *view
 	}
 	if tables > 0 {
 		return view.Errorf("mysql.restore.notempty",
-			"%s already holds %d tables", database, tables).
+			"%s already holds %s", database, format.CountOf(tables, "table")).
 			WithHint("restore into a fresh database — CREATE DATABASE is one command, and " +
 				"whether this dump drops objects first was decided when mysqldump wrote it, " +
 				"so rta will not guess on its behalf")
