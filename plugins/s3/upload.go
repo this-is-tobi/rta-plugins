@@ -98,7 +98,7 @@ func runBucketUpload(ctx context.Context, req plugin.Request) (view.View, error)
 		return nil, verr
 	}
 
-	root, err := filepath.Abs(expandHome(strings.TrimSpace(req.String("dir"))))
+	root, err := filepath.Abs(plugin.ExpandHome(strings.TrimSpace(req.String("dir"))))
 	if err != nil {
 		return nil, view.Errorf("s3.upload.path", "resolving the directory: %v", err)
 	}
