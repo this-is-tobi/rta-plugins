@@ -25,8 +25,8 @@ func uploadServer(t *testing.T, listing string) (*httptest.Server, *map[string]s
 	var mu sync.Mutex
 	puts := map[string]string{}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.Method == http.MethodPut:
+		switch r.Method {
+		case http.MethodPut:
 			body, _ := io.ReadAll(r.Body)
 			// Over plain HTTP minio-go signs uploads with the streaming
 			// signature, so the body arrives aws-chunked; the payload the
