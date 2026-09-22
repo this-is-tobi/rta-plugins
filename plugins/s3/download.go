@@ -134,8 +134,8 @@ func runBucketDownload(ctx context.Context, req plugin.Request) (view.View, erro
 			return nil, verr
 		}
 		if req.DryRun {
-			return view.Text{Body: fmt.Sprintf("would copy %d objects (%s) from %s into %s",
-				len(plan), format.Bytes(uint64(totalSize(objects))), req.String("bucket"), root)}, nil
+			return view.Text{Body: fmt.Sprintf("would copy %s (%s) from %s into %s",
+				format.CountOf(len(plan), "object"), format.Bytes(uint64(totalSize(objects))), req.String("bucket"), root)}, nil
 		}
 
 		// Created rather than reused, so a backup is never half of one run
