@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -295,14 +296,14 @@ func schemaTree(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 		cols := byTable[table]
 		node := view.Node{
 			Label:  table,
-			Detail: fmt.Sprintf("%d columns", len(cols)),
+			Detail: format.CountOf(len(cols), "column"),
 		}
 		for _, c := range cols {
 			node.Children = append(node.Children, view.Node{Label: c.name, Detail: columnDetail(c)})
 		}
 		root.Children = append(root.Children, node)
 	}
-	root.Detail = fmt.Sprintf("%d tables", len(order))
+	root.Detail = format.CountOf(len(order), "table")
 	tree := view.Tree{Roots: []view.Node{root}}
 	// A Tree has nowhere to carry a caveat, so one is wrapped the way
 	// plugins/kube's quotaView wraps its table: the shape changes only when
