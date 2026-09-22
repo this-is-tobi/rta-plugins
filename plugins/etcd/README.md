@@ -85,7 +85,7 @@ Bounded, and it says when it stopped. A listing that quietly ended at a thousand
 | input:key-file  | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for --cert-file                                                                                                |
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.etcd.username — user to authenticate as, if the cluster has auth enabled                                                                   |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_ETCD_PASSWORD — password for the user                                                                                                                          |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.kv.list\` puts it there, re-run every few seconds                                                                                |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.kv.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                                        |
 
 ## etcd.kv.tree
 
@@ -114,7 +114,7 @@ Names and counts only, never a value. Same read tier as etcd.kv.list, and the re
 | input:key-file  | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for --cert-file                                                                                                                   |
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.etcd.username — user to authenticate as, if the cluster has auth enabled                                                                                      |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_ETCD_PASSWORD — password for the user                                                                                                                                             |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.kv.tree\` puts it there, re-run every few seconds                                                                                                   |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.kv.tree\`, or + on it in the TUI, puts it there, re-run every few seconds                                                                           |
 
 ## etcd.lease.list
 
@@ -141,7 +141,7 @@ IDs and timings only, never the keys attached to them — the same read/write sp
 | input:key-file  | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for --cert-file                                                                                        |
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.etcd.username — user to authenticate as, if the cluster has auth enabled                                                           |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_ETCD_PASSWORD — password for the user                                                                                                                  |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.lease.list\` puts it there, re-run every few seconds                                                                     |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.lease.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                             |
 
 ## etcd.member.list
 
@@ -165,7 +165,7 @@ A member still learning the cluster's state has no name yet and is shown as unst
 | input:key-file  | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for --cert-file                                                                      |
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.etcd.username — user to authenticate as, if the cluster has auth enabled                                         |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_ETCD_PASSWORD — password for the user                                                                                                |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.member.list\` puts it there, re-run every few seconds                                                  |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.member.list\`, or + on it in the TUI, puts it there, re-run every few seconds                          |
 
 ## etcd.overview
 
@@ -191,7 +191,7 @@ The storage row is the one to watch. etcd raises NOSPACE when the database file 
 | input:key-file  | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for --cert-file                                                                                |
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.etcd.username — user to authenticate as, if the cluster has auth enabled                                                   |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_ETCD_PASSWORD — password for the user                                                                                                          |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.overview\` puts it there, re-run every few seconds                                                               |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.overview\`, or + on it in the TUI, puts it there, re-run every few seconds                                       |
 | input:detail    | bool, default false — return the full detailed view instead of the compact summary                                                                                                                     |
 
 ## etcd.snapshot
