@@ -341,7 +341,7 @@ const maxBytes = 1 << 20
 func rowsToTable(rows pgx.Rows, bound int) (view.Table, error) {
 	var t view.Table
 	for _, fd := range rows.FieldDescriptions() {
-		t.Columns = append(t.Columns, view.Column{Name: string(fd.Name)})
+		t.Columns = append(t.Columns, view.Column{Name: fd.Name})
 	}
 	if bound <= 0 {
 		bound = maxRows

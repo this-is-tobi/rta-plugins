@@ -302,7 +302,7 @@ func rlsOf(ctx context.Context, q querier, rel relation) *view.Error {
 	}
 	var enabled, forced bool
 	if err := row.Scan(&enabled, &forced); err != nil {
-		return nil
+		return nil //nolint:nilerr // deliberate, and the doc comment says why: a catalogue this connection cannot read leaves the table to speak for itself rather than failing a dump that worked
 	}
 	return rlsRefusal(rel, enabled, forced)
 }
