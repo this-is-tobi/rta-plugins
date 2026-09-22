@@ -196,7 +196,7 @@ func kvTreeView(ctx context.Context, c *clientv3.Client, req plugin.Request) (vi
 	w := &treeRender{maxDepth: req.Int("depth")}
 	children := w.expand(root, 1)
 
-	detail := fmt.Sprintf("%d keys", root.keys)
+	detail := format.CountOf(root.keys, "key")
 	switch {
 	case truncated:
 		detail += fmt.Sprintf(" — stopped at %d; narrow it with --prefix or raise --limit", limit)
@@ -282,7 +282,7 @@ func (w *treeRender) expand(n *treeNode, depth int) []view.Node {
 			out = append(out, view.Node{Label: name})
 			continue
 		}
-		node := view.Node{Label: name + "/", Detail: fmt.Sprintf("%d keys", c.keys)}
+		node := view.Node{Label: name + "/", Detail: format.CountOf(c.keys, "key")}
 		if depth >= w.maxDepth {
 			// Collapsed, not dropped. The count was accumulated on the way in,
 			// so a level past the depth still reports how much is under it —
