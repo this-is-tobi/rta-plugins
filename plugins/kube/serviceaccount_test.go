@@ -429,21 +429,17 @@ func TestAFailedWriteLeavesThePreviousCredentialIntact(t *testing.T) {
 	}
 }
 
-// A bare ~ is a home directory here too.
+// A bare ~ is a home directory, asserted here against the SDK rather than
+// against a copy of the rule — and kept when the other plugins' copies of this
+// test went, because of what --out holds.
 //
-// This copy was written against builtin/cert's, which handled "~/x" and not
-// "~" — and rta has since collapsed all five of its own copies onto
-// pathguard.ExpandTilde precisely because two of them had that gap, so the
-// helper this one says it mirrors no longer exists in the shape it was
-// copied from. What the gap costs here is worse than what it cost there:
-// `--out ~` wrote a bearer token to a file literally named "~" in whatever
-// directory the operator happened to be standing in, silently, at mode 0600
-// — a credential somewhere nobody would look for it, rather than the refusal
-// that writing a file to a directory earns.
-//
-// ~user stays unsupported, for pathguard's reason: no input here means
-// another account's home, and a file literally named "~something" in the
-// current directory has to keep working.
+// The rule is tested where it lives, in rta's own suite. What this says is that
+// the version of it this plugin is pinned to still resolves a bare ~: the copy
+// it replaced was written against builtin/cert's, which handled "~/x" and not
+// "~", and `--out ~` therefore wrote a bearer token to a file literally named
+// "~" in whatever directory the operator was standing in, silently, at mode
+// 0600. A regression in the pinned rule puts a credential back there, so kube
+// checks rather than assumes.
 func TestExpandHomeResolvesABareTildeAsWellAsAPrefix(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -458,8 +454,8 @@ func TestExpandHomeResolvesABareTildeAsWellAsAPrefix(t *testing.T) {
 		{"relative/path", "relative/path"},
 		{"", ""},
 	} {
-		if got := expandHome(c.in); got != c.want {
-			t.Errorf("expandHome(%q) = %q, want %q", c.in, got, c.want)
+		if got := plugin.ExpandHome(c.in); got != c.want {
+			t.Errorf("plugin.ExpandHome(%q) = %q, want %q", c.in, got, c.want)
 		}
 	}
 }
