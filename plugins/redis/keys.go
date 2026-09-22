@@ -114,7 +114,7 @@ func keyListView(ctx context.Context, c *client, req plugin.Request) (view.View,
 	if truncated {
 		// A listing that quietly ended at the limit reads exactly like a
 		// keyspace that size. The last row says so, the way etcd's tree does.
-		t.Rows = append(t.Rows, []string{"…", "-", fmt.Sprintf("stopped at %d keys; narrow the pattern or raise --limit", limit)})
+		t.Rows = append(t.Rows, []string{"…", "-", "stopped at " + format.CountOf(limit, "key") + "; narrow the pattern or raise --limit"})
 	}
 	return t, nil
 }
@@ -172,7 +172,7 @@ func keyTreeView(ctx context.Context, c *client, req plugin.Request) (view.View,
 	}
 	w := &treeRender{maxDepth: req.Int("depth"), sep: sep}
 	children := w.expand(root, 1)
-	detail := fmt.Sprintf("%d keys", root.keys)
+	detail := format.CountOf(root.keys, "key")
 	switch {
 	case truncated:
 		detail += fmt.Sprintf(" — stopped at %d; narrow the pattern or raise --limit", limit)
@@ -249,7 +249,7 @@ func (w *treeRender) expand(n *treeNode, depth int) []view.Node {
 			out = append(out, view.Node{Label: name})
 			continue
 		}
-		node := view.Node{Label: name + w.sep, Detail: fmt.Sprintf("%d keys", c.keys)}
+		node := view.Node{Label: name + w.sep, Detail: format.CountOf(c.keys, "key")}
 		if depth >= w.maxDepth {
 			node.Detail += " — not expanded, raise --depth"
 		} else {
