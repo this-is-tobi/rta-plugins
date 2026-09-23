@@ -130,15 +130,26 @@ endif
 # purpose: make skips implicit-rule search for a .PHONY target, and the
 # ordinary `check-%:` form silently matched nothing.
 CHECK_PLUGINS    := $(PLUGINS:%=check-%)
+LINT_PLUGINS     := $(PLUGINS:%=lint-%)
 BUILD_PLUGINS    := $(PLUGINS:%=build-%)
 INSTALL_PLUGINS  := $(PLUGINS:%=install-%)
 TIDY_PLUGINS     := $(PLUGINS:%=tidy-%)
 DOWNLOAD_PLUGINS := $(PLUGINS:%=download-%)
 
-.PHONY: help setup tidy fmt fmt-check build install trust check cross \
+# The linter, pinned at the version rta gates on, so a finding here is a
+# finding there and neither is a surprise about the tool's version. Installed
+# under .tools on first use rather than run through `go run`, matching rta's
+# own Makefile; override GOLANGCI with a path to use another build.
+# renovate: datasource=go depName=github.com/golangci/golangci-lint/v2
+GOLANGCI_VERSION := v2.13.2
+TOOLS := $(CURDIR)/.tools
+GOLANGCI ?= $(TOOLS)/golangci-lint-$(GOLANGCI_VERSION)
+
+.PHONY: help setup tidy fmt fmt-check build install trust check lint cross \
 	name-check replace-check docs-check docs docs-drift bump-rta index release index-release \
 	dev dev-off canary ci list clean \
-	$(CHECK_PLUGINS) $(BUILD_PLUGINS) $(INSTALL_PLUGINS) $(TIDY_PLUGINS) $(DOWNLOAD_PLUGINS)
+	$(CHECK_PLUGINS) $(LINT_PLUGINS) $(BUILD_PLUGINS) $(INSTALL_PLUGINS) $(TIDY_PLUGINS) \
+	$(DOWNLOAD_PLUGINS)
 
 ##@ General
 
@@ -214,6 +225,19 @@ trust: install ## Build, install and approve this repository's plugins
 ##@ Check
 
 check: $(PLUGIN_LIST:%=check-%) ## Build, vet, test (race, shuffled) and format-check every module
+
+# One config at the repository root, which golangci-lint finds by walking up
+# from the module it is pointed at — twelve copies would be twelve things to
+# keep in step.
+lint: $(PLUGIN_LIST:%=lint-%) ## golangci-lint every module, with .golangci.yml's linters
+
+$(LINT_PLUGINS): lint-%: name-check $(GOLANGCI)
+	@echo "==> plugins/$*"
+	@cd plugins/$* && $(GOLANGCI) run ./...
+
+$(TOOLS)/golangci-lint-%:
+	GOBIN=$(TOOLS) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$*
+	mv $(TOOLS)/golangci-lint $@
 
 $(CHECK_PLUGINS): check-%: name-check
 	@echo "==> plugins/$*"
@@ -411,7 +435,7 @@ canary: name-check ## Check every plugin against rta at RTA_REF (default main), 
 
 ##@ Everything
 
-ci: fmt-check name-check replace-check docs-check check docs-drift cross ## Everything CI runs
+ci: fmt-check name-check replace-check docs-check check lint docs-drift cross ## Everything CI runs
 	@printf "\nci: green — every module built, vetted, tested and cross-compiled.\n\n"
 
 ##@ Housekeeping

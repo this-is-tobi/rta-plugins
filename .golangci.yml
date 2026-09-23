@@ -1,0 +1,95 @@
+# golangci-lint for the twelve plugin modules, the same linters rta gates on,
+# so a finding here is a finding there. `make lint` runs it locally and the CI
+# check job runs it per module — one config at the root, which golangci-lint
+# finds by walking up from whichever module it is pointed at.
+#
+# What is excluded is stated, and only what actually fires is listed: rta's own
+# config excludes three gosec rules that no plugin trips, and copying them
+# would be an exclusion nobody could explain — which is how an exclusion
+# becomes a `nolint` on every site forever.
+version: "2"
+
+run:
+  timeout: 10m
+
+# Every finding, every time: the defaults cap the output per linter and per
+# identical message, which turns one run over twelve modules into several
+# rounds of surprise.
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    - unconvert
+    - misspell
+    - errorlint
+    - nilerr
+    - noctx
+    - prealloc
+    - bodyclose
+    - gosec
+  settings:
+    errcheck:
+      exclude-functions:
+        # Writes to a terminal or a buffer, where a failed write has no caller
+        # left to tell; deferred closes on the read side; and the cleanup of a
+        # temp file that was going to be replaced anyway.
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (io.Closer).Close
+        - os.Remove
+        - os.RemoveAll
+    gosec:
+      excludes:
+        # Every subprocess a plugin runs is an operator-named tool —
+        # mysqldump, pg_dump, pg_restore, kubectl — never a string a caller
+        # composed. The arguments that vary are inputs the host has already
+        # resolved and typed, and a Local path input is one a caller cannot
+        # set at all.
+        - G204
+        # Opening a file whose path came from the operator is the product: a
+        # dump's --out, a restore's input, a kubeconfig, a TLS certificate.
+        # pathguard is the host's answer to where those may point, and it runs
+        # before a plugin sees the value.
+        - G304
+  exclusions:
+    generated: lax
+    rules:
+      # A test may ignore a Close, shell out without a context, read a file by
+      # a name it just wrote, and build a slice without sizing it. And it
+      # asserts on the exact error the call it made returned — wrapping is a
+      # concern between layers, not between a test and the function under it.
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+          - noctx
+          - bodyclose
+          - prealloc
+          - errorlint
+      # **Only the widening conversion, and deliberately not G115 as a whole.**
+      # Twenty-one sites convert an int64 to a uint64 to render it: a byte
+      # count from io.Copy or from a server's own stat, and etcd's lease IDs,
+      # which etcdctl prints as hex the same way. Widening to unsigned cannot
+      # lose a bit — the only way it can mislead is a negative input, and none
+      # of these has one, a byte count least of all.
+      #
+      # A *narrowing* conversion is where the real overflow lives (int64 to
+      # int32, an int to a uint8), and this leaves every one of those flagged.
+      # The day a plugin needs one, the linter will say so.
+      #
+      # The alternative that removes this entirely: a signed entry point in
+      # rta's pkg/format, so `format.Bytes(written)` takes the int64 every
+      # caller actually holds. That is an SDK addition and a release, and it
+      # would retire eighteen of the twenty-one sites at the source.
+      - linters:
+          - gosec
+        text: "G115: integer overflow conversion int64 -> uint64"
