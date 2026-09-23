@@ -2,6 +2,9 @@
 /bin/
 /dist/
 
+# Pinned tools, installed on first use
+/.tools/
+
 # The SDK edit loop: `make dev` writes a workspace pointing at a sibling rta
 # checkout, and a committed one would make every go.mod's pin a fiction.
 /go.work

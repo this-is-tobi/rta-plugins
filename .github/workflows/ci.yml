@@ -101,6 +101,15 @@ jobs:
     - name: Guards, then build, vet, test and format-check every module
       run: make fmt-check name-check replace-check docs-check && make -k check && make docs-drift
 
+    # Once, not per operating system: the linters read source, and no plugin
+    # module has a platform-specific file for a second pass to reach. It rides
+    # this job rather than its own for the reason at the top of this file — a
+    # separate job pays a runner, a checkout and a cache restore to run one
+    # command against the tree already sitting here.
+    - name: Lint every module
+      if: ${{ matrix.os == 'ubuntu-latest' }}
+      run: make lint
+
   # Every target a release ships, compiled to /dev/null: what this checks is
   # that the build constraints resolve on every platform, not that the binary
   # runs there.
