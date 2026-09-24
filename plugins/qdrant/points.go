@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -121,15 +122,27 @@ func runPointsScroll(ctx context.Context, req plugin.Request) (view.View, error)
 		"with_vector":  withVectors,
 	}
 	if offset := req.String("offset"); offset != "" {
-		body["offset"] = offset
+		body["offset"] = pointID(offset)
 	}
 
+	// Decoded here with UseNumber rather than through post's own decode.
+	// A point id is an unsigned 64-bit integer or a UUID, and a payload
+	// integer is whatever was indexed; through a float64, 1234567 printed as
+	// 1.234567e+06, an id past 2^53 as a neighbouring id, and the cursor the
+	// next page is asked for with came back in that exponent form too.
+	var result json.RawMessage
+	if verr := post(ctx, req, pathFor("/collections/%s/points/scroll", name), body, &result); verr != nil {
+		return nil, verr
+	}
 	var out struct {
 		Points         []scrollPoint `json:"points"`
 		NextPageOffset any           `json:"next_page_offset"`
 	}
-	if verr := post(ctx, req, pathFor("/collections/%s/points/scroll", name), body, &out); verr != nil {
-		return nil, verr
+	dec := json.NewDecoder(bytes.NewReader(result))
+	dec.UseNumber()
+	if err := dec.Decode(&out); err != nil {
+		return nil, view.Errorf("qdrant.response.unexpected", "could not read the answer: %v", err).
+			WithHint("this may be a Qdrant version whose response shape has moved")
 	}
 
 	// The payload keys vary per point, so the column set is the union of what
@@ -209,6 +222,22 @@ func vectorSummary(raw json.RawMessage) string {
 	return fmt.Sprintf("%dd [%s…]", len(floats), strings.Join(head, ", "))
 }
 
+// pointID is an offset as Qdrant's ExtendedPointId takes it: an unsigned
+// integer as a JSON number, anything else — a UUID — as a string. Sent as a
+// string, a numeric id is a UUID that does not parse, so a cursor copied from
+// one page never reached the next.
+//
+// The parsed value is what goes out, not the input: ParseUint takes leading
+// zeros, a JSON number literal does not, so a hand-typed 007 sent as typed
+// failed in the encoder before any request was made. uint64 encodes exactly,
+// which is why this is not a float64.
+func pointID(s string) any {
+	if n, err := strconv.ParseUint(s, 10, 64); err == nil {
+		return n
+	}
+	return s
+}
+
 // payloadCell renders one payload value. Nested objects and arrays are shown
 // as compact JSON rather than Go's %v, which prints map[a:1] — a shape nothing
 // can parse and nobody writes.
@@ -220,19 +249,27 @@ func payloadCell(v any) string {
 		return x
 	case bool:
 		return strconv.FormatBool(x)
+	case json.Number:
+		// The literal Qdrant sent, digit for digit.
+		return x.String()
 	case float64:
-		// JSON has one number type, so an integer arrives as a float. Printing
-		// 42 rather than 4.2e+01 is the difference between a readable id
-		// column and one nobody can match against anything.
+		// A value that did not come through the scroll's own decoder, which
+		// keeps numbers as written. Printing 42 rather than 4.2e+01 is the
+		// difference between a readable column and one nobody can match
+		// against anything.
 		if x == float64(int64(x)) {
 			return strconv.FormatInt(int64(x), 10)
 		}
 		return strconv.FormatFloat(x, 'g', -1, 64)
 	default:
-		encoded, err := json.Marshal(x)
-		if err != nil {
+		// Without encoding/json's HTML escaping, which would show a payload
+		// string "a&b" as "a\u0026b".
+		var b bytes.Buffer
+		enc := json.NewEncoder(&b)
+		enc.SetEscapeHTML(false)
+		if err := enc.Encode(x); err != nil {
 			return fmt.Sprint(x)
 		}
-		return string(encoded)
+		return strings.TrimSuffix(b.String(), "\n")
 	}
 }

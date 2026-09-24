@@ -280,8 +280,72 @@ func TestAnUnreportedCountIsNotZero(t *testing.T) {
 	}
 }
 
-// JSON has one number type, so an integer id arrives as a float. Printing
-// 4.2e+01 gives an id column nobody can match against anything.
+// A point id is an unsigned 64-bit integer or a UUID, and it is the column
+// everything else is matched against. Through a float64 it printed 1234567 as
+// 1.234567e+06 and the largest id as a different one, and the cursor for the
+// next page came back in the same form — which, sent back as a string, is a
+// UUID that does not parse.
+func TestPointIDsAndPayloadNumbersAreShownAsQdrantSentThem(t *testing.T) {
+	f := newFakeQdrant(t, map[string]string{
+		"/collections/docs/points/scroll": `{"result":{"points":[
+			{"id":1234567,"payload":{"n":9007199254740993,"tags":["a&b"]}},
+			{"id":18446744073709551615,"payload":{"n":1.5}},
+			{"id":"8c0d3f5e-5f7a-4a55-9f1b-0c6e2a9d7b11","payload":{}}
+		],"next_page_offset":1234568}}`,
+	})
+	v, err := runPointsScroll(context.Background(),
+		reqAt(t, f, "qdrant.points.scroll", map[string]any{"collection": "docs"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tbl := v.(view.Table)
+	col := func(name string) int {
+		for i, c := range tbl.Columns {
+			if c.Name == name {
+				return i
+			}
+		}
+		t.Fatalf("no %q column in %v", name, tbl.Columns)
+		return -1
+	}
+	id, n, tags := col("ID"), col("n"), col("tags")
+	for i, want := range []string{"1234567", "18446744073709551615", "8c0d3f5e-5f7a-4a55-9f1b-0c6e2a9d7b11"} {
+		if got := tbl.Rows[i][id]; got != want {
+			t.Errorf("row %d id = %q, want %q", i, got, want)
+		}
+	}
+	if got := tbl.Rows[0][n]; got != "9007199254740993" {
+		t.Errorf("payload n = %q, want every digit", got)
+	}
+	if got := tbl.Rows[0][tags]; got != `["a&b"]` {
+		t.Errorf("payload tags = %q, want the ampersand as sent", got)
+	}
+	if tbl.Page == nil || tbl.Page.Next != "1234568" {
+		t.Errorf("cursor = %+v, want 1234568", tbl.Page)
+	}
+
+	// And that cursor reaches the next page: an unsigned integer goes back
+	// as a JSON number, a UUID as a string. A hand-typed 007 is the id 7,
+	// not an encoder error before any request is made.
+	for offset, want := range map[string]any{
+		"1234568":                              float64(1234568),
+		"007":                                  float64(7),
+		"8c0d3f5e-5f7a-4a55-9f1b-0c6e2a9d7b11": "8c0d3f5e-5f7a-4a55-9f1b-0c6e2a9d7b11",
+	} {
+		if _, err := runPointsScroll(context.Background(),
+			reqAt(t, f, "qdrant.points.scroll", map[string]any{"collection": "docs", "offset": offset})); err != nil {
+			t.Fatal(err)
+		}
+		if got := f.lastBody(t)["offset"]; got != want {
+			t.Errorf("offset %q was sent as %#v, want %#v", offset, got, want)
+		}
+	}
+}
+
+// The scroll keeps numbers as json.Number, so this is payloadCell's float64
+// branch on its own: a value decoded the default way, where JSON's one
+// number type makes every integer a float, still prints 42 rather than
+// 4.2e+01 — a column nobody can match against anything.
 func TestIntegerPayloadValuesDoNotRenderAsFloats(t *testing.T) {
 	if got := payloadCell(float64(42)); got != "42" {
 		t.Errorf("payloadCell(42) = %q, want 42", got)
