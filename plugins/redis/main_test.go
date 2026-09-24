@@ -388,6 +388,26 @@ func TestServerErrorsAreClassified(t *testing.T) {
 	}
 }
 
+// A server's database count is its own setting, so a db past the default 16
+// reaches it, and its refusal comes back named rather than as a bare ERR.
+func TestADatabasePastSixteenIsTheServersToRefuse(t *testing.T) {
+	srv := newFakeServer(t, map[string]string{
+		"SELECT 20": "+OK\r\n", "INFO all": bulk(sampleInfo),
+	})
+	if _, err := run(t, "redis.overview", srv, map[string]any{"db": 20}); err != nil {
+		t.Fatalf("db 20 on a server that has it: %v", err)
+	}
+	if srv.seen[0] != "SELECT 20" {
+		t.Errorf("handshake = %v, want SELECT 20 first", srv.seen)
+	}
+
+	srv = newFakeServer(t, map[string]string{"SELECT 20": "-ERR DB index is out of range\r\n"})
+	_, err := run(t, "redis.overview", srv, map[string]any{"db": 20})
+	if ve := view.AsError(err, "x"); ve.Code != "redis.db.range" {
+		t.Errorf("db 20 on a 16-database server = %+v, want redis.db.range", ve)
+	}
+}
+
 func TestAuthIsSentAsTheServerExpects(t *testing.T) {
 	srv := newFakeServer(t, map[string]string{
 		"AUTH alice s3cret": "+OK\r\n", "SELECT 3": "+OK\r\n", "INFO all": bulk(sampleInfo),
