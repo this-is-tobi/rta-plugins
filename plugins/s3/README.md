@@ -149,7 +149,7 @@ Copies server-side; the content never passes through this process. Refuses if --
 
 ## s3.object.get
 
-Writes the content to stdout with no framing; for the byte-exact copy, or anything binary, --out writes it to a file (0600) instead — a person's flag only, since a grant authorizes revealing the content, not choosing where on this machine it lands. An MCP caller always gets the content back in the response, bounded the same way http.get bounds a response body. --out never overwrites: a destination that already exists is refused, and a download that fails partway removes what it wrote.
+Writes an object that is text to stdout with no framing, and one that is not as a hex dump of its first 256 bytes; for the byte-exact copy, or anything binary, --out writes it to a file (0600) instead — a person's flag only, since a grant authorizes revealing the content, not choosing where on this machine it lands. Without --out, text up to 1 MiB is printed in full and a larger object is refused rather than cut short, and an MCP caller gets the same answer in the response. --out never overwrites: a destination that already exists is refused, and a download that fails partway removes what it wrote.
 
 | Field                | Value                                                                                                                                                                                                             |
 |----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
