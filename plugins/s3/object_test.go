@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -137,4 +138,77 @@ func TestEveryHandlerClassifiesItsFailures(t *testing.T) {
 			}
 		})
 	}
+}
+
+// An object that is not text is dumped rather than printed. Printed, the
+// renderer's control-character strip left an image as a few stray letters,
+// in a terminal and in what an agent was handed alike; text is still printed
+// exactly as stored.
+func TestObjectGetDumpsWhatIsNotText(t *testing.T) {
+	for _, tc := range []struct {
+		name, body, want string
+	}{
+		{"a PNG", "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR", "00000000  89 50 4e 47 0d 0a 1a 0a  00 00 00 0d 49 48 44 52  |.PNG........IHDR|"},
+		{"text", "line one\nline two\n", "line one\nline two\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body := objectGetBody(t, tc.body)
+			if tc.name == "text" && body != tc.want {
+				t.Errorf("text object = %q, want it exactly as stored", body)
+			}
+			if tc.name != "text" && !strings.Contains(body, tc.want) {
+				t.Errorf("binary object =\n%s\nwant a dump holding %q", body, tc.want)
+			}
+		})
+	}
+}
+
+// The dump is the answer an MCP caller gets too, and --out is Local, so a
+// bound that slipped to the inline one would hand an agent four mebibytes of
+// hex for a one-mebibyte image. The description promises the first 256
+// bytes: sixteen lines, and a header that says the rest was left out.
+func TestObjectGetDumpsOnlyTheFirst256Bytes(t *testing.T) {
+	body := objectGetBody(t, "\x89PNG\r\n\x1a\n"+strings.Repeat("\x00", 1024))
+	if header, _, _ := strings.Cut(body, "\n"); !strings.Contains(header, "the first 256 bytes shown") {
+		t.Errorf("header = %q, want it to say only the first 256 bytes are shown", header)
+	}
+	if lines := strings.Count(body, "\n"); lines != 16 {
+		t.Errorf("the dump has %d lines of hex, want 16", lines)
+	}
+}
+
+// The description is the MCP tool's, and an agent plans around the bounds it
+// states. It once borrowed http.get's, which shows 4 KiB of text and keeps a
+// cut prefix of a body past 1 MiB, where this prints text whole up to 1 MiB
+// and refuses anything larger. Each bound is read off the constant the
+// handler holds, so a change to either side fails here rather than in what
+// an agent was told.
+func TestObjectGetDescribesItsOwnBounds(t *testing.T) {
+	desc := s3ObjectGetCapability().Description
+	for _, want := range []string{
+		fmt.Sprintf("first %d bytes", maxDumped),
+		fmt.Sprintf("up to %d MiB", maxInline>>20),
+	} {
+		if !strings.Contains(desc, want) {
+			t.Errorf("the description never says %q, the bound the handler holds:\n%s", want, desc)
+		}
+	}
+}
+
+// objectGetBody is what s3.object.get prints for an object holding content.
+func objectGetBody(t *testing.T, content string) string {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The two headers minio-go refuses an object without.
+		w.Header().Set("Last-Modified", "Mon, 02 Jan 2006 15:04:05 GMT")
+		w.Header().Set("ETag", `"d41d8cd98f00b204e9800998ecf8427e"`)
+		_, _ = w.Write([]byte(content))
+	}))
+	defer srv.Close()
+	v, err := runObjectGet(t.Context(), reqFor(t, "s3.object.get", endpointOf(t, srv),
+		map[string]any{"bucket": "test-bucket", "key": "some/key"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return v.(view.Text).Body
 }

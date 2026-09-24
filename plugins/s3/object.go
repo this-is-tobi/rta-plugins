@@ -137,12 +137,14 @@ func s3ObjectGetCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID: "s3.object.get", Summary: "Download an object's content", Safety: plugin.Write, Idempotent: true,
 		NeedsGrant: true, Scope: "key",
-		Description: "Writes the content to stdout with no framing; for the byte-exact copy, or " +
+		Description: "Writes an object that is text to stdout with no framing, and one that is not as a " +
+			"hex dump of its first 256 bytes; for the byte-exact copy, or " +
 			"anything binary, --out writes it to a file (0600) instead — a person's flag only, " +
 			"since a grant authorizes revealing the content, not choosing where on this machine " +
-			"it lands. An MCP caller always gets the content back in the response, bounded the " +
-			"same way http.get bounds a response body. --out never overwrites: a destination that " +
-			"already exists is refused, and a download that fails partway removes what it wrote.",
+			"it lands. Without --out, text up to 1 MiB is printed in full and a larger object is " +
+			"refused rather than cut short, and an MCP caller gets the same answer in the response. " +
+			"--out never overwrites: a destination that already exists is refused, and a download " +
+			"that fails partway removes what it wrote.",
 		Run: runObjectGet,
 	}, boundBucketField("bucket the object is in"), keyField("object to reveal"),
 		plugin.Field{Name: "out", Type: plugin.Path, Local: true, Help: "write the content to this file instead of printing it (refused if it exists)"})
@@ -152,6 +154,12 @@ func s3ObjectGetCapability() plugin.Capability {
 // terminal or handing to an agent, not a general-purpose download path —
 // --out exists for the rest, and streams rather than buffering.
 const maxInline = 1 << 20 // 1 MiB
+
+// maxDumped mirrors http.get's bound on a body that is not text: a binary
+// object is identified by its first bytes — PNG, gzip and a DER certificate
+// all announce themselves in the first line — and --out is where the rest is
+// read, so the dump is sixteen lines rather than a mebibyte of hex.
+const maxDumped = 256
 
 func runObjectGet(ctx context.Context, req plugin.Request) (view.View, error) {
 	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
@@ -220,6 +228,13 @@ func runObjectGet(ctx context.Context, req plugin.Request) (view.View, error) {
 		if len(body) > maxInline {
 			return nil, view.Errorf("s3.object.toolarge", "%s/%s is larger than %d bytes", bucket, key, maxInline).
 				WithHint("use --out to write it to a file instead of printing it")
+		}
+		// An object is somebody else's bytes, and every renderer strips
+		// control characters on the way to a terminal, so an image or an
+		// archive printed as it came read as a few stray letters, and to an
+		// agent as the same letters with nothing saying anything was lost.
+		if !format.PlainText(body) {
+			return view.Text{Body: format.Dump(body, maxDumped)}, nil
 		}
 		return view.Text{Body: string(body)}, nil
 	})
