@@ -50,7 +50,13 @@ func connFields() []plugin.Field {
 			Local: true, Help: "ACL user to authenticate as (Redis 6+); empty for the default user"},
 		{Name: "password", Type: plugin.Secret, Local: true, EnvFallback: true,
 			Help: "password, or the ACL user's password"},
-		{Name: "db", Type: plugin.Int, Default: 0, Config: "db", Min: 0, Max: 15,
+		// No Max: 16 databases is only the default of the server's
+		// `databases` setting, which an operator can raise. A bound here would
+		// refuse a caller's --db 20 on a server that has it, and a host that
+		// clamps a configured number into range would quietly SELECT 15 — a
+		// different database, read as though it were the one configured. The
+		// server knows its own count; classify names its refusal.
+		{Name: "db", Type: plugin.Int, Default: 0, Config: "db", Min: 0,
 			Local: true, Help: "logical database to SELECT"},
 	}
 }
@@ -325,6 +331,10 @@ func classify(err error, addr string) *view.Error {
 			if strings.Contains(srv.msg, "unknown command") {
 				return view.Errorf("redis.unsupported", "%s: %s", addr, srv.msg).
 					WithHint("the server is older than the command, or a proxy in front of it does not pass it through")
+			}
+			if strings.Contains(srv.msg, "DB index is out of range") {
+				return view.Errorf("redis.db.range", "%s has no database with that index", addr).
+					WithHint("the server's `databases` setting counts them from 0 (16 unless raised) — pick --db below it")
 			}
 			if strings.Contains(srv.msg, "AUTH") && strings.Contains(srv.msg, "no password") {
 				return view.Errorf("redis.auth.unneeded", "%s has no password set, and one was given", addr).
