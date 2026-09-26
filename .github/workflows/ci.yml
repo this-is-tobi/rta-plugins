@@ -1,8 +1,9 @@
 # The gates `make ci` runs, on the machines a laptop is not.
 #
-# lint-commits and scan-secrets come from the shared workflow catalogue. The
-# plugin gates stay local: one job walking ten modules beats ten
-# catalogue calls that each pay a runner, a checkout and a cache restore.
+# lint-commits, scan-secrets and the changed-paths classifier come from the
+# shared workflow catalogue. The plugin gates stay local: one job walking the
+# modules in scope beats a catalogue call per module, each paying a runner, a
+# checkout and a cache restore.
 name: CI
 
 on:
@@ -45,38 +46,87 @@ jobs:
   # release-please pushes that pull request again after every merge to main.
   # Counted as code, each push checked all twelve modules on two operating
   # systems over a tree main had already passed.
+  #
+  # Prose is named file by file rather than as *.md, because two kinds of
+  # Markdown here are read by a gate. A plugin's README.md is its declaration
+  # rendered, and docs-drift fails when the committed page disagrees with the
+  # binary, so it is that module's code: counted as prose, a hand edit to
+  # one merged with docs-drift never run. The root README.md states each
+  # plugin's capability count and docs-check holds it to the source, so it
+  # is prose to every module and has a group of its own that sends it to the
+  # guards alone.
+  #
+  # Code under plugins/<name>/ touches that module; code anywhere else — the
+  # Makefile, .rta-version, .golangci.yml, index/, .github/ — is shared, and
+  # checks every module. The shell doing this lives in the catalogue, beside
+  # tests that feed it file names built to break it, and needs no filter
+  # action and no checkout.
   changes:
     name: Detect changed paths
-    runs-on: ubuntu-latest
+    uses: this-is-tobi/github-workflows/.github/workflows/classify-changes.yml@v0
     permissions:
       pull-requests: read
+    with:
+      PROSE_PATTERNS: >-
+        ["README.md", "AGENTS.md", "CLAUDE.md", "SECURITY.md", "plugins/*/CHANGELOG.md",
+        "LICENSE", "NOTICE", ".release-please-manifest.json"]
+      GROUPS: '{"readme": ["README.md"]}'
+      MODULE_ROOT: plugins/
+
+  # Which modules the gates below check: the ones a pull request's code
+  # touched, or every one when it touched something they share. A name the
+  # tree does not hold as a module — a plugin the pull request deletes, a
+  # directory under plugins/ that is not one — checks every module too,
+  # rather than handing make a name it cannot build.
+  #
+  # The classifier's names come from paths whoever opened the pull request
+  # chose, so no gate takes them from it. This job answers with names
+  # `make list` read off the tree, every one past name-check's
+  # lowercase-letters-digits-and-dashes rule, joined by spaces. Empty means
+  # no module is in scope: a pull request that changes only the root README,
+  # which the guards read and no module does.
+  scope:
+    name: Choose the modules to check
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' || fromJSON(needs.changes.outputs.groups).readme }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
-      code: ${{ steps.diff.outputs.code }}
-    env:
-      GH_TOKEN: ${{ github.token }}
+      plugins: ${{ steps.scope.outputs.plugins }}
     steps:
-    - name: Classify changed files
-      id: diff
+    - name: Checks-out repository
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Choose the modules
+      id: scope
+      env:
+        MODULES: ${{ needs.changes.outputs.modules }}
+        SHARED: ${{ needs.changes.outputs.shared }}
       run: |-
-        files=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" --paginate --jq '.[].filename')
-        code=false
-        while IFS= read -r f; do
-          [ -z "$f" ] && continue
-          case "$f" in
-            *.md|LICENSE|NOTICE|.release-please-manifest.json) ;;
-            *) code=true ;;
-          esac
-        done <<< "$files"
-        echo "changed files are docs-only: $([ "$code" = false ] && echo yes || echo no)"
-        echo "code=$code" >> "$GITHUB_OUTPUT"
+        all=$(make list)
+        plugins=$(jq -rn --argjson touched "$MODULES" --arg shared "$SHARED" --arg all "$all" '
+          ($all | split("\n") | map(select(. != ""))) as $all
+          | if $shared == "true" or ($touched - $all) != [] then $all else $touched end
+          | join(" ")')
+        echo "in scope: ${plugins:-no module}"
+        echo "plugins=$plugins" >> "$GITHUB_OUTPUT"
 
   # Both operating systems: a plugin is a binary and the sandbox that confines
   # it differs per OS. -k is fail-fast:false by other means — every module is
   # attempted and every failure named, not just the first.
+  #
+  # The guards read the whole tree whatever is in scope. They take seconds,
+  # and what docs-check compares spans modules: the root README's counts
+  # against every plugin's source. Building, vetting, testing, linting and
+  # docs-drift — the minutes — take the modules in scope, through the PLUGINS
+  # the Makefile narrows every per-module target by. A module nothing touched
+  # is the one main already passed; nothing it builds from moved.
   check:
-    name: Check every module
-    needs: changes
-    if: ${{ needs.changes.outputs.code == 'true' }}
+    name: Check the modules in scope
+    needs: scope
     strategy:
       fail-fast: false
       matrix:
@@ -103,27 +153,38 @@ jobs:
     # the rta that renders a README decides what the README says. The pin is
     # .rta-version, which bump-rta moves with the modules.
     - name: Install rta
+      if: ${{ needs.scope.outputs.plugins != '' }}
       run: go install "github.com/this-is-tobi/rta/cmd/rta@$(cat .rta-version)"
 
-    - name: Guards, then build, vet, test and format-check every module
-      run: make fmt-check name-check replace-check docs-check && make -k check && make docs-drift
+    - name: Guards over every module, then build, vet, test and format-check the modules in scope
+      env:
+        SCOPE: ${{ needs.scope.outputs.plugins }}
+      run: |-
+        make fmt-check name-check replace-check docs-check
+        if [ -z "$SCOPE" ]; then
+          echo "No module is in scope: the guards above are what this pull request can affect."
+          exit 0
+        fi
+        make -k check PLUGINS="$SCOPE" && make docs-drift PLUGINS="$SCOPE"
 
     # Once, not per operating system: the linters read source, and no plugin
     # module has a platform-specific file for a second pass to reach. It rides
     # this job rather than its own for the reason at the top of this file — a
     # separate job pays a runner, a checkout and a cache restore to run one
     # command against the tree already sitting here.
-    - name: Lint every module
-      if: ${{ matrix.os == 'ubuntu-latest' }}
-      run: make lint
+    - name: Lint the modules in scope
+      if: ${{ matrix.os == 'ubuntu-latest' && needs.scope.outputs.plugins != '' }}
+      env:
+        SCOPE: ${{ needs.scope.outputs.plugins }}
+      run: make lint PLUGINS="$SCOPE"
 
   # Every target a release ships, compiled to /dev/null: what this checks is
   # that the build constraints resolve on every platform, not that the binary
   # runs there.
   cross:
     name: Cross-compile every target
-    needs: changes
-    if: ${{ needs.changes.outputs.code == 'true' }}
+    needs: scope
+    if: ${{ needs.scope.outputs.plugins != '' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -141,7 +202,9 @@ jobs:
         cache-dependency-path: plugins/*/go.sum
 
     - name: Cross-compile
-      run: make cross
+      env:
+        SCOPE: ${{ needs.scope.outputs.plugins }}
+      run: make cross PLUGINS="$SCOPE"
 
   # These plugins are what an agent reaches a database through. A credential
   # in their own history would be the kind of thing rta exists to find in
@@ -163,10 +226,14 @@ jobs:
   # only shape the Security tab accepts since July 2025; the category rides
   # inside the file (automationDetails.id) because the upload API rejects it
   # as a parameter.
+  #
+  # The modules in scope, not all twelve: an untouched module's go.sum is the
+  # one main already scanned, and scan.yml scans every module each week for
+  # what was disclosed since.
   scan-deps:
-    name: Scan every module's dependencies
-    needs: changes
-    if: ${{ needs.changes.outputs.code == 'true' }}
+    name: Scan the dependencies of the modules in scope
+    needs: scope
+    if: ${{ needs.scope.outputs.plugins != '' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -189,12 +256,14 @@ jobs:
       # renovate: datasource=go depName=golang.org/x/vuln/cmd/govulncheck
       run: go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
 
-    - name: Scan every module
+    - name: Scan the modules in scope
       id: scan
+      env:
+        SCOPE: ${{ needs.scope.outputs.plugins }}
       run: |-
         mkdir -p "$RUNNER_TEMP/sarif"
         failed=""
-        for m in $(make list); do
+        for m in $(make list PLUGINS="$SCOPE"); do
           echo "==> plugins/$m"
           (cd "plugins/$m" && govulncheck ./...) || failed="$failed plugins/$m"
           (cd "plugins/$m" && govulncheck -format sarif ./...) > "$RUNNER_TEMP/sarif/$m.raw" || { rm -f "$RUNNER_TEMP/sarif/$m.raw"; continue; }
@@ -238,6 +307,7 @@ jobs:
     needs:
     - lint-commits
     - changes
+    - scope
     - check
     - cross
     - scan-secrets
