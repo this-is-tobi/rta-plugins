@@ -1,10 +1,11 @@
 # What a pull request cannot see: a vulnerability published after the last
-# merge. ci.yml scans every module's dependencies on every pull request, and
-# canary.yml builds every plugin against rta main nightly, but nothing ran
-# govulncheck between pull requests — a CVE disclosed against pgx, or
-# against the SDK every plugin pins, waited for the next code change here to
-# be noticed. Same job as ci.yml's scan-deps, on a clock, reporting to the
-# security tab; gitleaks beside it for the same reason.
+# merge. ci.yml scans the dependencies of the modules each pull request
+# touches, and canary.yml builds every plugin against rta main nightly, but
+# nothing ran govulncheck between pull requests — a CVE disclosed against
+# pgx, or against the SDK every plugin pins, waited for the next code change
+# here to be noticed. Same job as ci.yml's scan-deps, over every module, on a
+# clock, reporting to the security tab; gitleaks beside it for the same
+# reason. It is also what lets ci.yml leave an untouched module unscanned.
 name: Scan
 
 on:
