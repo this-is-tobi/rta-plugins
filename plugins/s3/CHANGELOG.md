@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.16](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.3.15...plugins/s3/v0.3.16) (2026-09-26)
+
+
+### Bug Fixes
+
+* **s3:** an object that is not text is dumped rather than printed as stray letters ([caebb55](https://github.com/this-is-tobi/rta-plugins/commit/caebb5505562a3e889f14e5afa5f2d6179c8b56a))
+
 ## [0.3.15](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.3.14...plugins/s3/v0.3.15) (2026-09-26)
 
 
