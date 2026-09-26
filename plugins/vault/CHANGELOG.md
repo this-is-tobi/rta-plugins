@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.13](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.4.12...plugins/vault/v0.4.13) (2026-09-26)
+
+
+### Code Refactoring
+
+* **vault:** say that unknownMount's silence is deliberate ([0683a19](https://github.com/this-is-tobi/rta-plugins/commit/0683a197c33f99dc5d8a7721b83f25b778eca7d8))
+* **vault:** take the tilde rule from the SDK rather than keeping a copy ([2249703](https://github.com/this-is-tobi/rta-plugins/commit/22497032970e84c1848e5378a1914d066ae4d869))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.27.0 ([edbb623](https://github.com/this-is-tobi/rta-plugins/commit/edbb623be49fbb2eb4fe0d64f120a05a33447375))
+
 ## [0.4.12](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.4.11...plugins/vault/v0.4.12) (2026-09-22)
 
 
