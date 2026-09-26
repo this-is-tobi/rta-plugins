@@ -243,9 +243,16 @@ jobs:
     - scan-secrets
     - scan-deps
     steps:
+    # The context arrives through env rather than pasted into the script
+    # between single quotes: it carries every job's outputs, and one quote in
+    # any of them would end that string and run the rest as shell — in the
+    # job whose answer is the check that protects the branch. A job output
+    # built from what a pull request names, a directory under plugins/ above
+    # all, is exactly where such a quote would come from.
     - name: Check status of all required jobs
+      env:
+        NEEDS_CONTEXT: ${{ toJson(needs) }}
       run: |-
-        NEEDS_CONTEXT='${{ toJson(needs) }}'
         JOB_IDS=$(echo "$NEEDS_CONTEXT" | jq -r 'keys[]')
         for JOB_ID in $JOB_IDS; do
           RESULT=$(echo "$NEEDS_CONTEXT" | jq -r ".[\"$JOB_ID\"].result")
