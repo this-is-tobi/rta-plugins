@@ -7,39 +7,39 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: s3
-version: 0.3.14
+version: 0.3.15
 summary: "S3-compatible object storage: buckets, objects, presigned URLs and policy"
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/s3
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.3.14/rta-plugin-s3_0.3.14_darwin_amd64.tar.gz
-  sha256: 71507a10f1ca3537179ccdeea6e82e8195f15e7cf6b522594d2f4c95ec57775a
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.3.15/rta-plugin-s3_0.3.15_darwin_amd64.tar.gz
+  sha256: e410d5b7cf834874957812ac8213735a5fe0214a08d9d777e67aed028fa7606e
   bin: rta-plugin-s3
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.3.14/rta-plugin-s3_0.3.14_darwin_arm64.tar.gz
-  sha256: 242e638850ae6091fe34f0f51ed9b297c24268915f2c38621ec0e7a05146b4de
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.3.15/rta-plugin-s3_0.3.15_darwin_arm64.tar.gz
+  sha256: 69125013813a3a79c8815a62fd84e19f93f6c40c308aa9470d23eae8c9caee87
   bin: rta-plugin-s3
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.3.14/rta-plugin-s3_0.3.14_linux_amd64.tar.gz
-  sha256: fd7bf34861b12f8da29015785a41bd704b380ec583ce2d15dc18f5efca277e08
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.3.15/rta-plugin-s3_0.3.15_linux_amd64.tar.gz
+  sha256: 6c036d408a526bae20d850872c386112a8b59bb80eab789d0ba597e668166787
   bin: rta-plugin-s3
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.3.14/rta-plugin-s3_0.3.14_linux_arm64.tar.gz
-  sha256: 6e67ff564352d850be16cf2e01335edb8dc4299f005c69e3526252a70e8beedd
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.3.15/rta-plugin-s3_0.3.15_linux_arm64.tar.gz
+  sha256: d234fe6061570f206a3a65a81600d201a796268160cd564024201581fb501ab7
   bin: rta-plugin-s3
 - os: windows
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.3.14/rta-plugin-s3_0.3.14_windows_amd64.tar.gz
-  sha256: 394a955fa99a37af46eeba638fafa750fa42716a0fc9ace9940486c7723cde25
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.3.15/rta-plugin-s3_0.3.15_windows_amd64.tar.gz
+  sha256: 3235fda87f88798abb0097d582f4b8f9baf781d97255e8064cd89caaa98e3a50
   bin: rta-plugin-s3.exe
 - os: windows
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.3.14/rta-plugin-s3_0.3.14_windows_arm64.tar.gz
-  sha256: f46da7f68029e94cd5b9babe7d7da02de17c6471c71c2b1656a42c31ef106e31
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.3.15/rta-plugin-s3_0.3.15_windows_arm64.tar.gz
+  sha256: b43aca850e88286efb1927b1f0bc642ab0c1f91f89b319d53bece98c94fd05df
   bin: rta-plugin-s3.exe
 capabilities:
 - id: s3.overview
