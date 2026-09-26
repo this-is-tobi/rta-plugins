@@ -102,7 +102,7 @@ Write, the same as builtin/kv's kv.get, for the same reason: revealing a secret'
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
 | input:mount          | string, default secret, completes, local (never offered to MCP callers), from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                     |
 | input:path           | string, required, completes — the secret's path within the mount                                                                                                                        |
-| input:version        | int, default 0 — a specific version, as vault.kv.history numbers them; 0 is the current one                                                                                             |
+| input:version        | int, default 0, a value of at least 0 — a specific version, as vault.kv.history numbers them; 0 is the current one                                                                      |
 | input:address        | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
 | input:namespace      | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
 | input:token          | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
@@ -128,7 +128,7 @@ The structured equivalent of `vault kv metadata get`: every version the engine s
 | input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
 | input:token     | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.kv.history\`, or + on it in the TUI, puts it there, re-run every few seconds                     |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.kv.history --set path=…\` puts it there, re-run every few seconds                                |
 
 ## vault.kv.list
 
@@ -193,7 +193,7 @@ Bounded in both directions, and it says when it stopped. A folder the token may 
 | profiles        | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
 | input:mount     | string, default secret, completes, local (never offered to MCP callers), from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                     |
 | input:path      | string, default , completes — start here; empty walks the whole mount                                                                                                                   |
-| input:depth     | int, default 4, from config plugins.vault.depth — how many levels to expand                                                                                                             |
+| input:depth     | int, default 4, a value from 1 to 20, from config plugins.vault.depth — how many levels to expand                                                                                       |
 | input:address   | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
 | input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
 | input:token     | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
@@ -241,7 +241,7 @@ The structured equivalent of `vault lease lookup`: when a leased secret (a datab
 | input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
 | input:token     | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.lease.show\`, or + on it in the TUI, puts it there, re-run every few seconds                     |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.lease.show --set id=…\` puts it there, re-run every few seconds                                  |
 
 ## vault.overview
 
@@ -279,7 +279,7 @@ Whether this Vault is worth talking to at all, and what the configured token can
 | input:namespace | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
 | input:token     | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.policy.get\`, or + on it in the TUI, puts it there, re-run every few seconds                     |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.policy.get --set name=…\` puts it there, re-run every few seconds                                |
 
 ## vault.policy.list
 
