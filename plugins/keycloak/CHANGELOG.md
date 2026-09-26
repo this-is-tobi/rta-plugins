@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.8](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.1.7...plugins/keycloak/v0.1.8) (2026-09-26)
+
+
+### Code Refactoring
+
+* **keycloak:** a tagged switch on the count ([f743aef](https://github.com/this-is-tobi/rta-plugins/commit/f743aef33808c5ee1e214266609b2aa689ceed17))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.27.0 ([edbb623](https://github.com/this-is-tobi/rta-plugins/commit/edbb623be49fbb2eb4fe0d64f120a05a33447375))
+
 ## [0.1.7](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.1.6...plugins/keycloak/v0.1.7) (2026-09-22)
 
 

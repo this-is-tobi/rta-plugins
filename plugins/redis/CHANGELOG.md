@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.16](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.15...plugins/redis/v0.1.16) (2026-09-26)
+
+
+### Bug Fixes
+
+* **redis:** a database past the default sixteen is the server's to refuse ([7c899bc](https://github.com/this-is-tobi/rta-plugins/commit/7c899bcf150f53e82b9141f5d94c44aca6ff6610))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.27.0 ([edbb623](https://github.com/this-is-tobi/rta-plugins/commit/edbb623be49fbb2eb4fe0d64f120a05a33447375))
+
 ## [0.1.15](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.14...plugins/redis/v0.1.15) (2026-09-22)
 
 

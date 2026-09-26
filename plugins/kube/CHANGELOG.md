@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.4.1...plugins/kube/v0.4.2) (2026-09-26)
+
+
+### Bug Fixes
+
+* **kube:** the directory a minted token is written into is not world-listable ([f63261a](https://github.com/this-is-tobi/rta-plugins/commit/f63261ada74a630e2776cc63387cddc10253ec32))
+
+
+### Code Refactoring
+
+* **kube:** answer two findings where the linter reads the code wrong ([449bce0](https://github.com/this-is-tobi/rta-plugins/commit/449bce000afabd636cf378fe247ee16f44bb4cee))
+* **kube:** take the tilde rule from the SDK rather than keeping a copy ([8834101](https://github.com/this-is-tobi/rta-plugins/commit/88341019e3af7612e193fca77a455cba37663624))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.27.0 ([edbb623](https://github.com/this-is-tobi/rta-plugins/commit/edbb623be49fbb2eb4fe0d64f120a05a33447375))
+
 ## [0.4.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.4.0...plugins/kube/v0.4.1) (2026-09-22)
 
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.15](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.3.14...plugins/etcd/v0.3.15) (2026-09-26)
+
+
+### Code Refactoring
+
+* **etcd:** take the tilde rule from the SDK rather than keeping a copy ([0191d44](https://github.com/this-is-tobi/rta-plugins/commit/0191d445cc97f3fff5c62b0a327b8c9e535215e4))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.27.0 ([edbb623](https://github.com/this-is-tobi/rta-plugins/commit/edbb623be49fbb2eb4fe0d64f120a05a33447375))
+
 ## [0.3.14](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.3.13...plugins/etcd/v0.3.14) (2026-09-22)
 
 

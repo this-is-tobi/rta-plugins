@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.15](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.14...plugins/qdrant/v0.3.15) (2026-09-26)
+
+
+### Bug Fixes
+
+* **qdrant:** point ids, payload numbers and the page cursor are shown as Qdrant sent them ([888219a](https://github.com/this-is-tobi/rta-plugins/commit/888219ab5352a160f37e5797432753f97ac36e5b))
+
+
+### Code Refactoring
+
+* **qdrant:** append a slice rather than looping over it ([f492880](https://github.com/this-is-tobi/rta-plugins/commit/f49288070928699419b46a90c471a3d8720f3f17))
+* **qdrant:** take the tilde rule from the SDK rather than keeping a copy ([54f5525](https://github.com/this-is-tobi/rta-plugins/commit/54f55253dd60a189c7240c182789c288a8121814))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.27.0 ([edbb623](https://github.com/this-is-tobi/rta-plugins/commit/edbb623be49fbb2eb4fe0d64f120a05a33447375))
+
 ## [0.3.14](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.13...plugins/qdrant/v0.3.14) (2026-09-22)
 
 

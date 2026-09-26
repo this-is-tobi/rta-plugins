@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.15](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.3.14...plugins/s3/v0.3.15) (2026-09-26)
+
+
+### Code Refactoring
+
+* **s3:** take the tilde rule from the SDK rather than keeping a copy ([c145d00](https://github.com/this-is-tobi/rta-plugins/commit/c145d004fcfed1345204a9b0d3c0869db1904241))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.27.0 ([edbb623](https://github.com/this-is-tobi/rta-plugins/commit/edbb623be49fbb2eb4fe0d64f120a05a33447375))
+
 ## [0.3.14](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.3.13...plugins/s3/v0.3.14) (2026-09-22)
 
 

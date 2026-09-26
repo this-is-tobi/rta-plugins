@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.15](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.3.14...plugins/mysql/v0.3.15) (2026-09-26)
+
+
+### Code Refactoring
+
+* **mysql:** take the tilde rule from the SDK rather than keeping a copy ([f49a619](https://github.com/this-is-tobi/rta-plugins/commit/f49a6199a04ec3f6b3d0e928de3bd4a94c9b8174))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.27.0 ([edbb623](https://github.com/this-is-tobi/rta-plugins/commit/edbb623be49fbb2eb4fe0d64f120a05a33447375))
+
 ## [0.3.14](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.3.13...plugins/mysql/v0.3.14) (2026-09-22)
 
 
