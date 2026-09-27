@@ -43,14 +43,15 @@
 - 			"answers queries, from its own side of the partition, and nothing about the resulting " +
 - 			"file would say so afterwards.\n\n" +
 - 			"MySQL's client is a fork, not an alias, so the flags differ from the mysql " +
-- 			"plugin's by necessity: TLS through the --ssl family rather than --ssl-mode, and no " +
-- 			"--set-gtid-purged or --no-tablespaces, which this client does not have — GTID stays " +
+- 			"plugin's by necessity: TLS through the `mysqldump --ssl` family rather than " +
+- 			"`mysqldump --ssl-mode`, and no `mysqldump --set-gtid-purged` or `mysqldump --no-tablespaces`, " +
+- 			"which this client does not have — GTID stays " +
 - 			"out by default here, which is what that spelling has to ask for over there. A flag " +
 - 			"the installed client does not know is refused by name, since the likeliest cause is " +
 - 			"MySQL's own tools answering to it.\n\n" +
 + 			"snapshot, and the receipt counts the non-transactional tables that are read live " +
 + 			"outside it rather than claiming a guarantee they cannot have. GTID state is not " +
-+ 			"carried (--set-gtid-purged=OFF): this file seeds a database, not a replica — " +
++ 			"carried (`mysqldump --set-gtid-purged=OFF`): this file seeds a database, not a replica — " +
 + 			"carrying it makes the restore demand SUPER and fail on any server that is not " +
 + 			"brand new.\n\n" +
 - 				"Install the MySQL client tools — `brew install mysql` or " +
@@ -61,7 +62,7 @@
 + 		// assumed: mariadb-dump 11.4 has `--system=name` ("Any combination of:
 - 			"data and no account able to read it. `mysqldump --system=users` is the " +
 - 			"other half"},
-+ 			"data and no account able to read it. MySQL has no --system flag for them: " +
++ 			"data and no account able to read it. mysqldump has no system-tables option for them: " +
 + 			"`mysqldump mysql` is the other half"},
 - 	// galeraStatus is wsrep_cluster_status when this server is a Galera node
 - 	// and empty when it is not, which is the fact this plugin exists to know
@@ -142,7 +143,7 @@
 - 			WithHint("this is the server refusing a privilege, not rta — check SHOW GRANTS for " +
 - 				"the user this dump connects as")
 + 			WithHint("this is the server refusing a privilege, not rta — and not the tablespace " +
-+ 				"wall, which --no-tablespaces already avoids. Check SHOW GRANTS")
++ 				"wall, which `mysqldump --no-tablespaces` already avoids. Check SHOW GRANTS")
 - 		// The version-skew failure, and here it is the likelier one: this
 - 		// plugin passes MySQL's --ssl family, so a *MySQL* client wearing
 - 		// the mysqldump name — the shape on a host with only MySQL's tools
