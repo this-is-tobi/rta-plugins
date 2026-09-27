@@ -345,7 +345,7 @@ func snapshotReceipt(path string, size int64, took time.Duration,
 			"URLs and TLS material. The restore mints a new cluster ID and takes the topology " +
 			"from its own flags, so keep the member list beside this file"},
 		view.Pair{Key: "restore with", Value: fmt.Sprintf(
-			"etcdutl snapshot restore %s --data-dir <new data dir>, using etcdutl from etcd %s "+
+			"`etcdutl snapshot restore %s --data-dir <new data dir>`, using etcdutl from etcd %s "+
 				"or newer — the storage format this file is in",
 			path, src.restoreVersion(streamedVersion))},
 		view.Pair{Key: "restore is offline", Value: "stop etcd, put that directory where the " +
