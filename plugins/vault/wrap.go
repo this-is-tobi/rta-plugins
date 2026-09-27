@@ -7,6 +7,7 @@ import (
 
 	vaultapi "github.com/hashicorp/vault/api"
 
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -65,8 +66,8 @@ func runWrapSet(ctx context.Context, req plugin.Request) (view.View, error) {
 		// vault.wrap.get already previews rather than consuming; this is the
 		// same rule on the other half of the pair.
 		if req.DryRun {
-			return view.Text{Body: fmt.Sprintf("would wrap %d field(s) into a single-use token valid for %s",
-				len(data), ttl)}, nil
+			return view.Text{Body: fmt.Sprintf("would wrap %s into a single-use token valid for %s",
+				format.CountOf(len(data), "field"), ttl)}, nil
 		}
 		client.SetWrappingLookupFunc(func(operation, path string) string { return ttl })
 		secret, err := client.Logical().WriteWithContext(ctx, "sys/wrapping/wrap", data)

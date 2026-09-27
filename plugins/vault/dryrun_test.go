@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
+	"github.com/this-is-tobi/rta/pkg/view"
 )
 
 // The assertion here is on the wire, not on the filesystem. The conformance
@@ -112,6 +113,32 @@ func TestNoMutatingCapabilityActsUnderDryRun(t *testing.T) {
 					names = append(names, e.Name())
 				}
 				t.Errorf("--dry-run wrote %v", names)
+			}
+		})
+	}
+}
+
+// A secret of one field is the common case, and both previews of a write
+// count it: "with 1 field", not the "1 field(s)" placeholder they printed.
+func TestAPreviewOfOneFieldCountsItInTheSingular(t *testing.T) {
+	for _, tc := range []struct {
+		id     string
+		values map[string]any
+		want   string
+	}{
+		{"vault.kv.set", map[string]any{"path": "app/db", "data": []string{"password=s3cret"}},
+			"would set secret/app/db with 1 field "},
+		{"vault.wrap.set", map[string]any{"data": []string{"password=s3cret"}},
+			"would wrap 1 field into "},
+	} {
+		t.Run(tc.id, func(t *testing.T) {
+			srv, _ := recordingVault(t, dryRunRoutes)
+			v, err := capabilityByID(t, tc.id).Run(t.Context(), dryReq(t, tc.id, srv.URL, tc.values))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if body := v.(view.Text).Body; !strings.HasPrefix(body, tc.want) {
+				t.Errorf("preview = %q, want it to start %q", body, tc.want)
 			}
 		})
 	}
