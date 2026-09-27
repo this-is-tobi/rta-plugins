@@ -455,11 +455,6 @@ dev: ## Point a workspace at RTA_DIR (default ../rta) for an SDK edit loop
 dev-off: ## Remove the workspace; builds pin go.mod's rta again
 	@rm -f go.work go.work.sum && echo "go.work removed"
 
-# Does the SDK still fit these plugins? go.mod's pin means a breaking change
-# in rta breaks nothing here until somebody bumps — the right v0 semantics
-# and the wrong signal for a project re-architecting before v1. This builds
-# and tests every plugin against rta at RTA_REF instead, and a red run says
-# "the SDK moved under you" without blocking a release.
 # The SDK bump, in one move: every go.mod, every go.sum, and .rta-version —
 # the pin the workflows `go install` the manifest generator (cd.yml) and the
 # README generator (ci.yml) from. Those are pinned on purpose (the rta that
@@ -483,6 +478,11 @@ bump-rta: name-check ## Pin every module and .rta-version to rta RTA_VERSION (e.
 	done
 	@printf '%s\n' "$(RTA_VERSION)" > .rta-version && echo "==> .rta-version ($(RTA_VERSION))"
 
+# Does the SDK still fit these plugins? go.mod's pin means a breaking change
+# in rta breaks nothing here until somebody bumps — the right v0 semantics
+# and the wrong signal for a project re-architecting before v1. This builds
+# and tests every plugin against rta at RTA_REF instead, and a red run says
+# "the SDK moved under you" without blocking a release.
 canary: name-check ## Check every plugin against rta at RTA_REF (default main), without touching go.mod
 	@tmp=$$(mktemp -d); \
 	git clone --quiet --depth 1 --branch $(RTA_REF) https://github.com/this-is-tobi/rta "$$tmp/rta" || exit 1; \
