@@ -32,7 +32,7 @@ func userListCapability() plugin.Capability {
 		Idempotent: true,
 		Description: "One row per user: username, email, enabled, email verified, whether an OTP " +
 			"is configured, and when the account was created. Service accounts are not users " +
-			"here — Keycloak lists them under their client. Bounded by --max; a search narrows " +
+			"here — Keycloak lists them under their client. Bounded by `max`; a search narrows " +
 			"by username, email or name.",
 		Run: runUserList,
 	},
@@ -153,7 +153,8 @@ func (s *session) user(ctx context.Context, name string) (userRep, *view.Error) 
 		}
 	}
 	return userRep{}, view.Errorf("keycloak.user.unknown", "no user %q in realm %s", name, s.realm).
-		WithHint("`rta keycloak user list " + name + "` searches by username, email and name")
+		WithHint("`" + s.req.Surface().Call("keycloak.user.list", plugin.Arg{Name: "search", Value: name, Positional: true}) +
+			"` searches by username, email and name")
 }
 
 func userProfile(u userRep) view.View {

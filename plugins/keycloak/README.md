@@ -34,7 +34,7 @@ Under `plugins: keycloak:` in rta's configuration, or in a profile's `set:`. An 
 
 ## keycloak.audit
 
-Reads the realm and grades what it finds: whether a second factor is required or merely offered and how many users have one; brute-force detection; the password policy; every client's grants, redirect URIs, origins, PKCE and service-account roles; token and session lifetimes and refresh-token rotation; whether login and admin events are recorded; SSL requirement, self-registration, the master realm and the bootstrap admin; and who holds realm-admin. Every finding cites an OWASP Top 10 category and CWE, or RFC 9700 (OAuth 2.0 Security BCP), or the Keycloak guide. Compact by default; --detail is the work list, grouped, with the references at the end.
+Reads the realm and grades what it finds: whether a second factor is required or merely offered and how many users have one; brute-force detection; the password policy; every client's grants, redirect URIs, origins, PKCE and service-account roles; token and session lifetimes and refresh-token rotation; whether login and admin events are recorded; SSL requirement, self-registration, the master realm and the bootstrap admin; and who holds realm-admin. Every finding cites an OWASP Top 10 category and CWE, or RFC 9700 (OAuth 2.0 Security BCP), or the Keycloak guide. Compact by default; `detail` is the work list, grouped, with the references at the end.
 
 | Field               | Value                                                                                                                                                                                                         |
 |---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -100,7 +100,7 @@ How one application authenticates: kind and protocol, the flows enabled, every r
 
 ## keycloak.event.admin
 
-The realm's administrative change log: each operation, the resource it touched, the path to it, and the account and address it came from. What an incident wants first when a client or a role appeared that nobody remembers adding. Bound by --max.
+The realm's administrative change log: each operation, the resource it touched, the path to it, and the account and address it came from. What an incident wants first when a client or a role appeared that nobody remembers adding. Bound by `max`.
 
 | Field               | Value                                                                                                                                                                                                         |
 |---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -122,7 +122,7 @@ The realm's administrative change log: each operation, the resource it touched, 
 
 ## keycloak.event.list
 
-The realm's login event log, newest first — LOGIN, LOGIN_ERROR, LOGOUT, CODE_TO_TOKEN, REFRESH_TOKEN and the rest — with the user, the client and the address each came from. Filter by --type, --user or --client; bound by --max. Empty when the realm does not record events, which `rta keycloak audit` flags.
+The realm's login event log, newest first — LOGIN, LOGIN_ERROR, LOGOUT, CODE_TO_TOKEN, REFRESH_TOKEN and the rest — with the user, the client and the address each came from. Filter by `type`, `user` or `client`; bound by `max`. Empty when the realm does not record events, which `keycloak.audit` flags.
 
 | Field               | Value                                                                                                                                                                                                                                                          |
 |---------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -147,7 +147,7 @@ The realm's login event log, newest first — LOGIN, LOGIN_ERROR, LOGOUT, CODE_T
 
 ## keycloak.flow.list
 
-Every top-level flow, built-in or custom, with the binding that puts it in force: browser, direct grant, registration, reset credentials, client authentication. A custom flow that is bound nowhere is defined but does nothing. `keycloak flow show` opens one.
+Every top-level flow, built-in or custom, with the binding that puts it in force: browser, direct grant, registration, reset credentials, client authentication. A custom flow that is bound nowhere is defined but does nothing. `keycloak.flow.show` opens one.
 
 | Field               | Value                                                                                                                                                                                                         |
 |---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -179,7 +179,7 @@ The executions of one flow, nested the way the console nests them. Read it for t
 | cli                 | rta keycloak flow show \<flow> \[--url \<string>\] \[--realm \<string>\] \[--auth-realm \<string>\] \[--client-id \<string>\] \[--client-secret \<secret>\] \[--ca-file \<string>\]                           |
 | mcp-tool            | keycloak_flow_show                                                                                                                                                                                            |
 | profiles            | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow keycloak --profile \<name>\`                                                                        |
-| input:flow          | string, required, completes — the flow's alias, as \`keycloak flow list\` shows it                                                                                                                            |
+| input:flow          | string, required, completes — the flow's alias, as \`keycloak.flow.list\` shows it                                                                                                                            |
 | input:url           | string, default http://127.0.0.1:8080, local (never offered to MCP callers), from config plugins.keycloak.url, filled by a profile's tunnel (the forward's url) — Keycloak base URL — the part before /realms |
 | input:realm         | string, default master, local (never offered to MCP callers), from config plugins.keycloak.realm — the realm to read                                                                                          |
 | input:auth-realm    | string, default , local (never offered to MCP callers), from config plugins.keycloak.auth-realm — the realm the client lives in, when it is not the one being read                                            |
@@ -190,7 +190,7 @@ The executions of one flow, nested the way the console nests them. Read it for t
 
 ## keycloak.overview
 
-Whether this realm is worth talking to and what state it is in: user and client counts, brute-force detection, SSL requirement, self-registration, whether login and admin events are recorded, and the flow each login goes through. The server version when the client is allowed to see it — only a master-realm client is. --detail adds the client list, the flows and the active sessions per client. For the grade, `rta keycloak audit`.
+Whether this realm is worth talking to and what state it is in: user and client counts, brute-force detection, SSL requirement, self-registration, whether login and admin events are recorded, and the flow each login goes through. The server version when the client is allowed to see it — only a master-realm client is. `detail` adds the client list, the flows and the active sessions per client. For the grade, `keycloak.audit`.
 
 | Field               | Value                                                                                                                                                                                                         |
 |---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -212,7 +212,7 @@ Whether this realm is worth talking to and what state it is in: user and client 
 
 ## keycloak.role.list
 
-Realm roles by default; --client names a client whose own roles to list instead (realm-management is the one that holds every administrative role). A composite role grants others when assigned, which is what makes it worth a column.
+Realm roles by default; `client` names a client whose own roles to list instead (realm-management is the one that holds every administrative role). A composite role grants others when assigned, which is what makes it worth a column.
 
 | Field               | Value                                                                                                                                                                                                         |
 |---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -234,7 +234,7 @@ Realm roles by default; --client names a client whose own roles to list instead 
 
 ## keycloak.session.list
 
-By default the realm's session counts per client, active and offline — the one-line answer to "is anyone using this". --user lists one account's open sessions with their address, start and last activity; --client lists the sessions open against one application. Sessions are described, never revoked: that is a write this plugin does not have.
+By default the realm's session counts per client, active and offline — the one-line answer to "is anyone using this". `user` lists one account's open sessions with their address, start and last activity; `client` lists the sessions open against one application. Sessions are described, never revoked: that is a write this plugin does not have.
 
 | Field               | Value                                                                                                                                                                                                                                       |
 |---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -258,7 +258,7 @@ By default the realm's session counts per client, active and offline — the one
 
 ## keycloak.user.list
 
-One row per user: username, email, enabled, email verified, whether an OTP is configured, and when the account was created. Service accounts are not users here — Keycloak lists them under their client. Bounded by --max; a search narrows by username, email or name.
+One row per user: username, email, enabled, email verified, whether an OTP is configured, and when the account was created. Service accounts are not users here — Keycloak lists them under their client. Bounded by `max`; a search narrows by username, email or name.
 
 | Field               | Value                                                                                                                                                                                                         |
 |---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|

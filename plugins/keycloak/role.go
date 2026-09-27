@@ -15,7 +15,7 @@ func roleListCapability() plugin.Capability {
 		Summary:    "The realm's roles, or one client's, and which are composites",
 		Safety:     plugin.Read,
 		Idempotent: true,
-		Description: "Realm roles by default; --client names a client whose own roles to list " +
+		Description: "Realm roles by default; `client` names a client whose own roles to list " +
 			"instead (realm-management is the one that holds every administrative role). A " +
 			"composite role grants others when assigned, which is what makes it worth a column.",
 		Run: runRoleList,

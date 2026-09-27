@@ -17,8 +17,8 @@ func sessionListCapability() plugin.Capability {
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "By default the realm's session counts per client, active and offline — the " +
-			"one-line answer to \"is anyone using this\". --user lists one account's open " +
-			"sessions with their address, start and last activity; --client lists the sessions " +
+			"one-line answer to \"is anyone using this\". `user` lists one account's open " +
+			"sessions with their address, start and last activity; `client` lists the sessions " +
 			"open against one application. Sessions are described, never revoked: that is a " +
 			"write this plugin does not have.",
 		Run: runSessionList,

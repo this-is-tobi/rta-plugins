@@ -24,7 +24,7 @@ func flowListCapability() plugin.Capability {
 		Idempotent: true,
 		Description: "Every top-level flow, built-in or custom, with the binding that puts it in " +
 			"force: browser, direct grant, registration, reset credentials, client authentication. " +
-			"A custom flow that is bound nowhere is defined but does nothing. `keycloak flow show` " +
+			"A custom flow that is bound nowhere is defined but does nothing. `keycloak.flow.show` " +
 			"opens one.",
 		Run: runFlowList,
 	})
@@ -85,7 +85,7 @@ func flowShowCapability() plugin.Capability {
 		Run: runFlowShow,
 	},
 		plugin.Field{Name: "flow", Type: plugin.String, Positional: true, Required: true,
-			Help: "the flow's alias, as `keycloak flow list` shows it", Live: true, Suggest: suggestFlows},
+			Help: "the flow's alias, as `keycloak.flow.list` shows it", Live: true, Suggest: suggestFlows},
 	)
 }
 
@@ -104,7 +104,7 @@ func (s *session) executions(ctx context.Context, alias string) ([]executionRep,
 	if verr := s.get(ctx, "authentication/flows/"+segment(strings.TrimSpace(alias))+"/executions", nil, &execs); verr != nil {
 		if verr.Code == "keycloak.notfound" {
 			return nil, view.Errorf("keycloak.flow.unknown", "no flow %q in realm %s", alias, s.realm).
-				WithHint("`rta keycloak flow list` shows the aliases")
+				WithHint(s.req.Surface().CapabilityName("keycloak.flow.list") + " shows the aliases")
 		}
 		return nil, verr
 	}

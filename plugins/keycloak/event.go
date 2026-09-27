@@ -23,8 +23,8 @@ func eventListCapability() plugin.Capability {
 		Idempotent: true,
 		Description: "The realm's login event log, newest first — LOGIN, LOGIN_ERROR, LOGOUT, " +
 			"CODE_TO_TOKEN, REFRESH_TOKEN and the rest — with the user, the client and the " +
-			"address each came from. Filter by --type, --user or --client; bound by --max. " +
-			"Empty when the realm does not record events, which `rta keycloak audit` flags.",
+			"address each came from. Filter by `type`, `user` or `client`; bound by `max`. " +
+			"Empty when the realm does not record events, which `keycloak.audit` flags.",
 		Run: runEventList,
 	},
 		plugin.Field{Name: "type", Type: plugin.String, Default: "", Help: "one event type, e.g. LOGIN_ERROR"},
@@ -68,7 +68,7 @@ func eventAdminCapability() plugin.Capability {
 		Description: "The realm's administrative change log: each operation, the resource it " +
 			"touched, the path to it, and the account and address it came from. What an " +
 			"incident wants first when a client or a role appeared that nobody remembers " +
-			"adding. Bound by --max.",
+			"adding. Bound by `max`.",
 		Run: runEventAdmin,
 	},
 		maxField(50, 1000, "how many events to list"),
