@@ -158,7 +158,7 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 
 	pairs := []view.Pair{
 		{Key: "wrote", Value: path},
-		{Key: "size", Value: format.Bytes(uint64(written))},
+		{Key: "size", Value: format.Bytes(written)},
 		{Key: "took", Value: time.Since(started).Round(time.Millisecond).String()},
 		{Key: "contents", Value: describeContents(info, version)},
 		// Named on the answer rather than left in the docs, and with this
