@@ -59,7 +59,7 @@ func runTransitEncrypt(ctx context.Context, req plugin.Request) (view.View, erro
 		// terms.
 		if req.DryRun {
 			return view.Text{Body: fmt.Sprintf("would encrypt %s with %s",
-				format.Bytes(uint64(len(req.String("plaintext")))), path)}, nil
+				format.Bytes(len(req.String("plaintext"))), path)}, nil
 		}
 		secret, err := client.Logical().WriteWithContext(ctx, path, map[string]interface{}{
 			"plaintext": base64.StdEncoding.EncodeToString([]byte(req.String("plaintext"))),

@@ -161,7 +161,7 @@ func runSnapshot(ctx context.Context, req plugin.Request) (view.View, error) {
 
 		return view.KeyValue{Pairs: []view.Pair{
 			{Key: "wrote", Value: path},
-			{Key: "size", Value: format.Bytes(uint64(size))},
+			{Key: "size", Value: format.Bytes(size)},
 			{Key: "took", Value: time.Since(started).Round(time.Millisecond).String()},
 			{Key: "from", Value: req.String("address")},
 			// The property that makes this artifact different from an export,
