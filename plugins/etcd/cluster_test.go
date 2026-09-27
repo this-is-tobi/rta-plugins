@@ -90,3 +90,14 @@ func TestALeaseIDReadsTheWayEtcdctlPrintsIt(t *testing.T) {
 	}
 	t.Fatal("no lease pair")
 }
+
+// The row that stands in for the leases past --limit counts them, and one
+// left out is one lease, not "1 more leases".
+func TestOneLeaseLeftOutIsCountedInTheSingular(t *testing.T) {
+	if got := leasesLeftOut(1)[3]; got != "1 more lease; raise --limit" {
+		t.Errorf("marker = %q, want the one lease counted in the singular", got)
+	}
+	if got := leasesLeftOut(3)[3]; got != "3 more leases; raise --limit" {
+		t.Errorf("marker = %q, want 3 more leases", got)
+	}
+}

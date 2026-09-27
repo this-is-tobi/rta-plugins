@@ -328,6 +328,12 @@ func leaseListCapability() plugin.Capability {
 		Help: "how many leases to show"})
 }
 
+// leasesLeftOut is the row standing in for the n leases past --limit, split
+// from leaseTable so its wording is assertable without a cluster.
+func leasesLeftOut(n int) []string {
+	return []string{"…", "-", "-", format.CountOf(n, "more lease") + "; raise --limit"}
+}
+
 func leaseTable(ctx context.Context, c *clientv3.Client, req plugin.Request) (view.View, error) {
 	resp, err := c.Leases(ctx)
 	if err != nil {
@@ -347,10 +353,7 @@ func leaseTable(ctx context.Context, c *clientv3.Client, req plugin.Request) (vi
 			// cost being bounded here is the one TimeToLive round trip each
 			// row needs — so the honest thing is to say how many were not
 			// asked about.
-			t.Rows = append(t.Rows, []string{
-				"…", "-", "-",
-				fmt.Sprintf("%d more leases; raise --limit", len(resp.Leases)-i),
-			})
+			t.Rows = append(t.Rows, leasesLeftOut(len(resp.Leases)-i))
 			break
 		}
 		// TimeToLive with WithAttachedKeys returns the count without the key
