@@ -162,7 +162,7 @@ func classify(err error, req plugin.Request) *view.Error {
 				WithHint("MySQL authorizes on user@host — the grant has to name where you are connecting from")
 		case 1290: // ER_OPTION_PREVENTS_STATEMENT
 			return view.Errorf("mariadb.readonly", "%s", myErr.Message).
-				WithHint("the server is running with --read-only; this is a replica or was set that way deliberately")
+				WithHint("the server is running with read_only on; this is a replica or was set that way deliberately")
 		}
 		return view.Errorf("mariadb.query.failed", "%d: %s", myErr.Number, myErr.Message).
 			WithHint(explainHint(req.Surface(), "mariadb.overview"))

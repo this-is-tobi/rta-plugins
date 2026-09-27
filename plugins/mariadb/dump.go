@@ -102,17 +102,18 @@ func dumpCapability() plugin.Capability {
 			"restore is worse than no capability at all. Routines, events and triggers are " +
 			"included — the client omits routines and events by default, which is how dumps " +
 			"quietly stop round-tripping. The password reaches the child through its " +
-			"environment, never argv; option files are ignored (--no-defaults), so an ambient " +
+			"environment, never argv; option files are ignored (`mariadb-dump --no-defaults`), so an ambient " +
 			"~/.my.cnf credential is never silently spent.\n\n" +
-			"Consistent for what can be: --single-transaction reads every InnoDB table from one " +
+			"Consistent for what can be: `mariadb-dump --single-transaction` reads every InnoDB table from one " +
 			"snapshot, and the receipt counts the non-transactional tables — Aria and MyISAM — " +
 			"read live outside it rather than claiming a guarantee they cannot have. On a Galera " +
 			"node the receipt also says whether the node held quorum: one that has lost it still " +
 			"answers queries, from its own side of the partition, and nothing about the resulting " +
 			"file would say so afterwards.\n\n" +
 			"MariaDB's client is a fork, not an alias, so the flags differ from the mysql " +
-			"plugin's by necessity: TLS through the --ssl family rather than --ssl-mode, and no " +
-			"--set-gtid-purged or --no-tablespaces, which this client does not have — GTID stays " +
+			"plugin's by necessity: TLS through the `mariadb-dump --ssl` family rather than " +
+			"`mysqldump --ssl-mode`, and no `mysqldump --set-gtid-purged` or `mysqldump --no-tablespaces`, " +
+			"which this client does not have — GTID stays " +
 			"out by default here, which is what that spelling has to ask for over there. A flag " +
 			"the installed client does not know is refused by name, since the likeliest cause is " +
 			"MySQL's own tools answering to it.\n\n" +
@@ -267,7 +268,7 @@ func (s source) describe(sf plugin.Surface) string {
 }
 
 func (s source) consistency() string {
-	base := "one REPEATABLE READ snapshot (--single-transaction) for transactional tables"
+	base := "one REPEATABLE READ snapshot (`mariadb-dump --single-transaction`) for transactional tables"
 	if s.liveTables > 0 {
 		return fmt.Sprintf("%s — but %s %s read live, outside it",
 			base, format.CountOf(s.liveTables, "non-transactional table"), format.Plural(s.liveTables, "was", "were"))
