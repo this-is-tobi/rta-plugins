@@ -341,6 +341,44 @@ func TestTheReceiptsWatchLineIsACallTheListingTakes(t *testing.T) {
 	}
 }
 
+// A call a hint names on the cluster a call read is pointed where that cluster
+// is: the namespace it was found in, and the context, when there was one.
+// Without them the call reads the context's own namespace in the current
+// context, where the cluster is not. An empty listing of shop in prod once
+// sent its reader to `rta cnpg status --cluster shop`, which looked for shop
+// in the default namespace and reported it missing. Over MCP the context is
+// Local, never an agent's to give: its call reads the operator's own.
+func TestACallAHintNamesReadsTheClusterWhereItWasFound(t *testing.T) {
+	for _, tc := range []struct {
+		sf           plugin.Surface
+		empty, watch string
+	}{
+		{plugin.SurfaceCLI,
+			"`rta cnpg status --cluster shop --namespace prod --context kind`",
+			"`rta cnpg backup list --cluster shop --namespace prod --context kind`"},
+		{plugin.SurfaceTUI,
+			"`cnpg.status cluster=shop namespace=prod context=kind`",
+			"`cnpg.backup.list cluster=shop namespace=prod context=kind`"},
+		{plugin.SurfaceMCP,
+			"`cnpg_status {\"cluster\":\"shop\",\"namespace\":\"prod\"}`",
+			"`cnpg_backup_list {\"cluster\":\"shop\",\"namespace\":\"prod\"}`"},
+	} {
+		body := emptyBackupBody("shop", selection{context: "kind", namespace: "prod", sf: tc.sf})
+		if !strings.Contains(body, tc.empty) {
+			t.Errorf("%s: an empty listing reads %q, want %q in it", tc.sf, body, tc.empty)
+		}
+		recordingKubectl(t, mustJSON(t, aCluster("shop", "prod")))
+		v, err := runBackupRequest(context.Background(),
+			req(map[string]any{"cluster": "shop", "namespace": "prod", "context": "kind"}).WithSurface(tc.sf))
+		if err != nil {
+			t.Fatalf("%s: %v", tc.sf, err)
+		}
+		if text := renderPairs(t, v); !strings.Contains(text, tc.watch) {
+			t.Errorf("%s: the receipt reads\n%s\nwant %q in it", tc.sf, text, tc.watch)
+		}
+	}
+}
+
 // An override the CRD's enum does not admit is refused by rta, with the list
 // in hand — rather than by the API server, with a schema error naming a JSON
 // path instead of a flag.
