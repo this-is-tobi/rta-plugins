@@ -103,7 +103,7 @@ func connect(ctx context.Context, req plugin.Request) (*session, *view.Error) {
 	realm := req.String("realm")
 	if realm == "" {
 		return nil, view.Errorf("keycloak.realm.missing", "no realm named").
-			WithHint("--realm, or `realm:` under this plugin's section in rta's config")
+			WithHint(setting(req.Surface(), "realm") + ", or `realm:` under this plugin's section in rta's config")
 	}
 	secret := req.String("client-secret")
 	if secret == "" {
@@ -286,7 +286,7 @@ func (s *session) classifyStatus(code int, body []byte) *view.Error {
 			WithHint("realm " + s.realm + " on " + s.base)
 	}
 	return view.Errorf("keycloak.request.failed", "%s returned %d: %s", s.base, code, detail).
-		WithHint("`rta explain keycloak.overview` lists every input and where each one can come from")
+		WithHint(explainHint(s.req.Surface(), "keycloak.overview"))
 }
 
 // classifyTransport turns a failure to reach the server at all into
@@ -308,7 +308,7 @@ func (s *session) classifyTransport(err error) *view.Error {
 	var dnsErr *stdnet.DNSError
 	if errors.As(err, &dnsErr) {
 		return view.Errorf("keycloak.host.unknown", "no address for %q", s.host()).
-			WithHint("`rta net dns " + s.host() + "` shows what DNS returns")
+			WithHint(dnsHint(s.req.Surface(), s.host()))
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
@@ -321,7 +321,7 @@ func (s *session) classifyTransport(err error) *view.Error {
 			WithHint("a Keycloak behind an internal CA wants that CA passed with ca-file, not verification turned off")
 	}
 	return view.Errorf("keycloak.conn.failed", "could not reach %s: %v", s.base, err).
-		WithHint("`rta explain keycloak.overview` lists every input and where each one can come from")
+		WithHint(explainHint(s.req.Surface(), "keycloak.overview"))
 }
 
 func (s *session) host() string {
@@ -375,4 +375,37 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n] + "…"
+}
+
+// setting names connection input name in a message the way its reader
+// changes it: the flag on the CLI, the box in a TUI form. Not the argument
+// over MCP, as plugin.Surface.InputName would: every connection input is
+// Local, so the tool's schema hides it and the bridge drops one given, and an
+// agent told to check the "realm" argument would pass one that is thrown
+// away and read the same refusal again. It is named there as the declaration
+// names it, `realm` — a setting of the operator's, which the agent can
+// report and cannot change.
+func setting(sf plugin.Surface, name string) string {
+	if sf == plugin.SurfaceMCP {
+		return "`" + name + "`"
+	}
+	return sf.InputName(name)
+}
+
+// explainHint sends the reader to the page listing every input and where each
+// one can come from. That page is `rta explain`, a terminal's command with no
+// capability behind it, and what it answers here is where the connection
+// inputs come from — the operator's to set — so over MCP it is the operator
+// who is asked to read it.
+func explainHint(sf plugin.Surface, id string) string {
+	if sf == plugin.SurfaceMCP {
+		return plugin.AskOperator("explain "+id) + ", which lists every input and where each one can come from"
+	}
+	return "`rta explain " + id + "` lists every input and where each one can come from"
+}
+
+// dnsHint is the call that shows what DNS returns for host, spelled for the
+// surface that will make it.
+func dnsHint(sf plugin.Surface, host string) string {
+	return "`" + sf.Call("net.dns", plugin.Arg{Name: "name", Value: host, Positional: true}) + "` shows what DNS returns"
 }

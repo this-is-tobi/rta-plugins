@@ -26,8 +26,8 @@ func overviewCapability() plugin.Capability {
 			"client counts, brute-force detection, SSL requirement, self-registration, whether " +
 			"login and admin events are recorded, and the flow each login goes through. The " +
 			"server version when the client is allowed to see it — only a master-realm client " +
-			"is. --detail adds the client list, the flows and the active sessions per client. " +
-			"For the grade, `rta keycloak audit`.",
+			"is. `detail` adds the client list, the flows and the active sessions per client. " +
+			"For the grade, `keycloak.audit`.",
 		Run: runOverview,
 	})
 }

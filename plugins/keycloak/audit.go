@@ -62,7 +62,7 @@ func auditCapability() plugin.Capability {
 			"admin events are recorded; SSL requirement, self-registration, the master realm and " +
 			"the bootstrap admin; and who holds realm-admin. Every finding cites an OWASP Top 10 " +
 			"category and CWE, or RFC 9700 (OAuth 2.0 Security BCP), or the Keycloak guide. " +
-			"Compact by default; --detail is the work list, grouped, with the references at the end.",
+			"Compact by default; `detail` is the work list, grouped, with the references at the end.",
 		Run: runAudit,
 	},
 		maxField(200, 5000, "how many users to examine for a second factor"),
@@ -77,7 +77,7 @@ func runAudit(ctx context.Context, req plugin.Request) (view.View, error) {
 		}
 		r := &findings.Report{}
 		version := s.serverVersion(ctx)
-		auditRealm(r, realm, s.realm == "master", version)
+		auditRealm(r, req.Surface(), realm, s.realm == "master", version)
 		if s.realm == "master" {
 			s.auditBootstrapAdmin(ctx, r)
 		}
@@ -103,7 +103,7 @@ func runAudit(ctx context.Context, req plugin.Request) (view.View, error) {
 
 // --- realm -----------------------------------------------------------------
 
-func auditRealm(r *findings.Report, realm realmRep, master bool, version string) {
+func auditRealm(r *findings.Report, sf plugin.Surface, realm realmRep, master bool, version string) {
 	switch realm.SSLRequired {
 	case "all":
 		r.Add(grpRealm, "ssl-required", findings.OK, "all — every request must use TLS", refCleartext)
@@ -138,7 +138,8 @@ func auditRealm(r *findings.Report, realm realmRep, master bool, version string)
 
 	if version != "" {
 		r.Add(grpRealm, "version", findings.Info,
-			"Keycloak "+version+" — `rta eol check keycloak` says whether that release is still supported",
+			"Keycloak "+version+" — `"+sf.Call("eol.check", plugin.Arg{Name: "product", Value: "keycloak", Positional: true})+
+				"` says whether that release is still supported",
 			findings.Reference{})
 	} else {
 		r.Add(grpRealm, "version", findings.Info,
@@ -257,8 +258,8 @@ func (s *session) auditSecondFactor(ctx context.Context, r *findings.Report, rea
 	}
 	if len(users) >= max {
 		r.Add(grpMFA, "coverage-bound", findings.Info,
-			fmt.Sprintf("only the first %s %s examined — raise --max to cover the realm",
-				findings.Plural(max, "user"), format.Plural(max, "was", "were")),
+			fmt.Sprintf("only the first %s %s examined — raise %s to cover the realm",
+				findings.Plural(max, "user"), format.Plural(max, "was", "were"), s.req.Surface().InputName("max")),
 			findings.Reference{})
 	}
 }

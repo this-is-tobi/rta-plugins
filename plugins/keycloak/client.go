@@ -133,7 +133,7 @@ func (s *session) client(ctx context.Context, clientID string) (clientRep, *view
 	}
 	if len(matches) != 1 {
 		return clientRep{}, view.Errorf("keycloak.client.unknown", "no client %q in realm %s", clientID, s.realm).
-			WithHint("`rta keycloak client list` shows what is registered")
+			WithHint(s.req.Surface().CapabilityName("keycloak.client.list") + " shows what is registered")
 	}
 	return matches[0], nil
 }
