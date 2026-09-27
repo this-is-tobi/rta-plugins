@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.4.2...plugins/kube/v0.4.3) (2026-09-27)
+
+
+### Code Refactoring
+
+* **kube:** a pod's memory is summed as the uint64 it is parsed as, as a node's already is ([d7fe863](https://github.com/this-is-tobi/rta-plugins/commit/d7fe863004e18d2dd92585cf3a1fe30e67dfe53d))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.28.0 ([c75c7cb](https://github.com/this-is-tobi/rta-plugins/commit/c75c7cbb87beb645ace0f47544050f3dfab26d84))
+
 ## [0.4.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.4.1...plugins/kube/v0.4.2) (2026-09-26)
 
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.1.17](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.16...plugins/redis/v0.1.17) (2026-09-27)
+
+
+### Bug Fixes
+
+* **redis:** one field, hit, miss or SCAN element is counted in the singular ([d82f4cc](https://github.com/this-is-tobi/rta-plugins/commit/d82f4cc9cc9bf4be5add5a968fc20b387de69568))
+
+
+### Code Refactoring
+
+* **redis:** each byte count reaches format.Bytes as the integer it arrives as ([2d42fde](https://github.com/this-is-tobi/rta-plugins/commit/2d42fde7a695bfcfd6a14869bedc5d1faa2a509d))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.28.0 ([c75c7cb](https://github.com/this-is-tobi/rta-plugins/commit/c75c7cbb87beb645ace0f47544050f3dfab26d84))
+
 ## [0.1.16](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.15...plugins/redis/v0.1.16) (2026-09-26)
 
 

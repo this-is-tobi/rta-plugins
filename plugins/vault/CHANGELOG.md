@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.14](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.4.13...plugins/vault/v0.4.14) (2026-09-27)
+
+
+### Bug Fixes
+
+* **vault:** a kv set or wrap set preview of one field counts it as "1 field" ([89c2d45](https://github.com/this-is-tobi/rta-plugins/commit/89c2d45abdbce0df57b5020420e1a0414ab122f4))
+* **vault:** a tree holding one secret or one folder counts it in the singular ([4478fe0](https://github.com/this-is-tobi/rta-plugins/commit/4478fe0fe281d066699ebaf0288c3a510af04db1))
+
+
+### Code Refactoring
+
+* **vault:** each byte count reaches format.Bytes as the integer it arrives as ([0423e3c](https://github.com/this-is-tobi/rta-plugins/commit/0423e3c3884c85f4ede672accfbb1e229f893a9e))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.28.0 ([c75c7cb](https://github.com/this-is-tobi/rta-plugins/commit/c75c7cbb87beb645ace0f47544050f3dfab26d84))
+
 ## [0.4.13](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.4.12...plugins/vault/v0.4.13) (2026-09-26)
 
 
