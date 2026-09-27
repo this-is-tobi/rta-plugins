@@ -468,7 +468,14 @@ dev-off: ## Remove the workspace; builds pin go.mod's rta again
 # .github/workflows/ — a path an App token may not write without a
 # permission that would apply to every repository the App is on. bump-rta.yml
 # runs this on a schedule; running it by hand is the same thing sooner.
+#
+# Every module or none, so PLUGIN and PLUGINS are refused rather than
+# honoured. .rta-version is one pin for all of them, and a bump narrowed to
+# pg would move it for the eleven still pinned to the old rta, whose READMEs
+# and manifests CI would then render with a release they were never built
+# against.
 bump-rta: name-check ## Pin every module and .rta-version to rta RTA_VERSION (e.g. RTA_VERSION=v0.9.0)
+	@test "$(PLUGIN_LIST)" = "$(ALL_PLUGINS)" || { echo "bump-rta moves every module and .rta-version together, so it takes no PLUGIN or PLUGINS"; exit 1; }
 	@test -n "$(RTA_VERSION)" || { echo "bump-rta needs RTA_VERSION=vX.Y.Z"; exit 1; }
 	@for p in $(PLUGIN_LIST); do \
 		echo "==> plugins/$$p ($(RTA_VERSION))"; \
