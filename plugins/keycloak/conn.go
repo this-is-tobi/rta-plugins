@@ -300,15 +300,18 @@ func (s *session) classifyTransport(err error) *view.Error {
 		return view.Errorf("keycloak.timeout", "%s did not answer in time", s.base).
 			WithHint("a firewall that drops rather than refuses looks exactly like this")
 	}
-	var netErr *stdnet.OpError
-	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
-		return view.Errorf("keycloak.conn.refused", "nothing is listening on %s", s.base).
-			WithHint("is the server up, and is the URL right?")
-	}
+	// The name first: a dial that could not resolve its host fails with a
+	// *net.OpError wrapping the *net.DNSError, and read the other way round
+	// every name nothing resolves was reported as a port nothing listens on.
 	var dnsErr *stdnet.DNSError
 	if errors.As(err, &dnsErr) {
 		return view.Errorf("keycloak.host.unknown", "no address for %q", s.host()).
 			WithHint(dnsHint(s.req.Surface(), s.host()))
+	}
+	var netErr *stdnet.OpError
+	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
+		return view.Errorf("keycloak.conn.refused", "nothing is listening on %s", s.base).
+			WithHint("is the server up, and is the URL right?")
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
