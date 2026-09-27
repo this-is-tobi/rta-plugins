@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -225,7 +224,7 @@ func schemaTree(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 		if i == limit {
 			root.Children = append(root.Children, view.Node{
 				Label:  "…",
-				Detail: fmt.Sprintf("%d more tables; raise --limit or name one with --table", len(order)-i),
+				Detail: format.CountOf(len(order)-i, "more table") + "; raise --limit or name one with --table",
 			})
 			break
 		}
