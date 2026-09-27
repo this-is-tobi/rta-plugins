@@ -523,7 +523,7 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 			"this server cannot share one snapshot across parallel workers: %s",
 			msg("pg_export_snapshot", "synchronized snapshot")).
 			WithHint("run it serially with " + given(req.Surface(), "jobs", "1") + ", which uses a single " +
-				"transaction. rta will not pass --no-synchronized-snapshots to make " +
+				"transaction. rta will not run `pg_dump --no-synchronized-snapshots` to make " +
 				req.Surface().InputName("jobs") + " work here: that drops the " +
 				"guarantee that every table came from the same instant, and a dump without it " +
 				"restores without complaint into a state that never existed")
@@ -537,7 +537,7 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 		strings.Contains(stderr, "password authentication failed"):
 		return view.Errorf("pg.auth.failed", "%s", msg("password")).
 			WithHint("set $" + plugin.LocalEnvVar("pg.dump", "password") +
-				" — pg_dump is run with --no-password so it fails here instead of " +
+				" — it runs as `pg_dump --no-password`, so it fails here instead of " +
 				"waiting at a prompt nothing can answer")
 	case strings.Contains(stderr, "permission denied"):
 		return view.Errorf("pg.denied", "%s", msg("permission denied")).
