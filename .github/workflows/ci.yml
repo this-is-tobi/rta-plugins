@@ -296,9 +296,13 @@ jobs:
       env:
         SCOPE: ${{ needs.scope.outputs.plugins }}
       run: |-
+        # Listed before the loop rather than in its header: a `for` over a
+        # command that failed runs no iteration and succeeds, so a refused
+        # list was a scan of nothing that passed.
+        modules=$(make list PLUGINS="$SCOPE")
         mkdir -p "$RUNNER_TEMP/sarif"
         failed=""
-        for m in $(make list PLUGINS="$SCOPE"); do
+        for m in $modules; do
           echo "==> plugins/$m"
           (cd "plugins/$m" && govulncheck ./...) || failed="$failed plugins/$m"
           (cd "plugins/$m" && govulncheck -format sarif ./...) > "$RUNNER_TEMP/sarif/$m.raw" || { rm -f "$RUNNER_TEMP/sarif/$m.raw"; continue; }
