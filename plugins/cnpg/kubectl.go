@@ -164,6 +164,23 @@ func (s selection) args(rest ...string) []string {
 	return out
 }
 
+// callArgs points a call a message names at the cluster s read: in namespace,
+// the one it was found in, and in s's context when s had one. Without them
+// the call reads the context's own namespace in the current context, and a
+// cluster found anywhere else is not there — the hint sends its reader to a
+// "not found". Over MCP the context is left out: it is Local, so an agent
+// cannot give one, and its call reads the operator's own, the one s read.
+func (s selection) callArgs(namespace string) []plugin.Arg {
+	var out []plugin.Arg
+	if namespace != "" {
+		out = append(out, plugin.Arg{Name: "namespace", Value: namespace})
+	}
+	if s.context != "" && s.sf != plugin.SurfaceMCP {
+		out = append(out, plugin.Arg{Name: "context", Value: s.context})
+	}
+	return out
+}
+
 // where names what was read, for a message that has to say which cluster.
 func (s selection) where() string {
 	parts := []string{}

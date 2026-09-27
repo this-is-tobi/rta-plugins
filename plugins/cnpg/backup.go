@@ -254,9 +254,9 @@ func backupErrors(rows []backupObject) view.Table {
 // where the schedule has not fired yet.
 func emptyBackupBody(cluster string, s selection) string {
 	if cluster != "" {
+		status := append([]plugin.Arg{{Name: "cluster", Value: cluster}}, s.callArgs(s.namespace)...)
 		return "No backups of " + cluster + " in " + s.where() + ".\n\n" +
-			"`" + s.sf.Call("cnpg.status", plugin.Arg{Name: "cluster", Value: cluster}) +
-			"` says whether anything is configured to take one."
+			"`" + s.sf.Call("cnpg.status", status...) + "` says whether anything is configured to take one."
 	}
 	return "No CloudNativePG backups in " + s.where() + "."
 }
@@ -431,7 +431,7 @@ func runBackupRequest(ctx context.Context, req plugin.Request) (view.View, error
 	if verr := createJSON(ctx, s, doc, &created); verr != nil {
 		return nil, verr
 	}
-	return requestReceipt(req.Surface(), created, b, c), nil
+	return requestReceipt(s, created, b, c), nil
 }
 
 // methodRefusal words the mismatch, and has a case for the cluster that
@@ -584,7 +584,7 @@ func dryRunView(b backupRequest, c cluster, doc []byte) view.View {
 // requestReceipt says what was asked for, what will perform it, and where to
 // look next. It never claims the backup happened: creating the object is the
 // whole of what rta did, and the operator's work starts afterwards.
-func requestReceipt(sf plugin.Surface, created backupObject, b backupRequest, c cluster) view.View {
+func requestReceipt(s selection, created backupObject, b backupRequest, c cluster) view.View {
 	name := created.Metadata.Name
 	if name == "" {
 		name = b.Metadata.Name
@@ -603,12 +603,11 @@ func requestReceipt(sf plugin.Surface, created backupObject, b backupRequest, c 
 	if p := strings.TrimSpace(created.Status.Phase); p != "" {
 		pairs = append(pairs, view.Pair{Key: "phase", Value: p})
 	}
+	watch := append([]plugin.Arg{{Name: "cluster", Value: c.Metadata.Name}}, s.callArgs(c.Metadata.Namespace)...)
 	return view.KeyValue{Pairs: append(pairs,
 		view.Pair{Key: "rta did not take it", Value: "the object is a request; CloudNativePG " +
 			"performs the backup, and a Backup that was accepted can still fail"},
-		view.Pair{Key: "watch it", Value: "`" + sf.Call("cnpg.backup.list",
-			plugin.Arg{Name: "cluster", Value: c.Metadata.Name},
-			plugin.Arg{Name: "namespace", Value: c.Metadata.Namespace}) + "`"},
+		view.Pair{Key: "watch it", Value: "`" + s.sf.Call("cnpg.backup.list", watch...) + "`"},
 	)}
 }
 
