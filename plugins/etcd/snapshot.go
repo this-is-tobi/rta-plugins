@@ -101,7 +101,7 @@ func snapshotCapability() plugin.Capability {
 			"encrypted unless somebody turned encryption at rest on, so this file is very " +
 			"often that cluster's secrets. An agent that needs one key asks for etcd.kv.get " +
 			"with a grant naming it.\n\n" +
-			"**There is no `rta etcd restore`, and that is etcd rather than rta.** The v3 API " +
+			"**There is no etcd.restore, and that is etcd rather than rta.** The v3 API " +
 			"streams a snapshot out and takes nothing back in — no service in the protocol " +
 			"carries a restore RPC. Restoring is `etcdutl snapshot restore`, which builds a " +
 			"data directory on disk: stop etcd, put that directory where the member's was, " +
@@ -139,20 +139,20 @@ func runSnapshot(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr := humanOnly(req, "etcd.snapshot",
 		"a snapshot of the whole keyspace has no blast radius a grant could name — its one "+
 			"authorized use is everything, and on a Kubernetes cluster that is every Secret "+
-			"the cluster holds. Ask for the key you need with etcd.kv.get, which takes a "+
-			"grant naming that key"); verr != nil {
+			"the cluster holds. Ask for the key you need with "+req.Surface().CapabilityName("etcd.kv.get")+
+			", which takes a grant naming that key"); verr != nil {
 		return nil, verr
 	}
 
 	out := strings.TrimSpace(req.String("out"))
 	if out == "" {
 		return nil, view.Errorf("etcd.snapshot.nooutput", "say where the snapshot should be written").
-			WithHint("--out ./etcd.snap — a whole keyspace is a file, not something to read in " +
-				"a terminal")
+			WithHint(given(req.Surface(), "out", "./etcd.snap") + " — a whole keyspace is a file, not " +
+				"something to read in a terminal")
 	}
 	path, err := expandHome(out)
 	if err != nil {
-		return nil, view.Errorf("etcd.snapshot.path", "resolving --out: %v", err)
+		return nil, view.Errorf("etcd.snapshot.path", "resolving %s: %v", req.Surface().InputName("out"), err)
 	}
 	// A friendly early refusal before anything opens a connection. It is not
 	// the guarantee — O_EXCL below is, and it still catches the race this
@@ -354,7 +354,7 @@ func snapshotReceipt(path string, size int64, took time.Duration,
 			"will not form a cluster with each other"},
 		view.Pair{Key: "and has no capability", Value: "deliberately. etcd's API streams a " +
 			"snapshot out and takes nothing back in — there is no restore RPC in the v3 " +
-			"protocol — so `rta etcd restore` would be a name for something rta cannot do"},
+			"protocol — so an etcd.restore would be a name for something rta cannot do"},
 	)}
 }
 

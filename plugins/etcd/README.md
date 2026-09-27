@@ -24,7 +24,7 @@ Under `plugins: etcd:` in rta's configuration, or in a profile's `set:`. An inst
 | cert-file | etcd.kv.get, etcd.kv.list, etcd.kv.tree, etcd.lease.list, etcd.member.list, etcd.overview, etcd.snapshot | client certificate, for a cluster using mTLS             |
 | depth     | etcd.kv.tree                                                                                             | how many levels to expand                                |
 | endpoint  | etcd.kv.get, etcd.kv.list, etcd.kv.tree, etcd.lease.list, etcd.member.list, etcd.overview, etcd.snapshot | etcd endpoint, host\[:port\]                             |
-| key-file  | etcd.kv.get, etcd.kv.list, etcd.kv.tree, etcd.lease.list, etcd.member.list, etcd.overview, etcd.snapshot | private key for --cert-file                              |
+| key-file  | etcd.kv.get, etcd.kv.list, etcd.kv.tree, etcd.lease.list, etcd.member.list, etcd.overview, etcd.snapshot | private key for \`cert-file\`                            |
 | limit     | etcd.kv.list, etcd.kv.tree, etcd.lease.list                                                              | how many keys to return                                  |
 | tls       | etcd.kv.get, etcd.kv.list, etcd.kv.tree, etcd.lease.list, etcd.member.list, etcd.overview, etcd.snapshot | connect over TLS                                         |
 | username  | etcd.kv.get, etcd.kv.list, etcd.kv.tree, etcd.lease.list, etcd.member.list, etcd.overview, etcd.snapshot | user to authenticate as, if the cluster has auth enabled |
@@ -35,7 +35,7 @@ The value stored at one key, with its version and lease.
 
 **Classified write for what it discloses, not what it changes.** A Kubernetes cluster keeps its Secrets in etcd base64-encoded rather than encrypted, unless encryption at rest was turned on — so reading an arbitrary key here can be reading every secret in the cluster.
 
-It also needs a grant naming it. That is available because this names one key: `rta grant allow etcd.kv.get /registry/services/endpoints/default/api` is a consent somebody can actually read, which a whole-namespace grant would not be.
+It also needs a grant naming it. That is available because this names one key: `grant.allow` for `etcd.kv.get` and `/registry/services/endpoints/default/api` is a consent somebody can actually read, which a whole-namespace grant would not be.
 
 The read tier — etcd.kv.list and etcd.kv.tree — shows names and sizes, which is usually the question and costs none of this.
 
@@ -54,7 +54,7 @@ The read tier — etcd.kv.list and etcd.kv.tree — shows names and sizes, which
 | input:tls            | bool, default false, local (never offered to MCP callers), from config plugins.etcd.tls, filled by a profile's tunnel (the forward's tls) — connect over TLS                                   |
 | input:ca-file        | string, default , local (never offered to MCP callers), from config plugins.etcd.ca-file — PEM bundle to verify the server against                                                             |
 | input:cert-file      | string, default , local (never offered to MCP callers), from config plugins.etcd.cert-file — client certificate, for a cluster using mTLS                                                      |
-| input:key-file       | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for --cert-file                                                                        |
+| input:key-file       | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for \`cert-file\`                                                                      |
 | input:username       | string, default , local (never offered to MCP callers), from config plugins.etcd.username — user to authenticate as, if the cluster has auth enabled                                           |
 | input:password       | secret, local (never offered to MCP callers), from $RTA_ETCD_PASSWORD — password for the user                                                                                                  |
 | dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                   |
@@ -82,7 +82,7 @@ Bounded, and it says when it stopped. A listing that quietly ended at a thousand
 | input:tls       | bool, default false, local (never offered to MCP callers), from config plugins.etcd.tls, filled by a profile's tunnel (the forward's tls) — connect over TLS                                                           |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.etcd.ca-file — PEM bundle to verify the server against                                                                                     |
 | input:cert-file | string, default , local (never offered to MCP callers), from config plugins.etcd.cert-file — client certificate, for a cluster using mTLS                                                                              |
-| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for --cert-file                                                                                                |
+| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for \`cert-file\`                                                                                              |
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.etcd.username — user to authenticate as, if the cluster has auth enabled                                                                   |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_ETCD_PASSWORD — password for the user                                                                                                                          |
 | dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.kv.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                                        |
@@ -111,7 +111,7 @@ Names and counts only, never a value. Same read tier as etcd.kv.list, and the re
 | input:tls       | bool, default false, local (never offered to MCP callers), from config plugins.etcd.tls, filled by a profile's tunnel (the forward's tls) — connect over TLS                                                                              |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.etcd.ca-file — PEM bundle to verify the server against                                                                                                        |
 | input:cert-file | string, default , local (never offered to MCP callers), from config plugins.etcd.cert-file — client certificate, for a cluster using mTLS                                                                                                 |
-| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for --cert-file                                                                                                                   |
+| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for \`cert-file\`                                                                                                                 |
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.etcd.username — user to authenticate as, if the cluster has auth enabled                                                                                      |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_ETCD_PASSWORD — password for the user                                                                                                                                             |
 | dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.kv.tree\`, or + on it in the TUI, puts it there, re-run every few seconds                                                                           |
@@ -138,7 +138,7 @@ IDs and timings only, never the keys attached to them — the same read/write sp
 | input:tls       | bool, default false, local (never offered to MCP callers), from config plugins.etcd.tls, filled by a profile's tunnel (the forward's tls) — connect over TLS                                                   |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.etcd.ca-file — PEM bundle to verify the server against                                                                             |
 | input:cert-file | string, default , local (never offered to MCP callers), from config plugins.etcd.cert-file — client certificate, for a cluster using mTLS                                                                      |
-| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for --cert-file                                                                                        |
+| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for \`cert-file\`                                                                                      |
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.etcd.username — user to authenticate as, if the cluster has auth enabled                                                           |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_ETCD_PASSWORD — password for the user                                                                                                                  |
 | dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.lease.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                             |
@@ -162,7 +162,7 @@ A member still learning the cluster's state has no name yet and is shown as unst
 | input:tls       | bool, default false, local (never offered to MCP callers), from config plugins.etcd.tls, filled by a profile's tunnel (the forward's tls) — connect over TLS                                 |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.etcd.ca-file — PEM bundle to verify the server against                                                           |
 | input:cert-file | string, default , local (never offered to MCP callers), from config plugins.etcd.cert-file — client certificate, for a cluster using mTLS                                                    |
-| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for --cert-file                                                                      |
+| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for \`cert-file\`                                                                    |
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.etcd.username — user to authenticate as, if the cluster has auth enabled                                         |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_ETCD_PASSWORD — password for the user                                                                                                |
 | dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.member.list\`, or + on it in the TUI, puts it there, re-run every few seconds                          |
@@ -173,7 +173,7 @@ The endpoint's own status — version, who it thinks the leader is, and how far 
 
 The storage row is the one to watch. etcd raises NOSPACE when the database file reaches its quota and then refuses every write while continuing to answer reads, which looks like a working cluster from anywhere except here. The use column is graded against that quota, and a server older than 3.6 does not report one, so the column is blank there rather than guessed.
 
---detail adds every member's own view, which is how a split is visible: members that disagree about who the leader is are not a cluster.
+`detail` adds every member's own view, which is how a split is visible: members that disagree about who the leader is are not a cluster.
 
 | Field           | Value                                                                                                                                                                                                  |
 |-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -188,7 +188,7 @@ The storage row is the one to watch. etcd raises NOSPACE when the database file 
 | input:tls       | bool, default false, local (never offered to MCP callers), from config plugins.etcd.tls, filled by a profile's tunnel (the forward's tls) — connect over TLS                                           |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.etcd.ca-file — PEM bundle to verify the server against                                                                     |
 | input:cert-file | string, default , local (never offered to MCP callers), from config plugins.etcd.cert-file — client certificate, for a cluster using mTLS                                                              |
-| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for --cert-file                                                                                |
+| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for \`cert-file\`                                                                              |
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.etcd.username — user to authenticate as, if the cluster has auth enabled                                                   |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_ETCD_PASSWORD — password for the user                                                                                                          |
 | dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.overview\`, or + on it in the TUI, puts it there, re-run every few seconds                                       |
@@ -200,7 +200,7 @@ etcd's own backup: the whole keyspace at one revision, written as the file `etcd
 
 **Refuses MCP outright** rather than asking for a grant, the line pg.dump and keys.backup draw — a snapshot of everything has no blast radius a grant could name. That matters more here than most places: a Kubernetes cluster keeps every object it has in etcd, and its Secrets are stored base64-encoded rather than encrypted unless somebody turned encryption at rest on, so this file is very often that cluster's secrets. An agent that needs one key asks for etcd.kv.get with a grant naming it.
 
-**There is no `rta etcd restore`, and that is etcd rather than rta.** The v3 API streams a snapshot out and takes nothing back in — no service in the protocol carries a restore RPC. Restoring is `etcdutl snapshot restore`, which builds a data directory on disk: stop etcd, put that directory where the member's was, start it, on every member from this one file. The receipt prints that sequence rather than leaving it to be looked up on the day it is needed.
+**There is no etcd.restore, and that is etcd rather than rta.** The v3 API streams a snapshot out and takes nothing back in — no service in the protocol carries a restore RPC. Restoring is `etcdutl snapshot restore`, which builds a data directory on disk: stop etcd, put that directory where the member's was, start it, on every member from this one file. The receipt prints that sequence rather than leaving it to be looked up on the day it is needed.
 
 The snapshot is the connected member's own view at its own revision — a member behind the leader writes a file that is behind too — so the receipt names which member answered and where its revision was.
 
@@ -220,7 +220,7 @@ etcd appends a SHA256 of the database to the end of the stream, and rta hashes t
 | input:tls       | bool, default false, local (never offered to MCP callers), from config plugins.etcd.tls, filled by a profile's tunnel (the forward's tls) — connect over TLS                                                |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.etcd.ca-file — PEM bundle to verify the server against                                                                          |
 | input:cert-file | string, default , local (never offered to MCP callers), from config plugins.etcd.cert-file — client certificate, for a cluster using mTLS                                                                   |
-| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for --cert-file                                                                                     |
+| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for \`cert-file\`                                                                                   |
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.etcd.username — user to authenticate as, if the cluster has auth enabled                                                        |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_ETCD_PASSWORD — password for the user                                                                                                               |
 | dashboard       | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                |

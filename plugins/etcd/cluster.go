@@ -28,7 +28,7 @@ func overviewCapability() plugin.Capability {
 			"which looks like a working cluster from anywhere except here. The use column is " +
 			"graded against that quota, and a server older than 3.6 does not report one, so " +
 			"the column is blank there rather than guessed.\n\n" +
-			"--detail adds every member's own view, which is how a split is visible: members that " +
+			"`detail` adds every member's own view, which is how a split is visible: members that " +
 			"disagree about who the leader is are not a cluster.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withClient(ctx, req, func(ctx context.Context, c *clientv3.Client) (view.View, error) {
@@ -328,10 +328,10 @@ func leaseListCapability() plugin.Capability {
 		Help: "how many leases to show"})
 }
 
-// leasesLeftOut is the row standing in for the n leases past --limit, split
-// from leaseTable so its wording is assertable without a cluster.
-func leasesLeftOut(n int) []string {
-	return []string{"…", "-", "-", format.CountOf(n, "more lease") + "; raise --limit"}
+// leasesLeftOut is the row standing in for the n leases past the limit,
+// split from leaseTable so its wording is assertable without a cluster.
+func leasesLeftOut(sf plugin.Surface, n int) []string {
+	return []string{"…", "-", "-", format.CountOf(n, "more lease") + "; raise " + sf.InputName("limit")}
 }
 
 func leaseTable(ctx context.Context, c *clientv3.Client, req plugin.Request) (view.View, error) {
@@ -353,7 +353,7 @@ func leaseTable(ctx context.Context, c *clientv3.Client, req plugin.Request) (vi
 			// cost being bounded here is the one TimeToLive round trip each
 			// row needs — so the honest thing is to say how many were not
 			// asked about.
-			t.Rows = append(t.Rows, leasesLeftOut(len(resp.Leases)-i))
+			t.Rows = append(t.Rows, leasesLeftOut(req.Surface(), len(resp.Leases)-i))
 			break
 		}
 		// TimeToLive with WithAttachedKeys returns the count without the key
