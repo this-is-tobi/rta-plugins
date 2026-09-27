@@ -64,7 +64,7 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 				dangling++
 			}
 		}
-		v := fmt.Sprintf("%d, %s", len(images), format.Bytes(uint64(max64(total, 0))))
+		v := fmt.Sprintf("%d, %s", len(images), format.Bytes(total))
 		if dangling > 0 {
 			v += fmt.Sprintf(" — %d dangling", dangling)
 		}
@@ -125,11 +125,4 @@ func truncate(items []string, max int) string {
 		return strings.Join(items, ", ")
 	}
 	return strings.Join(items[:max], ", ") + fmt.Sprintf(" and %d more", len(items)-max)
-}
-
-func max64(a, b int64) int64 {
-	if a > b {
-		return a
-	}
-	return b
 }
