@@ -39,10 +39,10 @@ func queryCapability() plugin.Capability {
 			"it, which is the only place the enforcement is worth trusting.\n\n" +
 			"**Classified write for what it discloses, not what it changes.** It returns rows, and " +
 			"there is no table it may read by default because there is no table known to be safe. " +
-			"So it needs the write tier for this namespace, which is the operator saying once that " +
-			"this agent may read this database's contents; the read tier below it describes the " +
-			"database and hands back nothing stored in it. Where the connection is a named profile, " +
-			"every call in this namespace already needs a grant on top.\n\n" +
+			"So it needs a grant a person issued (`grant.allow`, for `mysql.query`), which is the " +
+			"operator saying that this agent may read this database's contents; the read tier below " +
+			"it describes the database and hands back nothing stored in it. Where the connection is " +
+			"a named profile, every call in this namespace needs one, the read tier included.\n\n" +
 			"Over `limit` rows it is refused rather than shortened: a truncated result set is a " +
 			"different answer wearing the right shape.",
 		Run: runQuery,
