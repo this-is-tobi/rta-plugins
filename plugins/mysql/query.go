@@ -43,7 +43,7 @@ func queryCapability() plugin.Capability {
 			"this agent may read this database's contents; the read tier below it describes the " +
 			"database and hands back nothing stored in it. Where the connection is a named profile, " +
 			"every call in this namespace already needs a grant on top.\n\n" +
-			"Over --limit rows it is refused rather than shortened: a truncated result set is a " +
+			"Over `limit` rows it is refused rather than shortened: a truncated result set is a " +
 			"different answer wearing the right shape.",
 		Run: runQuery,
 	}, plugin.Field{Name: "sql", Type: plugin.String, Positional: true, Required: true,
@@ -91,7 +91,7 @@ func queryView(ctx context.Context, db *sql.DB, req plugin.Request) (view.View, 
 	case errors.Is(err, ErrTooManyRows):
 		return nil, view.Errorf("mysql.query.toomany",
 			"the query returned more than %s", format.CountOf(limit, "row")).
-			WithHint("add a LIMIT to the query, or raise --limit — refused rather than " +
+			WithHint("add a LIMIT to the query, or raise " + req.Surface().InputName("limit") + " — refused rather than " +
 				"shortened, because a truncated result set is a different answer wearing " +
 				"the right shape")
 	case errors.Is(err, ErrTooLarge):
@@ -122,7 +122,7 @@ func activityCapability() plugin.Capability {
 		Idempotent: true,
 		Description: "Classified write for what it discloses rather than what it changes: the info " +
 			"column carries whatever literals are in the statements currently running.\n\n" +
-			"`mysql overview --detail` keeps the same rows without that column — state, time and " +
+			"`mysql.overview` with `detail` keeps the same rows without that column — state, time and " +
 			"command — which answers \"is anything stuck\" without handing back anything anybody " +
 			"stored, so the glanceable form stays in the read tier.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {

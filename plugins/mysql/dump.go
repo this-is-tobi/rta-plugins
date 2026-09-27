@@ -107,25 +107,26 @@ func dumpCapability() plugin.Capability {
 func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr := humanOnly(req, "mysql.dump",
 		"a whole-database dump has no blast radius a grant could name — its one authorized "+
-			"use is everything. Ask for the rows you need with mysql.query, which is bounded "+
-			"per call"); verr != nil {
+			"use is everything. Ask for the rows you need with "+req.Surface().CapabilityName("mysql.query")+
+			", which is bounded per call"); verr != nil {
 		return nil, verr
 	}
 
 	database := req.String("database")
 	if database == "" {
 		return nil, view.Errorf("mysql.dump.nodatabase", "say which database to dump").
-			WithHint("--database <name> — `rta mysql database list` shows what is there")
+			WithHint(given(req.Surface(), "database", "<name>") + " — " +
+				req.Surface().CapabilityName("mysql.database.list") + " shows what is there")
 	}
 	out := strings.TrimSpace(req.String("out"))
 	if out == "" {
 		return nil, view.Errorf("mysql.dump.nooutput", "say where the dump should be written").
-			WithHint("--out ./" + database + ".sql — a whole database is a file, not something " +
+			WithHint(given(req.Surface(), "out", "./"+database+".sql") + " — a whole database is a file, not something " +
 				"to read in a terminal")
 	}
 	path, err := expandHome(out)
 	if err != nil {
-		return nil, view.Errorf("mysql.dump.path", "resolving --out: %v", err)
+		return nil, view.Errorf("mysql.dump.path", "resolving %s: %v", req.Surface().InputName("out"), err)
 	}
 
 	tool, err := lookupTool(dumpTools)
@@ -394,16 +395,16 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 				"wall, which --no-tablespaces already avoids. Check SHOW GRANTS")
 	case strings.Contains(stderr, "Access denied"):
 		return view.Errorf("mysql.auth.failed", "%s", msg("Access denied")).
-			WithHint("set $" + plugin.LocalEnvVar("mysql.dump", "password") + ", or check --user")
+			WithHint("set $" + plugin.LocalEnvVar("mysql.dump", "password") + ", or check " + setting(req.Surface(), "user"))
 	case strings.Contains(stderr, "Unknown database"):
 		return view.Errorf("mysql.database.notfound", "%s", msg("Unknown database")).
-			WithHint("`rta mysql database list` shows what is there")
+			WithHint(req.Surface().CapabilityName("mysql.database.list") + " shows what is there")
 	case strings.Contains(stderr, "Unknown MySQL server host"):
 		return view.Errorf("mysql.host.unknown", "%s", msg("Unknown MySQL server host")).
-			WithHint("`rta net dns " + req.String("host") + "` shows what DNS returns")
+			WithHint(dnsHint(req.Surface(), req.String("host")))
 	case strings.Contains(stderr, "Can't connect"):
 		return view.Errorf("mysql.conn.refused", "%s", msg("Can't connect")).
-			WithHint("is the server up, and is --host/--port right?")
+			WithHint(reachHint(req.Surface()))
 	case strings.Contains(stderr, "unknown variable") || strings.Contains(stderr, "unknown option"):
 		// The version-skew failure: a flag this plugin passes that the
 		// installed client does not know — most often a MariaDB client
@@ -423,8 +424,12 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 // restoreCommand names the other half. A backup capability that does not say
 // how to restore is the shape of every backup that turned out not to be one.
 func restoreCommand(req plugin.Request, path string) string {
-	return fmt.Sprintf("rta mysql restore %s --host=%s --port=%d --user=%s --database=%s",
-		path, req.String("host"), req.Int("port"), req.String("user"), req.String("database"))
+	return req.Surface().Call("mysql.restore",
+		plugin.Arg{Name: "file", Value: path, Positional: true},
+		plugin.Arg{Name: "host", Value: req.String("host")},
+		plugin.Arg{Name: "port", Value: req.Int("port")},
+		plugin.Arg{Name: "user", Value: req.String("user")},
+		plugin.Arg{Name: "database", Value: req.String("database")})
 }
 
 func alreadyThere(path string) *view.Error {

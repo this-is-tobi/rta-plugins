@@ -121,7 +121,7 @@ func overviewCapability() plugin.Capability {
 		Detailed:   true,
 		Description: "What server this is, how long it has been up, how much of its connection " +
 			"budget is in use, and the largest databases on it.\n\n" +
-			"--detail adds what every session is doing, without the statement text — state, " +
+			"`detail` adds what every session is doing, without the statement text — state, " +
 			"time and command, which answers \"is anything stuck\" and hands back nothing " +
 			"anybody stored. The statement text is mysql.activity, and it is a write for " +
 			"exactly that reason.",
