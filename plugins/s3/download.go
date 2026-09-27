@@ -135,7 +135,7 @@ func runBucketDownload(ctx context.Context, req plugin.Request) (view.View, erro
 		}
 		if req.DryRun {
 			return view.Text{Body: fmt.Sprintf("would copy %s (%s) from %s into %s",
-				format.CountOf(len(plan), "object"), format.Bytes(uint64(totalSize(objects))), req.String("bucket"), root)}, nil
+				format.CountOf(len(plan), "object"), format.Bytes(totalSize(objects)), req.String("bucket"), root)}, nil
 		}
 
 		// Created rather than reused, so a backup is never half of one run
@@ -171,7 +171,7 @@ func runBucketDownload(ctx context.Context, req plugin.Request) (view.View, erro
 		return view.KeyValue{Pairs: []view.Pair{
 			{Key: "wrote", Value: root},
 			{Key: "objects", Value: fmt.Sprintf("%d", len(plan))},
-			{Key: "size", Value: format.Bytes(uint64(written))},
+			{Key: "size", Value: format.Bytes(written)},
 			{Key: "took", Value: time.Since(started).Round(time.Millisecond).String()},
 			{Key: "from", Value: req.String("bucket") + "/" + req.String("prefix")},
 			{Key: "at rest", Value: "unencrypted, directory 0700 and files 0600 — " +

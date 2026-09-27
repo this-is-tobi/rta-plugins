@@ -89,7 +89,7 @@ func runObjectList(ctx context.Context, req plugin.Request) (view.View, error) {
 			// first one to show a byte count showed 1392640", and this was it:
 			// a size column nobody can read at a glance is a column that gets
 			// piped into another tool instead of being looked at.
-			t.Rows = append(t.Rows, []string{obj.Key, format.Bytes(uint64(obj.Size)), obj.LastModified.Format("2006-01-02 15:04")})
+			t.Rows = append(t.Rows, []string{obj.Key, format.Bytes(obj.Size), obj.LastModified.Format("2006-01-02 15:04")})
 		}
 		if verr := ctxErr(ctx, req); verr != nil {
 			return nil, verr
@@ -116,7 +116,7 @@ func runObjectShow(ctx context.Context, req plugin.Request) (view.View, error) {
 			return nil, classify(err, req)
 		}
 		pairs := []view.Pair{
-			{Key: "size", Value: format.Bytes(uint64(info.Size))},
+			{Key: "size", Value: format.Bytes(info.Size)},
 			{Key: "content-type", Value: info.ContentType},
 			{Key: "etag", Value: info.ETag},
 			{Key: "modified", Value: info.LastModified.Format("2006-01-02 15:04:05")},
@@ -312,8 +312,11 @@ func runObjectSet(ctx context.Context, req plugin.Request) (view.View, error) {
 			if typed == "" {
 				typed = "application/octet-stream (the server's default)"
 			}
+			// Still clamped now that format.Bytes takes the int64: size is
+			// minio's -1, "unknown, stream it", when the file could not be
+			// stat'd, and a preview reading "-1 B" would look like a bug.
 			return view.Text{Body: fmt.Sprintf("would set %s/%s (%s, %s)",
-				bucket, key, format.Bytes(uint64(max(size, 0))), typed)}, nil
+				bucket, key, format.Bytes(max(size, 0)), typed)}, nil
 		}
 		info, err := client.PutObject(ctx, bucket, key, body, size, minio.PutObjectOptions{
 			ContentType:  contentType,

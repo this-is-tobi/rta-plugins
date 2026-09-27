@@ -119,7 +119,7 @@ func runObjectTree(ctx context.Context, req plugin.Request) (view.View, error) {
 				root.ensure(splitKey(strings.TrimSuffix(rel, "/")))
 				continue
 			}
-			root.insert(splitKey(rel), uint64(obj.Size))
+			root.insert(splitKey(rel), obj.Size)
 		}
 		if verr := ctxErr(ctx, req); verr != nil {
 			return nil, verr
@@ -167,7 +167,7 @@ func splitKey(key string) []string {
 type treeNode struct {
 	children map[string]*treeNode
 	objects  int
-	bytes    uint64
+	bytes    int64
 	leaf     bool
 }
 
@@ -183,7 +183,7 @@ func (n *treeNode) child(name string) *treeNode {
 	return c
 }
 
-func (n *treeNode) insert(parts []string, size uint64) {
+func (n *treeNode) insert(parts []string, size int64) {
 	n.objects++
 	n.bytes += size
 	if len(parts) == 0 {
