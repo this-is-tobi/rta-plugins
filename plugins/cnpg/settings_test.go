@@ -316,7 +316,7 @@ func TestTheVolumeTableNeverShowsAPercentage(t *testing.T) {
 	// A refusal that stops there sends the reader guessing. The graded
 	// number exists, one capability over, behind the permission that is the
 	// reason it is not here — so the refusal says which.
-	if !strings.Contains(desc, "rta kube pvc usage") || !strings.Contains(desc, "nodes/proxy") {
+	if !strings.Contains(desc, "`kube.pvc.usage`") || !strings.Contains(desc, "nodes/proxy") {
 		t.Error("the capability does not say where the answer lives, or what it costs")
 	}
 }

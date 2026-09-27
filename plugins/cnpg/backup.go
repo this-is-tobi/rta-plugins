@@ -255,7 +255,8 @@ func backupErrors(rows []backupObject) view.Table {
 func emptyBackupBody(cluster string, s selection) string {
 	if cluster != "" {
 		return "No backups of " + cluster + " in " + s.where() + ".\n\n" +
-			"`rta cnpg status --cluster " + cluster + "` says whether anything is configured to take one."
+			"`" + s.sf.Call("cnpg.status", plugin.Arg{Name: "cluster", Value: cluster}) +
+			"` says whether anything is configured to take one."
 	}
 	return "No CloudNativePG backups in " + s.where() + "."
 }
@@ -302,7 +303,7 @@ func backupRequestCapability() plugin.Capability {
 			"operator, which admits the object with no complaint — so the failure would " +
 			"surface minutes later in a place nobody is looking. rta reads the cluster " +
 			"first and says so instead.\n\n" +
-			"`--method`, `--target` and `--online` override what the cluster settled on, " +
+			"`method`, `target` and `online` override what the cluster settled on, " +
 			"and are all optional: sending none of them is the ordinary call and means " +
 			"'do what you would have done anyway'.",
 		Run: runBackupRequest,
@@ -319,7 +320,7 @@ func backupRequestCapability() plugin.Capability {
 			Help:    "which instance performs it — the cluster's own choice when omitted"},
 		plugin.Field{Name: "online", Type: plugin.String, Config: "backup.online",
 			Options: []string{"true", "false"},
-			Help: "hot or cold — only with --method volumeSnapshot, and the cluster's " +
+			Help: "hot or cold — only with a `method` of volumeSnapshot, and the cluster's " +
 				"own choice when omitted"})
 }
 
@@ -387,7 +388,7 @@ func runBackupRequest(ctx context.Context, req plugin.Request) (view.View, error
 	}
 	if name == "" {
 		return nil, view.Errorf("cnpg.backup.nocluster", "no cluster named").
-			WithHint("`rta cnpg list` shows what is there")
+			WithHint(req.Surface().CapabilityName("cnpg.list") + " shows what is there")
 	}
 
 	// The cluster is read before anything is written, and it earns its round
@@ -420,7 +421,7 @@ func runBackupRequest(ctx context.Context, req plugin.Request) (view.View, error
 	// barmanObjectStore one it cannot perform — accepted, then failed
 	// minutes later, exactly the shape the unconfigured check above stops.
 	if !c.canTake(b.Spec.Method) {
-		return nil, methodRefusal(c, b.Spec.Method)
+		return nil, methodRefusal(req.Surface(), c, b.Spec.Method)
 	}
 	if req.DryRun {
 		return dryRunView(b, c, doc), nil
@@ -430,7 +431,7 @@ func runBackupRequest(ctx context.Context, req plugin.Request) (view.View, error
 	if verr := createJSON(ctx, s, doc, &created); verr != nil {
 		return nil, verr
 	}
-	return requestReceipt(created, b, c), nil
+	return requestReceipt(req.Surface(), created, b, c), nil
 }
 
 // methodRefusal words the mismatch, and has a case for the cluster that
@@ -442,7 +443,7 @@ func runBackupRequest(ctx context.Context, req plugin.Request) (view.View, error
 // configures %s, pass --method %s" off the first entry) indexes an empty
 // slice and takes the plugin down. Found by a fixture that turned out to be
 // shaped exactly like it.
-func methodRefusal(c cluster, asked string) *view.Error {
+func methodRefusal(sf plugin.Surface, c cluster, asked string) *view.Error {
 	named := asked + " backup"
 	if asked == "" {
 		named = defaultBackupMethod + " backup, which is what CloudNativePG gives a " +
@@ -474,7 +475,7 @@ func methodRefusal(c cluster, asked string) *view.Error {
 			"`kubectl cnpg backup`'s to take")
 	}
 	return verr.WithHint("this cluster configures " + strings.Join(have, " and ") +
-		" — pass `--method " + have[0] + "`")
+		" — pass " + given(sf, "method", have[0]))
 }
 
 // buildBackupRequest assembles the document, and validates every value that
@@ -527,7 +528,7 @@ func buildBackupRequest(req plugin.Request, c cluster, s selection) ([]byte, bac
 		if method != "volumeSnapshot" {
 			return nil, b, view.Errorf("cnpg.backup.online.unavailable",
 				"online only means something for a volumeSnapshot backup").
-				WithHint("pass `--method volumeSnapshot` with it, or leave online out and " +
+				WithHint("pass " + given(req.Surface(), "method", "volumeSnapshot") + " with it, or leave online out and " +
 					"let the cluster's own `.spec.backup.volumeSnapshot.online` decide")
 		}
 		v := online == "true"
@@ -583,7 +584,7 @@ func dryRunView(b backupRequest, c cluster, doc []byte) view.View {
 // requestReceipt says what was asked for, what will perform it, and where to
 // look next. It never claims the backup happened: creating the object is the
 // whole of what rta did, and the operator's work starts afterwards.
-func requestReceipt(created backupObject, b backupRequest, c cluster) view.View {
+func requestReceipt(sf plugin.Surface, created backupObject, b backupRequest, c cluster) view.View {
 	name := created.Metadata.Name
 	if name == "" {
 		name = b.Metadata.Name
@@ -605,8 +606,9 @@ func requestReceipt(created backupObject, b backupRequest, c cluster) view.View 
 	return view.KeyValue{Pairs: append(pairs,
 		view.Pair{Key: "rta did not take it", Value: "the object is a request; CloudNativePG " +
 			"performs the backup, and a Backup that was accepted can still fail"},
-		view.Pair{Key: "watch it", Value: "`rta cnpg backup list --cluster " + c.Metadata.Name +
-			" --namespace " + c.Metadata.Namespace + "`"},
+		view.Pair{Key: "watch it", Value: "`" + sf.Call("cnpg.backup.list",
+			plugin.Arg{Name: "cluster", Value: c.Metadata.Name},
+			plugin.Arg{Name: "namespace", Value: c.Metadata.Namespace}) + "`"},
 	)}
 }
 
@@ -645,4 +647,14 @@ func destinationOf(c cluster) string {
 		return "wherever this cluster's `.spec.backup` sends it"
 	}
 	return "—"
+}
+
+// given names input name set to value, as the reader would give it: a
+// command line's `--method volumeSnapshot` on the CLI, and elsewhere the input
+// the surface names, with the value beside it.
+func given(sf plugin.Surface, name, value string) string {
+	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
+		return sf.InputName(name) + " set to " + value
+	}
+	return "`" + sf.InputName(name) + " " + value + "`"
 }

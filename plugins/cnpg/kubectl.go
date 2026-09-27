@@ -90,6 +90,9 @@ type selection struct {
 	context      string
 	namespace    string
 	allNamespace bool
+	// sf is the surface the call came through, so a failure reading the
+	// cluster names what to call next the way its reader calls it.
+	sf plugin.Surface
 }
 
 func selectionOf(req plugin.Request) (selection, *view.Error) {
@@ -97,6 +100,7 @@ func selectionOf(req plugin.Request) (selection, *view.Error) {
 		context:      strings.TrimSpace(req.String("context")),
 		namespace:    strings.TrimSpace(req.String("namespace")),
 		allNamespace: req.Bool("all-namespaces"),
+		sf:           req.Surface(),
 	}
 	if verr := checkName("context", s.context); verr != nil {
 		return selection{}, verr
@@ -120,9 +124,9 @@ func selectionOf(req plugin.Request) (selection, *view.Error) {
 	// reason, where the scope *is* declared and the bypass was real.
 	if s.allNamespace && s.namespace != "" {
 		return selection{}, view.Errorf("cnpg.namespace.ambiguous",
-			"--namespace and --all-namespaces ask for different things").
+			"%s and %s ask for different things", s.sf.InputName("namespace"), s.sf.InputName("all-namespaces")).
 			WithHint("pass one or the other — a namespace to read that namespace, " +
-				"--all-namespaces to read every one")
+				s.sf.InputName("all-namespaces") + " to read every one")
 	}
 	return s, nil
 }
@@ -178,7 +182,9 @@ func (s selection) where() string {
 	return strings.Join(parts, ", ")
 }
 
-func run(ctx context.Context, args ...string) ([]byte, *view.Error) {
+// sf is the surface the call came through: a failure names the call to make
+// next, and only the surface knows how its reader makes one.
+func run(ctx context.Context, sf plugin.Surface, args ...string) ([]byte, *view.Error) {
 	cctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	cmd := exec.CommandContext(cctx, kubectlBin, args...)
@@ -186,7 +192,7 @@ func run(ctx context.Context, args ...string) ([]byte, *view.Error) {
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, classify(cctx, err, stderr.String(), args)
+		return nil, classify(cctx, err, stderr.String(), args, sf)
 	}
 	return out, nil
 }
@@ -199,7 +205,7 @@ func run(ctx context.Context, args ...string) ([]byte, *view.Error) {
 // a proxy that hands out short-lived credentials, so "your login expired" is
 // the ordinary failure and reporting it as an RBAC problem sends people to
 // argue with the wrong team.
-func classify(ctx context.Context, err error, stderr string, args []string) *view.Error {
+func classify(ctx context.Context, err error, stderr string, args []string, sf plugin.Surface) *view.Error {
 	s := strings.TrimSpace(stderr)
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return view.Errorf("cnpg.timeout", "kubectl did not answer within %s", timeout).
@@ -232,7 +238,7 @@ func classify(ctx context.Context, err error, stderr string, args []string) *vie
 				"grep cnpg` confirms it, and this plugin reads nothing else")
 	case strings.Contains(s, "not found"):
 		return view.Errorf("cnpg.cluster.missing", "%s", firstLine(s)).
-			WithHint("`rta cnpg list --all-namespaces` shows what is there")
+			WithHint(sf.CapabilityWith("cnpg.list", "all-namespaces") + " shows what is there")
 	case s == "":
 		return view.Errorf("cnpg.kubectl.failed", "kubectl exited %d without saying why",
 			exitErr.ExitCode())
@@ -287,7 +293,7 @@ func getResource(ctx context.Context, s selection, resource, name string, out an
 	}
 	args = append(args, "-o", "json")
 	args = append(args, extra...)
-	raw, verr := run(ctx, s.args(args...)...)
+	raw, verr := run(ctx, s.sf, s.args(args...)...)
 	if verr != nil {
 		return verr
 	}
@@ -322,14 +328,14 @@ func createJSON(ctx context.Context, s selection, doc []byte, out any, extra ...
 	cmd.Stderr = &stderr
 	raw, err := cmd.Output()
 	if err != nil {
-		return classify(cctx, err, stderr.String(), args)
+		return classify(cctx, err, stderr.String(), args, s.sf)
 	}
 	if out == nil {
 		return nil
 	}
 	if err := json.Unmarshal(raw, out); err != nil {
 		return view.Errorf("cnpg.decode", "kubectl's JSON did not parse: %v", err).
-			WithHint("the object may still have been created — `rta cnpg backup list` says")
+			WithHint("the object may still have been created — " + s.sf.CapabilityName("cnpg.backup.list") + " says")
 	}
 	return nil
 }
