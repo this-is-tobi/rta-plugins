@@ -66,7 +66,7 @@ func scanKeys(ctx context.Context, c *client, pattern string, limit int) (keys [
 	for {
 		r, err := c.do(ctx, "SCAN", cursor, "MATCH", pattern, "COUNT", strconv.Itoa(scanBatch))
 		if err != nil {
-			return nil, false, classify(err, c.addr)
+			return nil, false, classify(err, c.addr, c.sf)
 		}
 		if len(r.items) != 2 {
 			return nil, false, view.Errorf("redis.scan.malformed", "%s answered SCAN with %s, want 2", c.addr, format.CountOf(len(r.items), "item"))
@@ -99,11 +99,11 @@ func keyListView(ctx context.Context, c *client, req plugin.Request) (view.View,
 	for _, k := range keys {
 		typ, err := c.do(ctx, "TYPE", k)
 		if err != nil {
-			return nil, classify(err, c.addr)
+			return nil, classify(err, c.addr, c.sf)
 		}
 		ttl, err := c.do(ctx, "TTL", k)
 		if err != nil {
-			return nil, classify(err, c.addr)
+			return nil, classify(err, c.addr, c.sf)
 		}
 		t.Rows = append(t.Rows, []string{k, typ.text(), ttlText(ttl.num)})
 	}
@@ -114,7 +114,8 @@ func keyListView(ctx context.Context, c *client, req plugin.Request) (view.View,
 	if truncated {
 		// A listing that quietly ended at the limit reads exactly like a
 		// keyspace that size. The last row says so, the way etcd's tree does.
-		t.Rows = append(t.Rows, []string{"…", "-", "stopped at " + format.CountOf(limit, "key") + "; narrow the pattern or raise --limit"})
+		t.Rows = append(t.Rows, []string{"…", "-", "stopped at " + format.CountOf(limit, "key") + "; narrow the pattern or raise " +
+			req.Surface().InputName("limit")})
 	}
 	return t, nil
 }
@@ -170,12 +171,12 @@ func keyTreeView(ctx context.Context, c *client, req plugin.Request) (view.View,
 	for _, k := range keys {
 		root.insert(splitKey(k, sep))
 	}
-	w := &treeRender{maxDepth: req.Int("depth"), sep: sep}
+	w := &treeRender{maxDepth: req.Int("depth"), sep: sep, sf: req.Surface()}
 	children := w.expand(root, 1)
 	detail := format.CountOf(root.keys, "key")
 	switch {
 	case truncated:
-		detail += fmt.Sprintf(" — stopped at %d; narrow the pattern or raise --limit", limit)
+		detail += fmt.Sprintf(" — stopped at %d; narrow the pattern or raise %s", limit, req.Surface().InputName("limit"))
 	case w.stopped != "":
 		detail += " — " + w.stopped
 	}
@@ -223,6 +224,7 @@ type treeRender struct {
 	sep      string
 	nodes    int
 	stopped  string
+	sf       plugin.Surface
 }
 
 func (w *treeRender) expand(n *treeNode, depth int) []view.Node {
@@ -251,7 +253,7 @@ func (w *treeRender) expand(n *treeNode, depth int) []view.Node {
 		}
 		node := view.Node{Label: name + w.sep, Detail: format.CountOf(c.keys, "key")}
 		if depth >= w.maxDepth {
-			node.Detail += " — not expanded, raise --depth"
+			node.Detail += " — not expanded, raise " + w.sf.InputName("depth")
 		} else {
 			node.Children = w.expand(c, depth+1)
 		}
@@ -279,7 +281,7 @@ func keyGetCapability() plugin.Capability {
 			"**Classified write for what it discloses, not what it changes.** A session store " +
 			"keeps tokens and a cache keeps whatever the application cached, so reading an " +
 			"arbitrary key can be reading somebody's session. It needs a grant naming the key: " +
-			"`rta grant allow redis.key.get user:42:session` is a consent somebody can read.\n\n" +
+			"`grant.allow` for `redis.key.get` and `user:42:session` is a consent somebody can read.\n\n" +
 			"The read tier — redis.key.list and redis.key.tree — shows names, types and TTLs, " +
 			"which is usually the question and costs none of this.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
@@ -295,11 +297,11 @@ func keyGetView(ctx context.Context, c *client, req plugin.Request) (view.View, 
 	key := req.String("key")
 	typ, err := c.do(ctx, "TYPE", key)
 	if err != nil {
-		return nil, classify(err, c.addr)
+		return nil, classify(err, c.addr, c.sf)
 	}
 	ttl, err := c.do(ctx, "TTL", key)
 	if err != nil {
-		return nil, classify(err, c.addr)
+		return nil, classify(err, c.addr, c.sf)
 	}
 	pairs := []view.Pair{
 		{Key: "key", Value: key},
@@ -311,18 +313,19 @@ func keyGetView(ctx context.Context, c *client, req plugin.Request) (view.View, 
 	switch typ.text() {
 	case "none":
 		return nil, view.Errorf("redis.key.notfound", "no key %q on %s", key, c.addr).
-			WithHint("`rta redis key list <pattern>` shows what exists")
+			WithHint("`" + c.sf.Call("redis.key.list", plugin.Arg{Name: "pattern", Value: "<pattern>", Positional: true}) +
+				"` shows what exists")
 	case "string":
 		r, err := c.do(ctx, "GET", key)
 		if err != nil {
-			return nil, classify(err, c.addr)
+			return nil, classify(err, c.addr, c.sf)
 		}
 		value = r.text()
 		pairs = append(pairs, view.Pair{Key: "size", Value: format.Bytes(len(value))})
 	case "hash":
 		r, err := c.do(ctx, "HGETALL", key)
 		if err != nil {
-			return nil, classify(err, c.addr)
+			return nil, classify(err, c.addr, c.sf)
 		}
 		kv := r.pairs()
 		pairs = append(pairs, view.Pair{Key: "fields", Value: strconv.Itoa(len(kv))})
@@ -338,21 +341,21 @@ func keyGetView(ctx context.Context, c *client, req plugin.Request) (view.View, 
 	case "list":
 		r, err := c.do(ctx, "LRANGE", key, "0", strconv.Itoa(maxValueItems))
 		if err != nil {
-			return nil, classify(err, c.addr)
+			return nil, classify(err, c.addr, c.sf)
 		}
 		n, _ := c.do(ctx, "LLEN", key)
 		return collectionView(pairs, r.strings(), n.num), nil
 	case "set":
 		r, err := c.do(ctx, "SRANDMEMBER", key, strconv.Itoa(maxValueItems+1))
 		if err != nil {
-			return nil, classify(err, c.addr)
+			return nil, classify(err, c.addr, c.sf)
 		}
 		n, _ := c.do(ctx, "SCARD", key)
 		return collectionView(pairs, r.strings(), n.num), nil
 	case "zset":
 		r, err := c.do(ctx, "ZRANGE", key, "0", strconv.Itoa(maxValueItems), "WITHSCORES")
 		if err != nil {
-			return nil, classify(err, c.addr)
+			return nil, classify(err, c.addr, c.sf)
 		}
 		items := make([]string, 0, len(r.items)/2)
 		for _, p := range r.pairs() {
