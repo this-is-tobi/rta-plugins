@@ -85,6 +85,19 @@ func TestTheTreeCanStartInsideTheMount(t *testing.T) {
 	}
 }
 
+// One of each is counted in the singular, as every other count rta prints is.
+func TestASingleSecretAndFolderAreNotCountedAsSeveral(t *testing.T) {
+	srv, _ := recordingVault(t, map[string]string{
+		"/v1/secret/metadata":      `{"data":{"keys":["only/"]}}`,
+		"/v1/secret/metadata/only": `{"data":{"keys":["token"]}}`,
+	})
+	tree := treeOf(t, srv, map[string]any{})
+
+	if d := tree.Roots[0].Detail; d != "1 secret, 1 folder" {
+		t.Errorf("detail = %q, want \"1 secret, 1 folder\"", d)
+	}
+}
+
 // --depth stops the walk, and a folder left unexpanded says so. A folder
 // rendered as a leaf would read as an empty one.
 func TestAFolderLeftUnexpandedSaysSo(t *testing.T) {
