@@ -115,7 +115,7 @@ func runBucketUpload(ctx context.Context, req plugin.Request) (view.View, error)
 		}
 		if req.DryRun {
 			return view.Text{Body: fmt.Sprintf("would upload %s (%s) from %s into %s/%s",
-				format.CountOf(len(plan), "file"), format.Bytes(uint64(total)), root, req.String("bucket"), prefix)}, nil
+				format.CountOf(len(plan), "file"), format.Bytes(total), root, req.String("bucket"), prefix)}, nil
 		}
 
 		started := time.Now()
@@ -127,7 +127,7 @@ func runBucketUpload(ctx context.Context, req plugin.Request) (view.View, error)
 		pairs := []view.Pair{
 			{Key: "uploaded", Value: root},
 			{Key: "objects", Value: fmt.Sprintf("%d", len(plan))},
-			{Key: "size", Value: format.Bytes(uint64(written))},
+			{Key: "size", Value: format.Bytes(written)},
 			{Key: "took", Value: time.Since(started).Round(time.Millisecond).String()},
 			{Key: "to", Value: req.String("bucket") + "/" + prefix},
 		}
