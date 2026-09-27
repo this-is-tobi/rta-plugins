@@ -318,7 +318,7 @@ func keyGetView(ctx context.Context, c *client, req plugin.Request) (view.View, 
 			return nil, classify(err, c.addr)
 		}
 		value = r.text()
-		pairs = append(pairs, view.Pair{Key: "size", Value: format.Bytes(uint64(len(value)))})
+		pairs = append(pairs, view.Pair{Key: "size", Value: format.Bytes(len(value))})
 	case "hash":
 		r, err := c.do(ctx, "HGETALL", key)
 		if err != nil {
