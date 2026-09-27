@@ -483,7 +483,13 @@ bump-rta: name-check ## Pin every module and .rta-version to rta RTA_VERSION (e.
 # and the wrong signal for a project re-architecting before v1. This builds
 # and tests every plugin against rta at RTA_REF instead, and a red run says
 # "the SDK moved under you" without blocking a release.
+#
+# It borrows the workspace to do it, writing go.work and removing it after,
+# so it refuses to start over one somebody made: a `make dev` edit loop
+# pointed at a local checkout would be gone when this finished, and every
+# build after it would pin go.mod's rta again with nothing saying so.
 canary: name-check ## Check every plugin against rta at RTA_REF (default main), without touching go.mod
+	@test ! -e go.work || { echo "canary replaces go.work, and one is here already: 'make dev-off' first"; exit 1; }
 	@tmp=$$(mktemp -d); \
 	git clone --quiet --depth 1 --branch $(RTA_REF) https://github.com/this-is-tobi/rta "$$tmp/rta" || exit 1; \
 	$(MAKE) dev RTA_DIR="$$tmp/rta" && $(MAKE) check; rc=$$?; \
