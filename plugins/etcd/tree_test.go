@@ -169,7 +169,9 @@ func TestTheNodeBudgetIsMarkedRatherThanSilent(t *testing.T) {
 	if last.Label != "…" {
 		t.Errorf("truncation is not marked in the tree: last label %q", last.Label)
 	}
-	if !strings.Contains(last.Detail, "--prefix") {
+	// The prefix is the command's argument, not a flag: a hint naming
+	// --prefix sent somebody to a flag the CLI refuses with core.usage.
+	if !strings.Contains(last.Detail, "narrow it with <prefix>") {
 		t.Errorf("truncation does not say how to narrow it: %q", last.Detail)
 	}
 }
