@@ -181,15 +181,18 @@ func classify(err error, req plugin.Request) *view.Error {
 			WithHint(explainHint(sf, "s3.overview"))
 	}
 
-	var netErr *stdnet.OpError
-	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
-		return view.Errorf("s3.conn.refused", "nothing is listening on %s", where).
-			WithHint("is the server up, and is " + setting(sf, "endpoint") + " right?")
-	}
+	// The name first: a dial that could not resolve its host fails with a
+	// *net.OpError wrapping the *net.DNSError, and read the other way round
+	// every name nothing resolves was reported as a port nothing listens on.
 	var dnsErr *stdnet.DNSError
 	if errors.As(err, &dnsErr) {
 		return view.Errorf("s3.host.unknown", "no address for %q", where).
 			WithHint(dnsHint(sf, hostOnly(where)))
+	}
+	var netErr *stdnet.OpError
+	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
+		return view.Errorf("s3.conn.refused", "nothing is listening on %s", where).
+			WithHint("is the server up, and is " + setting(sf, "endpoint") + " right?")
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
