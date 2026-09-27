@@ -105,8 +105,8 @@ func storageTable(st *clientv3.StatusResponse) view.Table {
 			{Name: "Use %", Kind: view.KindUsage},
 		},
 		Rows: [][]string{{
-			format.Bytes(uint64(st.DbSize)),
-			format.Bytes(uint64(st.DbSizeInUse)),
+			format.Bytes(st.DbSize),
+			format.Bytes(st.DbSizeInUse),
 			quotaBytes(st.DbSizeQuota),
 			quotaCell(st.DbSize, st.DbSizeQuota),
 		}},
@@ -159,7 +159,7 @@ func quotaBytes(quota int64) string {
 	if quota <= 0 {
 		return "-"
 	}
-	return format.Bytes(uint64(quota))
+	return format.Bytes(quota)
 }
 
 // leaderText spells out the case a raw ID hides. A member reporting leader 0
@@ -299,7 +299,7 @@ func memberHealthTable(ctx context.Context, c *clientv3.Client, req plugin.Reque
 		}
 		t.Rows = append(t.Rows, []string{
 			hexID(m.ID), m.ClientURLs[0], hexID(st.Leader),
-			strconv.FormatUint(st.RaftTerm, 10), format.Bytes(uint64(st.DbSize)),
+			strconv.FormatUint(st.RaftTerm, 10), format.Bytes(st.DbSize),
 			quotaBytes(st.DbSizeQuota), quotaCell(st.DbSize, st.DbSizeQuota), health,
 		})
 	}

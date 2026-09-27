@@ -370,7 +370,7 @@ func kvGetResult(key string, value []byte, version, created, modified, lease int
 		Pairs: []view.Pair{
 			{Key: "key", Value: key},
 			{Key: "value", Value: string(value)},
-			{Key: "size", Value: format.Bytes(uint64(len(value)))},
+			{Key: "size", Value: format.Bytes(len(value))},
 			{Key: "version", Value: strconv.FormatInt(version, 10)},
 			{Key: "created revision", Value: strconv.FormatInt(created, 10)},
 			{Key: "modified revision", Value: strconv.FormatInt(modified, 10)},

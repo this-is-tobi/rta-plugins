@@ -321,7 +321,7 @@ func snapshotReceipt(path string, size int64, took time.Duration,
 	src source, streamedVersion, verified string) view.KeyValue {
 	pairs := []view.Pair{
 		{Key: "wrote", Value: path},
-		{Key: "size", Value: format.Bytes(uint64(size))},
+		{Key: "size", Value: format.Bytes(size)},
 		{Key: "took", Value: took.Round(time.Millisecond).String()},
 		{Key: "source", Value: src.describe()},
 		{Key: "contents", Value: "every key at that revision, with the users and roles beside " +
