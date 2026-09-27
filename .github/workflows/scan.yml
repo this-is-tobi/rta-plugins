@@ -72,6 +72,10 @@ jobs:
           exit 1
         fi
 
+    # The ref is the runner's GITHUB_REF rather than ${{ github.ref }}
+    # spliced into the script: a dispatch runs this on whatever branch it
+    # names, and a valid branch name can hold a quote and a command
+    # substitution. See ci.yml's upload step.
     - name: Upload scan results to the Security tab
       if: ${{ always() && steps.scan.outputs.sarif == 'true' }}
       env:
@@ -79,9 +83,9 @@ jobs:
       run: |-
         for f in "$RUNNER_TEMP"/sarif/*.sarif; do
           m=$(basename "$f" .sarif)
-          gh api "repos/${{ github.repository }}/code-scanning/sarifs" \
-            -f commit_sha="${{ github.sha }}" \
-            -f ref="${{ github.ref }}" \
+          gh api "repos/$GITHUB_REPOSITORY/code-scanning/sarifs" \
+            -f commit_sha="$GITHUB_SHA" \
+            -f ref="$GITHUB_REF" \
             -f sarif="$(gzip -c "$f" | base64 -w0)" \
             >/dev/null || echo "::warning::could not upload the $m scan to the Security tab"
         done
