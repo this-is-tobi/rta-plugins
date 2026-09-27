@@ -47,7 +47,7 @@ Every object under a prefix, onto local disk, in parallel. **Refuses MCP outrigh
 
 **An object key becomes a filename, and the key comes from the server.** `../../../../etc/cron.d/root` is a legal S3 key, so every destination is resolved and checked to be inside the directory you named; a key that escapes refuses the whole download and names the keys rather than skipping them quietly, because a backup missing the interesting objects is worse than one that did not run. The listing is checked in full before anything is written, so a refusal costs no partial directory.
 
-Written into a directory this creates — never one that already exists, so a backup is never half of one run and half of another — at mode 0700 with each object at 0600. A run that fails takes the whole directory with it. --parallel is the flag that changes the transfer rate: object storage is latency-bound per object, so a bucket of many small files goes as fast as you are willing to ask for at once.
+Written into a directory this creates — never one that already exists, so a backup is never half of one run and half of another — at mode 0700 with each object at 0600. A run that fails takes the whole directory with it. `parallel` is the input that changes the transfer rate: object storage is latency-bound per object, so a bucket of many small files goes as fast as you are willing to ask for at once.
 
 | Field            | Value                                                                                                                                                                                                                                                                           |
 |------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -94,9 +94,9 @@ Written into a directory this creates — never one that already exists, so a ba
 
 Every regular file under a directory, into a bucket, in parallel — s3.bucket.download's other half, and what restores one of its backups. **Refuses MCP outright** for the download's reason run in reverse: everything arriving instead of everything leaving, and no blast radius a grant could name. An agent that needs to write an object asks for s3.object.set with a grant naming that key.
 
-**A destination already holding objects under the prefix is refused unless --overwrite says that is the point** — the download's fresh-directory rule pointing the other way. --overwrite replaces objects whose keys collide and leaves the rest, and the receipt says so.
+**A destination already holding objects under the prefix is refused unless `overwrite` says that is the point** — the download's fresh-directory rule pointing the other way. `overwrite` replaces objects whose keys collide and leaves the rest, and the receipt says so.
 
-Regular files only: a symlink refuses the whole upload by name — a link pointing at a credential would ship it as faithfully as any file, and a backup directory this plugin wrote contains no links, so one appearing deserves a person looking. Refused past --limit rather than truncated. A failed upload deletes nothing remote: a delete could also destroy what --overwrite already replaced, so the error names the possibly-partial prefix and the operator decides.
+Regular files only: a symlink refuses the whole upload by name — a link pointing at a credential would ship it as faithfully as any file, and a backup directory this plugin wrote contains no links, so one appearing deserves a person looking. Refused past `limit` rather than truncated. A failed upload deletes nothing remote: a delete could also destroy what `overwrite` already replaced, so the error names the possibly-partial prefix and the operator decides.
 
 | Field            | Value                                                                                                                                                                                                                                                                                      |
 |------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -149,7 +149,7 @@ Copies server-side; the content never passes through this process. Refuses if --
 
 ## s3.object.get
 
-Writes an object that is text to stdout with no framing, and one that is not as a hex dump of its first 256 bytes; for the byte-exact copy, or anything binary, --out writes it to a file (0600) instead — a person's flag only, since a grant authorizes revealing the content, not choosing where on this machine it lands. Without --out, text up to 1 MiB is printed in full and a larger object is refused rather than cut short, and an MCP caller gets the same answer in the response. --out never overwrites: a destination that already exists is refused, and a download that fails partway removes what it wrote.
+Writes an object that is text to stdout with no framing, and one that is not as a hex dump of its first 256 bytes; for the byte-exact copy, or anything binary, `out` writes it to a file (0600) instead — a person's input only, since a grant authorizes revealing the content, not choosing where on this machine it lands. Without `out`, text up to 1 MiB is printed in full and a larger object is refused rather than cut short, and an MCP caller gets the same answer in the response. `out` never overwrites: a destination that already exists is refused, and a download that fails partway removes what it wrote.
 
 | Field                | Value                                                                                                                                                                                                             |
 |----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -174,9 +174,9 @@ Writes an object that is text to stdout with no framing, and one that is not as 
 
 ## s3.object.list
 
-Grouped by "/" like a directory listing unless --recursive flattens the whole prefix.
+Grouped by "/" like a directory listing unless `recursive` flattens the whole prefix.
 
-Bounded: a bucket can hold millions of keys, so this returns --limit of them and says what to pass to --after for the next page. A listing that stopped and did not say so reads exactly like a bucket with that little in it.
+Bounded: a bucket can hold millions of keys, so this returns `limit` of them and says what to pass as `after` for the next page. A listing that stopped and did not say so reads exactly like a bucket with that little in it.
 
 | Field            | Value                                                                                                                                                                                                                                                                             |
 |------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -202,7 +202,7 @@ Bounded: a bucket can hold millions of keys, so this returns --limit of them and
 
 ## s3.object.presign
 
-The URL itself is a credential: anyone who has it can act on the object until --ttl expires, with no further authentication and no further grant check — this call is the one gated moment, not each use of the link. --method put grants write access to a caller-chosen key instead of read access to an existing one.
+The URL itself is a credential: anyone who has it can act on the object until `ttl` expires, with no further authentication and no further grant check — this call is the one gated moment, not each use of the link. A `method` of put grants write access to a caller-chosen key instead of read access to an existing one.
 
 | Field                | Value                                                                                                                                                                                                                                       |
 |----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -254,7 +254,7 @@ S3 has no native rename — this copies server-side, then removes the source. If
 
 ## s3.object.rm
 
-No history, no backup, no undo — the same loss `kv rm` is. S3's DELETE is idempotent: removing a key that is already gone is not an error, on this or the real call — --dry-run does not probe for existence first, since that would report a failure the real call would not.
+No history, no backup, no undo — the same loss `kv rm` is. S3's DELETE is idempotent: removing a key that is already gone is not an error, on this or the real call — a dry run does not probe for existence first, since that would report a failure the real call would not.
 
 | Field                | Value                                                                                                                                                                                               |
 |----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -327,7 +327,7 @@ The content comes from the argument or from --file; PutObject handles large file
 
 ## s3.object.tree
 
-`s3 object list` groups on "/" and answers one level at a time, so learning what is in somebody else's bucket means retyping --prefix a level deeper over and over. This reads the prefix once and draws the whole shape.
+`s3.object.list` groups on "/" and answers one level at a time, so learning what is in somebody else's bucket means retyping `prefix` a level deeper over and over. This reads the prefix once and draws the whole shape.
 
 Every prefix carries its recursive object count and total size, which is the question a flat paginated listing cannot answer: where the space went.
 
@@ -358,7 +358,7 @@ One request, however deep the result: the folders are built here from the keys, 
 
 ## s3.overview
 
-Whether this endpoint is reachable at all, and how many buckets the configured credentials can see. --detail adds the bucket list, with region and age, to the same page.
+Whether this endpoint is reachable at all, and how many buckets the configured credentials can see. `detail` adds the bucket list, with region and age, to the same page.
 
 | Field            | Value                                                                                                                                                                                               |
 |------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|

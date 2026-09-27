@@ -23,8 +23,8 @@ func s3ObjectPresignCapability() plugin.Capability {
 		ID: "s3.object.presign", Summary: "Generate a time-limited URL for an object", Safety: plugin.Write,
 		NeedsGrant: true, Scope: "key",
 		Description: "The URL itself is a credential: anyone who has it can act on the object " +
-			"until --ttl expires, with no further authentication and no further grant check — " +
-			"this call is the one gated moment, not each use of the link. --method put grants " +
+			"until `ttl` expires, with no further authentication and no further grant check — " +
+			"this call is the one gated moment, not each use of the link. A `method` of put grants " +
 			"write access to a caller-chosen key instead of read access to an existing one.",
 		Run: runObjectPresign,
 	}, boundBucketField("bucket the object is in"), keyField("object to presign"),

@@ -83,7 +83,7 @@ func s3BucketDownloadCapability() plugin.Capability {
 			"checked in full before anything is written, so a refusal costs no partial directory.\n\n" +
 			"Written into a directory this creates — never one that already exists, so a backup " +
 			"is never half of one run and half of another — at mode 0700 with each object at 0600. " +
-			"A run that fails takes the whole directory with it. --parallel is the flag that " +
+			"A run that fails takes the whole directory with it. `parallel` is the input that " +
 			"changes the transfer rate: object storage is latency-bound per object, so a bucket of " +
 			"many small files goes as fast as you are willing to ask for at once.",
 		Run: runBucketDownload,
@@ -119,20 +119,20 @@ func humanOnly(req plugin.Request, id, hint string) *view.Error {
 func runBucketDownload(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr := humanOnly(req, "s3.bucket.download",
 		"a whole bucket has no blast radius a grant could name — its one authorized "+
-			"use is everything. Ask for the object you need with s3.object.get, which takes a "+
-			"grant naming that key"); verr != nil {
+			"use is everything. Ask for the object you need with "+req.Surface().CapabilityName("s3.object.get")+
+			", which takes a grant naming that key"); verr != nil {
 		return nil, verr
 	}
 
 	out := strings.TrimSpace(req.String("out"))
 	if out == "" {
 		return nil, view.Errorf("s3.download.nooutput", "say where the objects should be written").
-			WithHint("--out ./" + req.String("bucket") + "-backup — a bucket is a directory of " +
-				"files, not something to read in a terminal")
+			WithHint(given(req.Surface(), "out", "./"+req.String("bucket")+"-backup") + " — a bucket is a " +
+				"directory of files, not something to read in a terminal")
 	}
 	root, err := filepath.Abs(plugin.ExpandHome(out))
 	if err != nil {
-		return nil, view.Errorf("s3.download.path", "resolving --out: %v", err)
+		return nil, view.Errorf("s3.download.path", "resolving %s: %v", req.Surface().InputName("out"), err)
 	}
 
 	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
@@ -143,7 +143,7 @@ func runBucketDownload(ctx context.Context, req plugin.Request) (view.View, erro
 		if verr != nil {
 			return nil, verr
 		}
-		plan, verr := planDownload(root, objects)
+		plan, verr := planDownload(req.Surface(), root, objects)
 		if verr != nil {
 			return nil, verr
 		}
@@ -221,7 +221,8 @@ func listForDownload(ctx context.Context, client *minio.Client,
 		if len(out) == limit {
 			return nil, view.Errorf("s3.download.toomany",
 				"%s holds more than %s", req.String("bucket"), format.CountOf(limit, "object")).
-				WithHint("raise --limit, or narrow it with --prefix — refused rather than " +
+				WithHint("raise " + req.Surface().InputName("limit") + ", or narrow it with " +
+					req.Surface().InputName("prefix") + " — refused rather than " +
 					"truncated, because a backup missing objects nobody named is worse than " +
 					"one that did not run")
 		}
@@ -247,7 +248,7 @@ type target struct {
 // bucket nobody understands, and both deserve a person looking rather than a
 // line in a summary. Skipping quietly would produce a directory that looks
 // like a complete backup and is not.
-func planDownload(root string, objects []minio.ObjectInfo) ([]target, *view.Error) {
+func planDownload(sf plugin.Surface, root string, objects []minio.ObjectInfo) ([]target, *view.Error) {
 	var plan []target
 	var unsafe []string
 	refused := 0
@@ -268,7 +269,7 @@ func planDownload(root string, objects []minio.ObjectInfo) ([]target, *view.Erro
 			format.CountOf(refused, "object key"), root, refusedList(unsafe, refused)).
 			WithHint("an object key becomes a filename and the key comes from the server, so " +
 				"one that escapes the destination is refused rather than skipped — nothing has " +
-				"been written. Narrow the copy with --prefix to exclude them")
+				"been written. Narrow the copy with " + sf.InputName("prefix") + " to exclude them")
 	}
 	return plan, nil
 }
@@ -387,7 +388,7 @@ func fetchOne(ctx context.Context, client *minio.Client, req plugin.Request,
 		return 0, view.Errorf("s3.download.collision",
 			"two object keys resolve to the same local file: %s", t.path).
 			WithHint("usually a case-insensitive filesystem holding keys that differ only in " +
-				"case — copy to a case-sensitive volume, or narrow it with --prefix")
+				"case — copy to a case-sensitive volume, or narrow it with " + req.Surface().InputName("prefix"))
 	}
 	if err != nil {
 		return 0, view.Errorf("s3.download.create", "creating %s: %v", t.path, err)
