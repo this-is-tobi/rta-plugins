@@ -71,7 +71,8 @@ func TestTheTreeFindsSecretsSeveralLevelsDown(t *testing.T) {
 	readOnly(t, asked())
 }
 
-// --path starts the walk somewhere, which is how a big mount stays readable.
+// The path argument starts the walk somewhere, which is how a big mount stays
+// readable.
 func TestTheTreeCanStartInsideTheMount(t *testing.T) {
 	srv, _ := recordingVault(t, mountFixture)
 	tree := treeOf(t, srv, map[string]any{"path": "apps/billing"})
@@ -170,6 +171,11 @@ func TestAHugeMountIsBoundedAndSaysSo(t *testing.T) {
 	tree := treeOf(t, srv, map[string]any{})
 	if d := tree.Roots[0].Detail; !strings.Contains(d, "stopped") {
 		t.Errorf("detail = %q, want it to say the walk was cut short", d)
+	}
+	// The path is the command's argument, not a flag: a hint naming --path
+	// sent somebody to a flag the CLI refuses with core.usage.
+	if d := tree.Roots[0].Detail; !strings.Contains(d, "narrow it with <path>") {
+		t.Errorf("detail = %q, want it to name the path argument as the CLI takes it", d)
 	}
 	if n := len(tree.Roots[0].Children); n > maxTreeNodes+1 {
 		t.Errorf("children = %d, want the walk bounded at %d", n, maxTreeNodes)
