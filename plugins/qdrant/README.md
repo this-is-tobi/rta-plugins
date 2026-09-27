@@ -154,9 +154,9 @@ Points from one collection, with their payloads.
 
 **Classified write for what it discloses, not what it changes.** The payloads are whatever was indexed — for most deployments, chunks of documents.
 
-**Vectors are off by default even here.** An embedding is not a hash: it is a lossy but reversible-enough encoding, and inversion attacks recover substantial parts of the source text from embeddings alone. So --vectors is a second, separate decision rather than something that rides along with the payload.
+**Vectors are off by default even here.** An embedding is not a hash: it is a lossy but reversible-enough encoding, and inversion attacks recover substantial parts of the source text from embeddings alone. So `vectors` is a second, separate decision rather than something that rides along with the payload.
 
-It also needs a grant naming it, which is available because this names one collection: `rta grant allow qdrant.points.scroll support-tickets` is a consent somebody can read.
+It also needs a grant naming it, which is available because this names one collection: `grant.allow` for `qdrant.points.scroll` and `support-tickets` is a consent somebody can read.
 
 The read tier — qdrant.collection.show and qdrant.points.count — describes a collection and counts it, which is usually the question and costs none of this.
 
@@ -184,7 +184,7 @@ The read tier — qdrant.collection.show and qdrant.points.count — describes a
 
 The other half of qdrant.dump — the file back into a collection. **Refuses MCP outright** for the dump's reason run in reverse: the dump refuses because everything would leave, and a restore is everything arriving, becoming the collection wholesale. Neither direction has a blast radius a grant could name, so both belong to the person at the keyboard.
 
-**A collection already holding points is refused unless --replace says that is the point**, which is the dump's no-overwrite rule pointing the other way. The collection named here does not have to be the one the snapshot came from — restoring into a fresh name is how you inspect a backup without touching the original.
+**A collection already holding points is refused unless `replace` says that is the point**, which is the dump's no-overwrite rule pointing the other way. The collection named here does not have to be the one the snapshot came from — restoring into a fresh name is how you inspect a backup without touching the original.
 
 Recovery is the server's own: the snapshot carries the collection's config and indexes, and priority=snapshot makes the file the authority — without it a distributed deployment prefers what its replicas already hold, which is a restore that reports success and restores nothing. The receipt reports what the collection holds afterwards, read back rather than assumed.
 

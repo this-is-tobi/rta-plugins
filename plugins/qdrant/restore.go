@@ -61,7 +61,7 @@ func restoreCapability() plugin.Capability {
 			"everything would leave, and a restore is everything arriving, becoming the " +
 			"collection wholesale. Neither direction has a blast radius a grant could name, " +
 			"so both belong to the person at the keyboard.\n\n" +
-			"**A collection already holding points is refused unless --replace says that is " +
+			"**A collection already holding points is refused unless `replace` says that is " +
 			"the point**, which is the dump's no-overwrite rule pointing the other way. The " +
 			"collection named here does not have to be the one the snapshot came from — " +
 			"restoring into a fresh name is how you inspect a backup without touching the " +
@@ -93,7 +93,7 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 	if err != nil {
 		return nil, view.Errorf("qdrant.restore.path", "resolving the snapshot path: %v", err)
 	}
-	if verr := checkSnapshotFile(path); verr != nil {
+	if verr := checkSnapshotFile(req.Surface(), path); verr != nil {
 		return nil, verr
 	}
 
@@ -132,12 +132,12 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 // call: one that is not there, and one that is empty — restoring an empty
 // file would fail against the server anyway, but "the snapshot did not
 // finish being written" is the answer, and the server does not know it.
-func checkSnapshotFile(path string) *view.Error {
+func checkSnapshotFile(sf plugin.Surface, path string) *view.Error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return view.Errorf("qdrant.restore.missing", "no snapshot at %s", path).
-			WithHint("`rta qdrant dump --collection <collection> --out <path>` writes one; this restores " +
-				"what that wrote")
+			WithHint("`" + sf.Call("qdrant.dump", plugin.Arg{Name: "collection", Value: "<collection>"},
+				plugin.Arg{Name: "out", Value: "<path>"}) + "` writes one; this restores what that wrote")
 	}
 	if info.IsDir() {
 		return view.Errorf("qdrant.restore.notafile", "%s is a directory", path).
@@ -176,13 +176,14 @@ func checkTarget(ctx context.Context, req plugin.Request, collection string) *vi
 		return view.Errorf("qdrant.restore.uncounted",
 			"%q exists and did not report how many points it holds", collection).
 			WithHint("Qdrant leaves the count out while a collection is still loading, so this " +
-				"cannot tell an empty collection from a full one — check it, then --replace to " +
-				"hand it to the snapshot wholesale, or restore into a fresh name")
+				"cannot tell an empty collection from a full one — check it, then " +
+				req.Surface().InputName("replace") + " to hand it to the snapshot wholesale, or restore " +
+				"into a fresh name")
 	}
 	if *info.PointsCount > 0 {
 		return view.Errorf("qdrant.restore.notempty",
 			"%q already holds %s", collection, format.CountOf(int(*info.PointsCount), "point")). //nolint:gosec // a point count, never past an int
-			WithHint("--replace hands the collection to the snapshot wholesale, or restore " +
+			WithHint(req.Surface().InputName("replace") + " hands the collection to the snapshot wholesale, or restore " +
 				"into a fresh name — the snapshot does not care what the collection it lands " +
 				"in is called")
 	}
