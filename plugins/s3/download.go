@@ -47,6 +47,20 @@ const downloadLimit = 10000
 // the shape of the problem without an error message the size of a bucket.
 const unsafeShown = 10
 
+// refusedList is the list a refusal names after its count: the first
+// unsafeShown of the refused entries, and how many more there were. The count
+// before it is every entry refused, kept apart from the list, because the
+// list's own length was once printed as the count, and a bucket holding forty
+// hostile keys was reported as holding ten, with nothing to say the list had
+// stopped.
+func refusedList(shown []string, refused int) string {
+	list := strings.Join(shown, ", ")
+	if more := refused - len(shown); more > 0 {
+		list += fmt.Sprintf(", and %d more", more)
+	}
+	return list
+}
+
 func s3BucketDownloadCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:        "s3.bucket.download",
@@ -236,9 +250,11 @@ type target struct {
 func planDownload(root string, objects []minio.ObjectInfo) ([]target, *view.Error) {
 	var plan []target
 	var unsafe []string
+	refused := 0
 	for _, obj := range objects {
 		path, err := destinationFor(root, obj.Key)
 		if err != nil {
+			refused++
 			if len(unsafe) < unsafeShown {
 				unsafe = append(unsafe, fmt.Sprintf("%q (%s)", obj.Key, err))
 			}
@@ -246,10 +262,10 @@ func planDownload(root string, objects []minio.ObjectInfo) ([]target, *view.Erro
 		}
 		plan = append(plan, target{key: obj.Key, path: path})
 	}
-	if len(unsafe) > 0 {
+	if refused > 0 {
 		return nil, view.Errorf("s3.download.unsafekey",
-			"%d object key(s) would be written outside %s: %s",
-			len(unsafe), root, strings.Join(unsafe, ", ")).
+			"%s would be written outside %s: %s",
+			format.CountOf(refused, "object key"), root, refusedList(unsafe, refused)).
 			WithHint("an object key becomes a filename and the key comes from the server, so " +
 				"one that escapes the destination is refused rather than skipped — nothing has " +
 				"been written. Narrow the copy with --prefix to exclude them")

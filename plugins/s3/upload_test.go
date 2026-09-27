@@ -174,6 +174,35 @@ func TestASymlinkRefusesTheWholeUploadAndSendsNothing(t *testing.T) {
 	}
 }
 
+// The refusal lists the first unsafeShown entries and counts every one, as the
+// download's does: a count taken from the list said a directory holding more
+// symlinks than it shows held exactly as many as it showed.
+func TestEveryUnsafeEntryIsCountedNotOnlyTheOnesListed(t *testing.T) {
+	srv, _ := uploadServer(t, emptyListing)
+	dir := dirWithFiles(t, map[string]string{"good.txt": "fine"})
+	target := filepath.Join(t.TempDir(), "elsewhere")
+	if err := os.WriteFile(target, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for i := range unsafeShown + 2 {
+		if err := os.Symlink(target, filepath.Join(dir, fmt.Sprintf("link-%02d", i))); err != nil {
+			t.Skipf("no symlinks here: %v", err)
+		}
+	}
+
+	_, err := runBucketUpload(context.Background(), uploadReq(t, srv, map[string]any{"dir": dir}))
+	var verr *view.Error
+	if !errors.As(err, &verr) || verr.Code != "s3.upload.notregular" {
+		t.Fatalf("err = %v, want s3.upload.notregular", err)
+	}
+	if want := fmt.Sprintf("%d entries under ", unsafeShown+2); !strings.HasPrefix(verr.Message, want) {
+		t.Errorf("message = %q, want it to start %q", verr.Message, want)
+	}
+	if !strings.HasSuffix(verr.Message, ", and 2 more") {
+		t.Errorf("message = %q, want it to say how many entries the list leaves out", verr.Message)
+	}
+}
+
 // The layout survives the trip, and a prefix without a trailing slash still
 // separates — the upload constructs keys, so "backup" + "a.txt" must become
 // backup/a.txt, never backupa.txt.

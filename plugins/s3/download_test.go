@@ -140,10 +140,38 @@ func TestOneHostileKeyRefusesTheWholeDownloadAndWritesNothing(t *testing.T) {
 	if !strings.Contains(verr.Message, "cron.d") {
 		t.Errorf("message = %q, want it to name the offending key", verr.Message)
 	}
+	if !strings.HasPrefix(verr.Message, "1 object key would be written outside ") {
+		t.Errorf("message = %q, want the one key counted in the singular", verr.Message)
+	}
 	// Nothing written at all — not the destination, and certainly not the
 	// two keys that were fine.
 	if _, statErr := os.Stat(root); statErr == nil {
 		t.Error("the refused download still created its directory")
+	}
+}
+
+// The refusal lists the first unsafeShown keys and counts every one. The count
+// was once the length of that list, so a bucket holding more hostile keys than
+// the list shows was said to hold exactly as many as it showed, with nothing to
+// say the list had stopped.
+func TestEveryHostileKeyIsCountedNotOnlyTheOnesListed(t *testing.T) {
+	var keys []string
+	for i := range unsafeShown + 2 {
+		keys = append(keys, fmt.Sprintf("../escape-%02d", i))
+	}
+	srv := downloadServer(t, keys)
+
+	_, err := runBucketDownload(context.Background(),
+		downloadReq(t, srv, map[string]any{"out": filepath.Join(t.TempDir(), "backup")}))
+	var verr *view.Error
+	if !errors.As(err, &verr) || verr.Code != "s3.download.unsafekey" {
+		t.Fatalf("err = %v, want s3.download.unsafekey", err)
+	}
+	if want := fmt.Sprintf("%d object keys would be written outside ", unsafeShown+2); !strings.HasPrefix(verr.Message, want) {
+		t.Errorf("message = %q, want it to start %q", verr.Message, want)
+	}
+	if !strings.HasSuffix(verr.Message, ", and 2 more") {
+		t.Errorf("message = %q, want it to say how many keys the list leaves out", verr.Message)
 	}
 }
 
