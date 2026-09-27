@@ -194,7 +194,7 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 
 	return view.KeyValue{Pairs: []view.Pair{
 		{Key: "wrote", Value: path},
-		{Key: "size", Value: format.Bytes(uint64(written))},
+		{Key: "size", Value: format.Bytes(written)},
 		{Key: "took", Value: time.Since(started).Round(time.Millisecond).String()},
 		{Key: "contents", Value: contentsOf(req)},
 		{Key: "source", Value: src.describe()},
