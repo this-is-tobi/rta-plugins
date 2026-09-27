@@ -8,6 +8,7 @@ import (
 
 	vaultapi "github.com/hashicorp/vault/api"
 
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -91,9 +92,9 @@ func runKVTree(ctx context.Context, req plugin.Request) (view.View, error) {
 		if start != "" {
 			label += "/" + start
 		}
-		detail := fmt.Sprintf("%d secrets", w.secrets)
+		detail := format.CountOf(w.secrets, "secret")
 		if w.folders > 0 {
-			detail += fmt.Sprintf(", %d folders", w.folders)
+			detail += ", " + format.CountOf(w.folders, "folder")
 		}
 		if w.stopped != "" {
 			detail += " — " + w.stopped
