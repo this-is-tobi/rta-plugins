@@ -45,7 +45,7 @@ Image, command, state, restart policy, mounts, networks and environment. **Write
 
 ## docker.container.list
 
-Running containers by default; --all includes the stopped ones, which is usually what somebody wants before a tidy-up. Health is shown separately from state because a container can be up and failing its own healthcheck.
+Running containers by default; `all` includes the stopped ones, which is usually what somebody wants before a tidy-up. Health is shown separately from state because a container can be up and failing its own healthcheck.
 
 | Field         | Value                                                                                                                                                                    |
 |---------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -82,7 +82,7 @@ Stop then start, keeping the container's id, volumes and configuration. What it 
 
 ## docker.container.rm
 
-Deletes the container and its writable layer — everything written inside it that was not on a volume is gone, and it does not come back. Named volumes survive; anonymous ones do not unless the daemon is asked to keep them, and this does not ask. A stopped container is required: this deliberately offers no --force, because "remove" and "kill first, then remove" are two decisions and only one of them was made here.
+Deletes the container and its writable layer — everything written inside it that was not on a volume is gone, and it does not come back. Named volumes survive; anonymous ones do not unless the daemon is asked to keep them, and this does not ask. A stopped container is required: this deliberately offers no `force`, because "remove" and "kill first, then remove" are two decisions and only one of them was made here.
 
 | Field                | Value                                                                                                                                                                 |
 |----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -137,7 +137,7 @@ What is on this machine's disk. Dangling images — the untagged leftovers of a 
 
 ## docker.overview
 
-Whether the daemon answers, how many containers are up against how many exist, anything unhealthy or recently exited, and how much disk images are taking. With --detail: the containers and the largest images themselves.
+Whether the daemon answers, how many containers are up against how many exist, anything unhealthy or recently exited, and how much disk images are taking. With `detail`: the containers and the largest images themselves.
 
 | Field         | Value                                                                                                                                                                 |
 |---------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|

@@ -265,7 +265,7 @@ func mutate(ctx context.Context, req plugin.Request, verb string,
 	found, ok := findContainer(rows, name)
 	if !ok {
 		return nil, view.Errorf("docker.notfound", "no container named %q", name).
-			WithHint("`rta docker container list --all` shows what is there")
+			WithHint(req.Surface().CapabilityWith("docker.container.list", "all") + " shows what is there")
 	}
 	if req.DryRun {
 		return view.Text{Body: preview(found)}, nil
@@ -345,7 +345,7 @@ func runRemove(ctx context.Context, req plugin.Request) (view.View, error) {
 	found, ok := findContainer(rows, name)
 	if !ok {
 		return nil, view.Errorf("docker.notfound", "no container named %q", name).
-			WithHint("`rta docker container list --all` shows what is there")
+			WithHint(req.Surface().CapabilityWith("docker.container.list", "all") + " shows what is there")
 	}
 	// Refused before the daemon would refuse it, so the reason is rta's and
 	// names the remedy. **No --force here on purpose**: killing a running
@@ -355,7 +355,8 @@ func runRemove(ctx context.Context, req plugin.Request) (view.View, error) {
 	if strings.EqualFold(found.State, "running") {
 		return nil, view.Errorf("docker.container.running",
 			"%s is running, and this removes stopped containers only", found.Names).
-			WithHint("stop it first: `rta docker container stop " + found.Names + "`")
+			WithHint("stop it first: `" + req.Surface().Call("docker.container.stop",
+				plugin.Arg{Name: "container", Value: found.Names, Positional: true}) + "`")
 	}
 	if req.DryRun {
 		return view.Text{Body: fmt.Sprintf(

@@ -77,12 +77,16 @@ func checkName(kind, v string) *view.Error {
 type connection struct {
 	Host    string
 	Context string
+	// sf is the surface the request came through, so a failure names what
+	// to call next the way its reader calls it.
+	sf plugin.Surface
 }
 
 func connectionOf(req plugin.Request) (connection, *view.Error) {
 	c := connection{
 		Host:    strings.TrimSpace(req.String("host")),
 		Context: strings.TrimSpace(req.String("context")),
+		sf:      req.Surface(),
 	}
 	if verr := checkName("context", c.Context); verr != nil {
 		return connection{}, verr
@@ -125,11 +129,11 @@ func run(ctx context.Context, c connection, args ...string) ([]byte, *view.Error
 	if err == nil {
 		return out, nil
 	}
-	return nil, classify(ctx, err, errBuf.String(), args)
+	return nil, classify(ctx, err, errBuf.String(), args, c.sf)
 }
 
 // classify turns a docker failure into something an operator can act on.
-func classify(ctx context.Context, err error, stderr string, args []string) *view.Error {
+func classify(ctx context.Context, err error, stderr string, args []string, sf plugin.Surface) *view.Error {
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return view.Errorf("docker.unreachable", "docker did not answer within %s", timeout).
 			WithHint("the daemon may not be running — `docker info` is the same question")
@@ -157,7 +161,7 @@ func classify(ctx context.Context, err error, stderr string, args []string) *vie
 	case strings.Contains(low, "no such container"), strings.Contains(low, "no such object"),
 		strings.Contains(low, "no such image"):
 		return view.Errorf("docker.notfound", "%s", msg).
-			WithHint("`rta docker container list --all` shows what is there, stopped ones included")
+			WithHint(sf.CapabilityWith("docker.container.list", "all") + " shows what is there, stopped ones included")
 	case strings.Contains(low, "context") && strings.Contains(low, "not found"):
 		return view.Errorf("docker.context.unknown", "%s", msg)
 	case msg != "":
