@@ -116,8 +116,17 @@ PLUGINS := $(sort $(notdir $(patsubst %/go.mod,%,$(wildcard plugins/*/go.mod))))
 
 # PLUGIN=<name> narrows every per-plugin target to one module. Validated, not
 # filtered: a typo matching nothing would build nothing and exit 0.
+#
+# One word, and that word a module. Matching was once enough on its own, and
+# `filter` matches word by word, so `PLUGIN="pg README.md"` passed on pg alone
+# and `release` then ran `rm -rf dist/pg README.md`. The module names are the
+# patterns and PLUGIN the text, not the other way round: `filter` reads a `%`
+# in a pattern as a wildcard, and `PLUGIN=%` would have matched them all.
 ifdef PLUGIN
-ifeq ($(filter $(PLUGIN),$(PLUGINS)),)
+ifneq ($(words $(PLUGIN)),1)
+$(error PLUGIN names one plugin, and '$(PLUGIN)' is not one word)
+endif
+ifeq ($(filter $(PLUGINS),$(PLUGIN)),)
 $(error no plugin named '$(PLUGIN)'. Have: $(PLUGINS))
 endif
 PLUGIN_LIST := $(PLUGIN)
