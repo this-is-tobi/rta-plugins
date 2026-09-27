@@ -179,6 +179,21 @@ func leaderText(st *clientv3.StatusResponse) string {
 // matches one copied from there.
 func hexID(id uint64) string { return fmt.Sprintf("%x", id) }
 
+// leaseID renders a lease ID the way etcdctl does, which is not the way it
+// renders a member ID: %016x, zero-padded to sixteen digits. Put through
+// hexID, a lease below 1<<60 lost its leading zero, and etcd issues those as
+// a matter of course: the top two bytes of every ID it generates are the low
+// two bytes of the granting member's ID, which begin with zeros for one
+// member in eight once the sign bit is cleared. The same lease then read as
+// two different strings in the two tools.
+//
+// It formats the signed ID the client hands over, as etcdctl formats it,
+// rather than widening it first. Every lease etcd issues is positive, so the
+// two forms agree on each of them; a negative one could only be an ID a
+// client chose itself, and it now reads with its sign in both tools instead
+// of as a two's complement only this one printed.
+func leaseID(id int64) string { return fmt.Sprintf("%016x", id) }
+
 func memberListCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "etcd.member.list",
@@ -351,7 +366,7 @@ func leaseTable(ctx context.Context, c *clientv3.Client, req plugin.Request) (vi
 			remaining = (time.Duration(ttl.TTL) * time.Second).String()
 		}
 		t.Rows = append(t.Rows, []string{
-			hexID(uint64(l.ID)),
+			leaseID(int64(l.ID)),
 			(time.Duration(ttl.GrantedTTL) * time.Second).String(),
 			remaining,
 			strconv.Itoa(len(ttl.Keys)),
