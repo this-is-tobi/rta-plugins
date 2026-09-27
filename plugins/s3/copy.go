@@ -13,14 +13,17 @@ func copyFields(bucketHelp, keyHelp string) []plugin.Field {
 	return []plugin.Field{
 		boundBucketField(bucketHelp),
 		keyField(keyHelp),
-		// Local, because a grant on this capability is checked against `key`
-		// alone — internal/grant's scopes() reads exactly one field — and a
-		// destination bucket is a place the operator never named. Without
-		// this, "copy reports/q1.csv" authorized writing those bytes into any
-		// bucket the credentials reach, which is Field.Local's own stated
-		// case: a destination is a destination whether or not it is on this
-		// machine, and a caller may not choose one for a record a grant only
-		// authorized copying.
+		// Local, because what a grant on this capability is checked against
+		// is object names — `key`, and `dest-key` through ScopeAlso — and
+		// never the bucket either one sits in, and a destination bucket is a
+		// place the operator never named. Without this, "copy
+		// reports/q1.csv" authorized writing those bytes into any bucket the
+		// credentials reach, which is Field.Local's own stated case: a
+		// destination is a destination whether or not it is on this machine,
+		// and a caller may not choose one for a record a grant only authorized
+		// copying. Named in ScopeAlso instead, it would be judged against
+		// grants written for object names: a bucket called "reports" passing
+		// a grant on the reports/ prefix is no judgement at all.
 		//
 		// It costs nothing to take away: destination() below already defaults
 		// it to the source bucket, so copying and renaming within one bucket
@@ -36,10 +39,12 @@ func copyFields(bucketHelp, keyHelp string) []plugin.Field {
 // refuseIfTaken stops a copy or a move from writing over an object that is
 // already there.
 //
-// Local on dest-bucket closes the cross-bucket write; this closes the rest of
-// it. A grant scoped to `key` still says nothing about the key being written,
-// so within one bucket "copy reports/q1.csv" would otherwise authorize
-// destroying app/settings.json — the same hole, one container in.
+// Local on dest-bucket closes the cross-bucket write, and ScopeAlso puts
+// dest-key in front of the grant beside `key`; this closes the rest of it. A
+// grant that covers the name an object is written under still says nothing
+// about what is stored there already, so within one bucket a grant on app/
+// would otherwise let "copy app/new.json" destroy app/settings.json — the
+// same hole, one container in.
 //
 // kv.rename settled this for the identical shape and its sentence transfers
 // unchanged: "a grant scoped to the key being renamed says nothing at all
@@ -83,9 +88,18 @@ func s3ObjectCopyCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID: "s3.object.copy", Summary: "Copy an object to a new bucket/key", Safety: plugin.Write,
 		NeedsGrant: true, Scope: "key",
+		// Where the copy lands as well as what it copies, as kv.rename
+		// declares new-name. Object names are what the read grants here are
+		// scoped by, so a copy checked only at its source moved bytes out
+		// from under one grant and in under another: a copy grant for one
+		// key under reports/ plus a read grant for scratch/ were, put
+		// together, a read of that key — copied into scratch/, then read
+		// there. It also writes an object, and a grant on reports/ said
+		// nothing about writing one anywhere else in the bucket.
+		ScopeAlso: []string{"dest-key"},
 		Description: "Copies server-side; the content never passes through this process. " +
-			"Refuses if --dest-key already exists rather than writing over it: a grant names " +
-			"the source key and says nothing about the object it would replace.",
+			"Refuses if --dest-key already exists rather than writing over it: a grant covers " +
+			"both keys' names and says nothing about the object it would replace.",
 		Run: runObjectCopy,
 	}, copyFields("source bucket", "object to copy")...)
 }
@@ -121,6 +135,10 @@ func s3ObjectRenameCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID: "s3.object.rename", Summary: "Move an object to a new bucket/key", Safety: plugin.Write,
 		NeedsGrant: true, Scope: "key",
+		// s3.object.copy's reason, and the very move kv.rename's own
+		// ScopeAlso was declared for: the object leaves one name for another,
+		// and the grant has to cover the one it arrives at.
+		ScopeAlso: []string{"dest-key"},
 		Description: "S3 has no native rename — this copies server-side, then removes the " +
 			"source. If the copy succeeds and the remove fails, the object exists in both " +
 			"places and the failure says so rather than reporting success.",

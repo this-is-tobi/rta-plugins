@@ -7,12 +7,14 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/minio/minio-go/v7"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/sdk/sdktest"
+	"github.com/this-is-tobi/rta/pkg/sdk/wire"
 )
 
 // sdktest is the definition of "a correct plugin" — no exemption for s3.
@@ -217,5 +219,39 @@ func TestDestinationHonorsAnExplicitDestBucket(t *testing.T) {
 	bucket, key := destination(r)
 	if bucket != "dst" || key != "k2" {
 		t.Errorf("destination = (%q, %q), want (dst, k2)", bucket, key)
+	}
+}
+
+// A copy or a rename names two objects, the one it reads and the one it
+// writes, and a grant has to cover both: checked only at its source, a copy
+// grant on one key under reports/ wrote that key anywhere in the bucket, and
+// beside a read grant on scratch/ read it back from there. There is no host
+// in this module to issue a grant against, so this pins what the host judges
+// the call by — the declaration as it reads it, after the wire — which is
+// where the whole fix lives.
+func TestACopyOrARenameIsJudgedAtWhereItLandsToo(t *testing.T) {
+	if err := Plugin().ValidateOutOfProcess(); err != nil {
+		t.Fatalf("the declaration a host would refuse to load: %v", err)
+	}
+	host, unknown := wire.PluginFromProto(wire.PluginToProto(Plugin()))
+	if len(unknown) > 0 {
+		t.Fatalf("parts of the declaration a host cannot read: %v", unknown)
+	}
+	for _, id := range []string{"s3.object.copy", "s3.object.rename"} {
+		i := slices.IndexFunc(host.Capabilities, func(c plugin.Capability) bool { return c.ID == id })
+		if i < 0 {
+			t.Fatalf("%s: not declared", id)
+		}
+		c := host.Capabilities[i]
+		if c.Scope != "key" || !slices.Equal(c.ScopeAlso, []string{"dest-key"}) {
+			t.Errorf("%s: judged by Scope %q and ScopeAlso %v, want key and [dest-key]", id, c.Scope, c.ScopeAlso)
+		}
+		// The bucket is judged by nothing, so no caller a grant is checked
+		// for may choose it: an MCP call lands in the operator's own bucket.
+		for _, f := range c.Inputs {
+			if (f.Name == "bucket" || f.Name == "dest-bucket") && !f.Local {
+				t.Errorf("%s: %s is offered to a remote caller, and no grant judges it", id, f.Name)
+			}
+		}
 	}
 }

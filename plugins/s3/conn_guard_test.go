@@ -37,21 +37,23 @@ func TestOnlySecretsUseEnvFallback(t *testing.T) {
 	}
 }
 
-// A grant on an s3 capability is checked against one field — internal/grant's
-// scopes() reads exactly the name in Scope — so any *other* field naming a
-// place the call writes to is a destination the operator never approved. That
-// is what let a grant scoped to one source key write into any bucket the
-// credentials could reach.
+// A grant on an s3 capability is checked against the fields the capability
+// names as its records — internal/grant's scopes() reads Scope and ScopeAlso
+// and nothing else — so any *other* field naming a place the call writes to
+// is a destination the operator never approved. That is what let a grant
+// scoped to one source key write into any bucket the credentials could reach,
+// and, while dest-key was exempted here by name rather than judged, under any
+// key in the bucket.
 //
 // Written against the declaration rather than a list of names, so a
 // destination added later is covered the day it is added.
 func TestNoCallerChosenFieldNamesADestination(t *testing.T) {
 	for _, c := range Plugin().Capabilities {
 		for _, f := range c.Inputs {
-			if strings.HasPrefix(f.Name, "dest-") && f.Name != "dest-key" && !f.Local {
-				t.Errorf("%s: %s names a destination and is not Local — a grant is checked "+
-					"against %q alone, so an MCP caller could redirect the write",
-					c.ID, f.Name, c.Scope)
+			if strings.HasPrefix(f.Name, "dest-") && !f.Local && !slices.Contains(c.ScopeAlso, f.Name) {
+				t.Errorf("%s: %s names a destination that is neither Local nor in ScopeAlso — a grant "+
+					"is checked against %q and %v alone, so an MCP caller could redirect the write",
+					c.ID, f.Name, c.Scope, c.ScopeAlso)
 			}
 		}
 	}
@@ -59,9 +61,10 @@ func TestNoCallerChosenFieldNamesADestination(t *testing.T) {
 
 // The container half of a record — the bucket a key sits in — is caller
 // input just like the key itself, but Scope only ever names "key": scopes()
-// checks the key alone, so a bucket left caller-settable would let a grant
-// on one key's scope authorize the identical key name in any bucket the
-// credentials reach. That is the vault.kv.get "mount" hole, one container in.
+// checks object names alone — the key, and dest-key where ScopeAlso names it
+// — so a bucket left caller-settable would let a grant on one key's scope
+// authorize the identical key name in any bucket the credentials reach. That
+// is the vault.kv.get "mount" hole, one container in.
 //
 // Written against the declaration so a capability that starts scoping on
 // "key" without also binding its bucket is caught the day it ships, not

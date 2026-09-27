@@ -17,11 +17,11 @@ func bucketField(help string) plugin.Field {
 
 // boundBucketField is bucketField's Local sibling, for every capability
 // whose grant Scope is "key": the bucket is the container the record sits
-// in, and internal/grant's scopes() reads only the scoped field, so a
-// caller-settable bucket would let a grant on one key's scope authorize the
-// identical key name in a bucket the grant never named — the same hole
-// copy.go's dest-bucket is already Local to close, one level in from the
-// destination side.
+// in, and internal/grant's scopes() reads only the inputs a capability names
+// as its scope, so a caller-settable bucket would let a grant on one key's
+// scope authorize the identical key name in a bucket the grant never named —
+// the same hole copy.go's dest-bucket is already Local to close, one level in
+// from the destination side.
 func boundBucketField(help string) plugin.Field {
 	f := bucketField(help)
 	f.Local = true
