@@ -132,7 +132,7 @@ func kvListView(ctx context.Context, c *clientv3.Client, req plugin.Request) (vi
 		}
 		lease := "-"
 		if kv.Lease != 0 {
-			lease = hexID(uint64(kv.Lease))
+			lease = leaseID(kv.Lease)
 		}
 		t.Rows = append(t.Rows, []string{
 			string(kv.Key),
@@ -364,7 +364,7 @@ func kvGetView(ctx context.Context, c *clientv3.Client, req plugin.Request) (vie
 func kvGetResult(key string, value []byte, version, created, modified, lease int64) view.View {
 	leaseText := "-"
 	if lease != 0 {
-		leaseText = hexID(uint64(lease))
+		leaseText = leaseID(lease)
 	}
 	return view.KeyValue{
 		Pairs: []view.Pair{

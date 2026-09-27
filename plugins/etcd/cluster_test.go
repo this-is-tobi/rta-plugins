@@ -69,3 +69,24 @@ func TestNothingIsComputedFromAValueTheServerCannotHaveSent(t *testing.T) {
 		t.Errorf("an empty database against a real quota = %q, want 0.0%%", got)
 	}
 }
+
+// etcdctl prints every lease ID as %016x of the signed ID, so one below 1<<60
+// keeps its leading zero there. Printed unpadded here, the same lease was a
+// different string in each tool, and one copied from this table could not be
+// found in etcdctl's output by eye or by grep.
+func TestALeaseIDReadsTheWayEtcdctlPrintsIt(t *testing.T) {
+	v := kvGetResult("/services/api", []byte("10.0.0.1"), 1, 1, 1, 0x0694d7c8e4b7a5f0)
+	kv, ok := v.(view.KeyValue)
+	if !ok {
+		t.Fatalf("want KeyValue, got %s", view.TypeOf(v))
+	}
+	for _, p := range kv.Pairs {
+		if p.Key == "lease" {
+			if p.Value != "0694d7c8e4b7a5f0" {
+				t.Errorf("lease = %q, want 0694d7c8e4b7a5f0 as etcdctl prints it", p.Value)
+			}
+			return
+		}
+	}
+	t.Fatal("no lease pair")
+}
