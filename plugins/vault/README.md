@@ -51,7 +51,7 @@ A soft delete, which is what `vault kv delete` does: the data of the versions na
 | summary              | Delete a secret's current version, or the versions named — undoable                                                                                                                     |
 | safety               | write                                                                                                                                                                                   |
 | idempotent           | true                                                                                                                                                                                    |
-| cli                  | rta vault kv delete \[--mount \<string>\] \<path> \[--versions \<stringSlice>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]         |
+| cli                  | rta vault kv delete \<path> \[--mount \<string>\] \[--versions \<stringSlice>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]         |
 | mcp-tool             | vault_kv_delete                                                                                                                                                                         |
 | grant required (mcp) | yes — a person must run \`rta grant allow vault.kv.delete\`, optionally naming one path                                                                                                 |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
@@ -74,7 +74,7 @@ The versions named are gone: the data is erased and the chain keeps only the fac
 | summary         | Destroy versions of a secret for good, for a person at a terminal                                                                                                                       |
 | safety          | destructive                                                                                                                                                                             |
 | idempotent      | true                                                                                                                                                                                    |
-| cli             | rta vault kv destroy \[--mount \<string>\] \<path> \[--versions \<stringSlice>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]        |
+| cli             | rta vault kv destroy \<path> \[--mount \<string>\] \[--versions \<stringSlice>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]        |
 | mcp-tool        | none — for the person at the terminal, never an agent                                                                                                                                   |
 | profiles        | --profile \<name> runs this against a configured connection                                                                                                                             |
 | input:mount     | string, default secret, completes, local (never offered to MCP callers), from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                     |
@@ -96,7 +96,7 @@ Write, the same as builtin/kv's kv.get, for the same reason: revealing a secret'
 | summary              | Reveal a secret's current version, or an earlier one                                                                                                                                    |
 | safety               | write                                                                                                                                                                                   |
 | idempotent           | true                                                                                                                                                                                    |
-| cli                  | rta vault kv get \[--mount \<string>\] \<path> \[--version \<int>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                     |
+| cli                  | rta vault kv get \<path> \[--mount \<string>\] \[--version \<int>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                     |
 | mcp-tool             | vault_kv_get                                                                                                                                                                            |
 | grant required (mcp) | yes — a person must run \`rta grant allow vault.kv.get\`, optionally naming one path                                                                                                    |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
@@ -119,7 +119,7 @@ The structured equivalent of `vault kv metadata get`: every version the engine s
 | summary         | A secret's versions — which is current, which are deleted or destroyed — never values                                                                                                   |
 | safety          | read                                                                                                                                                                                    |
 | idempotent      | true                                                                                                                                                                                    |
-| cli             | rta vault kv history \[--mount \<string>\] \<path> \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                                      |
+| cli             | rta vault kv history \<path> \[--mount \<string>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                                      |
 | mcp-tool        | vault_kv_history                                                                                                                                                                        |
 | profiles        | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
 | input:mount     | string, default secret, completes, local (never offered to MCP callers), from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                     |
@@ -140,7 +140,7 @@ The structured equivalent of `vault kv list`: names only, the same Read/Write sp
 | summary         | List secret names at a path — never values                                                                                                                                              |
 | safety          | read                                                                                                                                                                                    |
 | idempotent      | true                                                                                                                                                                                    |
-| cli             | rta vault kv list \[--mount \<string>\] \[path\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                                        |
+| cli             | rta vault kv list \[path\] \[--mount \<string>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                                        |
 | mcp-tool        | vault_kv_list                                                                                                                                                                           |
 | profiles        | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
 | input:mount     | string, default secret, completes, local (never offered to MCP callers), from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                     |
@@ -161,7 +161,7 @@ The same overwrite risk builtin/kv's kv.set carries, needing the same grant, and
 | summary              | Set (or overwrite) a secret                                                                                                                                                             |
 | safety               | write                                                                                                                                                                                   |
 | idempotent           | false                                                                                                                                                                                   |
-| cli                  | rta vault kv set \[--mount \<string>\] \<path> \[--data \<secretSlice>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                |
+| cli                  | rta vault kv set \<path> \[--mount \<string>\] \[--data \<secretSlice>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                |
 | mcp-tool             | vault_kv_set                                                                                                                                                                            |
 | grant required (mcp) | yes — a person must run \`rta grant allow vault.kv.set\`, optionally naming one path                                                                                                    |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
@@ -188,7 +188,7 @@ Bounded in both directions, and it says when it stopped. A folder the token may 
 | summary         | The whole shape of a KV mount in one call — names only                                                                                                                                  |
 | safety          | read                                                                                                                                                                                    |
 | idempotent      | true                                                                                                                                                                                    |
-| cli             | rta vault kv tree \[--mount \<string>\] \[path\] \[--depth \<int>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                     |
+| cli             | rta vault kv tree \[path\] \[--mount \<string>\] \[--depth \<int>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]                     |
 | mcp-tool        | vault_kv_tree                                                                                                                                                                           |
 | profiles        | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
 | input:mount     | string, default secret, completes, local (never offered to MCP callers), from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                     |
@@ -210,7 +210,7 @@ The other half of vault.kv.delete: the versions named become readable again, exa
 | summary              | Bring back deleted versions of a secret                                                                                                                                                 |
 | safety               | write                                                                                                                                                                                   |
 | idempotent           | true                                                                                                                                                                                    |
-| cli                  | rta vault kv undelete \[--mount \<string>\] \<path> \[--versions \<stringSlice>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]       |
+| cli                  | rta vault kv undelete \<path> \[--mount \<string>\] \[--versions \<stringSlice>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]       |
 | mcp-tool             | vault_kv_undelete                                                                                                                                                                       |
 | grant required (mcp) | yes — a person must run \`rta grant allow vault.kv.undelete\`, optionally naming one path                                                                                               |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
@@ -397,7 +397,7 @@ The reveal half of transit: whoever holds the ciphertext gets the plaintext back
 | summary              | Decrypt ciphertext back to its plaintext                                                                                                                                                |
 | safety               | write                                                                                                                                                                                   |
 | idempotent           | true                                                                                                                                                                                    |
-| cli                  | rta vault transit decrypt \[--mount \<string>\] \<key> \[--ciphertext \<text>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]         |
+| cli                  | rta vault transit decrypt \<key> \[--mount \<string>\] \[--ciphertext \<text>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]         |
 | mcp-tool             | vault_transit_decrypt                                                                                                                                                                   |
 | grant required (mcp) | yes — a person must run \`rta grant allow vault.transit.decrypt\`, optionally naming one key                                                                                            |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
@@ -420,7 +420,7 @@ Write, not Read+NeedsGrant like vault.kv.get: nothing here is revealed to the ca
 | summary              | Encrypt caller-supplied plaintext with a Vault-managed key                                                                                                                              |
 | safety               | write                                                                                                                                                                                   |
 | idempotent           | false                                                                                                                                                                                   |
-| cli                  | rta vault transit encrypt \[--mount \<string>\] \<key> \[--plaintext \<secret>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]        |
+| cli                  | rta vault transit encrypt \<key> \[--mount \<string>\] \[--plaintext \<secret>\] \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\]        |
 | mcp-tool             | vault_transit_encrypt                                                                                                                                                                   |
 | grant required (mcp) | yes — a person must run \`rta grant allow vault.transit.encrypt\`                                                                                                                       |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
