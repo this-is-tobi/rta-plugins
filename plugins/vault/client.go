@@ -111,7 +111,7 @@ func classify(err error, req plugin.Request) *view.Error {
 		case 403:
 			return view.Errorf("vault.denied", "%s refused: %s", addr, joinErrors(respErr)).
 				WithHint("the token's policy does not allow this, or the token itself is invalid — " +
-					"`rta vault token lookup` shows what the current token can do")
+					"`rta vault token status` shows what the current token can do")
 		case 404:
 			return view.Errorf("vault.notfound", "nothing at that path on %s", addr).
 				WithHint("check the path and the mount — a KV v2 mount is not always named \"secret\"")

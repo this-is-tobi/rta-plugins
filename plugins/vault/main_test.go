@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	vaultapi "github.com/hashicorp/vault/api"
@@ -116,6 +117,18 @@ func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
 				t.Error("no message")
 			}
 		})
+	}
+}
+
+// A token its policy refuses is sent to what the token can do — the
+// capability that says so is vault.token.status. The hint once named `rta
+// vault token lookup`, Vault's own verb for it and no command rta has, which
+// the CLI refuses as unknown.
+func TestARefusedTokenIsSentToTheTokensStatus(t *testing.T) {
+	verr := classify(&vaultapi.ResponseError{StatusCode: 403, Errors: []string{"permission denied"}},
+		req(t, "vault.kv.get", map[string]any{"path": "app/db"}))
+	if !strings.Contains(verr.Hint, "`rta vault token status` shows what the current token can do") {
+		t.Errorf("hint = %q, want it to name vault.token.status", verr.Hint)
 	}
 }
 
