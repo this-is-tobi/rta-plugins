@@ -138,13 +138,20 @@ func bytesCell(v any) string {
 		if x < 0 {
 			return "-"
 		}
-		return format.Bytes(uint64(x))
+		return format.Bytes(x)
+	case uint64:
+		// An UNSIGNED BIGINT, such as DATA_LENGTH + INDEX_LENGTH, as the text
+		// protocol hands it over. No size query here travels that way today:
+		// each takes arguments, so the driver prepares it and the binary
+		// protocol answers with an int64. A query written without them would,
+		// and its sizes would print as bare digits.
+		return format.Bytes(x)
 	case []byte:
 		n, err := strconv.ParseInt(string(x), 10, 64)
 		if err != nil || n < 0 {
 			return "-"
 		}
-		return format.Bytes(uint64(n))
+		return format.Bytes(n)
 	case float64:
 		if x < 0 {
 			return "-"
