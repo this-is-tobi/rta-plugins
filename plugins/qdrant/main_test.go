@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
+	stdnet "net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"slices"
 	"strings"
 	"testing"
@@ -386,6 +388,21 @@ func TestTheGRPCPortMixupIsNamedInTheHint(t *testing.T) {
 	got := malformed(r)
 	if !strings.Contains(got.Hint, "6334") {
 		t.Errorf("the hint does not mention the gRPC port: %q", got.Hint)
+	}
+}
+
+// A name DNS cannot resolve is that, and not a port nothing listens on. The
+// HTTP client wraps a failed lookup in a *net.OpError inside a *url.Error,
+// and the refused-dial check, read first, answered "nothing is listening on
+// nonexistent.invalid:6333" and named the gRPC port, when the name was the
+// problem.
+func TestANameDNSCannotResolveIsNotReadAsNothingListening(t *testing.T) {
+	err := &url.Error{Op: "Get", URL: "http://qdrant.internal:6333/",
+		Err: &stdnet.OpError{Op: "dial", Net: "tcp",
+			Err: &stdnet.DNSError{Err: "no such host", Name: "qdrant.internal", IsNotFound: true}}}
+	verr := classify(err, req(t, "qdrant.overview", map[string]any{"endpoint": "qdrant.internal:6333"}))
+	if verr.Code != "qdrant.host.unknown" {
+		t.Errorf("code = %s, want qdrant.host.unknown: %s", verr.Code, verr.Message)
 	}
 }
 
