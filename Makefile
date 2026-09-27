@@ -112,38 +112,65 @@ endif
 # The plugin modules, discovered rather than listed
 # ---------------------------------------------------------------------------
 
-PLUGINS := $(sort $(notdir $(patsubst %/go.mod,%,$(wildcard plugins/*/go.mod))))
+ALL_PLUGINS := $(sort $(notdir $(patsubst %/go.mod,%,$(wildcard plugins/*/go.mod))))
 
-# PLUGIN=<name> narrows every per-plugin target to one module. Validated, not
-# filtered: a typo matching nothing would build nothing and exit 0.
+# PLUGIN=<name> narrows every per-plugin target to one module, and
+# PLUGINS="<name> <name>" to several: CI hands a pull request's modules over
+# that way, so a change under plugins/s3/ checks s3 and not eleven modules
+# main already passed. Both are validated, not filtered: a typo matching
+# nothing would build nothing and exit 0.
 #
-# One word, and that word a module. Matching was once enough on its own, and
-# `filter` matches word by word, so `PLUGIN="pg README.md"` passed on pg alone
-# and `release` then ran `rm -rf dist/pg README.md`. The module names are the
-# patterns and PLUGIN the text, not the other way round: `filter` reads a `%`
-# in a pattern as a wildcard, and `PLUGIN=%` would have matched them all.
+# PLUGIN is one word, and that word a module. Matching was once enough on its
+# own, and `filter` matches word by word, so `PLUGIN="pg README.md"` passed on
+# pg alone and `release` then ran `rm -rf dist/pg README.md`. The module names
+# are the patterns and the caller's words the text, not the other way round:
+# `filter` reads a `%` in a pattern as a wildcard, and `PLUGIN=%` would have
+# matched them all.
+#
+# PLUGINS counts as given whenever it is defined, empty included, and an empty
+# one is refused rather than read as every module or as none. A caller that
+# computed an empty list has either a bug or nothing to check, and make cannot
+# tell which: every module would hide the bug behind a longer run, and none
+# is the exit 0 above. CI decides for itself, and skips the gates.
+#
+# Neither changes ALL_PLUGINS, the modules in the tree. The rules below are
+# built from it, so `make check-pg` is a target whatever PLUGINS names, and the
+# guards that read every module read every one. PLUGINS was the tree's own
+# list before it was a knob, and a command line overriding it narrowed by
+# taking every other module's rules away.
 ifdef PLUGIN
-ifneq ($(words $(PLUGIN)),1)
-$(error PLUGIN names one plugin, and '$(PLUGIN)' is not one word)
+ifneq ($(origin PLUGINS),undefined)
+$(error PLUGIN and PLUGINS both narrow the modules; give one)
 endif
-ifeq ($(filter $(PLUGINS),$(PLUGIN)),)
-$(error no plugin named '$(PLUGIN)'. Have: $(PLUGINS))
+ifneq ($(words $(PLUGIN)),1)
+$(error PLUGIN names one plugin, and '$(PLUGIN)' is not one word. Several go in PLUGINS)
+endif
+ifeq ($(filter $(ALL_PLUGINS),$(PLUGIN)),)
+$(error no plugin named '$(PLUGIN)'. Have: $(ALL_PLUGINS))
 endif
 PLUGIN_LIST := $(PLUGIN)
+else ifneq ($(origin PLUGINS),undefined)
+ifeq ($(strip $(PLUGINS)),)
+$(error PLUGINS names no plugin; leave it out for every one. Have: $(ALL_PLUGINS))
+endif
+ifneq ($(filter-out $(ALL_PLUGINS),$(PLUGINS)),)
+$(error no plugin named $(foreach p,$(filter-out $(ALL_PLUGINS),$(PLUGINS)),'$(p)'). Have: $(ALL_PLUGINS))
+endif
+PLUGIN_LIST := $(sort $(PLUGINS))
 else
-PLUGIN_LIST := $(PLUGINS)
+PLUGIN_LIST := $(ALL_PLUGINS)
 endif
 
 # Static pattern rules over the module names, so the aggregate and the
 # single-module form are one code path. Static rather than implicit on
 # purpose: make skips implicit-rule search for a .PHONY target, and the
 # ordinary `check-%:` form silently matched nothing.
-CHECK_PLUGINS    := $(PLUGINS:%=check-%)
-LINT_PLUGINS     := $(PLUGINS:%=lint-%)
-BUILD_PLUGINS    := $(PLUGINS:%=build-%)
-INSTALL_PLUGINS  := $(PLUGINS:%=install-%)
-TIDY_PLUGINS     := $(PLUGINS:%=tidy-%)
-DOWNLOAD_PLUGINS := $(PLUGINS:%=download-%)
+CHECK_PLUGINS    := $(ALL_PLUGINS:%=check-%)
+LINT_PLUGINS     := $(ALL_PLUGINS:%=lint-%)
+BUILD_PLUGINS    := $(ALL_PLUGINS:%=build-%)
+INSTALL_PLUGINS  := $(ALL_PLUGINS:%=install-%)
+TIDY_PLUGINS     := $(ALL_PLUGINS:%=tidy-%)
+DOWNLOAD_PLUGINS := $(ALL_PLUGINS:%=download-%)
 
 # The linter, pinned at the version rta gates on, so a finding here is a
 # finding there and neither is a surprise about the tool's version. Installed
@@ -169,9 +196,10 @@ help: ## Print this help
 		$(MAKEFILE_LIST)
 	@printf "\n$(BOLD)Notes$(RESET)\n"
 	@printf "  Narrow any plugin target to one module:  $(CYAN)make check PLUGIN=pg$(RESET)\n"
+	@printf "  Or to several:                           $(CYAN)make check PLUGINS=\"pg s3\"$(RESET)\n"
 	@printf "  Or address it directly:                  $(CYAN)make build-pg$(RESET)\n"
 	@printf "  Installed here:                          %s\n" "$(BINDIR)"
-	@printf "  Plugins in the tree:                     %s\n\n" "$(PLUGINS)"
+	@printf "  Plugins in the tree:                     %s\n\n" "$(ALL_PLUGINS)"
 
 ##@ Setup
 
@@ -319,7 +347,7 @@ docs-drift: build ## Fail if a plugin's README.md is behind its binary's declara
 	done; exit $$fail
 
 docs-check: name-check ## Fail if README's counts or a backup's receipt disagree with the declarations
-	@fail=0; for p in $(PLUGINS); do \
+	@fail=0; for p in $(ALL_PLUGINS); do \
 		src=$$(ls plugins/$$p/*.go | grep -v '_test\.go$$'); \
 		want=$$(echo "$$src" | xargs grep -ohE '\bID:[[:space:]]*"[a-z0-9]+(\.[a-z0-9]+)+"' | sort -u | wc -l | tr -d ' '); \
 		got=$$(grep -E "^\| \[\`$$p\`\]" README.md | awk -F'|' '{gsub(/ /,"",$$4); print $$4}'); \
@@ -408,7 +436,7 @@ index-release: name-check ## Regenerate index/<name>.yaml for PLUGINS_RELEASED f
 dev: ## Point a workspace at RTA_DIR (default ../rta) for an SDK edit loop
 	@test -f "$(RTA_DIR)/go.mod" || { echo "$(RTA_DIR) is not an rta checkout — RTA_DIR=<path>"; exit 1; }
 	@rm -f go.work go.work.sum
-	@go work init $(PLUGINS:%=./plugins/%)
+	@go work init $(ALL_PLUGINS:%=./plugins/%)
 	@go work edit -replace github.com/this-is-tobi/rta=$(RTA_DIR)
 	@echo "go.work points github.com/this-is-tobi/rta at $(RTA_DIR). 'make dev-off' removes it."
 
@@ -449,8 +477,8 @@ ci: fmt-check name-check replace-check docs-check check lint docs-drift cross ##
 
 ##@ Housekeeping
 
-list: name-check ## Print the plugin names, one per line
-	@printf '%s\n' $(PLUGINS)
+list: name-check ## Print the plugin names PLUGIN or PLUGINS narrow to, or all of them, one per line
+	@printf '%s\n' $(PLUGIN_LIST)
 
 clean: ## Remove build output
 	rm -rf $(BUILDDIR) $(DISTDIR)
