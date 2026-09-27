@@ -140,8 +140,8 @@ func TestTheSnapshotRefusesMCP(t *testing.T) {
 	if !errors.As(err, &verr) || verr.Code != "vault.human" || !verr.Refusal {
 		t.Fatalf("err = %v, want vault.human marked a refusal", err)
 	}
-	if !strings.Contains(verr.Hint, "vault.kv.get") {
-		t.Errorf("hint = %q, want it to name the capability that does take a grant", verr.Hint)
+	if !strings.Contains(verr.Hint, "the `vault_kv_get` tool") {
+		t.Errorf("hint = %q, want it to name the capability that does take a grant, as the agent calls it", verr.Hint)
 	}
 	// And it refused before writing anything.
 	if _, err := os.Stat(path); err == nil {

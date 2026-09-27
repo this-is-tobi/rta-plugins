@@ -89,20 +89,20 @@ func humanOnly(req plugin.Request, id, hint string) *view.Error {
 func runSnapshot(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr := humanOnly(req, "vault.snapshot",
 		"a snapshot of the whole Vault has no blast radius a grant could name — its "+
-			"one authorized use is everything. Ask for the path you need with vault.kv.get, "+
-			"which takes a grant naming that path"); verr != nil {
+			"one authorized use is everything. Ask for the path you need with "+
+			req.Surface().CapabilityName("vault.kv.get")+", which takes a grant naming that path"); verr != nil {
 		return nil, verr
 	}
 
 	out := strings.TrimSpace(req.String("out"))
 	if out == "" {
 		return nil, view.Errorf("vault.snapshot.nooutput", "say where the snapshot should be written").
-			WithHint("--out ./vault.snap — a whole Vault is a file, not something to read in a " +
-				"terminal")
+			WithHint(given(req.Surface(), "out", "./vault.snap") + " — a whole Vault is a file, not something " +
+				"to read in a terminal")
 	}
 	path, err := expandHome(out)
 	if err != nil {
-		return nil, view.Errorf("vault.snapshot.path", "resolving --out: %v", err)
+		return nil, view.Errorf("vault.snapshot.path", "resolving %s: %v", req.Surface().InputName("out"), err)
 	}
 	// A friendly early refusal before anything opens a connection. It is not
 	// the guarantee — O_EXCL below is, and it still catches the race this
@@ -210,7 +210,7 @@ func classifySnapshot(err error, req plugin.Request) *view.Error {
 			"%s returned a snapshot that stops short of its checksums", req.String("address")).
 			WithHint("the archive is missing SHA256SUMS.sealed, which Vault writes last and " +
 				"encrypts with the seal — so the seal was unavailable partway through. " +
-				"`rta vault seal status` is the next thing to look at. The partial file has " +
+				req.Surface().CapabilityName("vault.seal.status") + " is the next thing to look at. The partial file has " +
 				"been removed rather than left looking like a backup")
 	}
 

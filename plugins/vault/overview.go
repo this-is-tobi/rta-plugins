@@ -29,7 +29,7 @@ func overviewCapability() plugin.Capability {
 		Idempotent: true,
 		Detailed:   true,
 		Description: "Whether this Vault is worth talking to at all, and what the configured " +
-			"token can do — never a secret value. --detail adds the full policy list to the same " +
+			"token can do — never a secret value. `detail` adds the full policy list to the same " +
 			"page.",
 		Run: runOverview,
 	})

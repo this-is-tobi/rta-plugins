@@ -54,7 +54,7 @@ func suggestWrapTTL(context.Context, plugin.Request) []string {
 }
 
 func runWrapSet(ctx context.Context, req plugin.Request) (view.View, error) {
-	data, verr := dataFields(req.StringSlice("data"))
+	data, verr := dataFields(req.Surface(), req.StringSlice("data"))
 	if verr != nil {
 		return nil, verr
 	}
@@ -103,12 +103,12 @@ func wrapGetCapability() plugin.Capability {
 		Idempotent: false,
 		Description: "Consumes the token: a second call against the same token gets Vault's own " +
 			"\"wrapping token is not valid or does not exist\" refusal, from Vault itself rather " +
-			"than anything this plugin tracks. --dry-run must not spend the one read this token " +
+			"than anything this plugin tracks. A dry run must not spend the one read this token " +
 			"has, so it calls sys/wrapping/lookup instead — creation time, path and TTL, without " +
 			"the payload and without consuming anything.",
 		Run: runWrapGet,
 	}, plugin.Field{Name: "wrapping-token", Type: plugin.Secret, Positional: true, Required: true,
-		Help: "the wrapping token vault.wrap.set returned — a different token from --token, " +
+		Help: "the wrapping token vault.wrap.set returned — a different token from `token`, " +
 			"this plugin's own auth credential"})
 }
 

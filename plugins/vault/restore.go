@@ -60,7 +60,7 @@ func restoreCapability() plugin.Capability {
 			"snapshot's, so the token that authorized the restore may stop existing the moment " +
 			"it succeeds. The receipt says so, and the read-back afterwards uses seal-status — " +
 			"the endpoint that answers without a token.\n\n" +
-			"A snapshot from a different cluster is refused by Vault itself unless --force " +
+			"A snapshot from a different cluster is refused by Vault itself unless `force` " +
 			"skips the identity check — after which the Vault can only be unsealed with the " +
 			"source cluster's unseal keys or KMS. The refusal names the flag and that " +
 			"consequence together, because the flag without the keys bricks the Vault. Needs " +
@@ -87,14 +87,14 @@ func runRestoreSnapshot(ctx context.Context, req plugin.Request) (view.View, err
 	if err != nil {
 		return nil, view.Errorf("vault.restore.path", "resolving the snapshot path: %v", err)
 	}
-	if verr := checkSnapshotFile(path); verr != nil {
+	if verr := checkSnapshotFile(req.Surface(), path); verr != nil {
 		return nil, verr
 	}
 
 	if req.DryRun {
 		what := "verifying it came from this cluster"
 		if req.Bool("force") {
-			what = "skipping the cluster identity check (--force)"
+			what = "skipping the cluster identity check (" + req.Surface().InputName("force") + ")"
 		}
 		return view.Text{Body: fmt.Sprintf(
 			"would replace the storage of %s with %s, %s",
@@ -134,11 +134,11 @@ func runRestoreSnapshot(ctx context.Context, req plugin.Request) (view.View, err
 // call: one that is not there, and one that is empty — the server would
 // reject an empty upload anyway, but "the snapshot did not finish being
 // written" is the answer, and the server does not know it.
-func checkSnapshotFile(path string) *view.Error {
+func checkSnapshotFile(sf plugin.Surface, path string) *view.Error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return view.Errorf("vault.restore.missing", "no snapshot at %s", path).
-			WithHint("`rta vault snapshot --out <path>` writes one; this restores what that wrote")
+			WithHint("`" + sf.Call("vault.snapshot", plugin.Arg{Name: "out", Value: "<path>"}) + "` writes one; this restores what that wrote")
 	}
 	if info.IsDir() {
 		return view.Errorf("vault.restore.notafile", "%s is a directory", path).
@@ -159,8 +159,8 @@ func checkSnapshotFile(path string) *view.Error {
 func sealStateAfter(ctx context.Context, client *vaultapi.Client, req plugin.Request) string {
 	status, err := client.Sys().SealStatusWithContext(ctx)
 	if err != nil {
-		return "the server could not be read back (" + err.Error() + ") — `rta vault seal status` " +
-			"is the next thing to run"
+		return "the server could not be read back (" + err.Error() + ") — " +
+			req.Surface().CapabilityName("vault.seal.status") + " is the next thing to run"
 	}
 	if status.Sealed {
 		return "the Vault is sealed — unseal it with the keys of the cluster the snapshot came from"
@@ -191,9 +191,9 @@ func classifyRestore(err error, req plugin.Request) *view.Error {
 			"could not verify", "unseal key", "hash file"):
 			return view.Errorf("vault.restore.mismatch",
 				"this snapshot did not come from the cluster at %s", req.String("address")).
-				WithHint("--force skips the identity check and restores it anyway — do that only " +
-					"holding the source cluster's unseal keys or KMS, because they are what " +
-					"unseals the Vault afterwards. Without them, --force bricks it")
+				WithHint(req.Surface().InputName("force") + " skips the identity check and restores it anyway — do " +
+					"that only holding the source cluster's unseal keys or KMS, because they are what " +
+					"unseals the Vault afterwards. Without them, " + req.Surface().InputName("force") + " bricks it")
 		}
 	}
 	return classify(err, req)

@@ -103,7 +103,7 @@ func connect(req plugin.Request) (*vaultapi.Client, *view.Error) {
 // same job plugins/pg's classify does for a driver error, against Vault's
 // own error shapes instead of PostgreSQL's.
 func classify(err error, req plugin.Request) *view.Error {
-	addr := req.String("address")
+	addr, sf := req.String("address"), req.Surface()
 
 	var respErr *vaultapi.ResponseError
 	if errors.As(err, &respErr) {
@@ -111,7 +111,7 @@ func classify(err error, req plugin.Request) *view.Error {
 		case 403:
 			return view.Errorf("vault.denied", "%s refused: %s", addr, joinErrors(respErr)).
 				WithHint("the token's policy does not allow this, or the token itself is invalid — " +
-					"`rta vault token status` shows what the current token can do")
+					sf.CapabilityName("vault.token.status") + " shows what the current token can do")
 		case 404:
 			return view.Errorf("vault.notfound", "nothing at that path on %s", addr).
 				WithHint("check the path and the mount — a KV v2 mount is not always named \"secret\"")
@@ -120,7 +120,7 @@ func classify(err error, req plugin.Request) *view.Error {
 				WithHint("this is Vault refusing, not rta")
 		case 412:
 			return view.Errorf("vault.sealed", "%s is sealed or not yet initialized", addr).
-				WithHint("`rta vault seal status` shows which")
+				WithHint(sf.CapabilityName("vault.seal.status") + " shows which")
 		}
 		return view.Errorf("vault.request.failed", "%s: %s", addr, joinErrors(respErr)).
 			WithHint(fmt.Sprintf("HTTP %d", respErr.StatusCode))
@@ -139,7 +139,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	var dnsErr *net.DNSError
 	if errors.As(err, &dnsErr) {
 		return view.Errorf("vault.host.unknown", "no address for %s", addr).
-			WithHint("`rta net dns` on the host part of --address shows what DNS returns")
+			WithHint(sf.CapabilityName("net.dns") + " on the host part of " + setting(sf, "address") + " shows what DNS returns")
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
@@ -154,7 +154,53 @@ func classify(err error, req plugin.Request) *view.Error {
 				"ca-file rather than disabling verification")
 	}
 	return view.Errorf("vault.conn.failed", "could not reach %s: %v", addr, err).
-		WithHint("`rta explain vault.seal.status` lists every input and where each can come from")
+		WithHint(explainHint(sf, "vault.seal.status"))
+}
+
+// dataHint says how data carries a secret's fields: on the CLI a flag repeated
+// once per field, and elsewhere a list with one field per value.
+func dataHint(sf plugin.Surface) string {
+	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
+		return "each value in " + sf.InputName("data") + " is one key=value pair, one per field"
+	}
+	return "each " + sf.InputName("data") + " is one key=value pair, repeated for more than one"
+}
+
+// setting names connection input name in a message the way its reader
+// changes it: the flag on the CLI, the box in a TUI form. Not the argument
+// over MCP, as plugin.Surface.InputName would: every connection input is
+// Local, so the tool's schema hides it and the bridge drops one given, and an
+// agent told to check the "address" argument would pass one that is thrown
+// away and read the same refusal again. It is named there as the declaration
+// names it, `address` — a setting of the operator's, which the agent can
+// report and cannot change.
+func setting(sf plugin.Surface, name string) string {
+	if sf == plugin.SurfaceMCP {
+		return "`" + name + "`"
+	}
+	return sf.InputName(name)
+}
+
+// given names input name set to value, as the reader would give it: "--out
+// ./vault.snap" on the CLI, and elsewhere the input the surface names, with
+// the value beside it.
+func given(sf plugin.Surface, name, value string) string {
+	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
+		return sf.InputName(name) + " set to " + value
+	}
+	return sf.InputName(name) + " " + value
+}
+
+// explainHint sends the reader to the page listing every input and where each
+// can come from. That page is `rta explain`, a terminal's command with no
+// capability behind it, and what it answers here is where the connection
+// inputs come from — the operator's to set — so over MCP it is the operator
+// who is asked to read it.
+func explainHint(sf plugin.Surface, id string) string {
+	if sf == plugin.SurfaceMCP {
+		return plugin.AskOperator("explain "+id) + ", which lists every input and where each can come from"
+	}
+	return "`rta explain " + id + "` lists every input and where each can come from"
 }
 
 // joinErrors renders a ResponseError's Errors slice the way Vault's own CLI
@@ -171,13 +217,13 @@ func joinErrors(respErr *vaultapi.ResponseError) string {
 // secret generic --from-literal` uses, chosen because a Vault secret is a
 // small document (several fields), not the single value builtin/kv stores,
 // and plugin.Field has no map type to ask for one directly.
-func dataFields(pairs []string) (map[string]interface{}, *view.Error) {
+func dataFields(sf plugin.Surface, pairs []string) (map[string]interface{}, *view.Error) {
 	data := make(map[string]interface{}, len(pairs))
 	for _, pair := range pairs {
 		key, value, ok := strings.Cut(pair, "=")
 		if !ok {
 			return nil, view.Errorf("vault.data.invalid", "%q is not key=value", pair).
-				WithHint("each --data is one key=value pair, repeated for more than one")
+				WithHint(dataHint(sf))
 		}
 		data[key] = value
 	}

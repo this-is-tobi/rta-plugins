@@ -172,7 +172,7 @@ func (w *treeWalk) expand(parent string, names []string, depth int) []view.Node 
 		node := view.Node{Label: name}
 		switch {
 		case depth <= 0:
-			node.Detail = "not expanded — raise --depth"
+			node.Detail = "not expanded — raise " + w.req.Surface().InputName("depth")
 		case w.requests >= maxTreeRequests:
 			w.stopped = fmt.Sprintf("stopped after %d listings; narrow it with %s", maxTreeRequests,
 				w.req.Surface().ArgumentName("path"))

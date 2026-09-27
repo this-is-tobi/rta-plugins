@@ -145,7 +145,7 @@ func TestClassifyUnwrapsAWrappedSecretNotFound(t *testing.T) {
 }
 
 func TestDataFieldsParsesRepeatedKeyValuePairs(t *testing.T) {
-	data, verr := dataFields([]string{"user=admin", "pass=hunter2"})
+	data, verr := dataFields(plugin.SurfaceCLI, []string{"user=admin", "pass=hunter2"})
 	if verr != nil {
 		t.Fatal(verr)
 	}
@@ -155,7 +155,7 @@ func TestDataFieldsParsesRepeatedKeyValuePairs(t *testing.T) {
 }
 
 func TestDataFieldsRejectsAPairWithNoEquals(t *testing.T) {
-	_, verr := dataFields([]string{"user"})
+	_, verr := dataFields(plugin.SurfaceCLI, []string{"user"})
 	if verr == nil {
 		t.Fatal("expected an error for a pair with no '='")
 	}
@@ -169,7 +169,7 @@ func TestDataFieldsRejectsAPairWithNoEquals(t *testing.T) {
 // occurrence, not something re-derived here, but the case is worth pinning
 // since a naive strings.Split(pair, "=") would silently drop the rest.
 func TestDataFieldsKeepsEqualsSignsInsideTheValue(t *testing.T) {
-	data, verr := dataFields([]string{"cert=MIIB==Q=="})
+	data, verr := dataFields(plugin.SurfaceCLI, []string{"cert=MIIB==Q=="})
 	if verr != nil {
 		t.Fatal(verr)
 	}
