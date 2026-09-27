@@ -185,7 +185,7 @@ func TestBytesColumnsBecomeText(t *testing.T) {
 // with the server and the driver's settings. A size column nobody can read at
 // a glance is a column that gets piped into another tool instead of read.
 func TestSizesRenderAsBytesWhateverTypeTheyArriveAs(t *testing.T) {
-	for _, v := range []any{int64(1048576), []byte("1048576"), float64(1048576)} {
+	for _, v := range []any{int64(1048576), uint64(1048576), []byte("1048576"), float64(1048576)} {
 		if got := bytesCell(v); got != "1.0 MiB" {
 			t.Errorf("bytesCell(%T) = %q, want 1.0 MiB", v, got)
 		}
