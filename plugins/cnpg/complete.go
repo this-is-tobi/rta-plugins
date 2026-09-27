@@ -19,7 +19,7 @@ import (
 // a read of the local kubeconfig — no cluster is contacted, which is what
 // lets this stay off the Live channel.
 func suggestContexts(ctx context.Context, _ plugin.Request) []string {
-	raw, verr := run(ctx, "config", "get-contexts", "-o=name")
+	raw, verr := run(ctx, plugin.SurfaceCompletion, "config", "get-contexts", "-o=name")
 	if verr != nil {
 		return nil
 	}
@@ -44,7 +44,7 @@ func suggestNamespaces(ctx context.Context, req plugin.Request) []string {
 	if kctx != "" {
 		args = append(args, "--context="+kctx)
 	}
-	raw, verr := run(ctx, args...)
+	raw, verr := run(ctx, plugin.SurfaceCompletion, args...)
 	if verr != nil {
 		return nil
 	}

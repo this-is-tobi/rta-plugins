@@ -18,14 +18,14 @@ Asks for `kubeconfig` — granted, or not, with `rta plugin allow cnpg`.
 
 Under `plugins: cnpg:` in rta's configuration, or in a profile's `set:`. An installed plugin's section is pinned to the artifact — `plugins: cnpg@<digest>:` — and `rta doctor` prints the exact line. The caller always wins, so a configured value is a default, never a lock.
 
-| Key           | Read by                                                                     | Help                                                                                       |
-|---------------|-----------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|
-| backup.method | cnpg.backup.request                                                         | how to take it — the cluster's own choice when omitted                                     |
-| backup.online | cnpg.backup.request                                                         | hot or cold — only with --method volumeSnapshot, and the cluster's own choice when omitted |
-| backup.target | cnpg.backup.request                                                         | which instance performs it — the cluster's own choice when omitted                         |
-| cluster       | cnpg.backup.list, cnpg.backup.request, cnpg.status, cnpg.storage            | only this cluster's backups — every one in the namespace when omitted                      |
-| context       | cnpg.backup.list, cnpg.backup.request, cnpg.list, cnpg.status, cnpg.storage | kubeconfig context to use — the current one when omitted                                   |
-| namespace     | cnpg.backup.list, cnpg.backup.request, cnpg.list, cnpg.status, cnpg.storage | namespace to read — the context's own when omitted                                         |
+| Key           | Read by                                                                     | Help                                                                                              |
+|---------------|-----------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+| backup.method | cnpg.backup.request                                                         | how to take it — the cluster's own choice when omitted                                            |
+| backup.online | cnpg.backup.request                                                         | hot or cold — only with a \`method\` of volumeSnapshot, and the cluster's own choice when omitted |
+| backup.target | cnpg.backup.request                                                         | which instance performs it — the cluster's own choice when omitted                                |
+| cluster       | cnpg.backup.list, cnpg.backup.request, cnpg.status, cnpg.storage            | only this cluster's backups — every one in the namespace when omitted                             |
+| context       | cnpg.backup.list, cnpg.backup.request, cnpg.list, cnpg.status, cnpg.storage | kubeconfig context to use — the current one when omitted                                          |
+| namespace     | cnpg.backup.list, cnpg.backup.request, cnpg.list, cnpg.status, cnpg.storage | namespace to read — the context's own when omitted                                                |
 
 ## cnpg.backup.list
 
@@ -53,25 +53,25 @@ Creates a Backup object. **rta does not take the backup and does not choose wher
 
 Refused when the cluster configures no backup at all. CloudNativePG accepts such a Backup and lets it fail asynchronously — verified against a running operator, which admits the object with no complaint — so the failure would surface minutes later in a place nobody is looking. rta reads the cluster first and says so instead.
 
-`--method`, `--target` and `--online` override what the cluster settled on, and are all optional: sending none of them is the ordinary call and means 'do what you would have done anyway'.
+`method`, `target` and `online` override what the cluster settled on, and are all optional: sending none of them is the ordinary call and means 'do what you would have done anyway'.
 
-| Field                | Value                                                                                                                                                                  |
-|----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id                   | cnpg.backup.request                                                                                                                                                    |
-| summary              | Ask the operator to back a cluster up now, using that cluster's own configuration                                                                                      |
-| safety               | write                                                                                                                                                                  |
-| idempotent           | false                                                                                                                                                                  |
-| cli                  | rta cnpg backup request \[--cluster \<string>\] \[--method \<string>\] \[--target \<string>\] \[--online \<string>\] \[--namespace \<string>\] \[--context \<string>\] |
-| mcp-tool             | cnpg_backup_request                                                                                                                                                    |
-| grant required (mcp) | yes — a person must run \`rta grant allow cnpg.backup.request\`, optionally naming one cluster                                                                         |
-| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`                                     |
-| input:cluster        | string, required, completes, from config plugins.cnpg.cluster — the cluster to back up                                                                                 |
-| input:method         | string, one of: barmanObjectStore\|volumeSnapshot, from config plugins.cnpg.backup.method — how to take it — the cluster's own choice when omitted                     |
-| input:target         | string, one of: primary\|prefer-standby, from config plugins.cnpg.backup.target — which instance performs it — the cluster's own choice when omitted                   |
-| input:online         | string, one of: true\|false, from config plugins.cnpg.backup.online — hot or cold — only with --method volumeSnapshot, and the cluster's own choice when omitted       |
-| input:namespace      | string, completes, from config plugins.cnpg.namespace — namespace to read — the context's own when omitted                                                             |
-| input:context        | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                   |
-| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                           |
+| Field                | Value                                                                                                                                                                   |
+|----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                   | cnpg.backup.request                                                                                                                                                     |
+| summary              | Ask the operator to back a cluster up now, using that cluster's own configuration                                                                                       |
+| safety               | write                                                                                                                                                                   |
+| idempotent           | false                                                                                                                                                                   |
+| cli                  | rta cnpg backup request \[--cluster \<string>\] \[--method \<string>\] \[--target \<string>\] \[--online \<string>\] \[--namespace \<string>\] \[--context \<string>\]  |
+| mcp-tool             | cnpg_backup_request                                                                                                                                                     |
+| grant required (mcp) | yes — a person must run \`rta grant allow cnpg.backup.request\`, optionally naming one cluster                                                                          |
+| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`                                      |
+| input:cluster        | string, required, completes, from config plugins.cnpg.cluster — the cluster to back up                                                                                  |
+| input:method         | string, one of: barmanObjectStore\|volumeSnapshot, from config plugins.cnpg.backup.method — how to take it — the cluster's own choice when omitted                      |
+| input:target         | string, one of: primary\|prefer-standby, from config plugins.cnpg.backup.target — which instance performs it — the cluster's own choice when omitted                    |
+| input:online         | string, one of: true\|false, from config plugins.cnpg.backup.online — hot or cold — only with a \`method\` of volumeSnapshot, and the cluster's own choice when omitted |
+| input:namespace      | string, completes, from config plugins.cnpg.namespace — namespace to read — the context's own when omitted                                                              |
+| input:context        | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                    |
+| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                            |
 
 ## cnpg.list
 
@@ -113,7 +113,7 @@ Everything the Cluster resource reports about itself, laid out as the questions 
 
 `cnpg.status` reports the storage the spec asks for. This reports what the cluster got, which is a different question the moment anything has gone wrong: a claim still Pending, one whose capacity came back smaller than requested, and an expansion that never finished all look identical in the spec, and each is a database about to stop writing.
 
-**It does not report how full a volume is.** That comes from the kubelet's own stats endpoint through the node proxy — a different mechanism and a different permission, and one that does not survive every proxy people put in front of a cluster, which is the property this plugin is built around. A column that looked like usage and was capacity would be worse than no column. `rta kube pvc usage` reports it, graded and worst first, for whoever holds nodes/proxy.
+**It does not report how full a volume is.** That comes from the kubelet's own stats endpoint through the node proxy — a different mechanism and a different permission, and one that does not survive every proxy people put in front of a cluster, which is the property this plugin is built around. A column that looked like usage and was capacity would be worse than no column. `kube.pvc.usage` reports it, graded and worst first, for whoever holds nodes/proxy.
 
 | Field           | Value                                                                                                                                                           |
 |-----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
