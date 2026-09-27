@@ -110,7 +110,7 @@ func getRawJSON(ctx context.Context, s selection, path string, out any) *view.Er
 	if strings.Contains(path, "..") {
 		return view.Errorf("kube.path.invalid", "%q is not a safe API path", path)
 	}
-	raw, verr := run(ctx, rawArgs(s, path)...)
+	raw, verr := run(ctx, s.sf, rawArgs(s, path)...)
 	if verr != nil {
 		if verr.Code == "kube.notfound" {
 			return verr.WithHint("the metrics-server add-on is not installed on this cluster, " +

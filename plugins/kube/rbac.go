@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
@@ -166,11 +167,12 @@ var provisionable = map[string][]policyRule{
 // provisionable refuses the whole request rather than silently granting the
 // ones that did resolve, so a typo or an unmapped capability never mints a
 // Role narrower than the operator asked for without them being told.
-func rulesFor(capabilityIDs []string) ([]policyRule, *view.Error) {
+func rulesFor(sf plugin.Surface, capabilityIDs []string) ([]policyRule, *view.Error) {
 	if len(capabilityIDs) == 0 {
 		return nil, view.Errorf("kube.serviceaccount.norules",
 			"name at least one grant for the identity").
-			WithHint("--grant kube.pod.list (or logs, rollout…), repeatable — " + strings.Join(provisionableNames(), ", "))
+			WithHint(given(sf, "grant", "kube.pod.list") + " (or logs, rollout…), repeatable — " +
+				strings.Join(provisionableNames(), ", "))
 	}
 	seen := map[string]bool{}
 	var out []policyRule

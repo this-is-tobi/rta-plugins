@@ -84,7 +84,7 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr != nil {
 		return nil, verr
 	}
-	cfg, cfgErr := readConfig(ctx)
+	cfg, cfgErr := readConfig(ctx, req.Surface())
 	where := s.Context
 	if where == "" && cfgErr == nil {
 		where = cfg.CurrentContext
@@ -155,7 +155,7 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 		}
 		pairs = append(pairs,
 			view.Pair{Key: "cluster", Value: answer + " — " + f.nsErr.Message},
-			view.Pair{Key: "what to check", Value: hintOf(f.nsErr)})
+			view.Pair{Key: "what to check", Value: hintOf(req.Surface(), f.nsErr)})
 		return view.KeyValue{Pairs: pairs}, nil
 	}
 	pairs = append(pairs, view.Pair{Key: "cluster", Value: "answering"})
@@ -331,9 +331,9 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 
 // hintOf recovers the remedy from a classified error, so the overview can put
 // it on its own row instead of dropping it.
-func hintOf(e *view.Error) string {
+func hintOf(sf plugin.Surface, e *view.Error) string {
 	if e == nil || e.Hint == "" {
-		return "`rta kube context list` shows what this machine is configured for"
+		return sf.CapabilityName("kube.context.list") + " shows what this machine is configured for"
 	}
 	return e.Hint
 }

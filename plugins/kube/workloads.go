@@ -283,7 +283,7 @@ func suggestNamespaces(ctx context.Context, req plugin.Request) []string {
 	// a line that already carries --all-namespaces. Refusing the *call* there
 	// is right; refusing to *suggest* is just withholding the list that shows
 	// them what they are choosing between.
-	s := selection{Context: strings.TrimSpace(req.String("context"))}
+	s := selection{Context: strings.TrimSpace(req.String("context")), sf: req.Surface()}
 	if verr := checkName("context", s.Context); verr != nil {
 		return nil
 	}

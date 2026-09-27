@@ -65,7 +65,7 @@ type tlsSecretItem struct {
 // fetchTLSSecrets is shared with kube.overview's own composition, so both
 // read the same Secrets the same way.
 func fetchTLSSecrets(ctx context.Context, s selection) (list[tlsSecretItem], *view.Error) {
-	raw, runErr := run(ctx, s.args("get", "secrets", "-o", "json",
+	raw, runErr := run(ctx, s.sf, s.args("get", "secrets", "-o", "json",
 		"--field-selector=type=kubernetes.io/tls")...)
 	if runErr != nil {
 		return list[tlsSecretItem]{}, runErr

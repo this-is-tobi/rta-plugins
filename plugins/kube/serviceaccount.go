@@ -65,16 +65,16 @@ func serviceAccountCapabilities() []plugin.Capability {
 			// the same bar every other ungated CLI action in rta accepts.
 			Safety: plugin.Write,
 			Description: "Creates a ServiceAccount, a Role built from exactly the grants named in " +
-				"--grant (nothing broader — an unmapped name refuses the whole request rather than " +
-				"silently granting less than asked), a RoleBinding, and a token scoped to --ttl. " +
+				"`grant` (nothing broader — an unmapped name refuses the whole request rather than " +
+				"silently granting less than asked), a RoleBinding, and a token scoped to `ttl`. " +
 				"A grant is either a kube.* capability ID (what that capability reads) or a bare " +
 				"word naming a cluster permission the minted identity needs but rta has no " +
 				"capability for: logs, workloads, services, and — the one write — rollout, which " +
 				"carries patch on workloads and is meant for environments where changing what runs " +
-				"is acceptable. Returns the assembled kubeconfig — to the terminal, or to --out, " +
-				"which refuses an existing file unless --force says to replace it. Refuses to run " +
+				"is acceptable. Returns the assembled kubeconfig — to the terminal, or to `out`, " +
+				"which refuses an existing file unless `force` says to replace it. Refuses to run " +
 				"anywhere but a person's own CLI/TUI: an agent must never be able to mint its own " +
-				"parallel credential. There is no link enforced between --ttl and any `grant allow` " +
+				"parallel credential. There is no link enforced between `ttl` and any `grant.allow` " +
 				"TTL issued elsewhere — matching them is the operator's convention to keep, not " +
 				"something this checks.",
 			Inputs: []plugin.Field{
@@ -98,7 +98,7 @@ func serviceAccountCapabilities() []plugin.Capability {
 				{Name: "out", Type: plugin.Path, Local: true,
 					Help: "write the kubeconfig to this file (0600) instead of printing it"},
 				{Name: "force", Type: plugin.Bool, Local: true,
-					Help: "replace --out's file if it already exists"},
+					Help: "replace `out`'s file if it already exists"},
 			},
 			Run: runServiceAccountProvision,
 		}),
@@ -108,7 +108,7 @@ func serviceAccountCapabilities() []plugin.Capability {
 			Description: "Only ServiceAccounts carrying provision's own label — not every " +
 				"ServiceAccount in the namespace. A minted token cannot be queried directly (Kubernetes " +
 				"does not persist a TokenRequest token as an object), so \"expired\" here is computed " +
-				"from the --ttl and issue time provision recorded as annotations at mint time — a " +
+				"from the `ttl` and issue time provision recorded as annotations at mint time — a " +
 				"best-effort estimate, not a live check against the API server.",
 			Safety:     plugin.Read,
 			Idempotent: true,
@@ -129,7 +129,7 @@ func serviceAccountCapabilities() []plugin.Capability {
 			NeedsGrant: true,
 			Scope:      "name",
 			Description: "A TokenRequest bearer token has no independent early-revocation API — it " +
-				"stays valid until its own --ttl regardless of anything rta does. Deleting the " +
+				"stays valid until its own `ttl` runs out, regardless of anything rta does. Deleting the " +
 				"ServiceAccount is what invalidates every token minted against it immediately, and " +
 				"because provision never reuses one ServiceAccount across grants, this always means " +
 				"\"this one identity\", never \"every agent's access at once\". Refuses to touch " +
@@ -198,7 +198,7 @@ func runServiceAccountProvision(ctx context.Context, req plugin.Request) (view.V
 				"e.g. 15m, 1h or 24h")
 	}
 
-	rules, verr := rulesFor(req.StringSlice("grant"))
+	rules, verr := rulesFor(req.Surface(), req.StringSlice("grant"))
 	if verr != nil {
 		return nil, verr
 	}
@@ -227,7 +227,7 @@ func runServiceAccountProvision(ctx context.Context, req plugin.Request) (view.V
 		if _, err := os.Stat(plugin.ExpandHome(out)); err == nil {
 			return nil, view.Errorf("kube.serviceaccount.out.exists",
 				"%s already exists", plugin.ExpandHome(out)).
-				WithHint("name a path that does not exist yet, or pass --force to replace it — " +
+				WithHint("name a path that does not exist yet, or pass " + req.Surface().InputName("force") + " to replace it — " +
 					"checked before anything was created on the cluster")
 		}
 	}
@@ -283,14 +283,14 @@ func runServiceAccountProvision(ctx context.Context, req plugin.Request) (view.V
 			"`kube.serviceaccount.revoke " + name + " -n " + namespace + "` cleans up both")
 	}
 
-	tokenOut, verr := run(ctx, s.args("create", "token", name, "--duration="+ttlStr)...)
+	tokenOut, verr := run(ctx, s.sf, s.args("create", "token", name, "--duration="+ttlStr)...)
 	if verr != nil {
 		return nil, verr.WithHint("the ServiceAccount, Role and RoleBinding were created but no token " +
 			"was minted — `kube.serviceaccount.revoke " + name + " -n " + namespace + "` cleans up all three")
 	}
 	token := strings.TrimSpace(string(tokenOut))
 
-	rawCfg, verr := readRawClusterConfig(ctx)
+	rawCfg, verr := readRawClusterConfig(ctx, s.sf)
 	if verr != nil {
 		return nil, verr
 	}
@@ -310,8 +310,14 @@ func runServiceAccountProvision(ctx context.Context, req plugin.Request) (view.V
 			// The cluster's own service-account-max-token-expiration clamped
 			// the request silently — the token itself is the only place that
 			// shows up, so surface it rather than let --ttl's promise stand
-			// unchallenged.
-			grantedExpiry += " (shorter than the --ttl requested — this cluster's own token expiry ceiling clamped it)"
+			// unchallenged. The TUI's name for the input already carries its
+			// article, "the ttl box", and the CLI's is the bare flag.
+			asked := "the " + req.Surface().InputName("ttl")
+			if req.Surface() == plugin.SurfaceTUI {
+				asked = req.Surface().InputName("ttl")
+			}
+			grantedExpiry += " (shorter than " + asked +
+				" requested — this cluster's own token expiry ceiling clamped it)"
 		}
 	}
 
@@ -344,7 +350,7 @@ func runServiceAccountProvision(ctx context.Context, req plugin.Request) (view.V
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return nil, view.Errorf("kube.serviceaccount.out.unwritable", "creating %s: %v", filepath.Dir(path), err)
 	}
-	if verr := writeKubeconfig(path, []byte(kubeconfigYAML), force); verr != nil {
+	if verr := writeKubeconfig(req.Surface(), path, []byte(kubeconfigYAML), force); verr != nil {
 		return nil, verr
 	}
 	summary.Pairs = append(summary.Pairs, view.Pair{Key: "wrote kubeconfig to", Value: path})
@@ -376,7 +382,7 @@ func createManifest(ctx context.Context, s selection, obj any) *view.Error {
 	if err != nil {
 		return view.Errorf("kube.serviceaccount.encode", "building the manifest: %v", err)
 	}
-	_, verr := runStdin(ctx, body, s.args("create", "-f", "-")...)
+	_, verr := runStdin(ctx, s.sf, body, s.args("create", "-f", "-")...)
 	return verr
 }
 
@@ -396,7 +402,7 @@ func runServiceAccountList(ctx context.Context, req plugin.Request) (view.View, 
 	if verr != nil {
 		return nil, verr
 	}
-	raw, verr := run(ctx, s.args("get", "serviceaccounts",
+	raw, verr := run(ctx, s.sf, s.args("get", "serviceaccounts",
 		"-l", provisionedByLabel+"="+provisionedByValue, "-o", "json")...)
 	if verr != nil {
 		return nil, verr
@@ -444,7 +450,7 @@ func runServiceAccountRevoke(ctx context.Context, req plugin.Request) (view.View
 		return nil, verr
 	}
 
-	raw, verr := run(ctx, s.args("get", "serviceaccount", name, "-o", "json")...)
+	raw, verr := run(ctx, s.sf, s.args("get", "serviceaccount", name, "-o", "json")...)
 	if verr != nil {
 		if verr.Code == "kube.notfound" {
 			return nil, view.Errorf("kube.serviceaccount.notfound",
@@ -492,11 +498,11 @@ func runServiceAccountRevoke(ctx context.Context, req plugin.Request) (view.View
 			skipped = append(skipped, kind)
 			continue
 		}
-		if _, verr := run(ctx, s.args("delete", kind, name)...); verr != nil && verr.Code != "kube.notfound" {
+		if _, verr := run(ctx, s.sf, s.args("delete", kind, name)...); verr != nil && verr.Code != "kube.notfound" {
 			return nil, verr
 		}
 	}
-	if _, verr := run(ctx, s.args("delete", "serviceaccount", name)...); verr != nil && verr.Code != "kube.notfound" {
+	if _, verr := run(ctx, s.sf, s.args("delete", "serviceaccount", name)...); verr != nil && verr.Code != "kube.notfound" {
 		return nil, verr
 	}
 
@@ -517,7 +523,7 @@ func runServiceAccountRevoke(ctx context.Context, req plugin.Request) (view.View
 // (skip-and-note vs. tolerate-as-already-gone), which is why this returns a
 // bool rather than folding the two into one error.
 func ownedByProvision(ctx context.Context, s selection, kind, name string) (bool, *view.Error) {
-	raw, verr := run(ctx, s.args("get", kind, name, "-o", "json")...)
+	raw, verr := run(ctx, s.sf, s.args("get", kind, name, "-o", "json")...)
 	if verr != nil {
 		if verr.Code == "kube.notfound" {
 			return false, nil
@@ -552,7 +558,7 @@ func ownedByProvision(ctx context.Context, s selection, kind, name string) (bool
 // spelling for the same idea. Forcing goes through writeAtomically so that
 // replacing is still all-or-nothing; refusing does not need to, because
 // O_EXCL's guarantee is that there was nothing to lose.
-func writeKubeconfig(path string, data []byte, force bool) *view.Error {
+func writeKubeconfig(sf plugin.Surface, path string, data []byte, force bool) *view.Error {
 	if force {
 		if err := writeAtomically(path, data, 0o600); err != nil {
 			return view.Errorf("kube.serviceaccount.out.unwritable", "writing %s: %v", path, err)
@@ -565,7 +571,7 @@ func writeKubeconfig(path string, data []byte, force bool) *view.Error {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if errors.Is(err, fs.ErrExist) {
 		return view.Errorf("kube.serviceaccount.out.exists", "%s already exists", path).
-			WithHint("name a path that does not exist yet, or pass --force to replace it")
+			WithHint("name a path that does not exist yet, or pass " + sf.InputName("force") + " to replace it")
 	}
 	if err != nil {
 		return view.Errorf("kube.serviceaccount.out.unwritable", "creating %s: %v", path, err)

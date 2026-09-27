@@ -4,6 +4,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/this-is-tobi/rta/pkg/plugin"
 )
 
 // The mapping table is rta's own promise that it never mints what
@@ -56,7 +58,7 @@ func TestUngrantableCapabilitiesStayUngrantable(t *testing.T) {
 // percentage blank, a working-but-wrong result. Pinned against the actual
 // Run function's behavior, not just the table's own shape.
 func TestMetricsPodGrantsCorePodsToo(t *testing.T) {
-	rules, verr := rulesFor([]string{"kube.metrics.pod"})
+	rules, verr := rulesFor(plugin.SurfaceCLI, []string{"kube.metrics.pod"})
 	if verr != nil {
 		t.Fatal(verr)
 	}
@@ -73,7 +75,7 @@ func TestMetricsPodGrantsCorePodsToo(t *testing.T) {
 }
 
 func TestRulesForRefusesAnUnmappedCapability(t *testing.T) {
-	_, verr := rulesFor([]string{"kube.pod.list", "kube.cert.list"})
+	_, verr := rulesFor(plugin.SurfaceCLI, []string{"kube.pod.list", "kube.cert.list"})
 	if verr == nil {
 		t.Fatal("an unmapped capability was silently accepted")
 	}
@@ -86,7 +88,7 @@ func TestRulesForRefusesAnUnmappedCapability(t *testing.T) {
 }
 
 func TestRulesForRefusesAnEmptyList(t *testing.T) {
-	_, verr := rulesFor(nil)
+	_, verr := rulesFor(plugin.SurfaceCLI, nil)
 	if verr == nil || verr.Code != "kube.serviceaccount.norules" {
 		t.Errorf("want kube.serviceaccount.norules, got %+v", verr)
 	}
@@ -136,7 +138,7 @@ func TestDottedGrantsAreDeclaredCapabilitiesAndBareWordsAreNot(t *testing.T) {
 // log — so the entry carries the pods read too, and a grant of just "logs"
 // actually works.
 func TestLogsCarriesThePodReadItNeeds(t *testing.T) {
-	rules, verr := rulesFor([]string{"logs"})
+	rules, verr := rulesFor(plugin.SurfaceCLI, []string{"logs"})
 	if verr != nil {
 		t.Fatal(verr)
 	}
@@ -177,7 +179,7 @@ func TestTheGrantInputOffersExactlyTheTable(t *testing.T) {
 }
 
 func TestRulesForDeduplicatesAndSorts(t *testing.T) {
-	rules, verr := rulesFor([]string{"kube.pod.list", "kube.pod.list", "kube.deployment.list"})
+	rules, verr := rulesFor(plugin.SurfaceCLI, []string{"kube.pod.list", "kube.pod.list", "kube.deployment.list"})
 	if verr != nil {
 		t.Fatal(verr)
 	}

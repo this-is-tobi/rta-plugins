@@ -319,7 +319,7 @@ func TestOutRefusesAnExistingFileUnlessForced(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	verr := writeKubeconfig(path, []byte("MINTED"), false)
+	verr := writeKubeconfig(plugin.SurfaceCLI, path, []byte("MINTED"), false)
 	if verr == nil {
 		t.Fatal("an existing credential file was silently replaced")
 	}
@@ -331,7 +331,7 @@ func TestOutRefusesAnExistingFileUnlessForced(t *testing.T) {
 		t.Errorf("the refused write still changed the file: %q", got)
 	}
 
-	if verr := writeKubeconfig(path, []byte("MINTED"), true); verr != nil {
+	if verr := writeKubeconfig(plugin.SurfaceCLI, path, []byte("MINTED"), true); verr != nil {
 		t.Fatalf("--force did not replace the file: %v", verr)
 	}
 	got, _ = os.ReadFile(path)
@@ -343,7 +343,7 @@ func TestOutRefusesAnExistingFileUnlessForced(t *testing.T) {
 // A fresh path needs no --force, and lands at 0600 either way.
 func TestOutWritesAFreshPathAt0600(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "kubeconfig")
-	if verr := writeKubeconfig(path, []byte("MINTED"), false); verr != nil {
+	if verr := writeKubeconfig(plugin.SurfaceCLI, path, []byte("MINTED"), false); verr != nil {
 		t.Fatal(verr)
 	}
 	info, err := os.Stat(path)

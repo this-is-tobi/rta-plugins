@@ -94,6 +94,9 @@ type selection struct {
 	Context   string
 	Namespace string
 	AllNS     bool
+	// sf is the surface the call came through, so a failure reading the
+	// cluster names what to call next the way its reader calls it.
+	sf plugin.Surface
 }
 
 func selectionOf(req plugin.Request) (selection, *view.Error) {
@@ -101,6 +104,7 @@ func selectionOf(req plugin.Request) (selection, *view.Error) {
 		Context:   strings.TrimSpace(req.String("context")),
 		Namespace: strings.TrimSpace(req.String("namespace")),
 		AllNS:     req.Bool("all-namespaces"),
+		sf:        req.Surface(),
 	}
 	if verr := checkName("context", s.Context); verr != nil {
 		return selection{}, verr
@@ -133,9 +137,9 @@ func selectionOf(req plugin.Request) (selection, *view.Error) {
 	// know what it wants.
 	if s.AllNS && s.Namespace != "" {
 		return selection{}, view.Errorf("kube.namespace.ambiguous",
-			"--namespace and --all-namespaces ask for different things").
+			"%s and %s ask for different things", s.sf.InputName("namespace"), s.sf.InputName("all-namespaces")).
 			WithHint("pass one or the other — a namespace to read that namespace, " +
-				"--all-namespaces to read every one")
+				s.sf.InputName("all-namespaces") + " to read every one")
 	}
 	return s, nil
 }
@@ -187,8 +191,11 @@ func (s selection) where() string {
 // parsed as JSON, and a warning kubectl decides to print — a deprecated API
 // version, a missing auth plugin's advice — would otherwise turn a good
 // answer into a parse error.
-func run(ctx context.Context, args ...string) ([]byte, *view.Error) {
-	return runStdin(ctx, nil, args...)
+//
+// sf is the surface the call came through: a failure names the call to make
+// next, and only the surface knows how its reader makes one.
+func run(ctx context.Context, sf plugin.Surface, args ...string) ([]byte, *view.Error) {
+	return runStdin(ctx, sf, nil, args...)
 }
 
 // runStdin is run with one difference: stdin is a byte slice this package
@@ -198,7 +205,7 @@ func run(ctx context.Context, args ...string) ([]byte, *view.Error) {
 // hand a kubectl subprocess the plugin host's own gRPC channel; a manifest
 // this package assembled and immediately hands to a subprocess it also
 // waits on has none of that risk.
-func runStdin(ctx context.Context, stdin []byte, args ...string) ([]byte, *view.Error) {
+func runStdin(ctx context.Context, sf plugin.Surface, stdin []byte, args ...string) ([]byte, *view.Error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, kubectlBin, args...)
@@ -211,7 +218,7 @@ func runStdin(ctx context.Context, stdin []byte, args ...string) ([]byte, *view.
 	if err == nil {
 		return out, nil
 	}
-	return nil, classify(ctx, err, errBuf.String(), args)
+	return nil, classify(ctx, err, errBuf.String(), args, sf)
 }
 
 // classify turns a kubectl failure into something an operator can act on.
@@ -220,7 +227,7 @@ func runStdin(ctx context.Context, stdin []byte, args ...string) ([]byte, *view.
 // makes it worth the length here is that kubectl reports very different
 // problems through the same exit code, and "exit status 1" is the least
 // useful thing this plugin could say.
-func classify(ctx context.Context, err error, stderr string, args []string) *view.Error {
+func classify(ctx context.Context, err error, stderr string, args []string, sf plugin.Surface) *view.Error {
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return view.Errorf("kube.unreachable",
 			"kubectl did not answer within %s", timeout).
@@ -273,7 +280,7 @@ func classify(ctx context.Context, err error, stderr string, args []string) *vie
 	case strings.Contains(low, "context") && strings.Contains(low, "does not exist"),
 		strings.Contains(low, "context was not found"):
 		return view.Errorf("kube.context.unknown", "%s", msg).
-			WithHint("`rta kube context list` shows the contexts this machine has")
+			WithHint(sf.CapabilityName("kube.context.list") + " shows the contexts this machine has")
 	case strings.Contains(low, "forbidden"), strings.Contains(low, "cannot list"),
 		strings.Contains(low, "is not allowed"):
 		// Left as the API server phrased it. An RBAC refusal names the verb,
@@ -391,7 +398,7 @@ func firstLine(s string) string {
 
 // getJSON runs a `kubectl get -o json` and decodes the list it returns.
 func getJSON(ctx context.Context, s selection, kind string, out any) *view.Error {
-	raw, verr := run(ctx, s.args("get", kind, "-o", "json")...)
+	raw, verr := run(ctx, s.sf, s.args("get", kind, "-o", "json")...)
 	if verr != nil {
 		return verr
 	}

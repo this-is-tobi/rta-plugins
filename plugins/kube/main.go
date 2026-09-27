@@ -180,9 +180,9 @@ func Plugin() plugin.Plugin {
 			ID:      "kube.pod.list",
 			Summary: "Pods in a namespace, with readiness, restarts and age",
 			Description: "One namespace by default — the context's own — or every namespace " +
-				"with --all-namespaces. Restarts are worth reading: a pod that is Running and " +
+				"with `all-namespaces`. Restarts are worth reading: a pod that is Running and " +
 				"has restarted forty times is not healthy, and only one of those two facts " +
-				"shows in its status. --unhealthy narrows to pods that are not serving: Failed, " +
+				"shows in its status. `unhealthy` narrows to pods that are not serving: Failed, " +
 				"Pending, Unknown, or Running without every container ready. A pod in Succeeded is not " +
 				"included — a finished Job is not a broken one. The same judgement " +
 				"kube.overview makes, available here without the rest of the overview.",
@@ -196,7 +196,7 @@ func Plugin() plugin.Plugin {
 			ID:      "kube.deployment.list",
 			Summary: "Deployments in a namespace, with how many replicas are actually ready",
 			Description: "Ready against desired, which is the number that says whether a " +
-				"rollout finished. One namespace by default, or every one with --all-namespaces.",
+				"rollout finished. One namespace by default, or every one with `all-namespaces`.",
 			Safety:     plugin.Read,
 			Idempotent: true,
 			Scope:      "namespace",
@@ -205,7 +205,7 @@ func Plugin() plugin.Plugin {
 		cap(plugin.Capability{
 			ID:      "kube.event.list",
 			Summary: "What the cluster is complaining about, oldest-running problems still visible",
-			Description: "Warnings only unless --normal: on a cluster running any active " +
+			Description: "Warnings only unless `normal`: on a cluster running any active " +
 				"operator the Normal events are routine narration and outnumber the warnings " +
 				"heavily.\n\nAn Event is a counter, not a log line — a recurring problem updates " +
 				"the existing event rather than appending one — so first-seen and count are " +
@@ -254,7 +254,7 @@ func Plugin() plugin.Plugin {
 				"of a Secret's data, so no way of asking avoids that. Only tls.crt is decoded; the " +
 				"private key is never parsed, rendered, logged or stored, but it does cross the " +
 				"wire into this process. The leaf certificate's own expiry is judged on the same " +
-				"30-day window `cert expiry` and `rta audit web` use.",
+				"30-day window `cert.expiry` and `audit.web` use.",
 			Safety:     plugin.Read,
 			Idempotent: true,
 			Scope:      "namespace",
@@ -329,7 +329,7 @@ func Plugin() plugin.Plugin {
 				"than counted as not ready: both are deliberate states, not faults. Pod-slot " +
 				"headroom comes from the schedulable nodes' own max-pods, which is the number " +
 				"that says whether a cluster can still take work when CPU and memory look fine. " +
-				"With --detail: every node, deployments whose replicas are short, and the pods " +
+				"With `detail`: every node, deployments whose replicas are short, and the pods " +
 				"themselves.\n\nReads more than it names: every ResourceQuota and every " +
 				"TLS Secret in every namespace, on every run and regardless of any namespace " +
 				"narrowing, to report quota pressure and certificate expiry. See kube.cert.list " +
@@ -369,7 +369,7 @@ func Plugin() plugin.Plugin {
 			NoPreview:  true,
 			Inputs: []plugin.Field{
 				{Name: "name", Type: plugin.String, Positional: true, Required: true,
-					Help:    "the context to switch to — `rta kube context list` shows them",
+					Help:    "the context to switch to — `kube.context.list` shows them",
 					Suggest: suggestContexts},
 			},
 			Run: runContextSet,
