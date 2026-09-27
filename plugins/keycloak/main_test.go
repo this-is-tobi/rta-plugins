@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
+	stdnet "net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -522,5 +524,20 @@ func TestUserAttributesAreNeverRendered(t *testing.T) {
 		if out := rendered(t, run(t, f, tc.cap, tc.values)); strings.Contains(out, "attributes") || strings.Contains(out, "is_temporary_admin") {
 			t.Errorf("%s rendered user attributes", tc.cap)
 		}
+	}
+}
+
+// A name DNS cannot resolve is that, and not a server nothing answers on. The
+// HTTP client wraps a failed lookup in a *net.OpError inside a *url.Error,
+// and the refused-dial check, read first, answered "nothing is listening on
+// http://sso.internal:8080" and asked whether the server was up and the URL
+// right, when the name was the problem.
+func TestANameDNSCannotResolveIsNotReadAsNothingListening(t *testing.T) {
+	s := &session{req: plugin.NewRequest(nil, false, false), base: "http://sso.internal:8080"}
+	err := &url.Error{Op: "Post", URL: "http://sso.internal:8080/realms/demo/protocol/openid-connect/token",
+		Err: &stdnet.OpError{Op: "dial", Net: "tcp",
+			Err: &stdnet.DNSError{Err: "no such host", Name: "sso.internal", IsNotFound: true}}}
+	if verr := s.classifyTransport(err); verr.Code != "keycloak.host.unknown" {
+		t.Errorf("code = %s, want keycloak.host.unknown: %s", verr.Code, verr.Message)
 	}
 }
