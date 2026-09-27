@@ -1,6 +1,7 @@
 package main
 
 import (
+	stdnet "net"
 	"strings"
 	"testing"
 
@@ -308,5 +309,19 @@ func TestConnectionFailuresAreClassifiedByNumber(t *testing.T) {
 	other := classify(&mysql.MySQLError{Number: 1064, Message: "You have an error in your SQL syntax"}, r)
 	if !strings.Contains(other.Message, "1064") || !strings.Contains(other.Message, "syntax") {
 		t.Errorf("unrecognised error lost its detail: %q", other.Message)
+	}
+}
+
+// A name DNS cannot resolve is that, and not a port nothing listens on. The
+// driver's dial wraps the lookup's failure in a *net.OpError, and the check
+// for a refused dial, read first, answered "nothing is listening on
+// nonexistent.invalid:3306" and sent somebody to the server and its port when
+// the name was the problem.
+func TestANameDNSCannotResolveIsNotReadAsNothingListening(t *testing.T) {
+	err := &stdnet.OpError{Op: "dial", Net: "tcp",
+		Err: &stdnet.DNSError{Err: "no such host", Name: "db.internal", IsNotFound: true}}
+	verr := classify(err, req(t, "mariadb.overview", map[string]any{"host": "db.internal"}))
+	if verr.Code != "mariadb.host.unknown" {
+		t.Errorf("code = %s, want mariadb.host.unknown: %s", verr.Code, verr.Message)
 	}
 }
