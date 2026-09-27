@@ -216,3 +216,21 @@ func TestObjectGetRemovesWhatAFailedDownloadWrote(t *testing.T) {
 		t.Errorf("a failed download left %s behind holding %q", out, body)
 	}
 }
+
+// A file's preview still states its size — the other half of a stream's
+// "size unknown", which only something that is not a regular file earns.
+func TestAFilePreviewStatesItsSize(t *testing.T) {
+	srv, _ := recordingS3(t, "")
+	file := filepath.Join(t.TempDir(), "note.txt")
+	if err := os.WriteFile(file, []byte("hello"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	v, err := runObjectSet(t.Context(), dryReq(t, "s3.object.set", endpointOf(t, srv),
+		map[string]any{"bucket": "test-bucket", "key": "some/key", "file": file}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := v.(view.Text).Body, "would set test-bucket/some/key (5 B, text/plain; charset=utf-8)"; got != want {
+		t.Errorf("preview = %q, want %q", got, want)
+	}
+}

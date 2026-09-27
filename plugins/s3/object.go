@@ -327,11 +327,14 @@ func runObjectSet(ctx context.Context, req plugin.Request) (view.View, error) {
 			if typed == "" {
 				typed = "application/octet-stream (the server's default)"
 			}
-			// Still clamped now that format.Bytes takes the int64: size is
-			// minio's -1, "unknown, stream it", when --file names a stream,
-			// and a preview reading "-1 B" would look like a bug.
-			return view.Text{Body: fmt.Sprintf("would set %s/%s (%s, %s)",
-				bucket, key, format.Bytes(max(size, 0)), typed)}, nil
+			// size is minio's -1, "unknown, stream it", when --file names a
+			// stream, which a preview does not read. Clamped, it read "0 B":
+			// an empty object predicted for a pipe about to carry a dump.
+			sized := "size unknown until it is read"
+			if size >= 0 {
+				sized = format.Bytes(size)
+			}
+			return view.Text{Body: fmt.Sprintf("would set %s/%s (%s, %s)", bucket, key, sized, typed)}, nil
 		}
 		opts := minio.PutObjectOptions{
 			ContentType:  contentType,
