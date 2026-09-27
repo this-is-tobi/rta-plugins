@@ -96,7 +96,7 @@ func Plugin() plugin.Plugin {
 			cap(plugin.Capability{
 				ID:      "docker.container.list",
 				Summary: "Containers, with state, health, ports and age",
-				Description: "Running containers by default; --all includes the stopped ones, which " +
+				Description: "Running containers by default; `all` includes the stopped ones, which " +
 					"is usually what somebody wants before a tidy-up. Health is shown separately " +
 					"from state because a container can be up and failing its own healthcheck.",
 				Safety:     plugin.Read,
@@ -119,7 +119,7 @@ func Plugin() plugin.Plugin {
 				Summary: "One daemon at a glance: what is running, what is unhealthy, what disk is used",
 				Description: "Whether the daemon answers, how many containers are up against how " +
 					"many exist, anything unhealthy or recently exited, and how much disk images " +
-					"are taking. With --detail: the containers and the largest images themselves.",
+					"are taking. With `detail`: the containers and the largest images themselves.",
 				Safety:     plugin.Read,
 				Idempotent: true,
 				Detailed:   true,
@@ -181,7 +181,7 @@ func Plugin() plugin.Plugin {
 					"inside it that was not on a volume is gone, and it does not come back. Named " +
 					"volumes survive; anonymous ones do not unless the daemon is asked to keep " +
 					"them, and this does not ask. A stopped container is required: this deliberately " +
-					"offers no --force, because \"remove\" and \"kill first, then remove\" are two " +
+					"offers no `force`, because \"remove\" and \"kill first, then remove\" are two " +
 					"decisions and only one of them was made here.",
 				// The one genuine delete in this plugin, and the place docker
 				// accepts a risk kube declined for the equivalent case (no pod
