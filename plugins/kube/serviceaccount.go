@@ -255,7 +255,7 @@ func runServiceAccountProvision(ctx context.Context, req plugin.Request) (view.V
 	// silently-modified existing identity.
 	if verr := createManifest(ctx, s, sa); verr != nil {
 		return nil, verr.WithHint("if this failed partway through a previous attempt, " +
-			"`kube.serviceaccount.revoke " + name + " -n " + namespace + "` cleans up whatever it left behind")
+			revokeCall(s, name, namespace) + " cleans up whatever it left behind")
 	}
 
 	role := roleManifest{
@@ -265,7 +265,7 @@ func runServiceAccountProvision(ctx context.Context, req plugin.Request) (view.V
 	}
 	if verr := createManifest(ctx, s, role); verr != nil {
 		return nil, verr.WithHint("the ServiceAccount was created but the Role was not — " +
-			"`kube.serviceaccount.revoke " + name + " -n " + namespace + "` cleans it up")
+			revokeCall(s, name, namespace) + " cleans it up")
 	}
 
 	rb := roleBindingManifest{APIVersion: "rbac.authorization.k8s.io/v1", Kind: "RoleBinding"}
@@ -280,13 +280,13 @@ func runServiceAccountProvision(ctx context.Context, req plugin.Request) (view.V
 	}{{Kind: "ServiceAccount", Name: name, Namespace: namespace}}
 	if verr := createManifest(ctx, s, rb); verr != nil {
 		return nil, verr.WithHint("the ServiceAccount and Role were created but the RoleBinding was not — " +
-			"`kube.serviceaccount.revoke " + name + " -n " + namespace + "` cleans up both")
+			revokeCall(s, name, namespace) + " cleans up both")
 	}
 
 	tokenOut, verr := run(ctx, s.sf, s.args("create", "token", name, "--duration="+ttlStr)...)
 	if verr != nil {
 		return nil, verr.WithHint("the ServiceAccount, Role and RoleBinding were created but no token " +
-			"was minted — `kube.serviceaccount.revoke " + name + " -n " + namespace + "` cleans up all three")
+			"was minted — " + revokeCall(s, name, namespace) + " cleans up all three")
 	}
 	token := strings.TrimSpace(string(tokenOut))
 
@@ -355,6 +355,29 @@ func runServiceAccountProvision(ctx context.Context, req plugin.Request) (view.V
 	}
 	summary.Pairs = append(summary.Pairs, view.Pair{Key: "wrote kubeconfig to", Value: path})
 	return summary, nil
+}
+
+// revokeCall is the revoke that cleans up what a provision left behind,
+// spelled as the surface reading the hint makes the call: the identity by
+// its name, and the namespace it was made in as the input revoke declares —
+// on the CLI --namespace, which is a flag here and never kubectl's -n.
+// Provision refuses MCP, so the reader is a person at a terminal or in the
+// TUI, and revoke's namespace being Local keeps nothing from them.
+//
+// The context too, whenever the provision had one. A revoke without it reads
+// the current context, which is another cluster whenever the provision was
+// pointed elsewhere — where the objects left behind are not, and where a
+// provisioned identity of the same name, carrying the label revoke checks
+// for, may well be.
+func revokeCall(s selection, name, namespace string) string {
+	args := []plugin.Arg{
+		{Name: "name", Value: name, Positional: true},
+		{Name: "namespace", Value: namespace},
+	}
+	if s.Context != "" {
+		args = append(args, plugin.Arg{Name: "context", Value: s.Context})
+	}
+	return "`" + s.sf.Call("kube.serviceaccount.revoke", args...) + "`"
 }
 
 // dryRunProvision describes what would be created, before any cluster call —

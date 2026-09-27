@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -456,6 +457,49 @@ func TestExpandHomeResolvesABareTildeAsWellAsAPrefix(t *testing.T) {
 	} {
 		if got := plugin.ExpandHome(c.in); got != c.want {
 			t.Errorf("plugin.ExpandHome(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+// A provision that fails partway leaves objects behind, and the hint names the
+// revoke that cleans them up as a call its reader can make: on the CLI a
+// command line rta takes, with the namespace as the --namespace flag revoke
+// declares. It once read `kube.serviceaccount.revoke x -n ns`, a capability ID
+// and kubectl's -n, which the CLI refuses as an unknown command and an
+// unknown shorthand. And on the cluster the objects were made on: a provision
+// given a context names it too, where a revoke without one reads the
+// current context, another cluster, which may hold a provisioned identity of
+// the same name.
+func TestAPartialProvisionNamesTheRevokeItsReaderCanRun(t *testing.T) {
+	script := filepath.Join(t.TempDir(), "kubectl")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\necho 'error: the server is having a bad day' >&2\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	orig := kubectlBin
+	kubectlBin = script
+	t.Cleanup(func() { kubectlBin = orig })
+
+	for _, tc := range []struct {
+		sf      plugin.Surface
+		context string
+		want    string
+	}{
+		{plugin.SurfaceCLI, "", "`rta kube serviceaccount revoke agent-x --namespace team-a` cleans up whatever it left behind"},
+		{plugin.SurfaceTUI, "", "`kube.serviceaccount.revoke name=agent-x namespace=team-a` cleans up whatever it left behind"},
+		{plugin.SurfaceCLI, "kind", "`rta kube serviceaccount revoke agent-x --namespace team-a --context kind` cleans up"},
+		{plugin.SurfaceTUI, "kind", "`kube.serviceaccount.revoke name=agent-x namespace=team-a context=kind` cleans up"},
+	} {
+		r := plugin.NewRequest(map[string]any{
+			"name": "agent-x", "namespace": "team-a", "ttl": "1h", "grant": []string{"kube.pod.list"},
+			"context": tc.context,
+		}, false, false).WithSurface(tc.sf)
+		_, err := runServiceAccountProvision(context.Background(), r)
+		var verr *view.Error
+		if !errors.As(err, &verr) {
+			t.Fatalf("%s: err = %v, want a refusal", tc.sf, err)
+		}
+		if !strings.Contains(verr.Hint, tc.want) {
+			t.Errorf("%s: hint = %q, want %q in it", tc.sf, verr.Hint, tc.want)
 		}
 	}
 }
