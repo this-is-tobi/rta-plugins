@@ -9,7 +9,6 @@ import (
 	"mime"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/minio/minio-go/v7"
@@ -218,7 +217,7 @@ func runObjectGet(ctx context.Context, req plugin.Request) (view.View, error) {
 			if closeErr != nil {
 				return nil, view.Errorf("s3.object.write", "finishing %s: %v", out, closeErr)
 			}
-			return view.Text{Body: "wrote " + strconv.FormatInt(n, 10) + " bytes to " + out}, nil
+			return view.Text{Body: "wrote " + format.Bytes(n) + " to " + out}, nil
 		}
 
 		body, err := io.ReadAll(io.LimitReader(obj, maxInline+1))
@@ -325,7 +324,7 @@ func runObjectSet(ctx context.Context, req plugin.Request) (view.View, error) {
 		if err != nil {
 			return nil, classify(err, req)
 		}
-		return view.Text{Body: "set " + bucket + "/" + key + " (" + strconv.FormatInt(info.Size, 10) + " bytes)"}, nil
+		return view.Text{Body: "set " + bucket + "/" + key + " (" + format.Bytes(info.Size) + ")"}, nil
 	})
 }
 

@@ -195,6 +195,41 @@ func TestObjectGetDescribesItsOwnBounds(t *testing.T) {
 	}
 }
 
+// The receipts of s3.object.get --out and s3.object.set name the size the
+// way the set preview and every transfer receipt already do, through
+// format.Bytes, which is also what keeps a one-byte object from being
+// reported as "1 bytes".
+func TestAOneByteObjectIsReportedAsOneByte(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The two headers minio-go refuses an object without.
+		w.Header().Set("Last-Modified", "Mon, 02 Jan 2006 15:04:05 GMT")
+		w.Header().Set("ETag", `"9dd4e461268c8034f5c8564e155c67a6"`)
+		if r.Method == http.MethodGet {
+			_, _ = w.Write([]byte("x"))
+		}
+	}))
+	defer srv.Close()
+
+	out := filepath.Join(t.TempDir(), "one")
+	v, err := runObjectGet(t.Context(), reqFor(t, "s3.object.get", endpointOf(t, srv),
+		map[string]any{"bucket": "test-bucket", "key": "some/key", "out": out}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := v.(view.Text).Body, "wrote 1 B to "+out; got != want {
+		t.Errorf("get receipt = %q, want %q", got, want)
+	}
+
+	v, err = runObjectSet(t.Context(), reqFor(t, "s3.object.set", endpointOf(t, srv),
+		map[string]any{"bucket": "test-bucket", "key": "some/key", "value": "x"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := v.(view.Text).Body, "set test-bucket/some/key (1 B)"; got != want {
+		t.Errorf("set receipt = %q, want %q", got, want)
+	}
+}
+
 // objectGetBody is what s3.object.get prints for an object holding content.
 func objectGetBody(t *testing.T, content string) string {
 	t.Helper()
