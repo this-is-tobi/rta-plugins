@@ -144,7 +144,7 @@ func memoryTable(in info) view.Table {
 	}
 	maxText := "not set"
 	if max > 0 {
-		maxText = format.Bytes(uint64(max))
+		maxText = format.Bytes(max)
 	}
 	policy := in.get("maxmemory_policy")
 	if max == 0 {
@@ -161,8 +161,8 @@ func memoryTable(in info) view.Table {
 			{Name: "Evicted", Kind: view.KindNumber},
 		},
 		Rows: [][]string{{
-			format.Bytes(uint64(used)), maxText, use,
-			format.Bytes(uint64(in.int("used_memory_rss"))),
+			format.Bytes(used), maxText, use,
+			format.Bytes(in.int("used_memory_rss")),
 			strconv.FormatFloat(in.float("mem_fragmentation_ratio"), 'f', 2, 64),
 			policy,
 			in.get("evicted_keys"),
