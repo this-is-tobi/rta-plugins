@@ -36,7 +36,7 @@ Under `plugins: mariadb:` in rta's configuration, or in a profile's `set:`. An i
 
 Classified write for what it discloses rather than what it changes: the info column carries whatever literals are in the statements currently running.
 
-`mariadb overview --detail` keeps the same rows without that column — state, time and command — which answers "is anything stuck" without handing back anything anybody stored, so the glanceable form stays in the read tier.
+`mariadb.overview` with `detail` keeps the same rows without that column — state, time and command — which answers "is anything stuck" without handing back anything anybody stored, so the glanceable form stays in the read tier.
 
 | Field                | Value                                                                                                                                                                                                                  |
 |----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -141,7 +141,7 @@ Says so plainly when the server is not clustered at all, rather than returning a
 
 What server this is, how long it has been up, how much of its connection budget is in use, and the largest databases on it.
 
---detail adds what every session is doing, without the statement text — state, time and command, which answers "is anything stuck" and hands back nothing anybody stored. The statement text is mariadb.activity, and it is a write for exactly that reason.
+`detail` adds what every session is doing, without the statement text — state, time and command, which answers "is anything stuck" and hands back nothing anybody stored. The statement text is mariadb.activity, and it is a write for exactly that reason.
 
 | Field          | Value                                                                                                                                                                                                                  |
 |----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -167,7 +167,7 @@ Runs inside a READ ONLY transaction, so the server refuses any statement that wo
 
 **Classified write for what it discloses, not what it changes.** It returns rows, and there is no table it may read by default because there is no table known to be safe. So it needs the write tier for this namespace, which is the operator saying once that this agent may read this database's contents; the read tier below it describes the database and hands back nothing stored in it. Where the connection is a named profile, every call in this namespace already needs a grant on top.
 
-Over --limit rows it is refused rather than shortened: a truncated result set is a different answer wearing the right shape.
+Over `limit` rows it is refused rather than shortened: a truncated result set is a different answer wearing the right shape.
 
 | Field                | Value                                                                                                                                                                                                                  |
 |----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
