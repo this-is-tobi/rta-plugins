@@ -249,6 +249,12 @@ func TestABucketOverTheLimitIsRefusedNotTruncated(t *testing.T) {
 	if _, statErr := os.Stat(root); statErr == nil {
 		t.Error("a refused download still created its directory")
 	}
+
+	_, err = runBucketDownload(context.Background(),
+		downloadReq(t, srv, map[string]any{"out": root, "limit": 1}))
+	if !errors.As(err, &verr) || !strings.HasSuffix(verr.Message, "holds more than 1 object") {
+		t.Errorf("err = %v, want a limit of one counted in the singular", err)
+	}
 }
 
 // A folder marker — the key the AWS console writes when somebody makes a

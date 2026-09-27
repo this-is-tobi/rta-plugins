@@ -213,7 +213,7 @@ func planUpload(root string, limit int) ([]upload, int64, *view.Error) {
 	switch {
 	case errors.Is(walkErr, errTooManyFiles):
 		return nil, 0, view.Errorf("s3.upload.toomany",
-			"%s holds more than %d files", root, limit).
+			"%s holds more than %s", root, format.CountOf(limit, "file")).
 			WithHint("raise --limit, or upload a subdirectory — refused rather than truncated, " +
 				"because a restore missing files nobody named is worse than one that did not run")
 	case walkErr != nil:
@@ -221,8 +221,9 @@ func planUpload(root string, limit int) ([]upload, int64, *view.Error) {
 	}
 	if len(unsafe) > 0 {
 		return nil, 0, view.Errorf("s3.upload.notregular",
-			"%d entr(ies) under %s are not regular files: %s",
-			len(unsafe), root, strings.Join(unsafe, ", ")).
+			"%s under %s %s: %s", format.CountOf(len(unsafe), "entry"), root,
+			format.Plural(len(unsafe), "is not a regular file", "are not regular files"),
+			strings.Join(unsafe, ", ")).
 			WithHint("a symlink would upload whatever it points at — a credential included — so " +
 				"it refuses the upload rather than being followed or skipped quietly. Nothing " +
 				"has been sent; remove or replace the entries and run it again")
