@@ -81,12 +81,12 @@ func dumpCapability() plugin.Capability {
 			"restore is worse than no capability at all. Routines, events and triggers are " +
 			"included — mysqldump omits routines and events by default, which is how dumps " +
 			"quietly stop round-tripping. The password reaches the child through its " +
-			"environment, never argv; option files are ignored (--no-defaults), so an ambient " +
+			"environment, never argv; option files are ignored (`mysqldump --no-defaults`), so an ambient " +
 			"~/.my.cnf credential is never silently spent.\n\n" +
-			"Consistent for what can be: --single-transaction reads every InnoDB table from one " +
+			"Consistent for what can be: `mysqldump --single-transaction` reads every InnoDB table from one " +
 			"snapshot, and the receipt counts the non-transactional tables that are read live " +
 			"outside it rather than claiming a guarantee they cannot have. GTID state is not " +
-			"carried (--set-gtid-purged=OFF): this file seeds a database, not a replica — " +
+			"carried (`mysqldump --set-gtid-purged=OFF`): this file seeds a database, not a replica — " +
 			"carrying it makes the restore demand SUPER and fail on any server that is not " +
 			"brand new.\n\n" +
 			"Created with O_EXCL at 0600, never over an existing file; a failed run takes its " +
@@ -191,7 +191,7 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 		// by naming the `mysql` database like any other.
 		{Key: "does not carry", Value: "users or grants — those are rows in the server's " +
 			"own `mysql` database, not in this one, so a restore elsewhere arrives with the " +
-			"data and no account able to read it. MySQL has no --system flag for them: " +
+			"data and no account able to read it. mysqldump has no system-tables option for them: " +
 			"`mysqldump mysql` is the other half"},
 		{Key: "restore with", Value: restoreCommand(req, path)},
 	}}, nil
@@ -219,7 +219,7 @@ func (s source) describe() string {
 }
 
 func (s source) consistency() string {
-	base := "one REPEATABLE READ snapshot (--single-transaction) for transactional tables"
+	base := "one REPEATABLE READ snapshot (`mysqldump --single-transaction`) for transactional tables"
 	if s.liveTables > 0 {
 		return fmt.Sprintf("%s — but %s %s read live, outside it",
 			base, format.CountOf(s.liveTables, "non-transactional table"), format.Plural(s.liveTables, "was", "were"))
@@ -392,7 +392,7 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 	case strings.Contains(stderr, "Access denied") && strings.Contains(stderr, "PROCESS"):
 		return view.Errorf("mysql.denied", "%s", msg("PROCESS")).
 			WithHint("this is the server refusing a privilege, not rta — and not the tablespace " +
-				"wall, which --no-tablespaces already avoids. Check SHOW GRANTS")
+				"wall, which `mysqldump --no-tablespaces` already avoids. Check SHOW GRANTS")
 	case strings.Contains(stderr, "Access denied"):
 		return view.Errorf("mysql.auth.failed", "%s", msg("Access denied")).
 			WithHint("set $" + plugin.LocalEnvVar("mysql.dump", "password") + ", or check " + setting(req.Surface(), "user"))

@@ -58,14 +58,14 @@ func restoreCapability() plugin.Capability {
 			"with mysqldump's own DROP TABLE statements running first. Neither direction has a " +
 			"blast radius a grant could name, so both belong to the person at the keyboard.\n\n" +
 			"**A database already holding tables is refused.** Whether a dump drops objects " +
-			"first was decided when mysqldump wrote it, so there is no --clean to offer — restore " +
+			"first was decided when mysqldump wrote it, so there is no `clean` to offer — restore " +
 			"into a fresh database, which stays one CREATE DATABASE away. rta does not create it: " +
 			"a typo'd name becoming a new database is worse than the refusal. A read-only server " +
 			"— a replica, usually — is refused before anything runs; restore on the primary, " +
 			"which is the only path that keeps the two the same database.\n\n" +
 			"Stops at the first error, which is the strongest guarantee MySQL allows: DDL commits " +
-			"implicitly, so a failed restore cannot roll back and the receipt says so. --force — " +
-			"the flag that counts errors quietly and calls the survivor a restore — is never " +
+			"implicitly, so a failed restore cannot roll back and the receipt says so. `mysql --force` " +
+			"— the client's flag that counts errors quietly and calls the survivor a restore — is never " +
 			"passed. LOAD DATA LOCAL is disabled, so a dump file cannot direct the client to " +
 			"read this machine's own files into the server.",
 		Run: runRestore,
