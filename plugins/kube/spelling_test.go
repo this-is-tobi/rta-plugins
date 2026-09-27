@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -738,15 +740,23 @@ func TestEveryCopyOfTheSpellerIsTheSame(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	copies, err := filepath.Glob(filepath.Join("..", "*", "spelling_test.go"))
+	// Found by module rather than by copy: a plugin that never received the
+	// file is the drift that matters most, and a glob over the copies alone
+	// passes it by without a word.
+	modules, err := filepath.Glob(filepath.Join("..", "*", "go.mod"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(copies) < 2 {
+	if len(modules) < 2 {
 		t.Skip("no other plugin module beside this one; the gate needs the repository's layout")
 	}
-	for _, other := range copies {
+	for _, mod := range modules {
+		other := filepath.Join(filepath.Dir(mod), "spelling_test.go")
 		theirs, err := os.ReadFile(other)
+		if errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("%s carries no copy of this file — every plugin module gets one", filepath.Dir(mod))
+			continue
+		}
 		if err != nil {
 			t.Fatal(err)
 		}
