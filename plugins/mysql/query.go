@@ -90,7 +90,7 @@ func queryView(ctx context.Context, db *sql.DB, req plugin.Request) (view.View, 
 	switch {
 	case errors.Is(err, ErrTooManyRows):
 		return nil, view.Errorf("mysql.query.toomany",
-			"the query returned more than %d rows", limit).
+			"the query returned more than %s", format.CountOf(limit, "row")).
 			WithHint("add a LIMIT to the query, or raise --limit — refused rather than " +
 				"shortened, because a truncated result set is a different answer wearing " +
 				"the right shape")
