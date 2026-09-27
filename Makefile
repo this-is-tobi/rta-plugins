@@ -497,8 +497,19 @@ canary: name-check ## Check every plugin against rta at RTA_REF (default main), 
 
 ##@ Everything
 
+# What the closing line says was built: every module, or the ones PLUGIN or
+# PLUGINS narrowed the run to. A narrowed run claiming every module reads
+# exactly like the full one, to whoever is deciding from it whether the rest
+# still needs checking. The guards that read every module whatever the knobs
+# say (name-check, replace-check, docs-check) build nothing, so the line
+# does not count them.
+comma := ,
+space := $(subst ,, )
+CI_BUILT = $(if $(filter-out $(PLUGIN_LIST),$(ALL_PLUGINS)),$(words $(PLUGIN_LIST)) of $(words $(ALL_PLUGINS)) modules \
+	($(subst $(space),$(comma)$(space),$(strip $(PLUGIN_LIST)))),every module)
+
 ci: fmt-check name-check replace-check docs-check check lint docs-drift cross ## Everything CI runs
-	@printf "\nci: green — every module built, vetted, tested and cross-compiled.\n\n"
+	@printf "\nci: green — %s built, vetted, tested and cross-compiled.\n\n" "$(CI_BUILT)"
 
 ##@ Housekeeping
 
