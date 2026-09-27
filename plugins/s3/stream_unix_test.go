@@ -342,3 +342,34 @@ func TestAStreamPreviewSaysItsSizeIsUnknown(t *testing.T) {
 		t.Errorf("--dry-run reached the server: %v", hits)
 	}
 }
+
+// A plugin's standard input is not the caller's: rta starts every plugin with
+// /dev/null there. So `pg_dump app | rta s3 object set dump.sql --file
+// /dev/stdin` read nothing, and stored an empty object in place of whatever
+// the key held under a success message. Each spelling of it is refused
+// before anything is opened or sent.
+func TestStandardInputIsRefusedRatherThanStoredEmpty(t *testing.T) {
+	for _, path := range []string{"/dev/stdin", "/dev/fd/0", "/proc/self/fd/0", "/dev/./stdin",
+		"/dev/fd/00", "/proc/thread-self/fd/0"} {
+		srv, asked := recordingS3(t, "")
+		_, err := runObjectSet(t.Context(), reqFor(t, "s3.object.set", endpointOf(t, srv),
+			map[string]any{"bucket": "test-bucket", "key": "some/key", "file": path}))
+		if verr := view.AsError(err, "none"); verr == nil || verr.Code != "s3.file.stdin" || verr.Hint == "" {
+			t.Errorf("--file %s: %+v, want a hinted s3.file.stdin", path, verr)
+		}
+		if hits := asked(); len(hits) > 0 {
+			t.Errorf("--file %s reached the server: %v", path, hits)
+		}
+	}
+}
+
+// Reading the descriptor as a number must not reach past descriptor 0: a
+// process substitution arrives as another descriptor under the same
+// directory, and /dev/null named as itself is how an empty object is made.
+func TestOnlyStandardInputIsTakenForIt(t *testing.T) {
+	for _, path := range []string{os.DevNull, "/dev/fd/63", "/dev/fd/10", "/proc/self/fd/3", "/tmp/fd/0", "/dev/fd"} {
+		if namesStandardInput(path) {
+			t.Errorf("--file %s was taken for standard input", path)
+		}
+	}
+}

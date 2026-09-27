@@ -272,6 +272,9 @@ func runObjectSet(ctx context.Context, req plugin.Request) (view.View, error) {
 		var size int64 = -1
 		contentType := req.String("content-type")
 		if path := req.String("file"); path != "" {
+			if namesStandardInput(path) {
+				return nil, stdinRefusal(req, path)
+			}
 			f, err := os.Open(plugin.ExpandHome(path))
 			if err != nil {
 				return nil, view.Errorf("s3.file.unreadable", "reading %s: %v", path, err)
