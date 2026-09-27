@@ -284,15 +284,18 @@ func classify(err error, req plugin.Request) *view.Error {
 			WithHint("a count or scroll over a large collection with no index does this — " +
 				"narrow it, or check the collection is indexed")
 	}
-	var netErr *stdnet.OpError
-	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
-		return view.Errorf("qdrant.conn.refused", "nothing is listening on %s", where).
-			WithHint("Qdrant serves REST on 6333 and gRPC on 6334 — the gRPC port will not answer this")
-	}
+	// The name first: a dial that could not resolve its host fails with a
+	// *net.OpError wrapping the *net.DNSError, and read the other way round
+	// every name nothing resolves was reported as a port nothing listens on.
 	var dnsErr *stdnet.DNSError
 	if errors.As(err, &dnsErr) {
 		return view.Errorf("qdrant.host.unknown", "no address for %q", hostOnly(where)).
 			WithHint(dnsHint(req.Surface(), hostOnly(where)))
+	}
+	var netErr *stdnet.OpError
+	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
+		return view.Errorf("qdrant.conn.refused", "nothing is listening on %s", where).
+			WithHint("Qdrant serves REST on 6333 and gRPC on 6334 — the gRPC port will not answer this")
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
