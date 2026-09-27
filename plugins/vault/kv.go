@@ -200,7 +200,7 @@ func kvSetCapability() plugin.Capability {
 }
 
 func runKVSet(ctx context.Context, req plugin.Request) (view.View, error) {
-	data, verr := dataFields(req.StringSlice("data"))
+	data, verr := dataFields(req.Surface(), req.StringSlice("data"))
 	if verr != nil {
 		return nil, verr
 	}

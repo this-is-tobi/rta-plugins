@@ -105,7 +105,7 @@ func kvHistoryCapability() plugin.Capability {
 			"(hidden, and vault.kv.undelete brings it back) or destroyed (gone). Read, like " +
 			"vault.kv.list, for the same reason: this is the shape of the chain and never a link " +
 			"of it — no version's data is fetched. The count is how many earlier values a " +
-			"rotation could still reach, which is what `vault kv get --version` reads.",
+			"rotation could still reach, which is what `vault kv get -version` reads.",
 		Run: runKVHistory,
 	}, mountField(), pathField("the secret's path within the mount"))
 }
@@ -157,7 +157,7 @@ func kvDeleteCapability() plugin.Capability {
 		Idempotent: true,
 		Description: "A soft delete, which is what `vault kv delete` does: the data of the versions " +
 			"named is hidden and vault.kv.undelete brings it back — nothing here is destroyed. " +
-			"With no --versions, the current version. The metadata and every other version stay, " +
+			"With no `versions`, the current version. The metadata and every other version stay, " +
 			"so vault.kv.get still answers for those and vault.kv.history lists the deleted ones " +
 			"as deleted. Needs the grant vault.kv.set needs, naming the path, because hiding the " +
 			"current version is what a reader of that path sees as the secret going away.",
@@ -187,8 +187,8 @@ func runKVDelete(ctx context.Context, req plugin.Request) (view.View, error) {
 		if err != nil {
 			return nil, classify(err, req)
 		}
-		return view.Text{Body: fmt.Sprintf("deleted %s of %s — `rta vault kv undelete` brings it back",
-			versionWords(versions), where)}, nil
+		return view.Text{Body: fmt.Sprintf("deleted %s of %s — %s brings it back",
+			versionWords(versions), where, req.Surface().CapabilityName("vault.kv.undelete"))}, nil
 	})
 }
 
