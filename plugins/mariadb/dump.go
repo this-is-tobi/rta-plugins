@@ -268,8 +268,8 @@ func (s source) describe() string {
 func (s source) consistency() string {
 	base := "one REPEATABLE READ snapshot (--single-transaction) for transactional tables"
 	if s.liveTables > 0 {
-		return fmt.Sprintf("%s — but %d non-transactional table(s) were read live, outside it",
-			base, s.liveTables)
+		return fmt.Sprintf("%s — but %s %s read live, outside it",
+			base, format.CountOf(s.liveTables, "non-transactional table"), format.Plural(s.liveTables, "was", "were"))
 	}
 	return base
 }

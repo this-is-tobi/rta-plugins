@@ -310,6 +310,9 @@ func TestTheReceiptCountsTablesOutsideTheSnapshot(t *testing.T) {
 	if !strings.Contains(c, "3 non-transactional") {
 		t.Errorf("consistency() = %q, want the count of tables read live", c)
 	}
+	if one := (source{liveTables: 1}).consistency(); !strings.Contains(one, "1 non-transactional table was read live") {
+		t.Errorf("consistency() = %q, want one table read live counted in the singular", one)
+	}
 	clean := source{}.consistency()
 	if strings.Contains(clean, "non-transactional") {
 		t.Errorf("consistency() = %q, want no caveat when every table is transactional", clean)
