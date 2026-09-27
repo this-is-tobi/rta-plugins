@@ -69,7 +69,7 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 	if err != nil {
 		return nil, view.Errorf("pg.restore.path", "resolving the dump path: %v", err)
 	}
-	format, verr := detectFormat(path)
+	format, verr := detectFormat(req.Surface(), path)
 	if verr != nil {
 		return nil, verr
 	}
@@ -109,23 +109,23 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 		{Key: "format", Value: describeRestore(req, format)},
 		{Key: "took", Value: time.Since(started).Round(time.Millisecond).String()},
 		{Key: "guarantee", Value: restoreGuarantee(req)},
-		{Key: "target", Value: src.describe()},
+		{Key: "target", Value: src.describe(req.Surface())},
 	}}, nil
 }
 
 // detectFormat reads what the artifact is rather than trusting its name.
-func detectFormat(path string) (dumpFormat, *view.Error) {
+func detectFormat(sf plugin.Surface, path string) (dumpFormat, *view.Error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return "", view.Errorf("pg.restore.missing", "no dump at %s", path).
-			WithHint("`rta pg dump --out <path>` writes one; this restores what that wrote")
+			WithHint("`" + sf.Call("pg.dump", plugin.Arg{Name: "out", Value: "<path>"}) + "` writes one; this restores what that wrote")
 	}
 	if info.IsDir() {
 		if _, err := os.Stat(filepath.Join(path, "toc.dat")); err != nil {
 			return "", view.Errorf("pg.restore.notadump",
 				"%s is a directory with no toc.dat, so it is not a directory-format dump", path).
-				WithHint("a directory-format dump is what `rta pg dump --format directory` " +
-					"writes — one toc.dat and one compressed file per table")
+				WithHint("a directory-format dump is what `" + sf.Call("pg.dump", plugin.Arg{Name: "format", Value: "directory"}) +
+					"` writes — one toc.dat and one compressed file per table")
 		}
 		return formatDirectory, nil
 	}
@@ -163,21 +163,23 @@ func checkRestoreFlags(req plugin.Request, format dumpFormat) *view.Error {
 	if format != formatPlain {
 		return nil
 	}
+	sf := req.Surface()
 	switch {
 	case req.Int("jobs") > 1:
 		return view.Errorf("pg.restore.plainflag",
-			"--jobs needs a custom or directory dump, not plain SQL").
+			"%s needs a custom or directory dump, not plain SQL", sf.InputName("jobs")).
 			WithHint("psql replays the file as written, one statement at a time — dump with " +
-				"`--format directory --jobs N` to get a parallel restore")
+				givenAll(sf, [2]string{"format", "directory"}, [2]string{"jobs", "N"}) +
+				" to get a parallel restore")
 	case req.Bool("clean"):
 		return view.Errorf("pg.restore.plainflag",
-			"--clean needs a custom or directory dump, not plain SQL").
+			"%s needs a custom or directory dump, not plain SQL", sf.InputName("clean")).
 			WithHint("whether a plain dump drops objects first was decided when it was " +
 				"written — restore into a fresh database instead")
 	case req.Bool("no-owner"):
 		return view.Errorf("pg.restore.plainflag",
-			"--no-owner needs a custom or directory dump, not plain SQL").
-			WithHint("ownership is baked into a plain dump's SQL — pg_dump --no-owner at " +
+			"%s needs a custom or directory dump, not plain SQL", sf.InputName("no-owner")).
+			WithHint("ownership is baked into a plain dump's SQL — `pg_dump --no-owner` at " +
 				"dump time is where that choice lives for this format")
 	}
 	return nil
@@ -312,7 +314,7 @@ func checkTarget(ctx context.Context, req plugin.Request, format dumpFormat) (so
 		hint := "restore into a fresh database — `createdb` is one command, and rta will not " +
 			"invent a database on its own"
 		if format != formatPlain {
-			hint = "--clean drops what is there and recreates what the dump carries, or " + hint
+			hint = req.Surface().InputName("clean") + " drops what is there and recreates what the dump carries, or " + hint
 		}
 		return source{}, view.Errorf("pg.restore.notempty",
 			"%s already holds %s", req.String("database"), rtaformat.CountOf(relations, "relation")).
@@ -363,7 +365,7 @@ func classifyRestore(err error, stderr string, req plugin.Request, format dumpFo
 		hint := "the dump sets ownership to the roles that existed at dump time — recreate " +
 			"that role, or restore as it"
 		if format != formatPlain {
-			hint = "--no-owner skips the ownership changes so everything belongs to the " +
+			hint = req.Surface().InputName("no-owner") + " skips the ownership changes so everything belongs to the " +
 				"connecting role, or " + hint
 		}
 		return view.Errorf("pg.restore.owner", "%s", msg("role")).WithHint(hint)
@@ -372,7 +374,7 @@ func classifyRestore(err error, stderr string, req plugin.Request, format dumpFo
 		hint := "the target stopped being empty between the check and the restore — a fresh " +
 			"database is the safe way through"
 		if format != formatPlain {
-			hint = "--clean drops before recreating, or " + hint
+			hint = req.Surface().InputName("clean") + " drops before recreating, or " + hint
 		}
 		return view.Errorf("pg.restore.collision", "%s", msg("already exists")).WithHint(hint)
 	case strings.Contains(stderr, "read-only"):
@@ -396,7 +398,7 @@ func classifyRestore(err error, stderr string, req plugin.Request, format dumpFo
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		hint := "it ran in one transaction, so the target holds what it held before"
 		if req.Int("jobs") > 1 {
-			hint = "it ran with --jobs, so the target may hold a partial restore — a fresh " +
+			hint = "it ran with " + req.Surface().InputName("jobs") + ", so the target may hold a partial restore — a fresh " +
 				"database and a fresh run is the clean way back"
 		}
 		return view.Errorf("pg.restore.cancelled", "the restore was interrupted").WithHint(hint)

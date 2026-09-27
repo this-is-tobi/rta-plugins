@@ -67,20 +67,20 @@ func humanOnly(req plugin.Request, id, hint string) *view.Error {
 func runFullDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr := humanOnly(req, "pg.dump",
 		"a whole-database dump has no blast radius a grant could name — its one "+
-			"authorized use is everything. Ask for the table you need with pg.table.dump, "+
-			"which takes a grant naming that table"); verr != nil {
+			"authorized use is everything. Ask for the table you need with "+
+			req.Surface().CapabilityName("pg.table.dump")+", which takes a grant naming that table"); verr != nil {
 		return nil, verr
 	}
 
 	out := strings.TrimSpace(req.String("out"))
 	if out == "" {
 		return nil, view.Errorf("pg.dump.nooutput", "say where the dump should be written").
-			WithHint("--out ./" + req.String("database") + backupSuffix(req.String("format")) +
+			WithHint(given(req.Surface(), "out", "./"+req.String("database")+backupSuffix(req.String("format"))) +
 				" — a whole database is a file, not something to read in a terminal")
 	}
 	path, err := expandHome(out)
 	if err != nil {
-		return nil, view.Errorf("pg.dump.path", "resolving --out: %v", err)
+		return nil, view.Errorf("pg.dump.path", "resolving %s: %v", req.Surface().InputName("out"), err)
 	}
 
 	tool, err := lookupDumpTool()
@@ -137,7 +137,7 @@ func runFullDump(ctx context.Context, req plugin.Request) (view.View, error) {
 		{Key: "size", Value: format.Bytes(written)},
 		{Key: "took", Value: time.Since(started).Round(time.Millisecond).String()},
 		{Key: "contents", Value: contentsOf(req)},
-		{Key: "source", Value: src.describe()},
+		{Key: "source", Value: src.describe(req.Surface())},
 		{Key: "consistency", Value: consistencyOf(req)},
 		// Named on the answer rather than left in the docs. The file is every
 		// row in the database in the clear, and the moment to say so is while
@@ -164,13 +164,15 @@ type source struct {
 
 func (s source) standby() bool { return s.role == "standby" }
 
-func (s source) describe() string {
+// describe says what the server is, and for a standby where its lag is
+// read — named for sf, the surface reading the receipt.
+func (s source) describe(sf plugin.Surface) string {
 	where := fmt.Sprintf("%s, PostgreSQL %d.%d", s.role, s.version/10000, s.version%10000)
 	if s.standby() {
 		// Said on the receipt because it changes what the dump means and what
 		// can go wrong with it, and the moment to say so is while somebody is
 		// looking at the backup they just took.
-		where += " — a replica is as current as its replay lag, which `rta pg overview` reports"
+		where += " — a replica is as current as its replay lag, which " + sf.CapabilityName("pg.overview") + " reports"
 	}
 	return where
 }
@@ -238,11 +240,13 @@ func checkParallel(req plugin.Request) *view.Error {
 	if req.Int("jobs") <= 1 || req.String("format") == "directory" {
 		return nil
 	}
+	sf := req.Surface()
 	return view.Errorf("pg.dump.notparallel",
-		"--jobs needs --format directory, not %s", req.String("format")).
+		"%s needs %s, not %s", sf.InputName("jobs"), given(sf, "format", "directory"), req.String("format")).
 		WithHint("pg_dump parallelises by giving each worker its own connection and its own " +
-			"file, so there has to be a directory to put them in — `--format directory " +
-			"--jobs " + strconv.Itoa(req.Int("jobs")) + "`, restored with `pg_restore --jobs`")
+			"file, so there has to be a directory to put them in — " +
+			givenAll(sf, [2]string{"format", "directory"}, [2]string{"jobs", strconv.Itoa(req.Int("jobs"))}) +
+			", restored with `pg_restore --jobs`")
 }
 
 // writeDump creates the destination, runs the tool, and reports how much
@@ -518,8 +522,9 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 		return view.Errorf("pg.dump.nosnapshot",
 			"this server cannot share one snapshot across parallel workers: %s",
 			msg("pg_export_snapshot", "synchronized snapshot")).
-			WithHint("run it serially with --jobs 1, which uses a single transaction. rta will " +
-				"not pass --no-synchronized-snapshots to make --jobs work here: that drops the " +
+			WithHint("run it serially with " + given(req.Surface(), "jobs", "1") + ", which uses a single " +
+				"transaction. rta will not pass --no-synchronized-snapshots to make " +
+				req.Surface().InputName("jobs") + " work here: that drops the " +
 				"guarantee that every table came from the same instant, and a dump without it " +
 				"restores without complaint into a state that never existed")
 	case strings.Contains(stderr, "server version") && strings.Contains(stderr, "aborting"):
@@ -527,7 +532,7 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 		// like a server problem and is a client one.
 		return view.Errorf("pg.dump.version", "%s", msg("server version")).
 			WithHint("pg_dump refuses a server newer than itself — install a client at least " +
-				"as new as the server `rta pg status` reports")
+				"as new as the server " + req.Surface().CapabilityName("pg.status") + " reports")
 	case strings.Contains(stderr, "no password supplied"),
 		strings.Contains(stderr, "password authentication failed"):
 		return view.Errorf("pg.auth.failed", "%s", msg("password")).
@@ -606,13 +611,22 @@ func contentsOf(req plugin.Request) string {
 // is usually the slower direction because it rebuilds every index. The
 // connection flags are spelled out so the line works on a machine whose rta
 // config does not already point at this server.
+//
+// Spelled by the request's surface, like every call this plugin names: the
+// command line at a terminal, with the path quoted when a shell would split
+// it, and the capability with its boxes filled in the TUI.
 func restoreCommand(req plugin.Request, path string) string {
-	cmd := fmt.Sprintf("rta pg restore %s --host=%s --port=%d --user=%s --database=%s",
-		path, req.String("host"), req.Int("port"), req.String("user"), req.String("database"))
-	if n := req.Int("jobs"); n > 1 {
-		cmd += fmt.Sprintf(" --jobs=%d", n)
+	args := []plugin.Arg{
+		{Name: "file", Value: path, Positional: true},
+		{Name: "host", Value: req.String("host")},
+		{Name: "port", Value: req.Int("port")},
+		{Name: "user", Value: req.String("user")},
+		{Name: "database", Value: req.String("database")},
 	}
-	return cmd
+	if n := req.Int("jobs"); n > 1 {
+		args = append(args, plugin.Arg{Name: "jobs", Value: n})
+	}
+	return req.Surface().Call("pg.restore", args...)
 }
 
 func backupSuffix(f string) string {

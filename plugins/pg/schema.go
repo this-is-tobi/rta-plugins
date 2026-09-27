@@ -124,7 +124,7 @@ func schemaDDL(ctx context.Context, q querier, req plugin.Request) (view.View, e
 			req.String("database"), schema)
 		if len(names) == 0 {
 			return nil, e.WithHint("this role can see no schemas at all in this database — " +
-				"`rta pg status` shows which role the connection is using")
+				req.Surface().CapabilityName("pg.status") + " shows which role the connection is using")
 		}
 		return nil, e.WithHint("this database has: " + strings.Join(names, ", "))
 	}
@@ -143,7 +143,7 @@ func schemaDDL(ctx context.Context, q querier, req plugin.Request) (view.View, e
 		return nil, view.Errorf("pg.schema.toolarge",
 			"the description of schema %q is %s, over the %s a result may be",
 			schema, format.Bytes(len(body)), format.Bytes(maxBytes)).
-			WithHint("lower --limit to describe fewer tables, or use " +
+			WithHint("lower " + req.Surface().InputName("limit") + " to describe fewer tables, or use " +
 				"`pg_dump --schema-only` for a schema this large")
 	}
 	return view.Text{Body: body}, nil
@@ -367,7 +367,7 @@ func renderDDL(req plugin.Request, schema string, tables []schemaTable, om dropp
 		"-- bodies and partial-index predicates are omitted by rule, not by inspection.\n" +
 		"-- This is a description, not a restorable dump — `pg_dump --schema-only` is the\n" +
 		"-- tool when you need the rest.\n")
-	if omitted := om.summary(); omitted != "" {
+	if omitted := om.summary(req.Surface()); omitted != "" {
 		b.WriteString("--\n-- Not shown: " + omitted + ".\n")
 	}
 	b.WriteString("\n")
@@ -454,7 +454,7 @@ func renderDDL(req plugin.Request, schema string, tables []schemaTable, om dropp
 
 // summary writes the omissions as one sentence, naming only what there was
 // something to omit.
-func (d dropped) summary() string {
+func (d dropped) summary(sf plugin.Surface) string {
 	var parts []string
 	add := func(n int, one, many string) {
 		if n == 0 {
@@ -474,7 +474,7 @@ func (d dropped) summary() string {
 	add(d.routines, "routine", "routines")
 	add(d.triggers, "trigger", "triggers")
 	if d.truncated {
-		parts = append(parts, "further tables beyond --limit")
+		parts = append(parts, "further tables beyond "+sf.InputName("limit"))
 	}
 	return strings.Join(parts, ", ")
 }

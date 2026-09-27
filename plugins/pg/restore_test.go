@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
@@ -45,7 +46,7 @@ func TestTheFormatComesFromTheBytesNotTheName(t *testing.T) {
 	if err := os.WriteFile(misleadingSQL, []byte("PGDMP\x01"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if got, verr := detectFormat(misleadingSQL); verr != nil || got != formatCustom {
+	if got, verr := detectFormat(plugin.SurfaceCLI, misleadingSQL); verr != nil || got != formatCustom {
 		t.Errorf("a PGDMP file named .sql = %q (%v), want custom", got, verr)
 	}
 
@@ -53,7 +54,7 @@ func TestTheFormatComesFromTheBytesNotTheName(t *testing.T) {
 	if err := os.WriteFile(misleadingDump, []byte("-- pg_dump\ncreate table t (id int);\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if got, verr := detectFormat(misleadingDump); verr != nil || got != formatPlain {
+	if got, verr := detectFormat(plugin.SurfaceCLI, misleadingDump); verr != nil || got != formatPlain {
 		t.Errorf("a SQL file named .dump = %q (%v), want plain", got, verr)
 	}
 
@@ -64,7 +65,7 @@ func TestTheFormatComesFromTheBytesNotTheName(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dirDump, "toc.dat"), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if got, verr := detectFormat(dirDump); verr != nil || got != formatDirectory {
+	if got, verr := detectFormat(plugin.SurfaceCLI, dirDump); verr != nil || got != formatDirectory {
 		t.Errorf("a directory with toc.dat = %q (%v), want directory", got, verr)
 	}
 }
@@ -74,11 +75,11 @@ func TestTheFormatComesFromTheBytesNotTheName(t *testing.T) {
 func TestWhatIsNotADumpIsRefusedByName(t *testing.T) {
 	dir := t.TempDir()
 
-	if _, verr := detectFormat(filepath.Join(dir, "nope")); verr == nil || verr.Code != "pg.restore.missing" {
+	if _, verr := detectFormat(plugin.SurfaceCLI, filepath.Join(dir, "nope")); verr == nil || verr.Code != "pg.restore.missing" {
 		t.Errorf("missing file: %v, want pg.restore.missing", verr)
 	}
 
-	if _, verr := detectFormat(dir); verr == nil || verr.Code != "pg.restore.notadump" {
+	if _, verr := detectFormat(plugin.SurfaceCLI, dir); verr == nil || verr.Code != "pg.restore.notadump" {
 		t.Errorf("directory without toc.dat: %v, want pg.restore.notadump", verr)
 	}
 
@@ -88,7 +89,7 @@ func TestWhatIsNotADumpIsRefusedByName(t *testing.T) {
 	}
 	// An empty file would restore as nothing and report success, which is
 	// the same lie a truncated dump tells.
-	if _, verr := detectFormat(empty); verr == nil || verr.Code != "pg.restore.empty" {
+	if _, verr := detectFormat(plugin.SurfaceCLI, empty); verr == nil || verr.Code != "pg.restore.empty" {
 		t.Errorf("empty file: %v, want pg.restore.empty", verr)
 	}
 }

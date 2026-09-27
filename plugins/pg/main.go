@@ -319,10 +319,11 @@ func Plugin() plugin.Plugin {
 					"**Classified write for what it discloses, not what it changes.** It returns rows, " +
 					"and there is no table it may read by default because there is no table known to " +
 					"be safe — orders carry addresses, events carry payloads, application logs carry " +
-					"tokens. So it needs --allow-write pg, which is the operator saying once that this " +
-					"agent may read this database's contents; the read tier below it describes the " +
-					"database and hands back nothing stored in it. Where the connection is a named " +
-					"profile, every call in this namespace already needs a grant on top.",
+					"tokens. So it needs a grant a person issued (`grant.allow`, for `pg.query`), which " +
+					"is the operator saying that this agent may read this database's contents; the read " +
+					"tier below it describes the database and hands back nothing stored in it. Where the " +
+					"connection is a named profile, every call in this namespace needs one, the read " +
+					"tier included.",
 				Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 					return withConn(ctx, req, func(ctx context.Context, conn *pgx.Conn) (view.View, error) {
 						var out view.View
@@ -336,7 +337,7 @@ func Plugin() plugin.Plugin {
 							if errors.Is(err, ErrTooManyRows) {
 								return view.Errorf("pg.query.toomany",
 									"the query returned more than %s", format.CountOf(req.Int("limit"), "row")).
-									WithHint("add a LIMIT to the query, or raise --limit — refused rather " +
+									WithHint("add a LIMIT to the query, or raise " + req.Surface().InputName("limit") + " — refused rather " +
 										"than shortened, because a truncated result set is a different " +
 										"answer wearing the right shape")
 							}
@@ -417,8 +418,8 @@ func Plugin() plugin.Plugin {
 					"named in a grant does not belong on the agent surface** — which is why keys.backup " +
 					"and kv.copy refuse MCP outright, and why there is no whole-database dump here: its " +
 					"single authorized use would be \"everything\". One table has a radius a person can " +
-					"consent to, so `grant allow pg.table.dump --scope public.orders` authorizes that " +
-					"relation and nothing beside it.\n\n" +
+					"consent to, so a grant (`grant.allow`, for `pg.table.dump` and `public.orders`) " +
+					"authorizes that relation and nothing beside it.\n\n" +
 					"That is not a claim the named table is the harmless one. Almost any table holds " +
 					"something you would not hand over — orders carry addresses, events carry payloads, " +
 					"application logs carry tokens — so the per-table scope is not sorting tables into " +
@@ -434,7 +435,7 @@ func Plugin() plugin.Plugin {
 					"Bounded on rows and on bytes, and over either bound it is refused rather than " +
 					"shortened: a truncated dump is a different answer wearing the right shape. Ordered " +
 					"by primary key where there is one, so the first thousand rows are the same thousand " +
-					"next time. --columns narrows what is read and can never widen it — useful, but it " +
+					"next time. `columns` narrows what is read and can never widen it — useful, but it " +
 					"is the caller minimising its own ask, not a control the operator holds, since a " +
 					"grant names a record and has no way to say \"orders but not the email column\".",
 				Run: runTableDump,
@@ -478,12 +479,12 @@ func Plugin() plugin.Plugin {
 					"primary or a replica — a standby dump is only as current as its replay lag, " +
 					"and a standby can cancel a long dump to keep up (that refusal names " +
 					"hot_standby_feedback).\n\n" +
-					"**For a big database, `--format directory --jobs N`** dumps N tables at once, " +
+					"**For a big database, a `format` of directory with `jobs` set to N** dumps N tables at once, " +
 					"measured at 7x on 834 MB. It stays consistent: the leader exports its snapshot " +
 					"and every worker joins it. `--no-synchronized-snapshots` is never passed, not " +
 					"even as a fallback — it turns a parallel dump into unrelated reads at different " +
 					"times, producing a file that restores without complaint into a state the " +
-					"database was never in. --jobs where it cannot work is refused by name rather " +
+					"database was never in. `jobs` where it cannot work is refused by name rather " +
 					"than by changing the format under you, and carries into the printed " +
 					"`pg_restore` command. The bytes never pass through rta: the destination " +
 					"descriptor is handed to pg_dump directly.",
@@ -499,9 +500,9 @@ func Plugin() plugin.Plugin {
 				plugin.Field{Name: "format", Type: plugin.String, Config: "dump.format", Default: "plain",
 					Options: []string{"plain", "custom", "directory"},
 					Help: "plain is SQL for psql; custom is one compressed file for pg_restore; " +
-						"directory is one compressed file per table, and the only one --jobs can use"},
+						"directory is one compressed file per table, and the only one `jobs` can use"},
 				plugin.Field{Name: "jobs", Type: plugin.Int, Config: "jobs", Default: 1, Min: 1, Max: 32,
-					Help: "dump this many tables at once (needs --format directory)"},
+					Help: "dump this many tables at once (needs a `format` of directory)"},
 				plugin.Field{Name: "include", Type: plugin.String, Config: "dump.include", Default: "all",
 					Options: []string{"all", "schema", "data"},
 					Help:    "what to put in the file"}),
@@ -522,17 +523,17 @@ func Plugin() plugin.Plugin {
 					"database. Neither direction has a blast radius a grant could name, so both belong " +
 					"to the person at the keyboard.\n\n" +
 					"The format is read from the bytes, never the filename: a directory holding " +
-					"toc.dat restores through pg_restore --jobs, a file beginning PGDMP is a custom " +
+					"toc.dat restores through `pg_restore --jobs`, a file beginning PGDMP is a custom " +
 					"archive, anything else replays through psql — so a custom archive named " +
 					"backup.sql cannot be handed to the wrong tool.\n\n" +
-					"**A non-empty target is refused unless --clean says that is the point**, which is " +
+					"**A non-empty target is refused unless `clean` says that is the point**, which is " +
 					"the dump's O_EXCL pointing the other way: the dump never writes over an existing " +
 					"file, and the restore never lands on a database that already holds relations. A " +
 					"replica is refused before anything runs — a standby cannot be written, and the " +
 					"only path that keeps it matching its primary is restoring there.\n\n" +
 					"All-or-nothing by default: one transaction that rolls back entirely on failure, " +
 					"with ON_ERROR_STOP so psql cannot count errors quietly and commit the half that " +
-					"worked. --jobs N trades that guarantee for speed — parallel workers cannot share " +
+					"worked. `jobs` above 1 trades that guarantee for speed — parallel workers cannot share " +
 					"a transaction, the same reason a parallel dump needs pg_export_snapshot — and " +
 					"the receipt says which guarantee the run actually had. rta does not create the " +
 					"target database: a capability that invented a database on a typo'd name would " +
@@ -581,7 +582,7 @@ func Plugin() plugin.Plugin {
 				Idempotent: true,
 				Description: "Classified write for what it discloses rather than what it changes, the " +
 					"same reading kv.get gets: the query column carries whatever literals are in " +
-					"the statements currently running. `pg overview --detail` keeps the same rows " +
+					"the statements currently running. `pg.overview` with `detail` keeps the same rows " +
 					"without that column — state, duration and what each session is waiting on, which " +
 					"answers \"is anything stuck\" and is a value nobody stored — so the glanceable " +
 					"form stays in the read tier and this one does not.",
@@ -601,7 +602,7 @@ func Plugin() plugin.Plugin {
 				Idempotent: true,
 				Detailed:   true,
 				Description: "The compact form is four figures worth a glance: role, size, active " +
-					"queries, cache hit ratio. The full page (--detail) adds replication, the " +
+					"queries, cache hit ratio. The full page (`detail`) adds replication, the " +
 					"largest tables and current activity — everything pg.status, pg.table.list " +
 					"and pg.activity would otherwise take three calls to assemble, through the " +
 					"one connection this call already opened.",
