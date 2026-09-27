@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.16](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.3.15...plugins/mysql/v0.3.16) (2026-09-27)
+
+
+### Bug Fixes
+
+* **mysql:** a dump receipt counts one table read live as "1 non-transactional table was" ([dfa3400](https://github.com/this-is-tobi/rta-plugins/commit/dfa3400d5914fdf0076668d91c4a59e55cd998d9))
+* **mysql:** a limit that leaves one table or row out counts it in the singular ([5329c68](https://github.com/this-is-tobi/rta-plugins/commit/5329c68b7ce3388c90db509a4cbc7f7cfc724963))
+
+
+### Code Refactoring
+
+* **mysql:** each byte count reaches format.Bytes as the integer it arrives as ([1b8fdb0](https://github.com/this-is-tobi/rta-plugins/commit/1b8fdb0503fa35da82fe593be85bf1bd4a6bfa75))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.28.0 ([c75c7cb](https://github.com/this-is-tobi/rta-plugins/commit/c75c7cbb87beb645ace0f47544050f3dfab26d84))
+
 ## [0.3.15](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.3.14...plugins/mysql/v0.3.15) (2026-09-26)
 
 

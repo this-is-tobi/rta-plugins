@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.16](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.15...plugins/qdrant/v0.3.16) (2026-09-27)
+
+
+### Code Refactoring
+
+* **qdrant:** each byte count reaches format.Bytes as the integer it arrives as ([484abfc](https://github.com/this-is-tobi/rta-plugins/commit/484abfcdb58913a21e2c66230d1f90b304ac53e1))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.28.0 ([c75c7cb](https://github.com/this-is-tobi/rta-plugins/commit/c75c7cbb87beb645ace0f47544050f3dfab26d84))
+
 ## [0.3.15](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.14...plugins/qdrant/v0.3.15) (2026-09-26)
 
 

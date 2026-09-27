@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.9](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.1.8...plugins/keycloak/v0.1.9) (2026-09-27)
+
+
+### Bug Fixes
+
+* **keycloak:** a lockout, reuse or audit bound of one is counted in the singular ([8f09dc9](https://github.com/this-is-tobi/rta-plugins/commit/8f09dc97ccdbede686bd854610df22dea0ec0f9d))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.28.0 ([c75c7cb](https://github.com/this-is-tobi/rta-plugins/commit/c75c7cbb87beb645ace0f47544050f3dfab26d84))
+
 ## [0.1.8](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.1.7...plugins/keycloak/v0.1.8) (2026-09-26)
 
 

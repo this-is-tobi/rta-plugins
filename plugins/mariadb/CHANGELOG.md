@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.16](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.3.15...plugins/mariadb/v0.3.16) (2026-09-27)
+
+
+### Bug Fixes
+
+* **mariadb:** a dump receipt counts one table read live as "1 non-transactional table was" ([e336d05](https://github.com/this-is-tobi/rta-plugins/commit/e336d05185ea6a6afa13ed67bcf41ac8ae912821))
+* **mariadb:** a limit that leaves one table or row out counts it in the singular ([187e394](https://github.com/this-is-tobi/rta-plugins/commit/187e394deee1a37a76fc9de92d81640a4e300ea4))
+
+
+### Code Refactoring
+
+* **mariadb:** each byte count reaches format.Bytes as the integer it arrives as ([ec40593](https://github.com/this-is-tobi/rta-plugins/commit/ec4059333864c5f85259eafdcb107ae8ae95d91c))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.28.0 ([c75c7cb](https://github.com/this-is-tobi/rta-plugins/commit/c75c7cbb87beb645ace0f47544050f3dfab26d84))
+
 ## [0.3.15](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.3.14...plugins/mariadb/v0.3.15) (2026-09-26)
 
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.16](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.3.15...plugins/pg/v0.3.16) (2026-09-27)
+
+
+### Bug Fixes
+
+* **pg:** a limit of one row is refused as "more than 1 row" ([28a85fe](https://github.com/this-is-tobi/rta-plugins/commit/28a85fe4b82712ea5c95b6dbf0a3ecce488b460d))
+
+
+### Code Refactoring
+
+* **pg:** each byte count reaches format.Bytes as the integer it arrives as ([b8f17a5](https://github.com/this-is-tobi/rta-plugins/commit/b8f17a5b14384fbe0adf4400fbf1f426ed892189))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.28.0 ([c75c7cb](https://github.com/this-is-tobi/rta-plugins/commit/c75c7cbb87beb645ace0f47544050f3dfab26d84))
+
 ## [0.3.15](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.3.14...plugins/pg/v0.3.15) (2026-09-26)
 
 

@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.16](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.3.15...plugins/etcd/v0.3.16) (2026-09-27)
+
+
+### Bug Fixes
+
+* **etcd:** a lease ID reads as etcdctl prints it, leading zero included ([65aeca8](https://github.com/this-is-tobi/rta-plugins/commit/65aeca846635800fde24ef99022ddec3a0402d61))
+* **etcd:** one lease past --limit is counted as "1 more lease" ([50daf90](https://github.com/this-is-tobi/rta-plugins/commit/50daf90dbd29dc46cb4b8170ec3cf3ee23752e34))
+
+
+### Code Refactoring
+
+* **etcd:** each byte count reaches format.Bytes as the integer it arrives as ([ca8f906](https://github.com/this-is-tobi/rta-plugins/commit/ca8f906b6965ee3493eb65e12ae55c2f33745fdc))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.28.0 ([c75c7cb](https://github.com/this-is-tobi/rta-plugins/commit/c75c7cbb87beb645ace0f47544050f3dfab26d84))
+
 ## [0.3.15](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.3.14...plugins/etcd/v0.3.15) (2026-09-26)
 
 

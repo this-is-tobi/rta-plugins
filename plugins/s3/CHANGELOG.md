@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.3.16](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.3.15...plugins/s3/v0.3.16) (2026-09-27)
+
+
+### Bug Fixes
+
+* **s3:** a transfer refused at one file, object or symlink counts it in the singular ([1e63adf](https://github.com/this-is-tobi/rta-plugins/commit/1e63adfb8f369f892d9320fe0af2d5a4cc49f2e6))
+* **s3:** a tree over one object counts it as "1 object" ([d814043](https://github.com/this-is-tobi/rta-plugins/commit/d81404310ace3143713afffd579e37882c2f9323))
+* **s3:** an object that is not text is dumped rather than printed as stray letters ([caebb55](https://github.com/this-is-tobi/rta-plugins/commit/caebb5505562a3e889f14e5afa5f2d6179c8b56a))
+* **s3:** an unsafe-entry refusal counts every entry it refused, and one as one ([3e7a2c7](https://github.com/this-is-tobi/rta-plugins/commit/3e7a2c77c46c2cd0c44ccb62ae8c417d9d65f025))
+* **s3:** object get --out and object set receipts give the size in units, one byte included ([a78a62f](https://github.com/this-is-tobi/rta-plugins/commit/a78a62f1d77a5548f202753b86832349cd366439))
+
+
+### Code Refactoring
+
+* **s3:** each byte count reaches format.Bytes as the integer it arrives as ([6eda8e2](https://github.com/this-is-tobi/rta-plugins/commit/6eda8e2ca15d06ef3d48c0b5638aaaa77f196ac0))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.28.0 ([c75c7cb](https://github.com/this-is-tobi/rta-plugins/commit/c75c7cbb87beb645ace0f47544050f3dfab26d84))
+
 ## [0.3.15](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.3.14...plugins/s3/v0.3.15) (2026-09-26)
 
 

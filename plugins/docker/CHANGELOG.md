@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.18](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.2.17...plugins/docker/v0.2.18) (2026-09-27)
+
+
+### Code Refactoring
+
+* **docker:** the image total goes to format.Bytes as the int64 it is summed in ([3cce2a0](https://github.com/this-is-tobi/rta-plugins/commit/3cce2a007f39429c4d5442c7dc14472b15f39a3b))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.28.0 ([c75c7cb](https://github.com/this-is-tobi/rta-plugins/commit/c75c7cbb87beb645ace0f47544050f3dfab26d84))
+
 ## [0.2.17](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.2.16...plugins/docker/v0.2.17) (2026-09-26)
 
 
