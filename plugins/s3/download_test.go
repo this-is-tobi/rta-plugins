@@ -237,8 +237,8 @@ func TestTheDownloadRefusesMCP(t *testing.T) {
 	if !errors.As(err, &verr) || verr.Code != "s3.human" || !verr.Refusal {
 		t.Fatalf("err = %v, want s3.human marked a refusal", err)
 	}
-	if !strings.Contains(verr.Hint, "s3.object.get") {
-		t.Errorf("hint = %q, want it to name the capability that does take a grant", verr.Hint)
+	if !strings.Contains(verr.Hint, "the `s3_object_get` tool") {
+		t.Errorf("hint = %q, want it to name the capability that does take a grant, as the agent calls it", verr.Hint)
 	}
 	if _, statErr := os.Stat(root); statErr == nil {
 		t.Error("the refused call still created a directory")

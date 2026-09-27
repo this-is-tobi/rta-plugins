@@ -28,7 +28,7 @@ func overviewCapability() plugin.Capability {
 		Idempotent: true,
 		Detailed:   true,
 		Description: "Whether this endpoint is reachable at all, and how many buckets the " +
-			"configured credentials can see. --detail adds the bucket list, with region and age, " +
+			"configured credentials can see. `detail` adds the bucket list, with region and age, " +
 			"to the same page.",
 		Run: runOverview,
 	})

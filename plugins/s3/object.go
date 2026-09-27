@@ -39,10 +39,10 @@ func s3ObjectListCapability() plugin.Capability {
 		Summary:    "List objects in a bucket",
 		Safety:     plugin.Read,
 		Idempotent: true,
-		Description: "Grouped by \"/\" like a directory listing unless --recursive flattens the " +
+		Description: "Grouped by \"/\" like a directory listing unless `recursive` flattens the " +
 			"whole prefix.\n\n" +
-			"Bounded: a bucket can hold millions of keys, so this returns --limit of them and " +
-			"says what to pass to --after for the next page. A listing that stopped and did not " +
+			"Bounded: a bucket can hold millions of keys, so this returns `limit` of them and " +
+			"says what to pass as `after` for the next page. A listing that stopped and did not " +
 			"say so reads exactly like a bucket with that little in it.",
 		Run: runObjectList,
 	}, bucketField("bucket to list"),
@@ -138,11 +138,11 @@ func s3ObjectGetCapability() plugin.Capability {
 		NeedsGrant: true, Scope: "key",
 		Description: "Writes an object that is text to stdout with no framing, and one that is not as a " +
 			"hex dump of its first 256 bytes; for the byte-exact copy, or " +
-			"anything binary, --out writes it to a file (0600) instead — a person's flag only, " +
+			"anything binary, `out` writes it to a file (0600) instead — a person's input only, " +
 			"since a grant authorizes revealing the content, not choosing where on this machine " +
-			"it lands. Without --out, text up to 1 MiB is printed in full and a larger object is " +
+			"it lands. Without `out`, text up to 1 MiB is printed in full and a larger object is " +
 			"refused rather than cut short, and an MCP caller gets the same answer in the response. " +
-			"--out never overwrites: a destination that already exists is refused, and a download " +
+			"`out` never overwrites: a destination that already exists is refused, and a download " +
 			"that fails partway removes what it wrote.",
 		Run: runObjectGet,
 	}, boundBucketField("bucket the object is in"), keyField("object to reveal"),
@@ -226,7 +226,7 @@ func runObjectGet(ctx context.Context, req plugin.Request) (view.View, error) {
 		}
 		if len(body) > maxInline {
 			return nil, view.Errorf("s3.object.toolarge", "%s/%s is larger than %d bytes", bucket, key, maxInline).
-				WithHint("use --out to write it to a file instead of printing it")
+				WithHint(outHint(req, bucket, key))
 		}
 		// An object is somebody else's bytes, and every renderer strips
 		// control characters on the way to a terminal, so an image or an
@@ -373,7 +373,7 @@ func s3ObjectRemoveCapability() plugin.Capability {
 		Scope: "key",
 		Description: "No history, no backup, no undo — the same loss `kv rm` is. S3's DELETE is " +
 			"idempotent: removing a key that is already gone is not an error, on this or the real " +
-			"call — --dry-run does not probe for existence first, since that would report a " +
+			"call — a dry run does not probe for existence first, since that would report a " +
 			"failure the real call would not.",
 		Run: runObjectRemove,
 	}, boundBucketField("bucket the object is in"), keyField("object to delete"))

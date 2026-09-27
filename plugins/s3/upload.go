@@ -65,14 +65,14 @@ func s3BucketUploadCapability() plugin.Capability {
 			"that needs to write an object asks for s3.object.set with a grant naming that " +
 			"key.\n\n" +
 			"**A destination already holding objects under the prefix is refused unless " +
-			"--overwrite says that is the point** — the download's fresh-directory rule " +
-			"pointing the other way. --overwrite replaces objects whose keys collide and " +
+			"`overwrite` says that is the point** — the download's fresh-directory rule " +
+			"pointing the other way. `overwrite` replaces objects whose keys collide and " +
 			"leaves the rest, and the receipt says so.\n\n" +
 			"Regular files only: a symlink refuses the whole upload by name — a link pointing " +
 			"at a credential would ship it as faithfully as any file, and a backup directory " +
 			"this plugin wrote contains no links, so one appearing deserves a person looking. " +
-			"Refused past --limit rather than truncated. A failed upload deletes nothing " +
-			"remote: a delete could also destroy what --overwrite already replaced, so the " +
+			"Refused past `limit` rather than truncated. A failed upload deletes nothing " +
+			"remote: a delete could also destroy what `overwrite` already replaced, so the " +
 			"error names the possibly-partial prefix and the operator decides.",
 		Run: runBucketUpload,
 	},
@@ -94,7 +94,7 @@ func runBucketUpload(ctx context.Context, req plugin.Request) (view.View, error)
 	if verr := humanOnly(req, "s3.bucket.upload",
 		"a directory's whole contents into a bucket has no blast radius a grant could "+
 			"name, in the direction that overwrites. Ask to write the object you need with "+
-			"s3.object.set, which takes a grant naming that key"); verr != nil {
+			req.Surface().CapabilityName("s3.object.set")+", which takes a grant naming that key"); verr != nil {
 		return nil, verr
 	}
 
@@ -104,7 +104,7 @@ func runBucketUpload(ctx context.Context, req plugin.Request) (view.View, error)
 	}
 	prefix := normalizePrefix(req.String("prefix"))
 
-	plan, total, verr := planUpload(root, req.Int("limit"))
+	plan, total, verr := planUpload(req.Surface(), root, req.Int("limit"))
 	if verr != nil {
 		return nil, verr
 	}
@@ -164,11 +164,12 @@ type upload struct {
 // other non-regular entry, on a directory over the limit, and on a directory
 // with nothing to send: an empty upload reporting success is the lie an
 // empty dump file tells, in directory form.
-func planUpload(root string, limit int) ([]upload, int64, *view.Error) {
+func planUpload(sf plugin.Surface, root string, limit int) ([]upload, int64, *view.Error) {
 	info, err := os.Stat(root)
 	if err != nil {
 		return nil, 0, view.Errorf("s3.upload.missing", "no directory at %s", root).
-			WithHint("`rta s3 bucket download --out <dir>` writes one; this uploads what that wrote")
+			WithHint("`" + sf.Call("s3.bucket.download", plugin.Arg{Name: "out", Value: "<dir>"}) +
+				"` writes one; this uploads what that wrote")
 	}
 	if !info.IsDir() {
 		return nil, 0, view.Errorf("s3.upload.notadir", "%s is not a directory", root).
@@ -216,7 +217,7 @@ func planUpload(root string, limit int) ([]upload, int64, *view.Error) {
 	case errors.Is(walkErr, errTooManyFiles):
 		return nil, 0, view.Errorf("s3.upload.toomany",
 			"%s holds more than %s", root, format.CountOf(limit, "file")).
-			WithHint("raise --limit, or upload a subdirectory — refused rather than truncated, " +
+			WithHint("raise " + sf.InputName("limit") + ", or upload a subdirectory — refused rather than truncated, " +
 				"because a restore missing files nobody named is worse than one that did not run")
 	case walkErr != nil:
 		return nil, 0, view.Errorf("s3.upload.walk", "reading %s: %v", root, walkErr)
@@ -261,9 +262,9 @@ func checkUploadTarget(ctx context.Context, client *minio.Client, req plugin.Req
 		where := req.String("bucket") + "/" + prefix
 		return view.Errorf("s3.upload.notempty",
 			"%s already holds objects (%s, and possibly more)", where, obj.Key).
-			WithHint("--overwrite replaces objects whose keys collide and leaves the rest, or " +
-				"upload under a fresh --prefix — the bucket does not care what the prefix is " +
-				"called")
+			WithHint(req.Surface().InputName("overwrite") + " replaces objects whose keys collide and " +
+				"leaves the rest, or upload under a fresh " + req.Surface().InputName("prefix") +
+				" — the bucket does not care what the prefix is called")
 	}
 	if verr := ctxErr(ctx, req); verr != nil {
 		return verr
@@ -317,7 +318,7 @@ func putAll(ctx context.Context, client *minio.Client, req plugin.Request,
 
 	if failure != nil {
 		partial := req.String("bucket") + "/" + prefix + " may hold a partial upload; rta does " +
-			"not delete remote objects on failure, because with --overwrite a delete could " +
+			"not delete remote objects on failure, because with " + req.Surface().InputName("overwrite") + " a delete could " +
 			"also destroy what was already replaced"
 		if failure.Hint != "" {
 			partial = failure.Hint + " — " + partial

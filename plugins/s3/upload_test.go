@@ -114,8 +114,8 @@ func TestTheUploadRefusesMCP(t *testing.T) {
 	if !errors.As(err, &verr) || verr.Code != "s3.human" || !verr.Refusal {
 		t.Fatalf("err = %v, want s3.human marked a refusal", err)
 	}
-	if !strings.Contains(verr.Hint, "s3.object.set") {
-		t.Errorf("hint = %q, want it to name the capability that does take a grant", verr.Hint)
+	if !strings.Contains(verr.Hint, "the `s3_object_set` tool") {
+		t.Errorf("hint = %q, want it to name the capability that does take a grant, as the agent calls it", verr.Hint)
 	}
 	if len(*puts) != 0 {
 		t.Errorf("the refused call still uploaded: %v", *puts)

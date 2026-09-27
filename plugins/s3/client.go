@@ -96,7 +96,7 @@ func connect(req plugin.Request) (*minio.Client, *view.Error) {
 	client, err := minio.New(endpoint, opts)
 	if err != nil {
 		return nil, view.Errorf("s3.conn.invalid", "%s: %v", endpoint, err).
-			WithHint("endpoint is host[:port] with no scheme — set --tls separately")
+			WithHint("endpoint is host[:port] with no scheme — set " + setting(req.Surface(), "tls") + " separately")
 	}
 	return client, nil
 }
@@ -137,7 +137,7 @@ func caTransport(ca string) (*http.Transport, *view.Error) {
 // the standard http.Client produced, the same net.OpError/net.DNSError/
 // *url.Error family plugins/pg and plugins/vault already classify.
 func classify(err error, req plugin.Request) *view.Error {
-	where := req.String("endpoint")
+	where, sf := req.String("endpoint"), req.Surface()
 
 	// Checked ahead of the network-error family below because a context
 	// error can arrive bare — the listing iterator hands back ctx.Err()
@@ -159,10 +159,10 @@ func classify(err error, req plugin.Request) *view.Error {
 		switch errResp.Code {
 		case minio.NoSuchBucket:
 			return view.Errorf("s3.bucket.notfound", "%s has no bucket %q", where, errResp.BucketName).
-				WithHint("`rta s3 bucket list` shows what is there")
+				WithHint(sf.CapabilityName("s3.bucket.list") + " shows what is there")
 		case minio.NoSuchKey:
 			return view.Errorf("s3.object.notfound", "no object %q in %q", errResp.Key, errResp.BucketName).
-				WithHint("`" + req.Surface().Call("s3.object.list", plugin.Arg{Name: "bucket", Value: errResp.BucketName}) +
+				WithHint("`" + sf.Call("s3.object.list", plugin.Arg{Name: "bucket", Value: errResp.BucketName}) +
 					"` shows what is there")
 		case minio.NoSuchBucketPolicy:
 			return view.Errorf("s3.policy.notfound", "%q has no bucket policy set", errResp.BucketName).
@@ -172,24 +172,24 @@ func classify(err error, req plugin.Request) *view.Error {
 				WithHint("the credentials are valid but not authorized for this — check the bucket policy or IAM")
 		case minio.InvalidAccessKeyID, minio.SignatureDoesNotMatch:
 			return view.Errorf("s3.auth.failed", "%s rejected the credentials", where).
-				WithHint("set $" + plugin.LocalEnvVar("s3.overview", "secret-key") + ", or check --access-key")
+				WithHint("set $" + plugin.LocalEnvVar("s3.overview", "secret-key") + ", or check " + setting(sf, "access-key"))
 		case minio.BucketAlreadyExists, minio.BucketAlreadyOwnedByYou:
 			return view.Errorf("s3.bucket.exists", "%q already exists", errResp.BucketName).
-				WithHint("`rta s3 bucket list` shows who owns what this plugin can see")
+				WithHint(sf.CapabilityName("s3.bucket.list") + " shows who owns what this plugin can see")
 		}
 		return view.Errorf("s3.request.failed", "%s: %s", errResp.Code, errResp.Message).
-			WithHint("`rta explain s3.overview` lists every input and where each one can come from")
+			WithHint(explainHint(sf, "s3.overview"))
 	}
 
 	var netErr *stdnet.OpError
 	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
 		return view.Errorf("s3.conn.refused", "nothing is listening on %s", where).
-			WithHint("is the server up, and is --endpoint right?")
+			WithHint("is the server up, and is " + setting(sf, "endpoint") + " right?")
 	}
 	var dnsErr *stdnet.DNSError
 	if errors.As(err, &dnsErr) {
 		return view.Errorf("s3.host.unknown", "no address for %q", where).
-			WithHint("`rta net dns " + hostOnly(where) + "` shows what DNS returns")
+			WithHint(dnsHint(sf, hostOnly(where)))
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
@@ -199,11 +199,11 @@ func classify(err error, req plugin.Request) *view.Error {
 	var certErr x509.UnknownAuthorityError
 	if errors.As(err, &certErr) {
 		return view.Errorf("s3.tls.untrusted", "%s presented a certificate nothing here trusts", where).
-			WithHint("a local MinIO's self-signed cert needs --tls=false for a real try, or its CA " +
-				"trusted with ca-file for the real thing")
+			WithHint("a local MinIO's self-signed cert needs " + settingTo(sf, "tls", "false") + " for a real " +
+				"try, or its CA trusted with ca-file for the real thing")
 	}
 	return view.Errorf("s3.conn.failed", "could not reach %s: %v", where, err).
-		WithHint("`rta explain s3.overview` lists every input and where each one can come from")
+		WithHint(explainHint(sf, "s3.overview"))
 }
 
 // ctxErr is what a ListObjectsIter walk needs checked once it stops,
@@ -220,6 +220,90 @@ func ctxErr(ctx context.Context, req plugin.Request) *view.Error {
 		return classify(err, req)
 	}
 	return nil
+}
+
+// setting names connection input name in a message the way its reader
+// changes it: the flag on the CLI, the box in a TUI form. Not the argument
+// over MCP, as plugin.Surface.InputName would: every connection input is
+// Local, so the tool's schema hides it and the bridge drops one given, and an
+// agent told to check the "endpoint" argument would pass one that is thrown
+// away and read the same refusal again. It is named there as the declaration
+// names it, `endpoint` — a setting of the operator's, which the agent can
+// report and cannot change.
+func setting(sf plugin.Surface, name string) string {
+	if sf == plugin.SurfaceMCP {
+		return "`" + name + "`"
+	}
+	return sf.InputName(name)
+}
+
+// settingTo is setting with the value to give it. On the CLI it is joined to
+// the flag, --tls=false: a switch given a separate word takes it as an
+// argument and stays on.
+func settingTo(sf plugin.Surface, name, value string) string {
+	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
+		return setting(sf, name) + " set to " + value
+	}
+	return sf.InputName(name) + "=" + value
+}
+
+// given names input name set to value, as the reader would give it: "--out
+// ./shop-backup" on the CLI, and elsewhere the input the surface names, with
+// the value beside it.
+func given(sf plugin.Surface, name, value string) string {
+	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
+		return sf.InputName(name) + " set to " + value
+	}
+	return sf.InputName(name) + " " + value
+}
+
+// explainHint sends the reader to the page listing every input and where each
+// one can come from. That page is `rta explain`, a terminal's command with no
+// capability behind it, and what it answers here is where the connection
+// inputs come from — the operator's to set — so over MCP it is the operator
+// who is asked to read it.
+func explainHint(sf plugin.Surface, id string) string {
+	if sf == plugin.SurfaceMCP {
+		return plugin.AskOperator("explain "+id) + ", which lists every input and where each one can come from"
+	}
+	return "`rta explain " + id + "` lists every input and where each one can come from"
+}
+
+// dnsHint is the call that shows what DNS returns for host, spelled for the
+// surface that will make it.
+func dnsHint(sf plugin.Surface, host string) string {
+	return "`" + sf.Call("net.dns", plugin.Arg{Name: "name", Value: host, Positional: true}) + "` shows what DNS returns"
+}
+
+// rmCall is the removal that clears the destination a copy or a move found
+// taken, spelled for the surface that will make it. The bucket is Local on
+// s3.object.rm, so an agent's call carries the key alone and runs against
+// the bucket the operator configured — the only one an agent's copy can have
+// written to, since the destination bucket is Local too and defaults to the
+// source's.
+func rmCall(sf plugin.Surface, bucket, key string) string {
+	args := []plugin.Arg{{Name: "key", Value: key, Positional: true}}
+	if sf != plugin.SurfaceMCP {
+		args = append(args, plugin.Arg{Name: "bucket", Value: bucket})
+	}
+	return sf.Call("s3.object.rm", args...)
+}
+
+// outHint says how to have an object too large to print written to a file
+// instead. out is Local — a person's input, since a grant authorizes revealing
+// the content and not choosing where on this machine it lands — so over MCP
+// the file is the operator's to ask for, in the one phrase that hands an
+// agent a command line.
+func outHint(req plugin.Request, bucket, key string) string {
+	sf := req.Surface()
+	if sf == plugin.SurfaceMCP {
+		return "a file is the operator's to write — " + plugin.AskOperator(strings.TrimPrefix(
+			plugin.SurfaceCLI.Call("s3.object.get",
+				plugin.Arg{Name: "key", Value: key, Positional: true},
+				plugin.Arg{Name: "bucket", Value: bucket},
+				plugin.Arg{Name: "out", Value: "<file>"}), "rta "))
+	}
+	return "use " + sf.InputName("out") + " to write it to a file instead of printing it"
 }
 
 func hostOnly(endpoint string) string {

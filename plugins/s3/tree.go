@@ -57,8 +57,8 @@ func s3ObjectTreeCapability() plugin.Capability {
 		Summary:    "The shape of a bucket in one call, with objects and bytes per prefix",
 		Safety:     plugin.Read,
 		Idempotent: true,
-		Description: "`s3 object list` groups on \"/\" and answers one level at a time, so " +
-			"learning what is in somebody else's bucket means retyping --prefix a level " +
+		Description: "`s3.object.list` groups on \"/\" and answers one level at a time, so " +
+			"learning what is in somebody else's bucket means retyping `prefix` a level " +
 			"deeper over and over. This reads the prefix once and draws the whole shape.\n\n" +
 			"Every prefix carries its recursive object count and total size, which is the " +
 			"question a flat paginated listing cannot answer: where the space went.\n\n" +
@@ -129,13 +129,14 @@ func runObjectTree(ctx context.Context, req plugin.Request) (view.View, error) {
 		if prefix != "" {
 			label += "/" + strings.TrimSuffix(prefix, "/")
 		}
-		w := &treeRender{maxDepth: req.Int("depth")}
+		w := &treeRender{maxDepth: req.Int("depth"), sf: req.Surface()}
 		children := w.expand(root, 1)
 
 		detail := format.CountOf(root.objects, "object") + ", " + format.Bytes(root.bytes)
 		switch {
 		case truncated:
-			detail += " — stopped at " + format.CountOf(limit, "key") + "; narrow it with --prefix or raise --limit"
+			detail += " — stopped at " + format.CountOf(limit, "key") + "; narrow it with " +
+				req.Surface().InputName("prefix") + " or raise " + req.Surface().InputName("limit")
 		case w.stopped != "":
 			detail += " — " + w.stopped
 		}
@@ -214,6 +215,9 @@ type treeRender struct {
 	// stopped names the bound that was reached, in the words somebody needs to
 	// do something about it. Empty means the whole tree was drawn.
 	stopped string
+	// sf is the surface the request came through, so a node that stopped
+	// names the input that gets the rest the way its reader gives one.
+	sf plugin.Surface
 }
 
 func (w *treeRender) expand(n *treeNode, depth int) []view.Node {
@@ -236,7 +240,7 @@ func (w *treeRender) expand(n *treeNode, depth int) []view.Node {
 	var out []view.Node
 	for _, name := range names {
 		if w.nodes >= maxTreeNodes {
-			w.stopped = fmt.Sprintf("stopped at %d nodes; narrow it with --prefix", maxTreeNodes)
+			w.stopped = fmt.Sprintf("stopped at %d nodes; narrow it with %s", maxTreeNodes, w.sf.InputName("prefix"))
 			return append(out, view.Node{Label: "…", Detail: w.stopped})
 		}
 		w.nodes++
@@ -254,9 +258,9 @@ func (w *treeRender) expand(n *treeNode, depth int) []view.Node {
 			// Collapsed, not dropped. The count and the size are already known
 			// — they were accumulated on the way in — so a prefix past the
 			// depth still reports how much is under it. That is usually the
-			// answer somebody wanted, and when it is not, it says which flag
+			// answer somebody wanted, and when it is not, it says which input
 			// gets them the rest.
-			node.Detail += " — not expanded, raise --depth"
+			node.Detail += " — not expanded, raise " + w.sf.InputName("depth")
 		} else {
 			node.Children = w.expand(c, depth+1)
 		}
