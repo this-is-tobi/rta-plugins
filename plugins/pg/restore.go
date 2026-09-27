@@ -389,8 +389,8 @@ func classifyRestore(err error, stderr string, req plugin.Request, format dumpFo
 		strings.Contains(stderr, "password authentication failed"):
 		return view.Errorf("pg.auth.failed", "%s", msg("password")).
 			WithHint("set $" + plugin.LocalEnvVar("pg.restore", "password") +
-				" — the child runs with --no-password so it fails here instead of waiting " +
-				"at a prompt nothing can answer")
+				" — the child runs as `psql --no-password` or `pg_restore --no-password`, so it " +
+				"fails here instead of waiting at a prompt nothing can answer")
 	case strings.Contains(stderr, "permission denied"):
 		return view.Errorf("pg.denied", "%s", msg("permission denied")).
 			WithHint("recreating every object needs a role that may create every object — " +

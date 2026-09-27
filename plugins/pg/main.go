@@ -481,7 +481,7 @@ func Plugin() plugin.Plugin {
 					"hot_standby_feedback).\n\n" +
 					"**For a big database, a `format` of directory with `jobs` set to N** dumps N tables at once, " +
 					"measured at 7x on 834 MB. It stays consistent: the leader exports its snapshot " +
-					"and every worker joins it. `--no-synchronized-snapshots` is never passed, not " +
+					"and every worker joins it. `pg_dump --no-synchronized-snapshots` is never run, not " +
 					"even as a fallback — it turns a parallel dump into unrelated reads at different " +
 					"times, producing a file that restores without complaint into a state the " +
 					"database was never in. `jobs` where it cannot work is refused by name rather " +
