@@ -31,6 +31,13 @@ BINDIR := $(shell go env GOPATH)/bin
 endif
 
 # Local build output, and where `release` writes a plugin's archives.
+#
+# BINDIR and BUILDDIR may be relative to this directory or absolute. A build
+# runs from inside its module, so the output path is made absolute before it
+# gets there. Spelled from the module as ../../$(BUILDDIR), as it was, an
+# absolute BUILDDIR landed the binary in a copy of that path under this
+# directory, and docs, docs-drift and index went looking for it where it was
+# not; a relative BINDIR, spelled as given, landed it inside the module.
 BUILDDIR ?= bin
 DISTDIR  ?= dist
 
@@ -230,7 +237,7 @@ build: $(PLUGIN_LIST:%=build-%) ## Build every plugin binary into ./bin
 $(BUILD_PLUGINS): build-%: name-check
 	@mkdir -p $(BUILDDIR)
 	@$(call stamp,$*); echo "==> $(BUILDDIR)/rta-plugin-$* ($$v)"; \
-	cd plugins/$* && $(GOBUILD) -o ../../$(BUILDDIR)/rta-plugin-$* .
+	cd plugins/$* && $(GOBUILD) -o "$(abspath $(BUILDDIR))/rta-plugin-$*" .
 
 install: $(PLUGIN_LIST:%=install-%) ## Install every plugin binary beside rta
 ifeq ($(filter trust,$(MAKECMDGOALS)),)
@@ -249,7 +256,7 @@ endif
 $(INSTALL_PLUGINS): install-%: name-check
 	@mkdir -p "$(BINDIR)"
 	@$(call stamp,$*); echo "==> $(BINDIR)/rta-plugin-$* ($$v)"; \
-	cd plugins/$* && $(GOBUILD) -o "$(BINDIR)/rta-plugin-$*" .
+	cd plugins/$* && $(GOBUILD) -o "$(abspath $(BINDIR))/rta-plugin-$*" .
 
 # Only the modules in this tree, never what rta discovered on $PATH — so this
 # cannot approve an rta-plugin-* that arrived from somewhere else. Nothing
