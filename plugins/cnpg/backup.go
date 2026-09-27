@@ -605,7 +605,8 @@ func requestReceipt(created backupObject, b backupRequest, c cluster) view.View 
 	return view.KeyValue{Pairs: append(pairs,
 		view.Pair{Key: "rta did not take it", Value: "the object is a request; CloudNativePG " +
 			"performs the backup, and a Backup that was accepted can still fail"},
-		view.Pair{Key: "watch it", Value: "`rta cnpg backup list " + c.Metadata.Name + "`"},
+		view.Pair{Key: "watch it", Value: "`rta cnpg backup list --cluster " + c.Metadata.Name +
+			" --namespace " + c.Metadata.Namespace + "`"},
 	)}
 }
 

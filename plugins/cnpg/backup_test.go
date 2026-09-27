@@ -325,6 +325,22 @@ func TestNoReceiptEverClaimsRtaChoseTheDestination(t *testing.T) {
 	}
 }
 
+// The receipt's watch line is a call the listing takes: the cluster by the
+// flag backup list declares, and the namespace it was found in, since the
+// listing reads the context's own namespace otherwise and a cluster anywhere
+// else would watch an empty page. It once named the cluster as an argument,
+// which the CLI refuses with core.usage.
+func TestTheReceiptsWatchLineIsACallTheListingTakes(t *testing.T) {
+	recordingKubectl(t, mustJSON(t, aCluster("shop", "prod")))
+	v, err := runBackupRequest(context.Background(), req(map[string]any{"cluster": "shop", "namespace": "prod"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if text := renderPairs(t, v); !strings.Contains(text, "`rta cnpg backup list --cluster shop --namespace prod`") {
+		t.Errorf("the watch line is not a call backup list takes:\n%s", text)
+	}
+}
+
 // An override the CRD's enum does not admit is refused by rta, with the list
 // in hand — rather than by the API server, with a schema error naming a JSON
 // path instead of a flag.
