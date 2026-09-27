@@ -132,10 +132,10 @@ func runObjectTree(ctx context.Context, req plugin.Request) (view.View, error) {
 		w := &treeRender{maxDepth: req.Int("depth")}
 		children := w.expand(root, 1)
 
-		detail := fmt.Sprintf("%d objects, %s", root.objects, format.Bytes(root.bytes))
+		detail := format.CountOf(root.objects, "object") + ", " + format.Bytes(root.bytes)
 		switch {
 		case truncated:
-			detail += fmt.Sprintf(" — stopped at %d keys; narrow it with --prefix or raise --limit", limit)
+			detail += " — stopped at " + format.CountOf(limit, "key") + "; narrow it with --prefix or raise --limit"
 		case w.stopped != "":
 			detail += " — " + w.stopped
 		}
@@ -248,7 +248,7 @@ func (w *treeRender) expand(n *treeNode, depth int) []view.Node {
 
 		node := view.Node{
 			Label:  name + "/",
-			Detail: fmt.Sprintf("%d objects, %s", c.objects, format.Bytes(c.bytes)),
+			Detail: format.CountOf(c.objects, "object") + ", " + format.Bytes(c.bytes),
 		}
 		if depth >= w.maxDepth {
 			// Collapsed, not dropped. The count and the size are already known
