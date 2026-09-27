@@ -131,15 +131,18 @@ func classify(err error, req plugin.Request) *view.Error {
 			WithHint("check the path and the mount — a KV v2 mount is not always named \"secret\"")
 	}
 
-	var netErr *net.OpError
-	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
-		return view.Errorf("vault.conn.refused", "nothing is listening on %s", addr).
-			WithHint("is the server up, and is the address right?")
-	}
+	// The name first: a dial that could not resolve its host fails with a
+	// *net.OpError wrapping the *net.DNSError, and read the other way round
+	// every name nothing resolves was reported as a port nothing listens on.
 	var dnsErr *net.DNSError
 	if errors.As(err, &dnsErr) {
 		return view.Errorf("vault.host.unknown", "no address for %s", addr).
 			WithHint(sf.CapabilityName("net.dns") + " on the host part of " + setting(sf, "address") + " shows what DNS returns")
+	}
+	var netErr *net.OpError
+	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
+		return view.Errorf("vault.conn.refused", "nothing is listening on %s", addr).
+			WithHint("is the server up, and is the address right?")
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {

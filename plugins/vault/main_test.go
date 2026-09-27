@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -117,6 +118,21 @@ func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
 				t.Error("no message")
 			}
 		})
+	}
+}
+
+// A name DNS cannot resolve is that, and not a port nothing listens on. The
+// HTTP client wraps a failed lookup in a *net.OpError inside a *url.Error,
+// and the refused-dial check, read first, answered "nothing is listening on
+// http://nonexistent.invalid:8200" and asked whether the server was up, when
+// the name was the problem.
+func TestANameDNSCannotResolveIsNotReadAsNothingListening(t *testing.T) {
+	err := &url.Error{Op: "Get", URL: "http://vault.internal:8200/v1/sys/seal-status",
+		Err: &net.OpError{Op: "dial", Net: "tcp",
+			Err: &net.DNSError{Err: "no such host", Name: "vault.internal", IsNotFound: true}}}
+	verr := classify(err, req(t, "vault.seal.status", map[string]any{"address": "http://vault.internal:8200"}))
+	if verr.Code != "vault.host.unknown" {
+		t.Errorf("code = %s, want vault.host.unknown: %s", verr.Code, verr.Message)
 	}
 }
 
