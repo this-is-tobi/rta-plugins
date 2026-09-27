@@ -163,8 +163,8 @@ func TestTreeCollapsesPastDepthButKeepsTotals(t *testing.T) {
 	if len(b.Children) != 0 {
 		t.Errorf("b/ expanded past --depth 2: %d children", len(b.Children))
 	}
-	if !strings.Contains(b.Detail, "1 objects") {
-		t.Errorf("collapsed node lost its total: %q", b.Detail)
+	if !strings.HasPrefix(b.Detail, "1 object, ") {
+		t.Errorf("collapsed node lost its total, or counts one object as several: %q", b.Detail)
 	}
 	if !strings.Contains(b.Detail, "raise --depth") {
 		t.Errorf("collapsed node does not say how to see more: %q", b.Detail)
@@ -192,6 +192,11 @@ func TestTreeSaysWhenItStoppedReading(t *testing.T) {
 	if !strings.Contains(cut.Roots[0].Detail, "--limit") {
 		t.Errorf("bounded walk did not name the flag: %q", cut.Roots[0].Detail)
 	}
+
+	one := treeOf(t, srv, map[string]any{"limit": 1})
+	if !strings.Contains(one.Roots[0].Detail, "stopped at 1 key;") {
+		t.Errorf("a walk stopped after one key did not say so in the singular: %q", one.Roots[0].Detail)
+	}
 }
 
 // A folder created from a console leaves a zero-byte marker object. It has to
@@ -203,8 +208,8 @@ func TestTreeShowsDirectoryMarkersWithoutCountingThem(t *testing.T) {
 	root := tree.Roots[0]
 
 	find(t, root.Children, "empty/")
-	if !strings.Contains(root.Detail, "1 objects") {
-		t.Errorf("root detail = %q — the marker was counted as an object", root.Detail)
+	if !strings.HasPrefix(root.Detail, "1 object, ") {
+		t.Errorf("root detail = %q, want \"1 object, \" — the marker counted as an object, or one read as several", root.Detail)
 	}
 }
 
