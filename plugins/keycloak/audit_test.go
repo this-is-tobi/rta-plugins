@@ -355,6 +355,26 @@ func TestCoverageNamesWhoIsWithout(t *testing.T) {
 	}
 }
 
+// A realm with one enabled user counts it as one: the row read "1 of 1
+// enabled users have", the plural a count of one never takes.
+func TestCoverageOfOneUserCountsItInTheSingular(t *testing.T) {
+	for _, tc := range []struct {
+		with    int
+		without []string
+		want    string
+	}{
+		{1, nil, "1 of 1 enabled user has a second factor"},
+		{0, []string{"alice"}, "0 of 1 enabled user has a second factor"},
+	} {
+		if _, detail := gradeCoverage(1, tc.with, tc.without); !strings.HasPrefix(detail, tc.want) {
+			t.Errorf("coverage = %q, want it to begin %q", detail, tc.want)
+		}
+	}
+	if _, detail := gradeCoverage(3, 2, []string{"alice"}); !strings.HasPrefix(detail, "2 of 3 enabled users have") {
+		t.Errorf("coverage = %q, want the plural kept for three", detail)
+	}
+}
+
 func TestSpanReadsInTheUnitAPersonUses(t *testing.T) {
 	for n, want := range map[int]string{0: "0s", 90: "1m30s", 300: "5m", 36000: "10h", 2592000: "30d", 5184000: "60d"} {
 		if got := span(n); got != want {
@@ -450,7 +470,7 @@ func TestUsersWhoseCredentialsCannotBeReadLeaveTheCoverageCount(t *testing.T) {
 
 	// The fixture realm has 3 enabled users: one holds an OTP, and alice
 	// and bob do not — their WebAuthn answer is what the denial hides.
-	expect(t, got, "coverage", findings.OK, "1 of 1 enabled users")
+	expect(t, got, "coverage", findings.OK, "1 of 1 enabled user has")
 	g, ok := got["coverage-unread"]
 	if !ok {
 		t.Fatal("two users whose credentials could not be read were counted as having no second factor")
