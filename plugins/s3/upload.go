@@ -178,6 +178,7 @@ func planUpload(root string, limit int) ([]upload, int64, *view.Error) {
 	var plan []upload
 	var total int64
 	var unsafe []string
+	refused := 0
 	walkErr := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -186,6 +187,7 @@ func planUpload(root string, limit int) ([]upload, int64, *view.Error) {
 			return nil
 		}
 		if !d.Type().IsRegular() {
+			refused++
 			if len(unsafe) < unsafeShown {
 				kind := "not a regular file"
 				if d.Type()&fs.ModeSymlink != 0 {
@@ -219,11 +221,11 @@ func planUpload(root string, limit int) ([]upload, int64, *view.Error) {
 	case walkErr != nil:
 		return nil, 0, view.Errorf("s3.upload.walk", "reading %s: %v", root, walkErr)
 	}
-	if len(unsafe) > 0 {
+	if refused > 0 {
 		return nil, 0, view.Errorf("s3.upload.notregular",
-			"%s under %s %s: %s", format.CountOf(len(unsafe), "entry"), root,
-			format.Plural(len(unsafe), "is not a regular file", "are not regular files"),
-			strings.Join(unsafe, ", ")).
+			"%s under %s %s: %s", format.CountOf(refused, "entry"), root,
+			format.Plural(refused, "is not a regular file", "are not regular files"),
+			refusedList(unsafe, refused)).
 			WithHint("a symlink would upload whatever it points at — a credential included — so " +
 				"it refuses the upload rather than being followed or skipped quietly. Nothing " +
 				"has been sent; remove or replace the entries and run it again")
