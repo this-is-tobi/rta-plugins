@@ -266,7 +266,7 @@ func dumpRows(ctx context.Context, q querier, req plugin.Request, rel relation) 
 	switch {
 	case errors.Is(err, ErrTooManyRows):
 		return nil, view.Errorf("pg.dump.toomany",
-			"%s has more than %d rows", rel.qualified(), limit).
+			"%s has more than %s", rel.qualified(), format.CountOf(limit, "row")).
 			WithHint("raise --limit, or narrow the dump with --columns — refused rather " +
 				"than shortened, because a truncated dump is a different answer wearing " +
 				"the right shape. `psql \\copy` is the tool for a whole table")
