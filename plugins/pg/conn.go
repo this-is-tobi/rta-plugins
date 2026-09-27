@@ -184,7 +184,7 @@ func classify(err error, req plugin.Request) *view.Error {
 		return already
 	}
 
-	where := fmt.Sprintf("%s:%d", req.String("host"), req.Int("port"))
+	where, sf := fmt.Sprintf("%s:%d", req.String("host"), req.Int("port")), req.Surface()
 
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
@@ -198,7 +198,7 @@ func classify(err error, req plugin.Request) *view.Error {
 		case "3D000": // invalid_catalog_name
 			return view.Errorf("pg.database.missing", "%s has no database named %q",
 				where, req.String("database")).
-				WithHint("`rta pg database list` shows what is there")
+				WithHint(sf.CapabilityName("pg.database.list") + " shows what is there")
 		case "42501": // insufficient_privilege
 			return view.Errorf("pg.denied", "%q may not do that on %s",
 				req.String("user"), req.String("database")).
@@ -223,13 +223,14 @@ func classify(err error, req plugin.Request) *view.Error {
 				"disconnect, so `sslmode: disable` is what survives; that hop is already " +
 				"inside the API server's TLS")
 		}
-		return refused.WithHint("is the server up, and is the port right? `rta net port " +
-			req.String("host") + " --ports " + fmt.Sprint(req.Int("port")) + "` answers the second")
+		return refused.WithHint("is the server up, and is the port right? `" + sf.Call("net.port",
+			plugin.Arg{Name: "host", Value: req.String("host"), Positional: true},
+			plugin.Arg{Name: "ports", Value: req.Int("port")}) + "` answers the second")
 	}
 	var dnsErr *net.DNSError
 	if errors.As(err, &dnsErr) {
 		return view.Errorf("pg.host.unknown", "no address for %q", req.String("host")).
-			WithHint("`rta net dns " + req.String("host") + "` shows what DNS returns")
+			WithHint(dnsHint(sf, req.String("host")))
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		return view.Errorf("pg.conn.timeout", "%s did not answer in time", where).
@@ -238,17 +239,85 @@ func classify(err error, req plugin.Request) *view.Error {
 	if strings.Contains(err.Error(), "SSL is not enabled") ||
 		strings.Contains(err.Error(), "server does not support SSL") {
 		return view.Errorf("pg.tls.unsupported", "%s does not offer TLS", where).
-			WithHint("--sslmode disable if that is expected on this network")
+			WithHint(settingTo(sf, "sslmode", "disable") + " if that is expected on this network")
 	}
 	var certErr x509.UnknownAuthorityError
 	if errors.As(err, &certErr) {
 		return view.Errorf("pg.tls.untrusted", "%s presented a certificate nothing here trusts", where).
 			WithHint("a tunnelled PostgreSQL commonly has its own operator- or cluster-generated CA; " +
-				"pass it with sslrootcert — and check --sslmode is require or stricter, since prefer " +
-				"never verifies it")
+				"pass it with sslrootcert — and check " + setting(sf, "sslmode") + " is require or " +
+				"stricter, since prefer never verifies it")
 	}
 	return view.Errorf("pg.conn.failed", "could not connect to %s: %v", where, err).
-		WithHint("`rta explain pg.status` lists every input and where each one can come from")
+		WithHint(explainHint(sf, "pg.status"))
+}
+
+// setting names connection input name in a message the way its reader
+// changes it: the flag on the CLI, the box in a TUI form. Not the argument
+// over MCP, as plugin.Surface.InputName would: every connection input is
+// Local, so the tool's schema hides it and the bridge drops one given, and an
+// agent told to check the "sslmode" argument would pass one that is thrown
+// away and read the same refusal again. It is named there as the declaration
+// names it, `sslmode` — a setting of the operator's, which the agent can
+// report and cannot change.
+func setting(sf plugin.Surface, name string) string {
+	if sf == plugin.SurfaceMCP {
+		return "`" + name + "`"
+	}
+	return sf.InputName(name)
+}
+
+// settingTo is setting with the value to give it: "--sslmode disable" on the
+// CLI, as a command line takes it, and elsewhere the setting with the value
+// beside it.
+func settingTo(sf plugin.Surface, name, value string) string {
+	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
+		return setting(sf, name) + " set to " + value
+	}
+	return sf.InputName(name) + " " + value
+}
+
+// given names input name set to value, as the reader would give it: "--out
+// ./app.sql" on the CLI, and elsewhere the input the surface names, with the
+// value beside it. For an input a caller on every surface may give; a
+// connection input is settingTo's.
+func given(sf plugin.Surface, name, value string) string {
+	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
+		return sf.InputName(name) + " set to " + value
+	}
+	return sf.InputName(name) + " " + value
+}
+
+// givenAll names several inputs given together, the way the reader gives
+// them: one command line's worth of flags on the CLI, `--format directory
+// --jobs 4`, and elsewhere each input with its value.
+func givenAll(sf plugin.Surface, pairs ...[2]string) string {
+	spelled := make([]string, len(pairs))
+	for i, p := range pairs {
+		spelled[i] = given(sf, p[0], p[1])
+	}
+	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
+		return strings.Join(spelled, " and ")
+	}
+	return "`" + strings.Join(spelled, " ") + "`"
+}
+
+// explainHint sends the reader to the page listing every input and where each
+// one can come from. That page is `rta explain`, a terminal's command with no
+// capability behind it, and what it answers here is where the connection
+// inputs come from — the operator's to set — so over MCP it is the operator
+// who is asked to read it.
+func explainHint(sf plugin.Surface, id string) string {
+	if sf == plugin.SurfaceMCP {
+		return plugin.AskOperator("explain "+id) + ", which lists every input and where each one can come from"
+	}
+	return "`rta explain " + id + "` lists every input and where each one can come from"
+}
+
+// dnsHint is the call that shows what DNS returns for host, spelled for the
+// surface that will make it.
+func dnsHint(sf plugin.Surface, host string) string {
+	return "`" + sf.Call("net.dns", plugin.Arg{Name: "name", Value: host, Positional: true}) + "` shows what DNS returns"
 }
 
 // loopback reports whether a host names this machine.

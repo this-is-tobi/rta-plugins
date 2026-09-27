@@ -226,10 +226,10 @@ func TestParallelReachesBothTheDumpAndTheRestore(t *testing.T) {
 		t.Errorf("argv has no --jobs: %s", got)
 	}
 	restore := restoreCommand(r, "/backups/app")
-	if !strings.HasPrefix(restore, "rta pg restore ") || !strings.Contains(restore, "--jobs=6") {
+	if !strings.HasPrefix(restore, "rta pg restore ") || !strings.Contains(restore, "--jobs 6") {
 		t.Errorf("restore = %q, want a parallel rta pg restore", restore)
 	}
-	// And the serial case says nothing about jobs rather than saying --jobs=1.
+	// And the serial case says nothing about jobs rather than saying --jobs 1.
 	serial := restoreCommand(reqFor(t, "pg.dump", map[string]any{
 		"format": "directory", "jobs": 1, "database": "app",
 	}), "/backups/app")
@@ -289,7 +289,7 @@ func TestTheRestoreCommandNamesTheOtherHalf(t *testing.T) {
 	if !strings.HasPrefix(got, "rta pg restore /backups/app.dump") {
 		t.Errorf("restore = %q, want it to lead with the capability and the path", got)
 	}
-	for _, want := range []string{"--host=db.internal", "--port=5432", "--database=app"} {
+	for _, want := range []string{"--host db.internal", "--port 5432", "--database app"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("restore = %q, missing %q", got, want)
 		}

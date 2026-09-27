@@ -125,8 +125,8 @@ func TestTheFullDumpRefusesMCP(t *testing.T) {
 	}
 	// The refusal names the way through, or it is a dead end that teaches an
 	// agent nothing except to try again.
-	if !strings.Contains(verr.Hint, "pg.table.dump") {
-		t.Errorf("hint = %q, want it to name the capability that does take a grant", verr.Hint)
+	if !strings.Contains(verr.Hint, "the `pg_table_dump` tool") {
+		t.Errorf("hint = %q, want it to name the capability that does take a grant, as the agent calls it", verr.Hint)
 	}
 }
 

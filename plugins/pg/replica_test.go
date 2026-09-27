@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/this-is-tobi/rta/pkg/plugin"
 )
 
 // Consistency, and what happens when the target is a replica.
@@ -190,14 +192,14 @@ func TestTheReceiptStatesWhichConsistencyGuaranteeItHad(t *testing.T) {
 // A dump from a replica is as current as the replay lag, and the receipt is
 // where somebody is looking when that matters.
 func TestTheReceiptSaysWhenTheSourceWasAReplica(t *testing.T) {
-	standby := source{role: "standby", version: 170011}.describe()
+	standby := source{role: "standby", version: 170011}.describe(plugin.SurfaceCLI)
 	if !strings.Contains(standby, "standby") || !strings.Contains(standby, "17.11") {
 		t.Errorf("standby = %q", standby)
 	}
 	if !strings.Contains(standby, "replay lag") {
 		t.Errorf("standby = %q, want it to say what a replica dump is current as of", standby)
 	}
-	primary := source{role: "primary", version: 170011}.describe()
+	primary := source{role: "primary", version: 170011}.describe(plugin.SurfaceCLI)
 	if strings.Contains(primary, "replay lag") {
 		t.Errorf("primary = %q, want no replica caveat on a primary", primary)
 	}

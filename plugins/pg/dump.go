@@ -138,9 +138,9 @@ func resolveRelation(ctx context.Context, q querier, req plugin.Request) (relati
 			return relation{}, view.Refusef("pg.table.unqualified",
 				"name the table as schema.table, not %q", raw).
 				WithHint("a grant for this name will not help — grants are matched exactly, so " +
-					"an unqualified one would follow whichever schema resolves first. Issue it " +
-					"as `rta grant allow pg.table.dump <schema>." + raw + "`; " +
-					"`rta pg table list` shows the schema of each table")
+					"an unqualified one would follow whichever schema resolves first. For the " +
+					"qualified name, " + plugin.AskOperator("grant allow pg.table.dump <schema>."+raw) + "; " +
+					req.Surface().CapabilityName("pg.table.list") + " shows the schema of each table")
 		}
 		schema, name = "", raw
 	}
@@ -175,7 +175,7 @@ func resolveRelation(ctx context.Context, q querier, req plugin.Request) (relati
 	case 0:
 		return relation{}, view.Errorf("pg.table.missing",
 			"%s has no table named %q", req.String("database"), raw).
-			WithHint("`rta pg table list` shows what is there — foreign tables and the " +
+			WithHint(req.Surface().CapabilityName("pg.table.list") + " shows what is there — foreign tables and the " +
 				"system catalogues are deliberately not dumpable, since neither has rows " +
 				"this database owns")
 	default:
@@ -267,14 +267,16 @@ func dumpRows(ctx context.Context, q querier, req plugin.Request, rel relation) 
 	case errors.Is(err, ErrTooManyRows):
 		return nil, view.Errorf("pg.dump.toomany",
 			"%s has more than %s", rel.qualified(), format.CountOf(limit, "row")).
-			WithHint("raise --limit, or narrow the dump with --columns — refused rather " +
+			WithHint("raise " + req.Surface().InputName("limit") + ", or narrow the dump with " +
+				req.Surface().InputName("columns") + " — refused rather " +
 				"than shortened, because a truncated dump is a different answer wearing " +
 				"the right shape. `psql \\copy` is the tool for a whole table")
 	case errors.Is(err, ErrTooLarge):
 		return nil, view.Errorf("pg.dump.toolarge",
 			"the rows of %s are over the %s a result may be",
 			rel.qualified(), format.Bytes(maxBytes)).
-			WithHint("lower --limit, or name the columns you need with --columns — " +
+			WithHint("lower " + req.Surface().InputName("limit") + ", or name the columns you need with " +
+				req.Surface().InputName("columns") + " — " +
 				"one wide column is usually what does this")
 	case err != nil:
 		return nil, classify(err, req)
