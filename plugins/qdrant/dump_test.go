@@ -195,8 +195,13 @@ func TestDumpCreatesDownloadsAndDeletes(t *testing.T) {
 		t.Errorf("calls = %v, want %v", *calls, want)
 	}
 
-	if restore := pairValue(t, v, "restore with"); !strings.Contains(restore, "rta qdrant restore docs") {
-		t.Errorf("the receipt does not name the restore command: %q", restore)
+	// A call qdrant.restore takes: the snapshot by its place, the collection
+	// and the endpoint as flags. It once gave the collection by place too,
+	// which the CLI refuses as an unexpected argument.
+	endpoint := strings.TrimPrefix(srv.URL, "http://")
+	if restore := pairValue(t, v, "restore with"); restore != "rta qdrant restore "+path+
+		" --collection docs --endpoint "+endpoint {
+		t.Errorf("the receipt does not name a restore the CLI takes: %q", restore)
 	}
 	if at := pairValue(t, v, "at rest"); !strings.Contains(at, "unencrypted") {
 		t.Errorf("the receipt does not say the file is unencrypted: %q", at)

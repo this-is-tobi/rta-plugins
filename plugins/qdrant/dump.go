@@ -174,8 +174,7 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 		{Key: "does not carry", Value: "the aliases pointing at this collection — a restore " +
 			"brings the collection back under its own name, and anything querying it by an " +
 			"alias still finds nothing until the alias is recreated"},
-		{Key: "restore with", Value: fmt.Sprintf("rta qdrant restore %s %s --endpoint=%s",
-			collection, path, req.String("endpoint"))},
+		{Key: "restore with", Value: restoreCommand(req, collection, path)},
 	}
 	if verr := deleteSnapshot(ctx, req, collection, snap.Name); verr != nil {
 		// Reported rather than failed: the dump is safely local, and the
@@ -185,6 +184,19 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 				"snapshot storage until removed", snap.Name, verr.Message)})
 	}
 	return view.KeyValue{Pairs: pairs}, nil
+}
+
+// restoreCommand names the other half: qdrant.restore given this snapshot, the
+// collection it came from and the instance it was taken on, spelled by the
+// request's surface. The snapshot is restore's one argument by place, and the
+// collection a flag like the endpoint — the line once gave both by place,
+// `rta qdrant restore docs <file>`, which the CLI refuses as an unexpected
+// argument, on the receipt of the backup it was meant to bring back.
+func restoreCommand(req plugin.Request, collection, path string) string {
+	return req.Surface().Call("qdrant.restore",
+		plugin.Arg{Name: "file", Value: path, Positional: true},
+		plugin.Arg{Name: "collection", Value: collection},
+		plugin.Arg{Name: "endpoint", Value: req.String("endpoint")})
 }
 
 // snapshotInfo is what the server says about a snapshot it just made.
