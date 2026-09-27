@@ -5,6 +5,7 @@ import (
 
 	clientv3 "go.etcd.io/etcd/client/v3"
 
+	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
@@ -91,13 +92,21 @@ func TestALeaseIDReadsTheWayEtcdctlPrintsIt(t *testing.T) {
 	t.Fatal("no lease pair")
 }
 
-// The row that stands in for the leases past --limit counts them, and one
+// The row that stands in for the leases past the limit counts them, and one
 // left out is one lease, not "1 more leases".
 func TestOneLeaseLeftOutIsCountedInTheSingular(t *testing.T) {
-	if got := leasesLeftOut(1)[3]; got != "1 more lease; raise --limit" {
+	if got := leasesLeftOut(plugin.SurfaceCLI, 1)[3]; got != "1 more lease; raise --limit" {
 		t.Errorf("marker = %q, want the one lease counted in the singular", got)
 	}
-	if got := leasesLeftOut(3)[3]; got != "3 more leases; raise --limit" {
+	if got := leasesLeftOut(plugin.SurfaceCLI, 3)[3]; got != "3 more leases; raise --limit" {
 		t.Errorf("marker = %q, want 3 more leases", got)
+	}
+}
+
+// And it names the limit the way its reader raises one: an agent has an
+// argument, not a flag.
+func TestTheLeasesLeftOutNameTheLimitAsTheirSurfaceGivesIt(t *testing.T) {
+	if got := leasesLeftOut(plugin.SurfaceMCP, 3)[3]; got != `3 more leases; raise the "limit" argument` {
+		t.Errorf("marker = %q, want the limit named as an argument", got)
 	}
 }

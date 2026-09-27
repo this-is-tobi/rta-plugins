@@ -31,8 +31,8 @@ func TestTheSnapshotRefusesMCP(t *testing.T) {
 	if !errors.As(err, &verr) || verr.Code != "etcd.human" || !verr.Refusal {
 		t.Fatalf("err = %v, want etcd.human marked a refusal", err)
 	}
-	if !strings.Contains(verr.Hint, "etcd.kv.get") {
-		t.Errorf("hint = %q, want it to name the bounded alternative", verr.Hint)
+	if !strings.Contains(verr.Hint, "the `etcd_kv_get` tool") {
+		t.Errorf("hint = %q, want it to name the bounded alternative as the agent calls it", verr.Hint)
 	}
 }
 
@@ -305,7 +305,7 @@ func TestNothingHereClaimsToRestore(t *testing.T) {
 	}
 	// The absence has to be explained where somebody reads about the backup,
 	// which is `rta explain etcd.snapshot` and nowhere else.
-	for _, want := range []string{"etcdutl", "no `rta etcd restore`"} {
+	for _, want := range []string{"etcdutl", "no etcd.restore"} {
 		if !strings.Contains(snap.Description, want) {
 			t.Errorf("etcd.snapshot's description never mentions %q, so the missing half is "+
 				"unexplained where it is looked for", want)

@@ -193,13 +193,14 @@ func kvTreeView(ctx context.Context, c *clientv3.Client, req plugin.Request) (vi
 	if label == "" {
 		label = "/"
 	}
-	w := &treeRender{maxDepth: req.Int("depth")}
+	w := &treeRender{maxDepth: req.Int("depth"), sf: req.Surface()}
 	children := w.expand(root, 1)
 
 	detail := format.CountOf(root.keys, "key")
 	switch {
 	case truncated:
-		detail += fmt.Sprintf(" — stopped at %d; narrow it with --prefix or raise --limit", limit)
+		detail += fmt.Sprintf(" — stopped at %d; narrow it with %s or raise %s", limit,
+			req.Surface().InputName("prefix"), req.Surface().InputName("limit"))
 	case w.stopped != "":
 		detail += " — " + w.stopped
 	}
@@ -252,6 +253,7 @@ type treeRender struct {
 	maxDepth int
 	nodes    int
 	stopped  string
+	sf       plugin.Surface
 }
 
 func (w *treeRender) expand(n *treeNode, depth int) []view.Node {
@@ -273,7 +275,7 @@ func (w *treeRender) expand(n *treeNode, depth int) []view.Node {
 	var out []view.Node
 	for _, name := range names {
 		if w.nodes >= maxTreeNodes {
-			w.stopped = fmt.Sprintf("stopped at %d nodes; narrow it with --prefix", maxTreeNodes)
+			w.stopped = fmt.Sprintf("stopped at %d nodes; narrow it with %s", maxTreeNodes, w.sf.InputName("prefix"))
 			return append(out, view.Node{Label: "…", Detail: w.stopped})
 		}
 		w.nodes++
@@ -286,9 +288,9 @@ func (w *treeRender) expand(n *treeNode, depth int) []view.Node {
 		if depth >= w.maxDepth {
 			// Collapsed, not dropped. The count was accumulated on the way in,
 			// so a level past the depth still reports how much is under it —
-			// usually the answer somebody wanted — and says which flag gets
+			// usually the answer somebody wanted — and says which input gets
 			// them the rest.
-			node.Detail += " — not expanded, raise --depth"
+			node.Detail += " — not expanded, raise " + w.sf.InputName("depth")
 		} else {
 			node.Children = w.expand(c, depth+1)
 		}
@@ -330,7 +332,7 @@ func kvGetCapability() plugin.Capability {
 			"encryption at rest was turned on — so reading an arbitrary key here can be reading " +
 			"every secret in the cluster.\n\n" +
 			"It also needs a grant naming it. That is available because this names one key: " +
-			"`rta grant allow etcd.kv.get /registry/services/endpoints/default/api` is a consent " +
+			"`grant.allow` for `etcd.kv.get` and `/registry/services/endpoints/default/api` is a consent " +
 			"somebody can actually read, which a whole-namespace grant would not be.\n\n" +
 			"The read tier — etcd.kv.list and etcd.kv.tree — shows names and sizes, which is " +
 			"usually the question and costs none of this.",
@@ -351,7 +353,8 @@ func kvGetView(ctx context.Context, c *clientv3.Client, req plugin.Request) (vie
 	}
 	if len(resp.Kvs) == 0 {
 		return nil, view.Errorf("etcd.key.notfound", "no key %q", key).
-			WithHint("`rta etcd kv list " + key + "` shows what is there — this is an exact match, not a prefix")
+			WithHint("`" + req.Surface().Call("etcd.kv.list", plugin.Arg{Name: "prefix", Value: key, Positional: true}) +
+				"` shows what is there — this is an exact match, not a prefix")
 	}
 	kv := resp.Kvs[0]
 	return kvGetResult(string(kv.Key), kv.Value, kv.Version, kv.CreateRevision, kv.ModRevision, kv.Lease), nil
