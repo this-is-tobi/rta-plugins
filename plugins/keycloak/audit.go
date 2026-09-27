@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/this-is-tobi/rta/pkg/findings"
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -256,7 +257,8 @@ func (s *session) auditSecondFactor(ctx context.Context, r *findings.Report, rea
 	}
 	if len(users) >= max {
 		r.Add(grpMFA, "coverage-bound", findings.Info,
-			fmt.Sprintf("only the first %d users were examined — raise --max to cover the realm", max),
+			fmt.Sprintf("only the first %s %s examined — raise --max to cover the realm",
+				findings.Plural(max, "user"), format.Plural(max, "was", "were")),
 			findings.Reference{})
 	}
 }
@@ -371,7 +373,7 @@ func auditBruteForce(r *findings.Report, realm realmRep) {
 			"off (Keycloak's default) — an attacker may guess passwords without limit", refBruteForce)
 		return
 	}
-	detail := fmt.Sprintf("on — locks after %d failures", realm.FailureFactor)
+	detail := "on — locks after " + findings.Plural(realm.FailureFactor, "failure")
 	if realm.PermanentLockout {
 		detail += ", permanently until an administrator unlocks the account"
 	} else {
@@ -641,7 +643,7 @@ func auditTokens(r *findings.Report, realm realmRep) {
 	}
 	if realm.RevokeRefreshToken {
 		r.Add(grpTokens, "refresh-rotation", findings.OK,
-			fmt.Sprintf("refresh tokens rotate — a used one is revoked (reuse allowed %d times)", realm.RefreshTokenMaxReuse), refRefresh)
+			"refresh tokens rotate — a used one is revoked (reuse allowed "+findings.Plural(realm.RefreshTokenMaxReuse, "time")+")", refRefresh)
 	} else {
 		r.Add(grpTokens, "refresh-rotation", findings.Warn,
 			"refresh tokens do not rotate (Keycloak's default) — a stolen one keeps working beside the real one", refRefresh)
