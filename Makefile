@@ -294,11 +294,16 @@ cross: name-check ## Compile every plugin for every release target and discard t
 # never reach a command line unchecked: `ls -1` is executed by the shell and
 # its *output* is the names, which no later expansion touches. A prerequisite
 # of every target that splices the list, so make stops before expanding.
+#
+# The refusal goes to stderr. This is a prerequisite of `list`, whose output
+# CI reads as the module names, one per line, and a refusal on stdout was
+# read as more of them: "entry", "is", "not" and the rest, each handed on
+# as a module to scan.
 name-check:
 	@bad=$$(ls -1 plugins 2>/dev/null | grep -vE '^[a-z0-9][a-z0-9-]*$$' || true); \
 	if [ -n "$$bad" ]; then \
-		echo "plugins/ entry is not a plugin namespace:"; echo "$$bad" | sed 's/^/  /'; \
-		echo "lowercase letters, digits and dashes"; exit 1; \
+		{ echo "plugins/ entry is not a plugin namespace:"; echo "$$bad" | sed 's/^/  /'; \
+		echo "lowercase letters, digits and dashes"; } >&2; exit 1; \
 	fi
 
 # Any replace at all, not only an absolute one: every go.mod here pins a
