@@ -53,8 +53,8 @@ jobs:
   # binary, so it is that module's code: counted as prose, a hand edit to
   # one merged with docs-drift never run. The root README.md states each
   # plugin's capability count and docs-check holds it to the source, so it
-  # is prose to every module and has a group of its own that sends it to the
-  # guards alone.
+  # is prose to every module, and read by the guards, which every pull
+  # request runs.
   #
   # Code under plugins/<name>/ touches that module; code anywhere else — the
   # Makefile, .rta-version, .golangci.yml, index/, .github/ — is shared, and
@@ -70,7 +70,6 @@ jobs:
       PROSE_PATTERNS: >-
         ["README.md", "AGENTS.md", "CLAUDE.md", "SECURITY.md", "plugins/*/CHANGELOG.md",
         "LICENSE", "NOTICE", ".release-please-manifest.json"]
-      GROUPS: '{"readme": ["README.md"]}'
       MODULE_ROOT: plugins/
 
   # Which modules the gates below check: the ones a pull request's code
@@ -82,13 +81,14 @@ jobs:
   # The classifier's names come from paths whoever opened the pull request
   # chose, so no gate takes them from it. This job answers with names
   # `make list` read off the tree, every one past name-check's
-  # lowercase-letters-digits-and-dashes rule, joined by spaces. Empty means
-  # no module is in scope: a pull request that changes only the root README,
-  # which the guards read and no module does.
+  # lowercase-letters-digits-and-dashes rule, joined by spaces. Code touches
+  # a module or a shared file, so the list is never empty when this runs;
+  # the gates below still skip on an empty one rather than hand make a
+  # PLUGINS it refuses.
   scope:
     name: Choose the modules to check
     needs: changes
-    if: ${{ needs.changes.outputs.code == 'true' || fromJSON(needs.changes.outputs.groups).readme }}
+    if: ${{ needs.changes.outputs.code == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -127,6 +127,7 @@ jobs:
   check:
     name: Check the modules in scope
     needs: scope
+    if: ${{ needs.scope.outputs.plugins != '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -153,7 +154,6 @@ jobs:
     # the rta that renders a README decides what the README says. The pin is
     # .rta-version, which bump-rta moves with the modules.
     - name: Install rta
-      if: ${{ needs.scope.outputs.plugins != '' }}
       run: go install "github.com/this-is-tobi/rta/cmd/rta@$(cat .rta-version)"
 
     - name: Guards over every module, then build, vet, test and format-check the modules in scope
@@ -161,10 +161,6 @@ jobs:
         SCOPE: ${{ needs.scope.outputs.plugins }}
       run: |-
         make fmt-check name-check replace-check docs-check
-        if [ -z "$SCOPE" ]; then
-          echo "No module is in scope: the guards above are what this pull request can affect."
-          exit 0
-        fi
         make -k check PLUGINS="$SCOPE" && make docs-drift PLUGINS="$SCOPE"
 
     # Once, not per operating system: the linters read source, and no plugin
@@ -173,10 +169,49 @@ jobs:
     # separate job pays a runner, a checkout and a cache restore to run one
     # command against the tree already sitting here.
     - name: Lint the modules in scope
-      if: ${{ matrix.os == 'ubuntu-latest' && needs.scope.outputs.plugins != '' }}
+      if: ${{ matrix.os == 'ubuntu-latest' }}
       env:
         SCOPE: ${{ needs.scope.outputs.plugins }}
       run: make lint PLUGINS="$SCOPE"
+
+  # The guards, for every pull request `check` skips.
+  #
+  # fmt-check, name-check, replace-check and docs-check read the tree rather
+  # than build it, and `check` runs them before anything else. A pull request
+  # changing only prose skipped them with it, and prose is not always beyond
+  # them: name-check reads every entry under plugins/, so a pull request
+  # adding nothing there but a CHANGELOG.md, which is prose, merged an entry
+  # name-check refuses, and the next code change went red on a directory it
+  # never touched. The root README, which docs-check holds to every plugin's
+  # source, needed a group of its own to reach them, and every other file a
+  # guard comes to read would have needed one too.
+  #
+  # So they run here whenever `check` does not: once, on one runner, with
+  # nothing to build.
+  guards:
+    name: Check the tree
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'false' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - name: Checks-out repository
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    # fmt-check's verdict is gofmt's, which comes with the toolchain, so the
+    # modules' own Go rather than whatever the runner carries. No cache:
+    # nothing here compiles.
+    - name: Setup Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version-file: plugins/pg/go.mod
+        cache: false
+
+    - name: Guards over every module
+      run: make fmt-check name-check replace-check docs-check
 
   # Every target a release ships, compiled to /dev/null: what this checks is
   # that the build constraints resolve on every platform, not that the binary
@@ -309,6 +344,7 @@ jobs:
     - changes
     - scope
     - check
+    - guards
     - cross
     - scan-secrets
     - scan-deps
