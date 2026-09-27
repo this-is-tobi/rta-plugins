@@ -153,7 +153,7 @@ func (w *treeWalk) expand(parent string, names []string, depth int) []view.Node 
 	var out []view.Node
 	for _, name := range names {
 		if w.nodes >= maxTreeNodes {
-			w.stopped = fmt.Sprintf("stopped at %d paths; narrow it with --path", maxTreeNodes)
+			w.stopped = fmt.Sprintf("stopped at %d paths; narrow it with %s", maxTreeNodes, w.req.Surface().ArgumentName("path"))
 			return append(out, view.Node{Label: "…", Detail: w.stopped})
 		}
 		w.nodes++
@@ -174,7 +174,8 @@ func (w *treeWalk) expand(parent string, names []string, depth int) []view.Node 
 		case depth <= 0:
 			node.Detail = "not expanded — raise --depth"
 		case w.requests >= maxTreeRequests:
-			w.stopped = fmt.Sprintf("stopped after %d listings; narrow it with --path", maxTreeRequests)
+			w.stopped = fmt.Sprintf("stopped after %d listings; narrow it with %s", maxTreeRequests,
+				w.req.Surface().ArgumentName("path"))
 			node.Detail = "not expanded — " + w.stopped
 		default:
 			children, err := w.list(folder)
