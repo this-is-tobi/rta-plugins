@@ -94,6 +94,20 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			},
 		},
 		{
+			name:    "nothing to upload",
+			cli:     "give <value>, or --file to upload from disk",
+			other:   `give the "value" argument`,
+			surface: plugin.SurfaceMCP,
+			say:     noValueHint,
+		},
+		{
+			name:    "nothing to upload, in a form",
+			cli:     "give <value>, or --file to upload from disk",
+			other:   "give the value box, or the file box to upload from disk",
+			surface: plugin.SurfaceTUI,
+			say:     noValueHint,
+		},
+		{
 			name:    "a directory that is not there",
 			cli:     "`rta s3 bucket download --out <dir>` writes one",
 			other:   "`s3.bucket.download out=<dir>` writes one",

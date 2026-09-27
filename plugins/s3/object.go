@@ -251,7 +251,7 @@ func s3ObjectSetCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID: "s3.object.set", Summary: "Upload (or overwrite) an object", Safety: plugin.Write, Idempotent: true,
 		NeedsGrant: true, Scope: "key",
-		Description: "The content comes from the argument or from --file; PutObject handles " +
+		Description: "The content is the value given, or a file's; PutObject handles " +
 			"large files with multipart upload internally, so there is no separate multipart " +
 			"capability to reach for.",
 		Run: runObjectSet,
@@ -259,9 +259,19 @@ func s3ObjectSetCapability() plugin.Capability {
 		plugin.Field{Name: "value", Type: plugin.Text, Positional: true, Help: "content to upload"},
 		plugin.Field{Name: "file", Type: plugin.Path, Local: true, Help: "upload this file's content instead"},
 		plugin.Field{Name: "content-type", Type: plugin.String, Suggest: suggestContentTypes,
-			Help: "MIME type; guessed from --file's extension if omitted"},
+			Help: "MIME type; guessed from the file's extension if omitted"},
 		plugin.Field{Name: "storage-class", Type: plugin.String, Config: "storage-class", Suggest: suggestStorageClasses,
 			Help: "e.g. STANDARD, STANDARD_IA, GLACIER — left to the server's default if omitted"})
+}
+
+// noValueHint names where s3.object.set takes its content from. file is
+// Local, so over MCP it is no input at all: an agent is pointed at the value
+// alone rather than at an argument its tool does not have.
+func noValueHint(sf plugin.Surface) string {
+	if sf == plugin.SurfaceMCP {
+		return "give " + sf.ArgumentName("value")
+	}
+	return "give " + sf.ArgumentName("value") + ", or " + sf.InputName("file") + " to upload from disk"
 }
 
 func runObjectSet(ctx context.Context, req plugin.Request) (view.View, error) {
@@ -313,7 +323,7 @@ func runObjectSet(ctx context.Context, req plugin.Request) (view.View, error) {
 			value := req.String("value")
 			if value == "" {
 				return nil, view.Errorf("s3.set.novalue", "no content given").
-					WithHint("pass a value, or --file to upload from disk")
+					WithHint(noValueHint(req.Surface()))
 			}
 			body = strings.NewReader(value)
 			size = int64(len(value))

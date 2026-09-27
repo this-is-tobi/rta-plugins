@@ -30,7 +30,7 @@ func copyFields(bucketHelp, keyHelp string) []plugin.Field {
 		// — the common case, and the only one an agent has ever needed —
 		// reads exactly the same. A person at a terminal still has it.
 		{Name: "dest-bucket", Type: plugin.String, Local: true,
-			Help: "destination bucket; same as --bucket if omitted",
+			Help: "destination bucket; the source bucket if omitted",
 			Live: true, Suggest: suggestBuckets},
 		{Name: "dest-key", Type: plugin.String, Required: true, Help: "destination object name"},
 	}
@@ -97,7 +97,7 @@ func s3ObjectCopyCapability() plugin.Capability {
 		// nothing about writing one anywhere else in the bucket.
 		ScopeAlso: []string{"dest-key"},
 		Description: "Copies server-side; the content never passes through this process. " +
-			"Refuses if --dest-key already exists rather than writing over it: a grant covers " +
+			"Refuses if the destination key already exists rather than writing over it: a grant covers " +
 			"both keys' names and says nothing about the object it would replace.",
 		Run: runObjectCopy,
 	}, copyFields("source bucket", "object to copy")...)
