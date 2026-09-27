@@ -277,10 +277,26 @@ func runObjectSet(ctx context.Context, req plugin.Request) (view.View, error) {
 				return nil, view.Errorf("s3.file.unreadable", "reading %s: %v", path, err)
 			}
 			defer func() { _ = f.Close() }()
-			if info, err := f.Stat(); err == nil {
-				size = info.Size()
+			info, err := f.Stat()
+			if err != nil {
+				return nil, view.Errorf("s3.file.unreadable", "reading %s: %v", path, err)
+			}
+			// A directory opens, and states a size of a few dozen bytes, so it
+			// went up as a file of that length and failed on its first read,
+			// reported as a connection failure once minio-go had sent the PUT
+			// ten times.
+			if info.IsDir() {
+				return nil, view.Errorf("s3.file.directory", "%s is a directory", path).
+					WithHint(req.Surface().CapabilityName("s3.bucket.upload") +
+						" uploads the files under a directory, an object each")
 			}
 			body = f
+			// Anything else that is not a regular file is a stream, and its
+			// size is left unknown: stream.go says how one is sent, and why
+			// the size a stat states for it is no size at all.
+			if info.Mode().IsRegular() {
+				size = info.Size()
+			}
 			// The declaration promises the type is "guessed from --file's
 			// extension if omitted" and nothing was doing the guessing:
 			// minio's own default is a flat application/octet-stream, so
@@ -312,17 +328,27 @@ func runObjectSet(ctx context.Context, req plugin.Request) (view.View, error) {
 				typed = "application/octet-stream (the server's default)"
 			}
 			// Still clamped now that format.Bytes takes the int64: size is
-			// minio's -1, "unknown, stream it", when the file could not be
-			// stat'd, and a preview reading "-1 B" would look like a bug.
+			// minio's -1, "unknown, stream it", when --file names a stream,
+			// and a preview reading "-1 B" would look like a bug.
 			return view.Text{Body: fmt.Sprintf("would set %s/%s (%s, %s)",
 				bucket, key, format.Bytes(max(size, 0)), typed)}, nil
 		}
-		info, err := client.PutObject(ctx, bucket, key, body, size, minio.PutObjectOptions{
+		opts := minio.PutObjectOptions{
 			ContentType:  contentType,
 			StorageClass: req.String("storage-class"),
-		})
+		}
+		// After the dry-run branch on purpose: reading a stream consumes
+		// it, and a preview has to leave the pipe as it found it.
+		if size < 0 {
+			var err error
+			if body, size, err = streamed(body); err != nil {
+				return nil, view.Errorf("s3.file.unreadable", "reading %s: %v", req.String("file"), err)
+			}
+			opts.PartSize = streamPartSize
+		}
+		info, err := client.PutObject(ctx, bucket, key, body, size, opts)
 		if err != nil {
-			return nil, classify(err, req)
+			return nil, uploadFailure(err, body, req)
 		}
 		return view.Text{Body: "set " + bucket + "/" + key + " (" + format.Bytes(info.Size) + ")"}, nil
 	})
