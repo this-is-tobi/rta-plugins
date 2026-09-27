@@ -25,8 +25,8 @@ func TestDumpRefusesMCP(t *testing.T) {
 	if !errors.As(err, &verr) || verr.Code != "mysql.human" || !verr.Refusal {
 		t.Fatalf("err = %v, want mysql.human marked a refusal", err)
 	}
-	if !strings.Contains(verr.Hint, "mysql.query") {
-		t.Errorf("hint = %q, want it to name the bounded alternative", verr.Hint)
+	if !strings.Contains(verr.Hint, "the `mysql_query` tool") {
+		t.Errorf("hint = %q, want it to name the bounded alternative as the agent calls it", verr.Hint)
 	}
 }
 

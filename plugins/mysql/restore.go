@@ -87,14 +87,15 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 	database := req.String("database")
 	if database == "" {
 		return nil, view.Errorf("mysql.restore.nodatabase", "say which database to restore into").
-			WithHint("--database <name> — `rta mysql database list` shows what is there, and " +
+			WithHint(given(req.Surface(), "database", "<name>") + " — " +
+				req.Surface().CapabilityName("mysql.database.list") + " shows what is there, and " +
 				"CREATE DATABASE makes a fresh one")
 	}
 	path, err := expandHome(strings.TrimSpace(req.String("file")))
 	if err != nil {
 		return nil, view.Errorf("mysql.restore.path", "resolving the dump path: %v", err)
 	}
-	if verr := checkDumpFile(path); verr != nil {
+	if verr := checkDumpFile(req.Surface(), path); verr != nil {
 		return nil, verr
 	}
 	tool, err := lookupTool(restoreTools)
@@ -143,11 +144,11 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 // one that is not there, and one that is empty — an empty file restores as
 // nothing and reports success, and only rta can say "the dump did not
 // finish"; the server just sees no statements.
-func checkDumpFile(path string) *view.Error {
+func checkDumpFile(sf plugin.Surface, path string) *view.Error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return view.Errorf("mysql.restore.nofile", "no dump at %s", path).
-			WithHint("`rta mysql dump --out <path>` writes one; this restores what that wrote")
+			WithHint("`" + sf.Call("mysql.dump", plugin.Arg{Name: "out", Value: "<path>"}) + "` writes one; this restores what that wrote")
 	}
 	if info.IsDir() {
 		return view.Errorf("mysql.restore.notafile", "%s is a directory", path).
@@ -278,14 +279,14 @@ func classifyRestore(err error, stderr string, req plugin.Request) *view.Error {
 				"then restore again")
 	case strings.Contains(stderr, "Access denied"):
 		return view.Errorf("mysql.auth.failed", "%s", msg("Access denied")).
-			WithHint("set $" + plugin.LocalEnvVar("mysql.restore", "password") + ", or check --user")
+			WithHint("set $" + plugin.LocalEnvVar("mysql.restore", "password") + ", or check " + setting(req.Surface(), "user"))
 	case strings.Contains(stderr, "read-only") || strings.Contains(stderr, "read only"):
 		return view.Errorf("mysql.restore.readonly", "%s", msg("read")).
 			WithHint("the target became read-only after the pre-flight check — a promoted " +
 				"replica, usually. Restore on the primary")
 	case strings.Contains(stderr, "Can't connect"):
 		return view.Errorf("mysql.conn.refused", "%s", msg("Can't connect")).
-			WithHint("is the server up, and is --host/--port right?")
+			WithHint(reachHint(req.Surface()))
 	case strings.Contains(stderr, "at line"):
 		// The client names the statement that failed and its line in the
 		// file — the one detail worth surfacing verbatim, because it is where

@@ -119,7 +119,7 @@ func tableTable(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 			`SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?`, schema).
 			Scan(&exists); err == nil && exists == 0 {
 			return nil, view.Errorf("mysql.database.notfound", "no database %q, or none this user may see", schema).
-				WithHint("`rta mysql database list` shows what is there")
+				WithHint(req.Surface().CapabilityName("mysql.database.list") + " shows what is there")
 		}
 	}
 	return t, nil
@@ -276,10 +276,11 @@ func schemaTree(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 	if len(order) == 0 {
 		if only := req.String("table"); only != "" {
 			return nil, view.Errorf("mysql.table.notfound", "no table %q in %q", only, schema).
-				WithHint("`rta mysql table list " + schema + "` shows what is there")
+				WithHint("`" + req.Surface().Call("mysql.table.list", plugin.Arg{Name: "schema", Value: schema, Positional: true}) +
+					"` shows what is there")
 		}
 		return nil, view.Errorf("mysql.database.empty", "%q has no tables, or none this user may see", schema).
-			WithHint("`rta mysql database list` shows what is there")
+			WithHint(req.Surface().CapabilityName("mysql.database.list") + " shows what is there")
 	}
 
 	limit := req.Int("limit")
@@ -287,8 +288,9 @@ func schemaTree(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 	for i, table := range order {
 		if i == limit {
 			root.Children = append(root.Children, view.Node{
-				Label:  "…",
-				Detail: format.CountOf(len(order)-i, "more table") + "; raise --limit or name one with --table",
+				Label: "…",
+				Detail: format.CountOf(len(order)-i, "more table") + "; raise " + req.Surface().InputName("limit") +
+					" or name one with " + req.Surface().InputName("table"),
 			})
 			break
 		}
