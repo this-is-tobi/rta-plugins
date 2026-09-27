@@ -178,7 +178,7 @@ func newRequest(ctx context.Context, req plugin.Request, method, path string,
 	httpReq, err := http.NewRequestWithContext(ctx, method, base+path, body)
 	if err != nil {
 		return nil, view.Errorf("qdrant.endpoint.invalid", "%v", err).
-			WithHint("endpoint is host[:port] with no scheme — set --tls separately")
+			WithHint("endpoint is host[:port] with no scheme — set " + setting(req.Surface(), "tls") + " separately")
 	}
 	httpReq.Header.Set("Accept", "application/json")
 	if key := req.String("api-key"); key != "" {
@@ -233,7 +233,7 @@ func classifyStatus(code int, body []byte, req plugin.Request) *view.Error {
 				" — an instance started without an API key refuses one that is sent, too")
 	case http.StatusNotFound:
 		return view.Errorf("qdrant.notfound", "%s: %s", where, detail).
-			WithHint("`rta qdrant collection list` shows what is there")
+			WithHint(req.Surface().CapabilityName("qdrant.collection.list") + " shows what is there")
 	case http.StatusTooManyRequests:
 		return view.Errorf("qdrant.ratelimited", "%s is rate limiting: %s", where, detail).
 			WithHint("this is the instance's own limit, not rta's")
@@ -242,7 +242,7 @@ func classifyStatus(code int, body []byte, req plugin.Request) *view.Error {
 			WithHint("a Qdrant loading a collection from disk answers this until it is ready")
 	}
 	return view.Errorf("qdrant.request.failed", "%s returned %d: %s", where, code, detail).
-		WithHint("`rta explain qdrant.overview` lists every input and where each one can come from")
+		WithHint(explainHint(req.Surface(), "qdrant.overview"))
 }
 
 // qdrantErrorText digs the message out of Qdrant's error envelope, falling
@@ -292,7 +292,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	var dnsErr *stdnet.DNSError
 	if errors.As(err, &dnsErr) {
 		return view.Errorf("qdrant.host.unknown", "no address for %q", hostOnly(where)).
-			WithHint("`rta net dns " + hostOnly(where) + "` shows what DNS returns")
+			WithHint(dnsHint(req.Surface(), hostOnly(where)))
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
@@ -302,11 +302,64 @@ func classify(err error, req plugin.Request) *view.Error {
 	var certErr x509.UnknownAuthorityError
 	if errors.As(err, &certErr) {
 		return view.Errorf("qdrant.tls.untrusted", "%s presented a certificate nothing here trusts", where).
-			WithHint("a self-signed certificate needs --tls=false for a real try, or its CA trusted " +
-				"with ca-file for the real thing")
+			WithHint("a self-signed certificate needs " + settingTo(req.Surface(), "tls", "false") +
+				" for a real try, or its CA trusted with ca-file for the real thing")
 	}
 	return view.Errorf("qdrant.conn.failed", "could not reach %s: %v", where, err).
-		WithHint("`rta explain qdrant.overview` lists every input and where each one can come from")
+		WithHint(explainHint(req.Surface(), "qdrant.overview"))
+}
+
+// setting names connection input name in a message the way its reader
+// changes it: the flag on the CLI, the box in a TUI form. Not the argument
+// over MCP, as plugin.Surface.InputName would: every connection input is
+// Local, so the tool's schema hides it and the bridge drops one given, and an
+// agent told to set the "tls" argument would pass one that is thrown away and
+// read the same refusal again. It is named there as the declaration names
+// it, `tls` — a setting of the operator's, which the agent can report and
+// cannot change.
+func setting(sf plugin.Surface, name string) string {
+	if sf == plugin.SurfaceMCP {
+		return "`" + name + "`"
+	}
+	return sf.InputName(name)
+}
+
+// settingTo is setting with the value to give it. On the CLI it is joined to
+// the flag, --tls=false: a switch given a separate word takes it as an
+// argument and stays on.
+func settingTo(sf plugin.Surface, name, value string) string {
+	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
+		return setting(sf, name) + " set to " + value
+	}
+	return sf.InputName(name) + "=" + value
+}
+
+// given names input name set to value, as the reader would give it: "--out
+// ./docs.snapshot" on the CLI, and elsewhere the input the surface names,
+// with the value beside it.
+func given(sf plugin.Surface, name, value string) string {
+	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
+		return sf.InputName(name) + " set to " + value
+	}
+	return sf.InputName(name) + " " + value
+}
+
+// explainHint sends the reader to the page listing every input and where each
+// one can come from. That page is `rta explain`, a terminal's command with no
+// capability behind it, and what it answers here is where the connection
+// inputs come from — the operator's to set — so over MCP it is the operator
+// who is asked to read it.
+func explainHint(sf plugin.Surface, id string) string {
+	if sf == plugin.SurfaceMCP {
+		return plugin.AskOperator("explain "+id) + ", which lists every input and where each one can come from"
+	}
+	return "`rta explain " + id + "` lists every input and where each one can come from"
+}
+
+// dnsHint is the call that shows what DNS returns for host, spelled for the
+// surface that will make it.
+func dnsHint(sf plugin.Surface, host string) string {
+	return "`" + sf.Call("net.dns", plugin.Arg{Name: "name", Value: host, Positional: true}) + "` shows what DNS returns"
 }
 
 func hostOnly(endpoint string) string {

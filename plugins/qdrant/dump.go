@@ -103,8 +103,8 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr := humanOnly(req, "qdrant.dump",
 		"a collection snapshot has no blast radius a grant could name — it is every "+
 			"payload and every vector, and its one authorized use is all of them. Ask for "+
-			"the points you need with qdrant.points.scroll, which takes a grant naming the "+
-			"collection"); verr != nil {
+			"the points you need with "+req.Surface().CapabilityName("qdrant.points.scroll")+
+			", which takes a grant naming the collection"); verr != nil {
 		return nil, verr
 	}
 	collection := req.String("collection")
@@ -112,12 +112,12 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	out := strings.TrimSpace(req.String("out"))
 	if out == "" {
 		return nil, view.Errorf("qdrant.dump.nooutput", "say where the snapshot should be written").
-			WithHint("--out ./" + collection + ".snapshot — a collection is a file, not " +
+			WithHint(given(req.Surface(), "out", "./"+collection+".snapshot") + " — a collection is a file, not " +
 				"something to read in a terminal")
 	}
 	path, err := expandHome(out)
 	if err != nil {
-		return nil, view.Errorf("qdrant.dump.path", "resolving --out: %v", err)
+		return nil, view.Errorf("qdrant.dump.path", "resolving %s: %v", req.Surface().InputName("out"), err)
 	}
 	// A friendly early refusal, before the server does any work to say the
 	// same thing more slowly. It is not the guarantee — O_EXCL in

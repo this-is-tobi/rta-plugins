@@ -82,8 +82,8 @@ func TestDumpRefusesMCP(t *testing.T) {
 	if !verr.Refusal {
 		t.Error("the MCP gate is not marked as a refusal — the ledger would file it as a failure")
 	}
-	if !strings.Contains(verr.Hint, "qdrant.points.scroll") {
-		t.Errorf("the hint does not name the bounded alternative: %q", verr.Hint)
+	if !strings.Contains(verr.Hint, "the `qdrant_points_scroll` tool") {
+		t.Errorf("the hint does not name the bounded alternative as the agent calls it: %q", verr.Hint)
 	}
 }
 

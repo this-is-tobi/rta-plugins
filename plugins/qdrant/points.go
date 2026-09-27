@@ -89,11 +89,11 @@ func pointsScrollCapability() plugin.Capability {
 			"whatever was indexed — for most deployments, chunks of documents.\n\n" +
 			"**Vectors are off by default even here.** An embedding is not a hash: it is a " +
 			"lossy but reversible-enough encoding, and inversion attacks recover substantial " +
-			"parts of the source text from embeddings alone. So --vectors is a second, separate " +
+			"parts of the source text from embeddings alone. So `vectors` is a second, separate " +
 			"decision rather than something that rides along with the payload.\n\n" +
 			"It also needs a grant naming it, which is available because this names one " +
-			"collection: `rta grant allow qdrant.points.scroll support-tickets` is a consent " +
-			"somebody can read.\n\n" +
+			"collection: `grant.allow` for `qdrant.points.scroll` and `support-tickets` is a " +
+			"consent somebody can read.\n\n" +
 			"The read tier — qdrant.collection.show and qdrant.points.count — describes a " +
 			"collection and counts it, which is usually the question and costs none of this.",
 		Run: runPointsScroll,
