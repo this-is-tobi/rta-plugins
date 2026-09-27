@@ -332,7 +332,10 @@ func gradeCoverage(examined, with int, without []string) (string, string) {
 	if len(without) > 5 {
 		who += fmt.Sprintf(" and %d more", len(without)-5)
 	}
-	detail := fmt.Sprintf("%d of %d enabled users have a second factor (OTP or WebAuthn)", with, examined)
+	// The verb agrees with the noun it follows rather than with the first
+	// count: agreeing with a 0 read "0 of 1 enabled user have".
+	detail := fmt.Sprintf("%d of %s %s a second factor (OTP or WebAuthn)",
+		with, findings.Plural(examined, "enabled user"), format.Plural(examined, "has", "have"))
 	switch with {
 	case examined:
 		return findings.OK, detail
