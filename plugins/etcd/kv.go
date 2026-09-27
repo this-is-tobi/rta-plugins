@@ -200,7 +200,7 @@ func kvTreeView(ctx context.Context, c *clientv3.Client, req plugin.Request) (vi
 	switch {
 	case truncated:
 		detail += fmt.Sprintf(" — stopped at %d; narrow it with %s or raise %s", limit,
-			req.Surface().InputName("prefix"), req.Surface().InputName("limit"))
+			req.Surface().ArgumentName("prefix"), req.Surface().InputName("limit"))
 	case w.stopped != "":
 		detail += " — " + w.stopped
 	}
@@ -275,7 +275,7 @@ func (w *treeRender) expand(n *treeNode, depth int) []view.Node {
 	var out []view.Node
 	for _, name := range names {
 		if w.nodes >= maxTreeNodes {
-			w.stopped = fmt.Sprintf("stopped at %d nodes; narrow it with %s", maxTreeNodes, w.sf.InputName("prefix"))
+			w.stopped = fmt.Sprintf("stopped at %d nodes; narrow it with %s", maxTreeNodes, w.sf.ArgumentName("prefix"))
 			return append(out, view.Node{Label: "…", Detail: w.stopped})
 		}
 		w.nodes++
