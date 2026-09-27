@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"path/filepath"
+	"slices"
+	"strconv"
 
 	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -43,6 +46,52 @@ var streamMost int64 = streamPartSize * maxParts
 
 // errStreamTooLong is a stream that ran past streamMost.
 var errStreamTooLong = errors.New("the stream is longer than one upload can hold")
+
+// descriptorDirs are the directories a process's own descriptors are listed
+// under, each by its number: /dev/fd/0 is standard input, as /dev/stdin is.
+var descriptorDirs = []string{"/dev/fd", "/proc/self/fd", "/proc/thread-self/fd"}
+
+// namesStandardInput reports whether --file's path names a process's own
+// standard input, which is the one stream a plugin is never handed. rta
+// starts each plugin with /dev/null there, and what is piped to rta stays
+// with rta, so `pg_dump app | rta s3 object set dump.sql --file /dev/stdin`
+// read nothing and stored an empty object in place of whatever the key held,
+// under a success message. Refused by name, before anything is opened:
+// /dev/null named as itself is the same file and still makes an empty object
+// on purpose, so the file cannot be told apart from it, only the name. A
+// process substitution is the stream that does arrive — the descriptor is
+// the shell's, handed down through rta — and is what the refusal points at
+// instead.
+//
+// The descriptor is read as a number rather than matched as text, and the
+// path made absolute first, because the name is all there is to go on and
+// the kernel is lenient about it: macOS opens /dev/fd/00 as descriptor 0,
+// and a list of spellings let that one store the empty object this refuses.
+func namesStandardInput(path string) bool {
+	p, err := filepath.Abs(plugin.ExpandHome(path))
+	if err != nil {
+		p = filepath.Clean(plugin.ExpandHome(path))
+	}
+	if p == "/dev/stdin" {
+		return true
+	}
+	dir, name := filepath.Split(p)
+	fd, err := strconv.Atoi(name)
+	return err == nil && fd == 0 && slices.Contains(descriptorDirs, filepath.Clean(dir))
+}
+
+// stdinRefusal is the refusal of a --file naming standard input, pointing at
+// what does carry a command's output. A process substitution is shell syntax,
+// so it is offered only where a shell is what the caller typed into.
+func stdinRefusal(req plugin.Request, path string) *view.Error {
+	hint := "write it to a file and name that"
+	if req.Surface() == plugin.SurfaceCLI {
+		hint = "name the command instead, " + req.Surface().InputName("file") + " <(pg_dump app), or " + hint
+	}
+	return view.Errorf("s3.file.stdin",
+		"%s is this plugin's own standard input, which holds nothing: what is piped to rta stays with rta", path).
+		WithHint(hint)
+}
 
 // streamed reads the first part of r and returns what to upload and its size:
 // the part itself and its length when r ended inside it, or the part followed
