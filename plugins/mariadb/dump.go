@@ -134,25 +134,26 @@ func dumpCapability() plugin.Capability {
 func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr := humanOnly(req, "mariadb.dump",
 		"a whole-database dump has no blast radius a grant could name — its one authorized "+
-			"use is everything. Ask for the rows you need with mariadb.query, which is bounded "+
-			"per call"); verr != nil {
+			"use is everything. Ask for the rows you need with "+req.Surface().CapabilityName("mariadb.query")+
+			", which is bounded per call"); verr != nil {
 		return nil, verr
 	}
 
 	database := req.String("database")
 	if database == "" {
 		return nil, view.Errorf("mariadb.dump.nodatabase", "say which database to dump").
-			WithHint("--database <name> — `rta mariadb database list` shows what is there")
+			WithHint(given(req.Surface(), "database", "<name>") + " — " +
+				req.Surface().CapabilityName("mariadb.database.list") + " shows what is there")
 	}
 	out := strings.TrimSpace(req.String("out"))
 	if out == "" {
 		return nil, view.Errorf("mariadb.dump.nooutput", "say where the dump should be written").
-			WithHint("--out ./" + database + ".sql — a whole database is a file, not something " +
+			WithHint(given(req.Surface(), "out", "./"+database+".sql") + " — a whole database is a file, not something " +
 				"to read in a terminal")
 	}
 	path, err := expandHome(out)
 	if err != nil {
-		return nil, view.Errorf("mariadb.dump.path", "resolving --out: %v", err)
+		return nil, view.Errorf("mariadb.dump.path", "resolving %s: %v", req.Surface().InputName("out"), err)
 	}
 
 	tool, err := lookupTool(dumpTools)
@@ -197,7 +198,7 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 		{Key: "size", Value: format.Bytes(written)},
 		{Key: "took", Value: time.Since(started).Round(time.Millisecond).String()},
 		{Key: "contents", Value: contentsOf(req)},
-		{Key: "source", Value: src.describe()},
+		{Key: "source", Value: src.describe(req.Surface())},
 		{Key: "consistency", Value: src.consistency()},
 		// Named on the answer rather than left in the docs. The file is every
 		// row in the database in the clear, and the moment to say so is while
@@ -240,7 +241,7 @@ type source struct {
 	liveTables int
 }
 
-func (s source) describe() string {
+func (s source) describe(sf plugin.Surface) string {
 	where := s.version
 	if s.readOnly {
 		// A read-only server is usually a replica, and a replica's dump is as
@@ -259,7 +260,7 @@ func (s source) describe() string {
 		// they restore it.
 		where += fmt.Sprintf(" — **a Galera node whose cluster status is %s, not Primary**: "+
 			"this node has lost quorum and is serving its own side of a partition, so this "+
-			"dump is a backup of that side. `rta mariadb cluster` has the whole picture",
+			"dump is a backup of that side. "+sf.CapabilityName("mariadb.cluster")+" has the whole picture",
 			s.galeraStatus)
 	}
 	return where
@@ -459,16 +460,16 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 				"the user this dump connects as")
 	case strings.Contains(stderr, "Access denied"):
 		return view.Errorf("mariadb.auth.failed", "%s", msg("Access denied")).
-			WithHint("set $" + plugin.LocalEnvVar("mariadb.dump", "password") + ", or check --user")
+			WithHint("set $" + plugin.LocalEnvVar("mariadb.dump", "password") + ", or check " + setting(req.Surface(), "user"))
 	case strings.Contains(stderr, "Unknown database"):
 		return view.Errorf("mariadb.database.notfound", "%s", msg("Unknown database")).
-			WithHint("`rta mariadb database list` shows what is there")
+			WithHint(req.Surface().CapabilityName("mariadb.database.list") + " shows what is there")
 	case strings.Contains(stderr, "Unknown MySQL server host"):
 		return view.Errorf("mariadb.host.unknown", "%s", msg("Unknown MySQL server host")).
-			WithHint("`rta net dns " + req.String("host") + "` shows what DNS returns")
+			WithHint(dnsHint(req.Surface(), req.String("host")))
 	case strings.Contains(stderr, "Can't connect"):
 		return view.Errorf("mariadb.conn.refused", "%s", msg("Can't connect")).
-			WithHint("is the server up, and is --host/--port right?")
+			WithHint(reachHint(req.Surface()))
 	case strings.Contains(stderr, "unknown variable") || strings.Contains(stderr, "unknown option"):
 		// The version-skew failure, and here it is the likelier one: this
 		// plugin passes MariaDB's --ssl family, so a *MySQL* client wearing
@@ -490,8 +491,12 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 // restoreCommand names the other half. A backup capability that does not say
 // how to restore is the shape of every backup that turned out not to be one.
 func restoreCommand(req plugin.Request, path string) string {
-	return fmt.Sprintf("rta mariadb restore %s --host=%s --port=%d --user=%s --database=%s",
-		path, req.String("host"), req.Int("port"), req.String("user"), req.String("database"))
+	return req.Surface().Call("mariadb.restore",
+		plugin.Arg{Name: "file", Value: path, Positional: true},
+		plugin.Arg{Name: "host", Value: req.String("host")},
+		plugin.Arg{Name: "port", Value: req.Int("port")},
+		plugin.Arg{Name: "user", Value: req.String("user")},
+		plugin.Arg{Name: "database", Value: req.String("database")})
 }
 
 func alreadyThere(path string) *view.Error {

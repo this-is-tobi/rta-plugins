@@ -104,7 +104,7 @@ func connect(ctx context.Context, req plugin.Request) (*sql.DB, *view.Error) {
 	db, err := sql.Open("mysql", dsn(req))
 	if err != nil {
 		return nil, view.Errorf("mariadb.conn.invalid", "%v", err).
-			WithHint("`rta explain mariadb.overview` lists every input and where each one can come from")
+			WithHint(explainHint(req.Surface(), "mariadb.overview"))
 	}
 	// One connection, because a capability here runs one query and exits. A
 	// pool that outlives the call would hold a socket open against somebody
@@ -143,17 +143,17 @@ func classify(err error, req plugin.Request) *view.Error {
 		switch myErr.Number {
 		case 1045: // ER_ACCESS_DENIED_ERROR
 			return view.Errorf("mariadb.auth.failed", "%s rejected user %q", where, req.String("user")).
-				WithHint("set $" + plugin.LocalEnvVar("mariadb.overview", "password") + ", or check --user")
+				WithHint("set $" + plugin.LocalEnvVar("mariadb.overview", "password") + ", or check " + setting(req.Surface(), "user"))
 		case 1044: // ER_DBACCESS_DENIED_ERROR
 			return view.Errorf("mariadb.database.denied", "%q may not use database %q",
 				req.String("user"), req.String("database")).
 				WithHint("the credentials are valid but not granted on this database — check SHOW GRANTS")
 		case 1049: // ER_BAD_DB_ERROR
 			return view.Errorf("mariadb.database.notfound", "%s has no database %q", where, req.String("database")).
-				WithHint("`rta mariadb database list` shows what is there")
+				WithHint(req.Surface().CapabilityName("mariadb.database.list") + " shows what is there")
 		case 1146: // ER_NO_SUCH_TABLE
 			return view.Errorf("mariadb.table.notfound", "%s", myErr.Message).
-				WithHint("`rta mariadb table list` shows what is there")
+				WithHint(req.Surface().CapabilityName("mariadb.table.list") + " shows what is there")
 		case 1142, 1143: // ER_TABLEACCESS_DENIED_ERROR, ER_COLUMNACCESS_DENIED_ERROR
 			return view.Errorf("mariadb.denied", "%s", myErr.Message).
 				WithHint("the credentials are valid but not authorized for this — check SHOW GRANTS")
@@ -165,18 +165,18 @@ func classify(err error, req plugin.Request) *view.Error {
 				WithHint("the server is running with --read-only; this is a replica or was set that way deliberately")
 		}
 		return view.Errorf("mariadb.query.failed", "%d: %s", myErr.Number, myErr.Message).
-			WithHint("`rta explain mariadb.overview` lists every input and where each one can come from")
+			WithHint(explainHint(req.Surface(), "mariadb.overview"))
 	}
 
 	var netErr *stdnet.OpError
 	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
 		return view.Errorf("mariadb.conn.refused", "nothing is listening on %s", where).
-			WithHint("is the server up, and is --host/--port right?")
+			WithHint(reachHint(req.Surface()))
 	}
 	var dnsErr *stdnet.DNSError
 	if errors.As(err, &dnsErr) {
 		return view.Errorf("mariadb.host.unknown", "no address for %q", req.String("host")).
-			WithHint("`rta net dns " + req.String("host") + "` shows what DNS returns")
+			WithHint(dnsHint(req.Surface(), req.String("host")))
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		return view.Errorf("mariadb.conn.timeout", "%s did not answer in time", where).
@@ -188,5 +188,57 @@ func classify(err error, req plugin.Request) *view.Error {
 			WithHint("a firewall that drops rather than refuses looks exactly like this")
 	}
 	return view.Errorf("mariadb.conn.failed", "could not reach %s: %v", where, err).
-		WithHint("`rta explain mariadb.overview` lists every input and where each one can come from")
+		WithHint(explainHint(req.Surface(), "mariadb.overview"))
+}
+
+// setting names connection input name in a message the way its reader
+// changes it: the flag on the CLI, the box in a TUI form. Not the argument
+// over MCP, as plugin.Surface.InputName would: every connection input is
+// Local, so the tool's schema hides it and the bridge drops one given, and an
+// agent told to check the "user" argument would pass one that is thrown
+// away and read the same refusal again. It is named there as the declaration
+// names it, `user` — a setting of the operator's, which the agent can
+// report and cannot change.
+func setting(sf plugin.Surface, name string) string {
+	if sf == plugin.SurfaceMCP {
+		return "`" + name + "`"
+	}
+	return sf.InputName(name)
+}
+
+// explainHint sends the reader to the page listing every input and where each
+// one can come from. That page is `rta explain`, a terminal's command with no
+// capability behind it, and what it answers here is where the connection
+// inputs come from — the operator's to set — so over MCP it is the operator
+// who is asked to read it.
+func explainHint(sf plugin.Surface, id string) string {
+	if sf == plugin.SurfaceMCP {
+		return plugin.AskOperator("explain "+id) + ", which lists every input and where each one can come from"
+	}
+	return "`rta explain " + id + "` lists every input and where each one can come from"
+}
+
+// dnsHint is the call that shows what DNS returns for host, spelled for the
+// surface that will make it.
+func dnsHint(sf plugin.Surface, host string) string {
+	return "`" + sf.Call("net.dns", plugin.Arg{Name: "name", Value: host, Positional: true}) + "` shows what DNS returns"
+}
+
+// reachHint asks whether the server is up and its address right, naming the
+// two connection inputs the address is made of the way the reader sets them.
+func reachHint(sf plugin.Surface) string {
+	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
+		return "is the server up, and are " + setting(sf, "host") + " and " + setting(sf, "port") + " right?"
+	}
+	return "is the server up, and is " + sf.InputName("host") + "/" + sf.InputName("port") + " right?"
+}
+
+// given names input name set to value, as the reader would give it: "--out
+// ./shop.sql" on the CLI, and elsewhere the input the surface names, with the
+// value beside it.
+func given(sf plugin.Surface, name, value string) string {
+	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
+		return sf.InputName(name) + " set to " + value
+	}
+	return sf.InputName(name) + " " + value
 }

@@ -55,6 +55,8 @@
 + 			"brand new.\n\n" +
 - 				"Install the MySQL client tools — `brew install mysql` or " +
 + 				"Install the MySQL client tools — `brew install mysql-client` or " +
+- 		{Key: "source", Value: src.describe(req.Surface())},
++ 		{Key: "source", Value: src.describe()},
 - 		// assumed: mysqldump 11.4 has `--system=name` ("Any combination of:
 + 		// assumed: mariadb-dump 11.4 has `--system=name` ("Any combination of:
 - 			"data and no account able to read it. `mysqldump --system=users` is the " +
@@ -68,6 +70,8 @@
 - 	// partition — so a dump taken there is a backup of one side of a split
 - 	// brain, and nothing about the file says so afterwards.
 - 	galeraStatus string
+- func (s source) describe(sf plugin.Surface) string {
++ func (s source) describe() string {
 - 	switch {
 - 	case s.galeraStatus == "":
 - 		// Standalone, or a build without Galera. Nothing to say.
@@ -79,7 +83,7 @@
 - 		// they restore it.
 - 		where += fmt.Sprintf(" — **a Galera node whose cluster status is %s, not Primary**: "+
 - 			"this node has lost quorum and is serving its own side of a partition, so this "+
-- 			"dump is a backup of that side. `rta mysql cluster` has the whole picture",
+- 			"dump is a backup of that side. "+sf.CapabilityName("mysql.cluster")+" has the whole picture",
 - 			s.galeraStatus)
 - 	}
 - 	// Only InnoDB sits inside --single-transaction's snapshot. Aria is

@@ -25,8 +25,8 @@ func TestDumpRefusesMCP(t *testing.T) {
 	if !errors.As(err, &verr) || verr.Code != "mariadb.human" || !verr.Refusal {
 		t.Fatalf("err = %v, want mariadb.human marked a refusal", err)
 	}
-	if !strings.Contains(verr.Hint, "mariadb.query") {
-		t.Errorf("hint = %q, want it to name the bounded alternative", verr.Hint)
+	if !strings.Contains(verr.Hint, "the `mariadb_query` tool") {
+		t.Errorf("hint = %q, want it to name the bounded alternative as the agent calls it", verr.Hint)
 	}
 }
 
@@ -280,7 +280,7 @@ func capabilityByID(t *testing.T, id string) plugin.Capability {
 // file says nothing about it afterwards. The receipt has to, while somebody
 // is still looking at it.
 func TestTheReceiptNamesALostQuorum(t *testing.T) {
-	split := source{version: "11.4.2-MariaDB", galeraStatus: "non-Primary"}.describe()
+	split := source{version: "11.4.2-MariaDB", galeraStatus: "non-Primary"}.describe(plugin.SurfaceCLI)
 	if !strings.Contains(split, "non-Primary") || !strings.Contains(split, "lost quorum") {
 		t.Errorf("describe() = %q, want it to say the node is not in the primary component", split)
 	}
@@ -288,14 +288,14 @@ func TestTheReceiptNamesALostQuorum(t *testing.T) {
 		t.Errorf("describe() = %q, want it to name where the whole picture is", split)
 	}
 
-	healthy := source{version: "11.4.2-MariaDB", galeraStatus: "Primary"}.describe()
+	healthy := source{version: "11.4.2-MariaDB", galeraStatus: "Primary"}.describe(plugin.SurfaceCLI)
 	if strings.Contains(healthy, "lost quorum") {
 		t.Errorf("describe() = %q, want no warning for a node holding quorum", healthy)
 	}
 
 	// A standalone MariaDB is not a broken cluster — the same reading
 	// cluster.go makes of an absent wsrep provider.
-	standalone := source{version: "11.4.2-MariaDB"}.describe()
+	standalone := source{version: "11.4.2-MariaDB"}.describe(plugin.SurfaceCLI)
 	if strings.Contains(standalone, "Galera") {
 		t.Errorf("describe() = %q, want nothing about Galera on a standalone server", standalone)
 	}

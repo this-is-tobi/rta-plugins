@@ -92,7 +92,7 @@
 - // file says nothing about it afterwards. The receipt has to, while somebody
 - // is still looking at it.
 - func TestTheReceiptNamesALostQuorum(t *testing.T) {
-- 	split := source{version: "11.4.2-MySQL", galeraStatus: "non-Primary"}.describe()
+- 	split := source{version: "11.4.2-MySQL", galeraStatus: "non-Primary"}.describe(plugin.SurfaceCLI)
 - 	if !strings.Contains(split, "non-Primary") || !strings.Contains(split, "lost quorum") {
 - 		t.Errorf("describe() = %q, want it to say the node is not in the primary component", split)
 - 	}
@@ -100,14 +100,14 @@
 - 		t.Errorf("describe() = %q, want it to name where the whole picture is", split)
 - 	}
 - 
-- 	healthy := source{version: "11.4.2-MySQL", galeraStatus: "Primary"}.describe()
+- 	healthy := source{version: "11.4.2-MySQL", galeraStatus: "Primary"}.describe(plugin.SurfaceCLI)
 - 	if strings.Contains(healthy, "lost quorum") {
 - 		t.Errorf("describe() = %q, want no warning for a node holding quorum", healthy)
 - 	}
 - 
 - 	// A standalone MySQL is not a broken cluster — the same reading
 - 	// cluster.go makes of an absent wsrep provider.
-- 	standalone := source{version: "11.4.2-MySQL"}.describe()
+- 	standalone := source{version: "11.4.2-MySQL"}.describe(plugin.SurfaceCLI)
 - 	if strings.Contains(standalone, "Galera") {
 - 		t.Errorf("describe() = %q, want nothing about Galera on a standalone server", standalone)
 - 	}
