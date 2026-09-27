@@ -58,6 +58,13 @@ jobs:
         else
           version=$(gh api repos/this-is-tobi/rta/releases/latest --jq .tag_name)
         fi
+        # A tag, whether typed into the dispatch form or read off a release,
+        # before anything else sees it: make splices RTA_VERSION into the
+        # recipe that runs `go get`, and the same string names the branch.
+        if ! [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+          echo "::error::The version to bump to is not an rta release tag such as v0.27.0."
+          exit 1
+        fi
         pinned=$(awk '/github.com\/this-is-tobi\/rta / {print $2}' plugins/pg/go.mod)
         echo "release $version, pinned $pinned"
         if [ "$version" = "$pinned" ]; then
@@ -78,7 +85,9 @@ jobs:
 
     - name: Bump every module and the workflow pins
       if: steps.target.outputs.version != ''
-      run: make bump-rta RTA_VERSION=${{ steps.target.outputs.version }}
+      env:
+        VERSION: ${{ steps.target.outputs.version }}
+      run: make bump-rta RTA_VERSION="$VERSION"
 
     # A README is `rta plugin doc` rendered from the plugin's declaration,
     # and the rta doing the rendering decides what the page says: a release
