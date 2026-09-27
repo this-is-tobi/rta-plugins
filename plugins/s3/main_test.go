@@ -89,6 +89,21 @@ func req(t *testing.T, capID string, values map[string]any) plugin.Request {
 	return plugin.Request{}
 }
 
+// A name DNS cannot resolve is that, and not a port nothing listens on. The
+// HTTP client wraps a failed lookup in a *net.OpError inside a *url.Error,
+// and the refused-dial check, read first, answered "nothing is listening on
+// nonexistent.invalid:9000" and asked whether the server was up, when the
+// name was the problem.
+func TestANameDNSCannotResolveIsNotReadAsNothingListening(t *testing.T) {
+	err := &url.Error{Op: "Get", URL: "http://s3.internal:9000/",
+		Err: &net.OpError{Op: "dial", Net: "tcp",
+			Err: &net.DNSError{Err: "no such host", Name: "s3.internal", IsNotFound: true}}}
+	verr := classify(err, req(t, "s3.overview", map[string]any{"endpoint": "s3.internal:9000"}))
+	if verr.Code != "s3.host.unknown" {
+		t.Errorf("code = %s, want s3.host.unknown: %s", verr.Code, verr.Message)
+	}
+}
+
 // An object that is not there points at the listing of its bucket as a call
 // the CLI takes: s3.object.list reads the bucket from --bucket and takes no
 // argument by place, and the hint once gave it one — `rta s3 object list
