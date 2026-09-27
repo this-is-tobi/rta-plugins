@@ -323,3 +323,22 @@ func TestAStreamEndingOnTheLastPartIsUploadedWhole(t *testing.T) {
 		t.Errorf("parts = %v, stored %d bytes, want two whole parts and all %d bytes", parts, len(joined), len(content))
 	}
 }
+
+// A stream's size is not known until it has been read, and a preview reads
+// nothing, so it has to say so. It printed the unknown size as "0 B",
+// predicting an empty object for whatever the pipe was about to carry.
+func TestAStreamPreviewSaysItsSizeIsUnknown(t *testing.T) {
+	srv, asked := recordingS3(t, "")
+	v, err := runObjectSet(t.Context(), dryReq(t, "s3.object.set", endpointOf(t, srv),
+		map[string]any{"bucket": "test-bucket", "key": "some/key", "file": fifoWith(t, []byte("hello"))}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := v.(view.Text).Body
+	if !strings.Contains(body, "size unknown") || strings.Contains(body, "0 B") {
+		t.Errorf("preview = %q, want it to say the size is unknown", body)
+	}
+	if hits := asked(); len(hits) > 0 {
+		t.Errorf("--dry-run reached the server: %v", hits)
+	}
+}
