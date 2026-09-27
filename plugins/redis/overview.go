@@ -329,7 +329,10 @@ func hitRatio(hits, misses int64) string {
 	if hits+misses == 0 {
 		return "no lookups yet"
 	}
-	return fmt.Sprintf("%.1f%% (%d hits, %d misses)", float64(hits)/float64(hits+misses)*100, hits, misses)
+	// int is 64 bits on every target this plugin is released for, so a
+	// counter that has run past two billion lookups converts whole.
+	return fmt.Sprintf("%.1f%% (%s, %s)", float64(hits)/float64(hits+misses)*100,
+		format.CountOf(int(hits), "hit"), format.CountOf(int(misses), "miss"))
 }
 
 func sectionPairs(s map[string]string) view.KeyValue {
