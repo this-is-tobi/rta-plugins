@@ -27,7 +27,7 @@ Under `plugins: redis:` in rta's configuration, or in a profile's `set:`. An ins
 | cert-file     | redis.client.list, redis.cluster, redis.config.get, redis.key.get, redis.key.list, redis.key.tree, redis.memory, redis.overview, redis.slowlog | client certificate, for a server using mTLS                        |
 | db            | redis.client.list, redis.cluster, redis.config.get, redis.key.get, redis.key.list, redis.key.tree, redis.memory, redis.overview, redis.slowlog | logical database to SELECT                                         |
 | depth         | redis.key.tree                                                                                                                                 | how many levels to expand                                          |
-| key-file      | redis.client.list, redis.cluster, redis.config.get, redis.key.get, redis.key.list, redis.key.tree, redis.memory, redis.overview, redis.slowlog | private key for --cert-file                                        |
+| key-file      | redis.client.list, redis.cluster, redis.config.get, redis.key.get, redis.key.list, redis.key.tree, redis.memory, redis.overview, redis.slowlog | private key for \`cert-file\`                                      |
 | limit         | redis.key.list, redis.key.tree                                                                                                                 | how many keys to return                                            |
 | separator     | redis.key.tree                                                                                                                                 | the character that separates levels in key names                   |
 | slowlog.count | redis.slowlog                                                                                                                                  | how many entries, newest first                                     |
@@ -51,7 +51,7 @@ CLIENT LIST as a table: address, name, age, idle time, the last command and the 
 | input:tls       | bool, default false, local (never offered to MCP callers), from config plugins.redis.tls, filled by a profile's tunnel (the forward's tls) — connect over TLS                                                |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.redis.ca-file — PEM bundle to verify the server against                                                                          |
 | input:cert-file | string, default , local (never offered to MCP callers), from config plugins.redis.cert-file — client certificate, for a server using mTLS                                                                    |
-| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.redis.key-file — private key for --cert-file                                                                                     |
+| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.redis.key-file — private key for \`cert-file\`                                                                                   |
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.redis.username — ACL user to authenticate as (Redis 6+); empty for the default user                                              |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_REDIS_PASSWORD — password, or the ACL user's password                                                                                                |
 | input:db        | int, default 0, a value of at least 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                       |
@@ -76,7 +76,7 @@ The state row is the one that matters: `fail` means some slot has no reachable p
 | input:tls       | bool, default false, local (never offered to MCP callers), from config plugins.redis.tls, filled by a profile's tunnel (the forward's tls) — connect over TLS                                            |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.redis.ca-file — PEM bundle to verify the server against                                                                      |
 | input:cert-file | string, default , local (never offered to MCP callers), from config plugins.redis.cert-file — client certificate, for a server using mTLS                                                                |
-| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.redis.key-file — private key for --cert-file                                                                                 |
+| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.redis.key-file — private key for \`cert-file\`                                                                               |
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.redis.username — ACL user to authenticate as (Redis 6+); empty for the default user                                          |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_REDIS_PASSWORD — password, or the ACL user's password                                                                                            |
 | input:db        | int, default 0, a value of at least 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                   |
@@ -105,7 +105,7 @@ The overview already grades the directives that matter most — maxmemory, its p
 | input:tls            | bool, default false, local (never offered to MCP callers), from config plugins.redis.tls, filled by a profile's tunnel (the forward's tls) — connect over TLS                                                           |
 | input:ca-file        | string, default , local (never offered to MCP callers), from config plugins.redis.ca-file — PEM bundle to verify the server against                                                                                     |
 | input:cert-file      | string, default , local (never offered to MCP callers), from config plugins.redis.cert-file — client certificate, for a server using mTLS                                                                               |
-| input:key-file       | string, default , local (never offered to MCP callers), from config plugins.redis.key-file — private key for --cert-file                                                                                                |
+| input:key-file       | string, default , local (never offered to MCP callers), from config plugins.redis.key-file — private key for \`cert-file\`                                                                                              |
 | input:username       | string, default , local (never offered to MCP callers), from config plugins.redis.username — ACL user to authenticate as (Redis 6+); empty for the default user                                                         |
 | input:password       | secret, local (never offered to MCP callers), from $RTA_REDIS_PASSWORD — password, or the ACL user's password                                                                                                           |
 | input:db             | int, default 0, a value of at least 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                                  |
@@ -115,7 +115,7 @@ The overview already grades the directives that matter most — maxmemory, its p
 
 The value at one key, whatever its type: a string as itself, a hash as its fields, a list, set or sorted set as its members — bounded, and it says when it stopped.
 
-**Classified write for what it discloses, not what it changes.** A session store keeps tokens and a cache keeps whatever the application cached, so reading an arbitrary key can be reading somebody's session. It needs a grant naming the key: `rta grant allow redis.key.get user:42:session` is a consent somebody can read.
+**Classified write for what it discloses, not what it changes.** A session store keeps tokens and a cache keeps whatever the application cached, so reading an arbitrary key can be reading somebody's session. It needs a grant naming the key: `grant.allow` for `redis.key.get` and `user:42:session` is a consent somebody can read.
 
 The read tier — redis.key.list and redis.key.tree — shows names, types and TTLs, which is usually the question and costs none of this.
 
@@ -134,7 +134,7 @@ The read tier — redis.key.list and redis.key.tree — shows names, types and T
 | input:tls            | bool, default false, local (never offered to MCP callers), from config plugins.redis.tls, filled by a profile's tunnel (the forward's tls) — connect over TLS                                                   |
 | input:ca-file        | string, default , local (never offered to MCP callers), from config plugins.redis.ca-file — PEM bundle to verify the server against                                                                             |
 | input:cert-file      | string, default , local (never offered to MCP callers), from config plugins.redis.cert-file — client certificate, for a server using mTLS                                                                       |
-| input:key-file       | string, default , local (never offered to MCP callers), from config plugins.redis.key-file — private key for --cert-file                                                                                        |
+| input:key-file       | string, default , local (never offered to MCP callers), from config plugins.redis.key-file — private key for \`cert-file\`                                                                                      |
 | input:username       | string, default , local (never offered to MCP callers), from config plugins.redis.username — ACL user to authenticate as (Redis 6+); empty for the default user                                                 |
 | input:password       | secret, local (never offered to MCP callers), from $RTA_REDIS_PASSWORD — password, or the ACL user's password                                                                                                   |
 | input:db             | int, default 0, a value of at least 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                          |
@@ -161,7 +161,7 @@ Never a value: this is the read tier, and redis.key.get is where contents live. 
 | input:tls       | bool, default false, local (never offered to MCP callers), from config plugins.redis.tls, filled by a profile's tunnel (the forward's tls) — connect over TLS                                                                            |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.redis.ca-file — PEM bundle to verify the server against                                                                                                      |
 | input:cert-file | string, default , local (never offered to MCP callers), from config plugins.redis.cert-file — client certificate, for a server using mTLS                                                                                                |
-| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.redis.key-file — private key for --cert-file                                                                                                                 |
+| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.redis.key-file — private key for \`cert-file\`                                                                                                               |
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.redis.username — ACL user to authenticate as (Redis 6+); empty for the default user                                                                          |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_REDIS_PASSWORD — password, or the ACL user's password                                                                                                                            |
 | input:db        | int, default 0, a value of at least 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                                                   |
@@ -190,7 +190,7 @@ Names and counts only, never a value. Same read tier as redis.key.list.
 | input:tls       | bool, default false, local (never offered to MCP callers), from config plugins.redis.tls, filled by a profile's tunnel (the forward's tls) — connect over TLS                                                                                                                         |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.redis.ca-file — PEM bundle to verify the server against                                                                                                                                                   |
 | input:cert-file | string, default , local (never offered to MCP callers), from config plugins.redis.cert-file — client certificate, for a server using mTLS                                                                                                                                             |
-| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.redis.key-file — private key for --cert-file                                                                                                                                                              |
+| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.redis.key-file — private key for \`cert-file\`                                                                                                                                                            |
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.redis.username — ACL user to authenticate as (Redis 6+); empty for the default user                                                                                                                       |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_REDIS_PASSWORD — password, or the ACL user's password                                                                                                                                                                         |
 | input:db        | int, default 0, a value of at least 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                                                                                                |
@@ -213,7 +213,7 @@ MEMORY STATS as a table of where the bytes are — dataset, overhead, clients, r
 | input:tls       | bool, default false, local (never offered to MCP callers), from config plugins.redis.tls, filled by a profile's tunnel (the forward's tls) — connect over TLS                                           |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.redis.ca-file — PEM bundle to verify the server against                                                                     |
 | input:cert-file | string, default , local (never offered to MCP callers), from config plugins.redis.cert-file — client certificate, for a server using mTLS                                                               |
-| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.redis.key-file — private key for --cert-file                                                                                |
+| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.redis.key-file — private key for \`cert-file\`                                                                              |
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.redis.username — ACL user to authenticate as (Redis 6+); empty for the default user                                         |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_REDIS_PASSWORD — password, or the ACL user's password                                                                                           |
 | input:db        | int, default 0, a value of at least 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                  |
@@ -225,7 +225,7 @@ INFO, read once and graded: memory against maxmemory and what happens at the cei
 
 The memory row is the one to watch. A server at maxmemory with `noeviction` refuses every write while answering reads, which looks like a working cache from anywhere except here; one with an eviction policy quietly loses keys instead, and the evicted count is where that shows.
 
---detail adds the raw INFO sections, for the field this page does not show.
+`detail` adds the raw INFO sections, for the field this page does not show.
 
 | Field           | Value                                                                                                                                                                                                                  |
 |-----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -240,7 +240,7 @@ The memory row is the one to watch. A server at maxmemory with `noeviction` refu
 | input:tls       | bool, default false, local (never offered to MCP callers), from config plugins.redis.tls, filled by a profile's tunnel (the forward's tls) — connect over TLS                                                          |
 | input:ca-file   | string, default , local (never offered to MCP callers), from config plugins.redis.ca-file — PEM bundle to verify the server against                                                                                    |
 | input:cert-file | string, default , local (never offered to MCP callers), from config plugins.redis.cert-file — client certificate, for a server using mTLS                                                                              |
-| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.redis.key-file — private key for --cert-file                                                                                               |
+| input:key-file  | string, default , local (never offered to MCP callers), from config plugins.redis.key-file — private key for \`cert-file\`                                                                                             |
 | input:username  | string, default , local (never offered to MCP callers), from config plugins.redis.username — ACL user to authenticate as (Redis 6+); empty for the default user                                                        |
 | input:password  | secret, local (never offered to MCP callers), from $RTA_REDIS_PASSWORD — password, or the ACL user's password                                                                                                          |
 | input:db        | int, default 0, a value of at least 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                                 |
@@ -249,7 +249,7 @@ The memory row is the one to watch. A server at maxmemory with `noeviction` refu
 
 ## redis.slowlog
 
-SLOWLOG GET: when each slow command ran, how long it took, who sent it and the command line itself. The threshold is the server's `slowlog-log-slower-than`, in microseconds; `rta redis config get slowlog*` shows it.
+SLOWLOG GET: when each slow command ran, how long it took, who sent it and the command line itself. The threshold is the server's `slowlog-log-slower-than`, in microseconds; `redis.config.get` with the pattern `slowlog*` shows it.
 
 **Classified write for what it discloses.** An entry is the command with its arguments, and on any server where a SET was ever slow that is a stored value.
 
@@ -268,7 +268,7 @@ SLOWLOG GET: when each slow command ran, how long it took, who sent it and the c
 | input:tls            | bool, default false, local (never offered to MCP callers), from config plugins.redis.tls, filled by a profile's tunnel (the forward's tls) — connect over TLS                                                               |
 | input:ca-file        | string, default , local (never offered to MCP callers), from config plugins.redis.ca-file — PEM bundle to verify the server against                                                                                         |
 | input:cert-file      | string, default , local (never offered to MCP callers), from config plugins.redis.cert-file — client certificate, for a server using mTLS                                                                                   |
-| input:key-file       | string, default , local (never offered to MCP callers), from config plugins.redis.key-file — private key for --cert-file                                                                                                    |
+| input:key-file       | string, default , local (never offered to MCP callers), from config plugins.redis.key-file — private key for \`cert-file\`                                                                                                  |
 | input:username       | string, default , local (never offered to MCP callers), from config plugins.redis.username — ACL user to authenticate as (Redis 6+); empty for the default user                                                             |
 | input:password       | secret, local (never offered to MCP callers), from $RTA_REDIS_PASSWORD — password, or the ACL user's password                                                                                                               |
 | input:db             | int, default 0, a value of at least 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                                      |

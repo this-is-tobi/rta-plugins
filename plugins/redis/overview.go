@@ -29,7 +29,7 @@ func overviewCapability() plugin.Capability {
 			"refuses every write while answering reads, which looks like a working cache " +
 			"from anywhere except here; one with an eviction policy quietly loses keys " +
 			"instead, and the evicted count is where that shows.\n\n" +
-			"--detail adds the raw INFO sections, for the field this page does not show.",
+			"`detail` adds the raw INFO sections, for the field this page does not show.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withClient(ctx, req, func(ctx context.Context, c *client) (view.View, error) {
 				return overviewView(ctx, c, req)
@@ -94,7 +94,7 @@ func parseInfo(raw string) info {
 func fetchInfo(ctx context.Context, c *client) (info, *view.Error) {
 	r, err := c.do(ctx, "INFO", "all")
 	if err != nil {
-		return info{}, classify(err, c.addr)
+		return info{}, classify(err, c.addr, c.sf)
 	}
 	return parseInfo(r.text()), nil
 }
@@ -361,7 +361,7 @@ func clientListCapability() plugin.Capability {
 			return withClient(ctx, req, func(ctx context.Context, c *client) (view.View, error) {
 				r, err := c.do(ctx, "CLIENT", "LIST")
 				if err != nil {
-					return nil, classify(err, c.addr)
+					return nil, classify(err, c.addr, c.sf)
 				}
 				return clientTable(r.text()), nil
 			})
@@ -433,9 +433,9 @@ func clusterView(ctx context.Context, c *client, req plugin.Request) (view.View,
 		var srv *serverError
 		if asServerError(err, &srv) && strings.Contains(srv.msg, "cluster support disabled") {
 			return view.Text{Body: c.addr + " is a standalone server — cluster mode is off. " +
-				"`rta redis overview` shows its replication instead."}, nil
+				c.sf.CapabilityName("redis.overview") + " shows its replication instead."}, nil
 		}
-		return nil, classify(err, c.addr)
+		return nil, classify(err, c.addr, c.sf)
 	}
 	state := map[string]string{}
 	for _, line := range strings.Split(infoReply.text(), "\n") {
@@ -460,7 +460,7 @@ func clusterView(ctx context.Context, c *client, req plugin.Request) (view.View,
 
 	nodesReply, err := c.do(ctx, "CLUSTER", "NODES")
 	if err != nil {
-		return nil, classify(err, c.addr)
+		return nil, classify(err, c.addr, c.sf)
 	}
 	p.Put("nodes", nodesTable(nodesReply.text()))
 	return p.View(), nil

@@ -42,7 +42,7 @@ func connFields() []plugin.Field {
 		{Name: "cert-file", Type: plugin.String, Default: "", Config: "cert-file",
 			Local: true, Help: "client certificate, for a server using mTLS"},
 		{Name: "key-file", Type: plugin.String, Default: "", Config: "key-file",
-			Local: true, Help: "private key for --cert-file"},
+			Local: true, Help: "private key for `cert-file`"},
 		// Redis 6 ACLs name a user; before that, and on most servers still,
 		// AUTH takes a bare password and the user is "default". Empty means
 		// the latter, which is why this has no default of its own.
@@ -80,6 +80,9 @@ type client struct {
 	r    *bufio.Reader
 	w    *bufio.Writer
 	addr string
+	// sf is the surface the request came through, so a message about this
+	// connection names an input the way its reader gives one.
+	sf plugin.Surface
 }
 
 func (c *client) Close() { _ = c.conn.Close() }
@@ -110,9 +113,9 @@ func connect(ctx context.Context, req plugin.Request) (*client, *view.Error) {
 		conn, err = dialer.DialContext(ctx, "tcp", addr)
 	}
 	if err != nil {
-		return nil, classify(err, addr)
+		return nil, classify(err, addr, req.Surface())
 	}
-	c := &client{conn: conn, r: bufio.NewReader(conn), w: bufio.NewWriter(conn), addr: addr}
+	c := &client{conn: conn, r: bufio.NewReader(conn), w: bufio.NewWriter(conn), addr: addr, sf: req.Surface()}
 
 	if pw := req.String("password"); pw != "" {
 		args := []string{"AUTH", pw}
@@ -121,13 +124,13 @@ func connect(ctx context.Context, req plugin.Request) (*client, *view.Error) {
 		}
 		if _, err := c.do(ctx, args...); err != nil {
 			c.Close()
-			return nil, classify(err, addr)
+			return nil, classify(err, addr, req.Surface())
 		}
 	}
 	if db := req.Int("db"); db != 0 {
 		if _, err := c.do(ctx, "SELECT", strconv.Itoa(db)); err != nil {
 			c.Close()
-			return nil, classify(err, addr)
+			return nil, classify(err, addr, req.Surface())
 		}
 	}
 	// One PING, so that a server that requires a password nobody supplied is
@@ -135,18 +138,19 @@ func connect(ctx context.Context, req plugin.Request) (*client, *view.Error) {
 	// command a capability happens to send first.
 	if _, err := c.do(ctx, "PING"); err != nil {
 		c.Close()
-		return nil, classify(err, addr)
+		return nil, classify(err, addr, req.Surface())
 	}
 	return c, nil
 }
 
 func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
+	sf := req.Surface()
 	cfg := &tls.Config{MinVersion: tls.VersionTLS12}
 	if ca := req.String("ca-file"); ca != "" {
 		pem, err := os.ReadFile(ca)
 		if err != nil {
 			return nil, view.Errorf("redis.tls.ca.unreadable", "%v", err).
-				WithHint("--ca-file is a path on this machine, read by rta rather than by the server")
+				WithHint(setting(sf, "ca-file") + " is a path on this machine, read by rta rather than by the server")
 		}
 		pool := x509.NewCertPool()
 		if !pool.AppendCertsFromPEM(pem) {
@@ -158,10 +162,10 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 	cert, key := req.String("cert-file"), req.String("key-file")
 	switch {
 	case cert != "" && key == "":
-		return nil, view.Errorf("redis.tls.key.missing", "--cert-file given without --key-file").
+		return nil, view.Errorf("redis.tls.key.missing", "%s given without %s", setting(sf, "cert-file"), setting(sf, "key-file")).
 			WithHint("a client certificate is unusable without its private key")
 	case key != "" && cert == "":
-		return nil, view.Errorf("redis.tls.cert.missing", "--key-file given without --cert-file").
+		return nil, view.Errorf("redis.tls.cert.missing", "%s given without %s", setting(sf, "key-file"), setting(sf, "cert-file")).
 			WithHint("a private key is unusable without the certificate it belongs to")
 	case cert != "":
 		pair, err := tls.LoadX509KeyPair(cert, key)
@@ -303,7 +307,7 @@ func (r reply) pairs() [][2]string {
 // classify turns a connection or server error into something an operator can
 // act on. Server errors arrive as a `-` line whose first word is the code;
 // the words are the stable part, the sentence after them is not.
-func classify(err error, addr string) *view.Error {
+func classify(err error, addr string, sf plugin.Surface) *view.Error {
 	var already *view.Error
 	if errors.As(err, &already) {
 		return already
@@ -314,10 +318,10 @@ func classify(err error, addr string) *view.Error {
 		switch code {
 		case "NOAUTH":
 			return view.Errorf("redis.auth.required", "%s requires a password", addr).
-				WithHint("set $" + plugin.LocalEnvVar("redis.overview", "password") + " or pass --password")
+				WithHint("set $" + plugin.LocalEnvVar("redis.overview", "password") + " or pass " + setting(sf, "password"))
 		case "WRONGPASS":
 			return view.Errorf("redis.auth.failed", "%s rejected the credentials", addr).
-				WithHint("check the password, and --username if the server uses ACLs")
+				WithHint("check the password, and " + setting(sf, "username") + " if the server uses ACLs")
 		case "NOPERM":
 			return view.Errorf("redis.denied", "%s: %s", addr, srv.msg).
 				WithHint("the ACL user is valid but not allowed this command or key")
@@ -326,7 +330,8 @@ func classify(err error, addr string) *view.Error {
 				WithHint("a server restoring a large RDB or AOF answers this until it is done — try again shortly")
 		case "MOVED", "ASK":
 			return view.Errorf("redis.cluster.redirect", "%s: %s", addr, srv.msg).
-				WithHint("this is a cluster and that key lives on another node — `rta redis cluster` lists them; point --address at the one named")
+				WithHint("this is a cluster and that key lives on another node — " + sf.CapabilityName("redis.cluster") +
+					" lists them; point " + setting(sf, "address") + " at the one named")
 		case "ERR":
 			if strings.Contains(srv.msg, "unknown command") {
 				return view.Errorf("redis.unsupported", "%s: %s", addr, srv.msg).
@@ -334,11 +339,11 @@ func classify(err error, addr string) *view.Error {
 			}
 			if strings.Contains(srv.msg, "DB index is out of range") {
 				return view.Errorf("redis.db.range", "%s has no database with that index", addr).
-					WithHint("the server's `databases` setting counts them from 0 (16 unless raised) — pick --db below it")
+					WithHint("the server's `databases` setting counts them from 0 (16 unless raised) — pick " + setting(sf, "db") + " below it")
 			}
 			if strings.Contains(srv.msg, "AUTH") && strings.Contains(srv.msg, "no password") {
 				return view.Errorf("redis.auth.unneeded", "%s has no password set, and one was given", addr).
-					WithHint("drop --password (or the environment variable) for this server")
+					WithHint("drop " + setting(sf, "password") + " (or the environment variable) for this server")
 			}
 		}
 		return view.Errorf("redis.server.error", "%s: %s", addr, srv.msg)
@@ -353,7 +358,7 @@ func classify(err error, addr string) *view.Error {
 		var dnsErr *stdnet.DNSError
 		if errors.As(err, &dnsErr) {
 			return view.Errorf("redis.host.unknown", "no address for %q", addr).
-				WithHint("`rta net dns " + hostOnly(addr) + "` shows what DNS returns")
+				WithHint(dnsHint(sf, hostOnly(addr)))
 		}
 		return view.Errorf("redis.conn.refused", "nothing is listening on %s", addr).
 			WithHint("redis listens on 6379 by default; a server bound to localhost only answers from its own host")
@@ -361,14 +366,14 @@ func classify(err error, addr string) *view.Error {
 	var authErr x509.UnknownAuthorityError
 	if errors.As(err, &authErr) {
 		return view.Errorf("redis.tls.untrusted", "%s presented a certificate nothing here trusts", addr).
-			WithHint("pass the CA that issued it with --ca-file")
+			WithHint("pass the CA that issued it with " + setting(sf, "ca-file"))
 	}
 	if errors.Is(err, io.EOF) {
 		return view.Errorf("redis.conn.closed", "%s closed the connection", addr).
-			WithHint("a TLS server answers a plaintext client by hanging up — try --tls")
+			WithHint("a TLS server answers a plaintext client by hanging up — try " + setting(sf, "tls"))
 	}
 	return view.Errorf("redis.conn.failed", "could not reach %s: %v", addr, err).
-		WithHint("`rta explain redis.overview` lists every input and where each one can come from")
+		WithHint(explainHint(sf, "redis.overview"))
 }
 
 func hostOnly(addr string) string {
@@ -377,4 +382,37 @@ func hostOnly(addr string) string {
 		return addr
 	}
 	return host
+}
+
+// setting names connection input name in a message the way its reader
+// changes it: the flag on the CLI, the box in a TUI form. Not the argument
+// over MCP, as plugin.Surface.InputName would: every connection input is
+// Local, so the tool's schema hides it and the bridge drops one given, and an
+// agent told to check the "username" argument would pass one that is thrown
+// away and read the same refusal again. It is named there as the declaration
+// names it, `username` — a setting of the operator's, which the agent can
+// report and cannot change.
+func setting(sf plugin.Surface, name string) string {
+	if sf == plugin.SurfaceMCP {
+		return "`" + name + "`"
+	}
+	return sf.InputName(name)
+}
+
+// explainHint sends the reader to the page listing every input and where each
+// one can come from. That page is `rta explain`, a terminal's command with no
+// capability behind it, and what it answers here is where the connection
+// inputs come from — the operator's to set — so over MCP it is the operator
+// who is asked to read it.
+func explainHint(sf plugin.Surface, id string) string {
+	if sf == plugin.SurfaceMCP {
+		return plugin.AskOperator("explain "+id) + ", which lists every input and where each one can come from"
+	}
+	return "`rta explain " + id + "` lists every input and where each one can come from"
+}
+
+// dnsHint is the call that shows what DNS returns for host, spelled for the
+// surface that will make it.
+func dnsHint(sf plugin.Surface, host string) string {
+	return "`" + sf.Call("net.dns", plugin.Arg{Name: "name", Value: host, Positional: true}) + "` shows what DNS returns"
 }

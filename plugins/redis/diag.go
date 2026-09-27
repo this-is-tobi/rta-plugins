@@ -51,7 +51,7 @@ var secretDirectives = map[string]bool{"requirepass": true, "masterauth": true, 
 func configView(ctx context.Context, c *client, req plugin.Request) (view.View, error) {
 	r, err := c.do(ctx, "CONFIG", "GET", req.String("pattern"))
 	if err != nil {
-		return nil, classify(err, c.addr)
+		return nil, classify(err, c.addr, c.sf)
 	}
 	kv := view.KeyValue{}
 	for _, p := range r.pairs() {
@@ -80,7 +80,7 @@ func slowlogCapability() plugin.Capability {
 		Idempotent: true,
 		Description: "SLOWLOG GET: when each slow command ran, how long it took, who sent it and " +
 			"the command line itself. The threshold is the server's `slowlog-log-slower-than`, " +
-			"in microseconds; `rta redis config get slowlog*` shows it.\n\n" +
+			"in microseconds; `redis.config.get` with the pattern `slowlog*` shows it.\n\n" +
 			"**Classified write for what it discloses.** An entry is the command with its " +
 			"arguments, and on any server where a SET was ever slow that is a stored value.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
@@ -95,7 +95,7 @@ func slowlogCapability() plugin.Capability {
 func slowlogView(ctx context.Context, c *client, req plugin.Request) (view.View, error) {
 	r, err := c.do(ctx, "SLOWLOG", "GET", strconv.Itoa(req.Int("count")))
 	if err != nil {
-		return nil, classify(err, c.addr)
+		return nil, classify(err, c.addr, c.sf)
 	}
 	t := view.Table{Columns: []view.Column{
 		{Name: "ID"},
@@ -156,7 +156,7 @@ func memoryCapability() plugin.Capability {
 func memoryView(ctx context.Context, c *client, req plugin.Request) (view.View, error) {
 	stats, err := c.do(ctx, "MEMORY", "STATS")
 	if err != nil {
-		return nil, classify(err, c.addr)
+		return nil, classify(err, c.addr, c.sf)
 	}
 	t := view.Table{Columns: []view.Column{{Name: "Stat"}, {Name: "Value"}}}
 	for _, p := range stats.pairs() {
