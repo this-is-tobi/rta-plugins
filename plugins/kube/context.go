@@ -172,8 +172,11 @@ func runContextSet(ctx context.Context, req plugin.Request) (view.View, error) {
 	// answer is more useful here: this can list what does exist, and a
 	// dry-run has to be able to say what it *would* do without doing it.
 	if _, _, _, ok := cfg.find(name); !ok {
-		return nil, view.Errorf("kube.context.unknown", "no context named %q", name).
-			WithHint(req.Surface().CapabilityName("kube.context.list") + " shows the contexts this machine has: " + names(cfg))
+		hint := req.Surface().CapabilityName("kube.context.list") + " shows the contexts this machine has: " + names(cfg)
+		if len(cfg.Contexts) == 0 {
+			hint = "this machine's kubeconfig has no context at all, so there is none to switch to"
+		}
+		return nil, view.Errorf("kube.context.unknown", "no context named %q", name).WithHint(hint)
 	}
 	if cfg.CurrentContext == name {
 		// Idempotent, and said rather than silently re-run: an operator who

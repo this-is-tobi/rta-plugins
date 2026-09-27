@@ -142,3 +142,24 @@ func TestAClampedTokenNamesTheTTLItFellShortOf(t *testing.T) {
 		}
 	}
 }
+
+// A context that is not there is answered with the ones that are, and a
+// kubeconfig holding none says so, rather than ending the hint on a colon
+// with nothing after it.
+func TestSwitchingToAMissingContextNamesTheOnesThereAre(t *testing.T) {
+	for fixture, want := range map[string]string{
+		rawConfigFixture:   "`rta kube context list` shows the contexts this machine has: kind, prod",
+		`{"contexts": []}`: "this machine's kubeconfig has no context at all, so there is none to switch to",
+	} {
+		withFixtureKubectl(t, fixture)
+		_, err := runContextSet(context.Background(),
+			plugin.NewRequest(map[string]any{"name": "nope"}, false, false).WithSurface(plugin.SurfaceCLI))
+		var verr *view.Error
+		if !errors.As(err, &verr) || verr.Code != "kube.context.unknown" {
+			t.Fatalf("err = %v, want kube.context.unknown", err)
+		}
+		if verr.Hint != want {
+			t.Errorf("hint = %q, want %q", verr.Hint, want)
+		}
+	}
+}
