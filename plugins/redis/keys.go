@@ -69,7 +69,7 @@ func scanKeys(ctx context.Context, c *client, pattern string, limit int) (keys [
 			return nil, false, classify(err, c.addr)
 		}
 		if len(r.items) != 2 {
-			return nil, false, view.Errorf("redis.scan.malformed", "%s answered SCAN with %d items, want 2", c.addr, len(r.items))
+			return nil, false, view.Errorf("redis.scan.malformed", "%s answered SCAN with %s, want 2", c.addr, format.CountOf(len(r.items), "item"))
 		}
 		for _, k := range r.items[1].strings() {
 			if len(keys) == limit {
@@ -328,7 +328,7 @@ func keyGetView(ctx context.Context, c *client, req plugin.Request) (view.View, 
 		pairs = append(pairs, view.Pair{Key: "fields", Value: strconv.Itoa(len(kv))})
 		for i, p := range kv {
 			if i == maxValueItems {
-				pairs = append(pairs, view.Pair{Key: "…", Value: fmt.Sprintf("%d more fields not shown", len(kv)-maxValueItems)})
+				pairs = append(pairs, view.Pair{Key: "…", Value: format.CountOf(len(kv)-maxValueItems, "more field") + " not shown"})
 				break
 			}
 			pairs = append(pairs, view.Pair{Key: "field " + p[0], Value: p[1]})
