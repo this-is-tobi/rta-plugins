@@ -335,7 +335,7 @@ func Plugin() plugin.Plugin {
 							t, err := rowsToTable(rows, req.Int("limit"))
 							if errors.Is(err, ErrTooManyRows) {
 								return view.Errorf("pg.query.toomany",
-									"the query returned more than %d rows", req.Int("limit")).
+									"the query returned more than %s", format.CountOf(req.Int("limit"), "row")).
 									WithHint("add a LIMIT to the query, or raise --limit — refused rather " +
 										"than shortened, because a truncated result set is a different " +
 										"answer wearing the right shape")
