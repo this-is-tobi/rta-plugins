@@ -162,7 +162,8 @@ func classify(err error, req plugin.Request) *view.Error {
 				WithHint("`rta s3 bucket list` shows what is there")
 		case minio.NoSuchKey:
 			return view.Errorf("s3.object.notfound", "no object %q in %q", errResp.Key, errResp.BucketName).
-				WithHint("`rta s3 object list " + errResp.BucketName + "` shows what is there")
+				WithHint("`" + req.Surface().Call("s3.object.list", plugin.Arg{Name: "bucket", Value: errResp.BucketName}) +
+					"` shows what is there")
 		case minio.NoSuchBucketPolicy:
 			return view.Errorf("s3.policy.notfound", "%q has no bucket policy set", errResp.BucketName).
 				WithHint("an absent policy is not the same as a deny-all one — access still follows IAM/bucket ACLs")

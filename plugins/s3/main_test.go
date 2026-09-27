@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/minio/minio-go/v7"
@@ -86,6 +87,18 @@ func req(t *testing.T, capID string, values map[string]any) plugin.Request {
 	}
 	t.Fatalf("no capability %q", capID)
 	return plugin.Request{}
+}
+
+// An object that is not there points at the listing of its bucket as a call
+// the CLI takes: s3.object.list reads the bucket from --bucket and takes no
+// argument by place, and the hint once gave it one — `rta s3 object list
+// shop` — which the CLI refuses as an unexpected argument.
+func TestAMissingObjectPointsAtAListingTheCLITakes(t *testing.T) {
+	verr := classify(minio.ErrorResponse{Code: minio.NoSuchKey, BucketName: "shop", Key: "k"},
+		req(t, "s3.object.get", map[string]any{"key": "k"}))
+	if want := "`rta s3 object list --bucket shop` shows what is there"; !strings.Contains(verr.Hint, want) {
+		t.Errorf("hint = %q, want %q in it", verr.Hint, want)
+	}
 }
 
 // Every classified failure has to say what to do next — the same bar
