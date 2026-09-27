@@ -27,7 +27,7 @@ Unable to connect to the server: getting credentials: exec: executable /opt/home
 `
 
 func TestACredentialPluginRefusingIsASignInProblemNamedAfterThePlugin(t *testing.T) {
-	verr := classify(context.Background(), errors.New("exit status 1"), lapsedTsh, []string{"get", "namespaces"})
+	verr := classify(context.Background(), errors.New("exit status 1"), lapsedTsh, []string{"get", "namespaces"}, plugin.SurfaceCLI)
 	if verr.Code != "kube.login" {
 		t.Fatalf("code = %s, want kube.login: %v", verr.Code, verr)
 	}
@@ -55,7 +55,7 @@ func TestACredentialPluginIsNamedByItsBaseNameAndItsExitCodeWhenSilent(t *testin
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			verr := classify(context.Background(), errors.New("exit status 1"), c.stderr, nil)
+			verr := classify(context.Background(), errors.New("exit status 1"), c.stderr, nil, plugin.SurfaceCLI)
 			if verr.Code != "kube.login" {
 				t.Fatalf("code = %s, want kube.login: %v", verr.Code, verr)
 			}
@@ -73,7 +73,7 @@ func TestACredentialPluginIsNamedByItsBaseNameAndItsExitCodeWhenSilent(t *testin
 // above must not swallow the API server's own unauthorized.
 func TestAServerUnauthorizedIsNotMistakenForAPluginRefusing(t *testing.T) {
 	verr := classify(context.Background(), errors.New("exit status 1"),
-		"error: You must be logged in to the server (Unauthorized)\n", nil)
+		"error: You must be logged in to the server (Unauthorized)\n", nil, plugin.SurfaceCLI)
 	if verr.Code != "kube.unauthorized" {
 		t.Errorf("code = %s, want kube.unauthorized", verr.Code)
 	}
@@ -127,7 +127,7 @@ Unable to connect to the server: getting credentials: exec: fork/exec /opt/acme/
 func TestAMissingCredentialPluginIsNamedAndNotMistakenForAnExpiredOne(t *testing.T) {
 	for name, stderr := range map[string]string{"a bare name": missingBare, "a path": missingPath} {
 		t.Run(name, func(t *testing.T) {
-			verr := classify(context.Background(), errors.New("exit status 1"), stderr, []string{"get", "namespaces"})
+			verr := classify(context.Background(), errors.New("exit status 1"), stderr, []string{"get", "namespaces"}, plugin.SurfaceCLI)
 			if verr.Code != "kube.credential.missing" {
 				t.Fatalf("code = %s, want kube.credential.missing: %v", verr.Code, verr)
 			}

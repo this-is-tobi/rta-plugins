@@ -8,6 +8,7 @@ import (
 
 	"github.com/goccy/go-yaml"
 
+	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
@@ -61,8 +62,8 @@ type clusterCoordinates struct {
 // way readConfig reads it without --raw: no --context is passed to the
 // `config view` call itself, since the answer is the whole file and the
 // caller looks up one context by name afterward.
-func readRawClusterConfig(ctx context.Context) (rawClusterConfig, *view.Error) {
-	raw, verr := run(ctx, "config", "view", "--raw", "-o", "json")
+func readRawClusterConfig(ctx context.Context, sf plugin.Surface) (rawClusterConfig, *view.Error) {
+	raw, verr := run(ctx, sf, "config", "view", "--raw", "-o", "json")
 	if verr != nil {
 		return rawClusterConfig{}, verr
 	}
@@ -84,7 +85,7 @@ func coordinatesFor(cfg rawClusterConfig, s selection) (clusterCoordinates, *vie
 	if name == "" {
 		return clusterCoordinates{}, view.Errorf("kube.context.none",
 			"this machine's kubeconfig names no current context").
-			WithHint("pass --context, or `rta kube context set <name>` picks one")
+			WithHint("pass " + s.sf.InputName("context") + ", or " + pickContext(s.sf))
 	}
 	var clusterName string
 	found := false
@@ -97,7 +98,7 @@ func coordinatesFor(cfg rawClusterConfig, s selection) (clusterCoordinates, *vie
 	}
 	if !found {
 		return clusterCoordinates{}, view.Errorf("kube.context.unknown", "no context named %q", name).
-			WithHint("`rta kube context list` shows the contexts this machine has")
+			WithHint(s.sf.CapabilityName("kube.context.list") + " shows the contexts this machine has")
 	}
 	for _, c := range cfg.Clusters {
 		if c.Name == clusterName {

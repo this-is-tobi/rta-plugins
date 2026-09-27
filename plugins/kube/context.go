@@ -43,13 +43,13 @@ type kubeconfig struct {
 // merged, in an order with rules, and reimplementing that merge is a way to
 // show an operator a current-context that is not the one their next command
 // will use.
-func readConfig(ctx context.Context) (kubeconfig, *view.Error) {
+func readConfig(ctx context.Context, sf plugin.Surface) (kubeconfig, *view.Error) {
 	// `--raw` is deliberately NOT passed. Without it kubectl redacts
 	// credentials — client certificates, bearer tokens, exec plugin output —
 	// and none of them are any of this plugin's business. The unredacted form
 	// would put a working credential in a plugin's memory, in its gRPC
 	// response, and one careless view away from a model's context.
-	raw, verr := run(ctx, "config", "view", "-o", "json")
+	raw, verr := run(ctx, sf, "config", "view", "-o", "json")
 	if verr != nil {
 		return kubeconfig{}, verr
 	}
@@ -79,8 +79,8 @@ func (k kubeconfig) find(name string) (string, string, string, bool) {
 	return "", "", "", false
 }
 
-func runContextList(ctx context.Context, _ plugin.Request) (view.View, error) {
-	cfg, verr := readConfig(ctx)
+func runContextList(ctx context.Context, req plugin.Request) (view.View, error) {
+	cfg, verr := readConfig(ctx, req.Surface())
 	if verr != nil {
 		return nil, verr
 	}
@@ -113,7 +113,7 @@ func runContextGet(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr != nil {
 		return nil, verr
 	}
-	cfg, verr := readConfig(ctx)
+	cfg, verr := readConfig(ctx, req.Surface())
 	if verr != nil {
 		return nil, verr
 	}
@@ -124,12 +124,12 @@ func runContextGet(ctx context.Context, req plugin.Request) (view.View, error) {
 	if name == "" {
 		return nil, view.Errorf("kube.context.none",
 			"this machine's kubeconfig names no current context").
-			WithHint("`rta kube context set <name>` picks one; `rta kube context list` shows them")
+			WithHint(pickContext(req.Surface()) + "; " + req.Surface().CapabilityName("kube.context.list") + " shows them")
 	}
 	cluster, user, ns, ok := cfg.find(name)
 	if !ok {
 		return nil, view.Errorf("kube.context.unknown", "no context named %q", name).
-			WithHint("`rta kube context list` shows the contexts this machine has")
+			WithHint(req.Surface().CapabilityName("kube.context.list") + " shows the contexts this machine has")
 	}
 	if ns == "" {
 		ns = "default"
@@ -164,7 +164,7 @@ func runContextSet(ctx context.Context, req plugin.Request) (view.View, error) {
 	if name == "" {
 		return nil, view.Errorf("kube.context.empty", "name a context to switch to")
 	}
-	cfg, verr := readConfig(ctx)
+	cfg, verr := readConfig(ctx, req.Surface())
 	if verr != nil {
 		return nil, verr
 	}
@@ -173,7 +173,7 @@ func runContextSet(ctx context.Context, req plugin.Request) (view.View, error) {
 	// dry-run has to be able to say what it *would* do without doing it.
 	if _, _, _, ok := cfg.find(name); !ok {
 		return nil, view.Errorf("kube.context.unknown", "no context named %q", name).
-			WithHint("`rta kube context list` shows the contexts this machine has: " + names(cfg))
+			WithHint(req.Surface().CapabilityName("kube.context.list") + " shows the contexts this machine has: " + names(cfg))
 	}
 	if cfg.CurrentContext == name {
 		// Idempotent, and said rather than silently re-run: an operator who
@@ -186,7 +186,7 @@ func runContextSet(ctx context.Context, req plugin.Request) (view.View, error) {
 			"would switch this machine's current context from %s to %s — every later kubectl "+
 				"command on this machine would follow it", currentOr(cfg), name)}, nil
 	}
-	if _, verr := run(ctx, "config", "use-context", name); verr != nil {
+	if _, verr := run(ctx, req.Surface(), "config", "use-context", name); verr != nil {
 		return nil, verr
 	}
 	return view.KeyValue{Pairs: []view.Pair{
@@ -225,7 +225,7 @@ func yesNo(b bool) string {
 // a keypress: a completion must not be an action,
 // and this one is a local read.
 func suggestContexts(ctx context.Context, _ plugin.Request) []string {
-	cfg, verr := readConfig(ctx)
+	cfg, verr := readConfig(ctx, plugin.SurfaceCompletion)
 	if verr != nil {
 		return nil
 	}
@@ -239,4 +239,20 @@ func suggestContexts(ctx context.Context, _ plugin.Request) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// pickContext is the call that switches this machine to a context, spelled
+// for the surface that will make it, with the name left for its reader.
+func pickContext(sf plugin.Surface) string {
+	return "`" + sf.Call("kube.context.set", plugin.Arg{Name: "name", Value: "<name>", Positional: true}) + "` picks one"
+}
+
+// given names input name set to value, as the reader would give it: "--grant
+// kube.pod.list" on the CLI, and elsewhere the input the surface names, with
+// the value beside it.
+func given(sf plugin.Surface, name, value string) string {
+	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
+		return sf.InputName(name) + " set to " + value
+	}
+	return sf.InputName(name) + " " + value
 }

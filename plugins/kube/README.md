@@ -40,7 +40,7 @@ Under `plugins: kube:` in rta's configuration, or in a profile's `set:`. An inst
 
 ## kube.cert.list
 
-Reads type: kubernetes.io/tls Secrets only, selected server-side so no other secret's data ever leaves the API server for this process. The TLS Secrets it does select arrive whole, tls.key included — Kubernetes cannot project a subset of a Secret's data, so no way of asking avoids that. Only tls.crt is decoded; the private key is never parsed, rendered, logged or stored, but it does cross the wire into this process. The leaf certificate's own expiry is judged on the same 30-day window `cert expiry` and `rta audit web` use.
+Reads type: kubernetes.io/tls Secrets only, selected server-side so no other secret's data ever leaves the API server for this process. The TLS Secrets it does select arrive whole, tls.key included — Kubernetes cannot project a subset of a Secret's data, so no way of asking avoids that. Only tls.crt is decoded; the private key is never parsed, rendered, logged or stored, but it does cross the wire into this process. The leaf certificate's own expiry is judged on the same 30-day window `cert.expiry` and `audit.web` use.
 
 | Field                | Value                                                                                                                                                             |
 |----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -90,21 +90,21 @@ Reads the kubeconfig only — no cluster is contacted, so this answers even when
 
 Rewrites current-context in the kubeconfig, which is what `kubectl config use-context` does. Every later command on this machine follows it — kubectl's, this plugin's, and anything else reading the same file — which is why it needs a grant naming the context you mean, and why the grant is worth reading twice before you issue it.
 
-| Field                | Value                                                                                         |
-|----------------------|-----------------------------------------------------------------------------------------------|
-| id                   | kube.context.set                                                                              |
-| summary              | Switch this machine's current kubeconfig context                                              |
-| safety               | write                                                                                         |
-| idempotent           | true                                                                                          |
-| cli                  | rta kube context set \<name>                                                                  |
-| mcp-tool             | kube_context_set                                                                              |
-| grant required (mcp) | yes — a person must run \`rta grant allow kube.context.set\`, optionally naming one name      |
-| input:name           | string, required, completes — the context to switch to — \`rta kube context list\` shows them |
-| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                  |
+| Field                | Value                                                                                     |
+|----------------------|-------------------------------------------------------------------------------------------|
+| id                   | kube.context.set                                                                          |
+| summary              | Switch this machine's current kubeconfig context                                          |
+| safety               | write                                                                                     |
+| idempotent           | true                                                                                      |
+| cli                  | rta kube context set \<name>                                                              |
+| mcp-tool             | kube_context_set                                                                          |
+| grant required (mcp) | yes — a person must run \`rta grant allow kube.context.set\`, optionally naming one name  |
+| input:name           | string, required, completes — the context to switch to — \`kube.context.list\` shows them |
+| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates              |
 
 ## kube.deployment.list
 
-Ready against desired, which is the number that says whether a rollout finished. One namespace by default, or every one with --all-namespaces.
+Ready against desired, which is the number that says whether a rollout finished. One namespace by default, or every one with `all-namespaces`.
 
 | Field                | Value                                                                                                                                                                   |
 |----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -122,7 +122,7 @@ Ready against desired, which is the number that says whether a rollout finished.
 
 ## kube.event.list
 
-Warnings only unless --normal: on a cluster running any active operator the Normal events are routine narration and outnumber the warnings heavily.
+Warnings only unless `normal`: on a cluster running any active operator the Normal events are routine narration and outnumber the warnings heavily.
 
 An Event is a counter, not a log line — a recurring problem updates the existing event rather than appending one — so first-seen and count are reported alongside last-seen. Those two columns are the payload: an event first seen eleven days ago with thirteen thousand occurrences is a different signal from a one-off thirty seconds ago, and last-seen alone renders them the same. It also means the usual "events only go back an hour" is true only for problems that stopped: the TTL runs from last-seen, so anything still recurring is never collected and its first-seen can be weeks old.
 
@@ -232,7 +232,7 @@ Conditions, not usage — no metrics-server needed, unlike kube.metrics.node. Th
 
 ## kube.overview
 
-The context, whether the cluster answers, how many namespaces it has, which nodes are not Ready, and every pod that is not serving — Failed, Pending, Unknown, or Running without every container ready. A finished Job in Succeeded is not one of them, and a cordoned node is reported separately rather than counted as not ready: both are deliberate states, not faults. Pod-slot headroom comes from the schedulable nodes' own max-pods, which is the number that says whether a cluster can still take work when CPU and memory look fine. With --detail: every node, deployments whose replicas are short, and the pods themselves.
+The context, whether the cluster answers, how many namespaces it has, which nodes are not Ready, and every pod that is not serving — Failed, Pending, Unknown, or Running without every container ready. A finished Job in Succeeded is not one of them, and a cordoned node is reported separately rather than counted as not ready: both are deliberate states, not faults. Pod-slot headroom comes from the schedulable nodes' own max-pods, which is the number that says whether a cluster can still take work when CPU and memory look fine. With `detail`: every node, deployments whose replicas are short, and the pods themselves.
 
 Reads more than it names: every ResourceQuota and every TLS Secret in every namespace, on every run and regardless of any namespace narrowing, to report quota pressure and certificate expiry. See kube.cert.list for what reading a TLS Secret costs — it applies here too, unconditionally. A credential that cannot list nodes still gets the rest: the node read is reported as unavailable and stepped over, not treated as a failure.
 
@@ -251,7 +251,7 @@ Reads more than it names: every ResourceQuota and every TLS Secret in every name
 
 ## kube.pod.list
 
-One namespace by default — the context's own — or every namespace with --all-namespaces. Restarts are worth reading: a pod that is Running and has restarted forty times is not healthy, and only one of those two facts shows in its status. --unhealthy narrows to pods that are not serving: Failed, Pending, Unknown, or Running without every container ready. A pod in Succeeded is not included — a finished Job is not a broken one. The same judgement kube.overview makes, available here without the rest of the overview.
+One namespace by default — the context's own — or every namespace with `all-namespaces`. Restarts are worth reading: a pod that is Running and has restarted forty times is not healthy, and only one of those two facts shows in its status. `unhealthy` narrows to pods that are not serving: Failed, Pending, Unknown, or Running without every container ready. A pod in Succeeded is not included — a finished Job is not a broken one. The same judgement kube.overview makes, available here without the rest of the overview.
 
 | Field                | Value                                                                                                                                                            |
 |----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -327,7 +327,7 @@ One row per resource a quota tracks, not one row per quota object — cpu, memor
 
 ## kube.serviceaccount.list
 
-Only ServiceAccounts carrying provision's own label — not every ServiceAccount in the namespace. A minted token cannot be queried directly (Kubernetes does not persist a TokenRequest token as an object), so "expired" here is computed from the --ttl and issue time provision recorded as annotations at mint time — a best-effort estimate, not a live check against the API server.
+Only ServiceAccounts carrying provision's own label — not every ServiceAccount in the namespace. A minted token cannot be queried directly (Kubernetes does not persist a TokenRequest token as an object), so "expired" here is computed from the `ttl` and issue time provision recorded as annotations at mint time — a best-effort estimate, not a live check against the API server.
 
 | Field                | Value                                                                                                                                                                       |
 |----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -345,7 +345,7 @@ Only ServiceAccounts carrying provision's own label — not every ServiceAccount
 
 ## kube.serviceaccount.provision
 
-Creates a ServiceAccount, a Role built from exactly the grants named in --grant (nothing broader — an unmapped name refuses the whole request rather than silently granting less than asked), a RoleBinding, and a token scoped to --ttl. A grant is either a kube.* capability ID (what that capability reads) or a bare word naming a cluster permission the minted identity needs but rta has no capability for: logs, workloads, services, and — the one write — rollout, which carries patch on workloads and is meant for environments where changing what runs is acceptable. Returns the assembled kubeconfig — to the terminal, or to --out, which refuses an existing file unless --force says to replace it. Refuses to run anywhere but a person's own CLI/TUI: an agent must never be able to mint its own parallel credential. There is no link enforced between --ttl and any `grant allow` TTL issued elsewhere — matching them is the operator's convention to keep, not something this checks.
+Creates a ServiceAccount, a Role built from exactly the grants named in `grant` (nothing broader — an unmapped name refuses the whole request rather than silently granting less than asked), a RoleBinding, and a token scoped to `ttl`. A grant is either a kube.* capability ID (what that capability reads) or a bare word naming a cluster permission the minted identity needs but rta has no capability for: logs, workloads, services, and — the one write — rollout, which carries patch on workloads and is meant for environments where changing what runs is acceptable. Returns the assembled kubeconfig — to the terminal, or to `out`, which refuses an existing file unless `force` says to replace it. Refuses to run anywhere but a person's own CLI/TUI: an agent must never be able to mint its own parallel credential. There is no link enforced between `ttl` and any `grant.allow` TTL issued elsewhere — matching them is the operator's convention to keep, not something this checks.
 
 | Field           | Value                                                                                                                                                                                                                                                                            |
 |-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -361,13 +361,13 @@ Creates a ServiceAccount, a Role built from exactly the grants named in --grant 
 | input:grant     | stringSlice, required, one of: kube.deployment.list\|kube.event.list\|kube.metrics.pod\|kube.pod.list\|kube.pvc.list\|kube.quota.list\|logs\|rollout\|services\|workloads — what the identity may do: a kube.* capability ID, or logs, workloads, services, rollout — repeatable |
 | input:ttl       | string, required, from config plugins.kube.serviceaccount.ttl — how long the minted token should last, e.g. 15m, 1h, 24h                                                                                                                                                         |
 | input:out       | path, local (never offered to MCP callers) — write the kubeconfig to this file (0600) instead of printing it                                                                                                                                                                     |
-| input:force     | bool, local (never offered to MCP callers) — replace --out's file if it already exists                                                                                                                                                                                           |
+| input:force     | bool, local (never offered to MCP callers) — replace \`out\`'s file if it already exists                                                                                                                                                                                         |
 | input:context   | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted                                                                                                                             |
 | dashboard       | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                                                                                     |
 
 ## kube.serviceaccount.revoke
 
-A TokenRequest bearer token has no independent early-revocation API — it stays valid until its own --ttl regardless of anything rta does. Deleting the ServiceAccount is what invalidates every token minted against it immediately, and because provision never reuses one ServiceAccount across grants, this always means "this one identity", never "every agent's access at once". Refuses to touch anything not carrying provision's own label, so this cannot be used to delete an unrelated ServiceAccount that happens to share a name. Tolerates any of the three objects already being gone (a previous partial provision, or a previous revoke run twice) rather than refusing on the first missing piece.
+A TokenRequest bearer token has no independent early-revocation API — it stays valid until its own `ttl` runs out, regardless of anything rta does. Deleting the ServiceAccount is what invalidates every token minted against it immediately, and because provision never reuses one ServiceAccount across grants, this always means "this one identity", never "every agent's access at once". Refuses to touch anything not carrying provision's own label, so this cannot be used to delete an unrelated ServiceAccount that happens to share a name. Tolerates any of the three objects already being gone (a previous partial provision, or a previous revoke run twice) rather than refusing on the first missing piece.
 
 | Field                | Value                                                                                                                                                |
 |----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|

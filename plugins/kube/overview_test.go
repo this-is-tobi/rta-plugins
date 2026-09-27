@@ -116,10 +116,10 @@ func TestOverviewNamesWhichKindOfFailureItHit(t *testing.T) {
 // own hint rather than fall back to the generic one.
 func TestHintOfPrefersTheErrorsOwnHint(t *testing.T) {
 	own := view.Errorf("kube.forbidden", "nope").WithHint("check the binding")
-	if got := hintOf(own); got != "check the binding" {
+	if got := hintOf(plugin.SurfaceCLI, own); got != "check the binding" {
 		t.Errorf("hintOf = %q, want the error's own hint", got)
 	}
-	if got := hintOf(nil); got == "" {
+	if got := hintOf(plugin.SurfaceCLI, nil); got == "" {
 		t.Error("hintOf(nil) returned nothing to check")
 	}
 }

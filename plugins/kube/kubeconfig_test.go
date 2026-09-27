@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/this-is-tobi/rta/pkg/plugin"
 )
 
 // A fixture shaped like `kubectl config view --raw -o json` really is: two
@@ -187,7 +189,7 @@ func TestTokenExpiryRejectsAMalformedToken(t *testing.T) {
 
 func TestReadRawClusterConfigUsesRawAndNoContextFilter(t *testing.T) {
 	withFixtureKubectl(t, rawConfigFixture)
-	cfg, verr := readRawClusterConfig(context.Background())
+	cfg, verr := readRawClusterConfig(context.Background(), plugin.SurfaceCLI)
 	if verr != nil {
 		t.Fatal(verr)
 	}

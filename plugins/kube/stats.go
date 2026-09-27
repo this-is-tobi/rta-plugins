@@ -228,7 +228,7 @@ func nodesForStats(ctx context.Context, s selection, only string) ([]nodeItem, *
 		}
 	}
 	return nil, view.Errorf("kube.node.unknown", "%s has no node called %q", s.where(), only).
-		WithHint("`rta kube node list` shows the nodes this cluster has")
+		WithHint(s.sf.CapabilityName("kube.node.list") + " shows the nodes this cluster has")
 }
 
 // pressureOf picks the series to report, and the choice is a correctness one.
