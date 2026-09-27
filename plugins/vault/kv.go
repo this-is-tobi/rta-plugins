@@ -9,6 +9,7 @@ import (
 
 	vaultapi "github.com/hashicorp/vault/api"
 
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -208,8 +209,8 @@ func runKVSet(ctx context.Context, req plugin.Request) (view.View, error) {
 		// do, and the values are the caller's own input rather than anything
 		// only Vault could tell them.
 		if req.DryRun {
-			return view.Text{Body: fmt.Sprintf("would set %s/%s with %d field(s) — a new version, "+
-				"the current one kept", req.String("mount"), req.String("path"), len(data))}, nil
+			return view.Text{Body: fmt.Sprintf("would set %s/%s with %s — a new version, "+
+				"the current one kept", req.String("mount"), req.String("path"), format.CountOf(len(data), "field"))}, nil
 		}
 		secret, err := client.KVv2(req.String("mount")).Put(ctx, req.String("path"), data)
 		if err != nil {
