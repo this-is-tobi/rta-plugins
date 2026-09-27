@@ -142,7 +142,7 @@ func schemaDDL(ctx context.Context, q querier, req plugin.Request) (view.View, e
 	if len(body) > maxBytes {
 		return nil, view.Errorf("pg.schema.toolarge",
 			"the description of schema %q is %s, over the %s a result may be",
-			schema, format.Bytes(uint64(len(body))), format.Bytes(maxBytes)).
+			schema, format.Bytes(len(body)), format.Bytes(maxBytes)).
 			WithHint("lower --limit to describe fewer tables, or use " +
 				"`pg_dump --schema-only` for a schema this large")
 	}
