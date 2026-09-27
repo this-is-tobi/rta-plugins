@@ -206,7 +206,7 @@ func listForDownload(ctx context.Context, client *minio.Client,
 		}
 		if len(out) == limit {
 			return nil, view.Errorf("s3.download.toomany",
-				"%s holds more than %d objects", req.String("bucket"), limit).
+				"%s holds more than %s", req.String("bucket"), format.CountOf(limit, "object")).
 				WithHint("raise --limit, or narrow it with --prefix — refused rather than " +
 					"truncated, because a backup missing objects nobody named is worse than " +
 					"one that did not run")

@@ -166,6 +166,9 @@ func TestASymlinkRefusesTheWholeUploadAndSendsNothing(t *testing.T) {
 	if !strings.Contains(verr.Message, "innocent.txt") {
 		t.Errorf("message = %q, want it to name the symlink", verr.Message)
 	}
+	if !strings.HasPrefix(verr.Message, "1 entry under ") || !strings.Contains(verr.Message, " is not a regular file: ") {
+		t.Errorf("message = %q, want the one entry counted in the singular", verr.Message)
+	}
 	if len(*puts) != 0 {
 		t.Errorf("the refused upload still sent objects: %v", *puts)
 	}
@@ -274,6 +277,12 @@ func TestUploadOverTheLimitIsRefusedNotTruncated(t *testing.T) {
 	}
 	if len(*puts) != 0 {
 		t.Errorf("the refused upload still sent objects: %v", *puts)
+	}
+
+	_, err = runBucketUpload(context.Background(),
+		uploadReq(t, srv, map[string]any{"dir": dir, "limit": 1}))
+	if !errors.As(err, &verr) || !strings.HasSuffix(verr.Message, "holds more than 1 file") {
+		t.Errorf("err = %v, want a limit of one counted in the singular", err)
 	}
 }
 
