@@ -184,7 +184,8 @@ func runMetricsPod(ctx context.Context, req plugin.Request) (view.View, error) {
 
 	type row struct {
 		ns, name       string
-		cpu, mem       float64
+		cpu            float64
+		mem            uint64
 		cpuLim, memLim float64
 		cpuPct, memPct string
 		cpuPctN        float64
@@ -192,20 +193,21 @@ func runMetricsPod(ctx context.Context, req plugin.Request) (view.View, error) {
 	}
 	rows := make([]row, 0, len(metrics.Items))
 	for _, m := range metrics.Items {
-		var cpu, mem float64
+		var cpu float64
+		var mem uint64
 		for _, c := range m.Containers {
 			if v, ok := parseCPU(c.Usage.CPU); ok {
 				cpu += v
 			}
 			if v, ok := parseBytes(c.Usage.Memory); ok {
-				mem += float64(v)
+				mem += v
 			}
 		}
 		b := requests[m.Metadata.Namespace+"/"+m.Metadata.Name]
 		r := row{ns: m.Metadata.Namespace, name: m.Metadata.Name, cpu: cpu, mem: mem,
 			cpuLim: b.cpuLimit, memLim: b.memLimit}
 		if b.memLimit > 0 {
-			r.memPct, r.memPctN = percentOf(mem, b.memLimit), mem/b.memLimit
+			r.memPct, r.memPctN = percentOf(float64(mem), b.memLimit), float64(mem)/b.memLimit
 		}
 		if b.cpuLimit > 0 {
 			r.cpuPct, r.cpuPctN = percentOf(cpu, b.cpuLimit), cpu/b.cpuLimit
@@ -230,7 +232,7 @@ func runMetricsPod(ctx context.Context, req plugin.Request) (view.View, error) {
 		if s.AllNS {
 			line = append(line, r.ns)
 		}
-		out = append(out, append(line, r.name, cpuCores(r.cpu), r.cpuPct, format.Bytes(uint64(r.mem)), r.memPct))
+		out = append(out, append(line, r.name, cpuCores(r.cpu), r.cpuPct, format.Bytes(r.mem), r.memPct))
 	}
 	return view.Table{Columns: cols, Rows: out, Total: len(out)}, nil
 }

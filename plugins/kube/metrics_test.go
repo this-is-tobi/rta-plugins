@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -144,5 +146,45 @@ func TestRawArgs(t *testing.T) {
 				t.Errorf("rawArgs leaked a resource-listing flag into a --raw call: %v", got)
 			}
 		}
+	}
+}
+
+// A pod's memory is the sum of its containers' usage, read against the sum
+// of their limits: 96Mi and 32Mi under 192Mi and 64Mi of limits is one row
+// of 128 MiB at 50%. kubectl is a script answering the two calls the view
+// makes, so what is checked is the row the table carries, not a helper on
+// the way to it.
+func TestAPodsMemoryIsItsContainersSummedAgainstTheirLimits(t *testing.T) {
+	metrics := `{"items":[{"metadata":{"name":"api","namespace":"prod"},"containers":[` +
+		`{"usage":{"cpu":"100m","memory":"96Mi"}},{"usage":{"cpu":"50m","memory":"32Mi"}}]}]}`
+	specs := `{"items":[{"metadata":{"name":"api","namespace":"prod"},"spec":{"containers":[` +
+		`{"resources":{"limits":{"memory":"192Mi"}}},{"resources":{"limits":{"memory":"64Mi"}}}]}}]}`
+	// Single-quoted for the shell, which is safe because this test writes
+	// every byte of both answers and neither holds a single quote.
+	script := filepath.Join(t.TempDir(), "kubectl")
+	body := "#!/bin/sh\ncase \"$*\" in\n" +
+		"*--raw*) printf '%s\\n' '" + metrics + "' ;;\n" +
+		"*\"get pods\"*) printf '%s\\n' '" + specs + "' ;;\n" +
+		"*) exit 1 ;;\nesac\n"
+	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	orig := kubectlBin
+	kubectlBin = script
+	t.Cleanup(func() { kubectlBin = orig })
+
+	v, err := runMetricsPod(context.Background(), plugin.NewRequest(map[string]any{"namespace": "prod"}, false, false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := v.(view.Table).Rows
+	if len(rows) != 1 {
+		t.Fatalf("rows = %v, want one pod", rows)
+	}
+	if got := rows[0][3]; got != "128.0 MiB" {
+		t.Errorf("memory = %q, want 128.0 MiB, both containers summed", got)
+	}
+	if got := rows[0][4]; got != "50%" {
+		t.Errorf("memory %% = %q, want 50%% of both limits summed", got)
 	}
 }
