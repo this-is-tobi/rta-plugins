@@ -117,6 +117,33 @@ func TestTLSModesMapByMeaning(t *testing.T) {
 	}
 }
 
+// The restore connects as protected as the dump did. A dump over tls=true
+// printed a line with no tls, which ran at preferred on a machine whose
+// config said nothing: the password went to a server nothing had verified.
+// A looser tls stays off the line, false above all, since that is what a
+// tunnel forces for the forward alone — and the password never goes on it.
+func TestTheRestoreConnectsAsProtectedAsTheDump(t *testing.T) {
+	for tls, want := range map[string]string{
+		"true":        "--tls true",
+		"skip-verify": "--tls skip-verify",
+		"preferred":   "",
+		"false":       "",
+	} {
+		got := restoreCommand(req(t, "mysql.dump", map[string]any{
+			"host": "db.internal", "database": "app", "tls": tls, "password": "hunter2",
+		}), "/backups/app.sql")
+		if want != "" && !strings.Contains(got, want) {
+			t.Errorf("tls=%s: restore = %q, missing %q", tls, got, want)
+		}
+		if want == "" && strings.Contains(got, "--tls") {
+			t.Errorf("tls=%s: restore = %q, want no --tls on it", tls, got)
+		}
+		if strings.Contains(got, "hunter2") {
+			t.Errorf("tls=%s: restore = %q carries the password", tls, got)
+		}
+	}
+}
+
 // The password travels through the child's environment, never argv, and the
 // environment holds nothing else of the operator's shell.
 func TestChildEnvCarriesThePasswordAndNothingElse(t *testing.T) {
