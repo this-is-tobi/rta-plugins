@@ -146,6 +146,8 @@
 - 				"the user this dump connects as")
 + 			WithHint("this is the server refusing a privilege, not rta — and not the tablespace " +
 + 				"wall, which `mysqldump --no-tablespaces` already avoids. Check SHOW GRANTS")
++ 	case strings.Contains(stderr, "CA certificate is required"):
++ 		return noCA(req.Surface(), msg("CA certificate is required"))
 - 		// The version-skew failure, and here it is the likelier one: this
 - 		// plugin passes MySQL's --ssl family, so a *MySQL* client wearing
 - 		// the mysqldump name — the shape on a host with only MySQL's tools
@@ -158,3 +160,17 @@
 - 				"actually has")
 + 				"says what it really is. For a MariaDB server, the mariadb plugin drives " +
 + 				"mariadb-dump with the flags that client actually has")
++ // noCA answers the client refusing tls=true for want of a CA. true is
++ // VERIFY_IDENTITY to the child, and the MySQL client, unlike the driver, never
++ // reads the machine's own trust store: with no --ssl-ca it will not connect at
++ // all. The pre-flight connection verified against that store and passed — a
++ // certificate nothing here trusts is refused there, naming ca-file — so this
++ // is a server the machine already vouches for, and the CA that does so is
++ // what the child needs named.
++ func noCA(sf plugin.Surface, line string) *view.Error {
++ 	return view.Errorf("mysql.tls.ca.required", "%s", line).
++ 		WithHint("the MySQL client verifies only against a CA it is given, never the store this machine " +
++ 			"trusted the server through — " + setting(sf, "ca-file") + " names one: the CA that issued " +
++ 			"the server's certificate, or the machine's CA bundle")
++ }
++ 
