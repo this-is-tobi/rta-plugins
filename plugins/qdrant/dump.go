@@ -192,11 +192,28 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 // collection a flag like the endpoint — the line once gave both by place,
 // `rta qdrant restore docs <file>`, which the CLI refuses as an unexpected
 // argument, on the receipt of the backup it was meant to bring back.
+//
+// **So is the way the dump reached it, when that was protected**: tls when it
+// was on, and ca-file when one was named, which turns TLS on by itself. Left
+// out, the line connected however the config where it was pasted said, plain
+// HTTP on a machine with none: a dump taken over HTTPS printed a restore
+// that sent the api-key, and the snapshot behind it, over plain HTTP. Off is
+// not carried — it is the default, a config there that turns TLS on still
+// wins, and it is what a tunnel forces for the forward alone, which a line
+// that spelled it would carry to a restore with no tunnel. Never the api-key.
 func restoreCommand(req plugin.Request, collection, path string) string {
-	return req.Surface().Call("qdrant.restore",
-		plugin.Arg{Name: "file", Value: path, Positional: true},
-		plugin.Arg{Name: "collection", Value: collection},
-		plugin.Arg{Name: "endpoint", Value: req.String("endpoint")})
+	args := []plugin.Arg{
+		{Name: "file", Value: path, Positional: true},
+		{Name: "collection", Value: collection},
+		{Name: "endpoint", Value: req.String("endpoint")},
+	}
+	if req.Bool("tls") {
+		args = append(args, plugin.Arg{Name: "tls", Value: true})
+	}
+	if ca := req.String("ca-file"); ca != "" {
+		args = append(args, plugin.Arg{Name: "ca-file", Value: ca})
+	}
+	return req.Surface().Call("qdrant.restore", args...)
 }
 
 // snapshotInfo is what the server says about a snapshot it just made.

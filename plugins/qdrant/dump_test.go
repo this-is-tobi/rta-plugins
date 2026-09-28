@@ -211,6 +211,45 @@ func TestDumpCreatesDownloadsAndDeletes(t *testing.T) {
 	}
 }
 
+// The restore connects as protected as the dump did. A dump over HTTPS
+// printed a line with neither tls nor ca-file, which ran over plain HTTP on a
+// machine whose config said nothing: the api-key went in the clear. TLS off
+// stays off the line, since that is what a tunnel forces for the forward
+// alone — and the api-key never goes on it.
+func TestTheRestoreConnectsAsProtectedAsTheDump(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		values  map[string]any
+		want    []string
+		without []string
+	}{
+		{name: "over HTTPS", values: map[string]any{"tls": true}, want: []string{" --tls"}},
+		{
+			name:    "trusting a CA",
+			values:  map[string]any{"ca-file": "/etc/qdrant/ca.pem"},
+			want:    []string{"--ca-file /etc/qdrant/ca.pem"},
+			without: []string{"--tls"},
+		},
+		{name: "plain HTTP, as a tunnel forces it", values: map[string]any{"tls": false}, without: []string{"--tls"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.values["endpoint"] = "qdrant.internal:6333"
+			tc.values["api-key"] = "hunter2"
+			got := restoreCommand(req(t, "qdrant.dump", tc.values), "docs", "/backups/docs.snapshot")
+			for _, w := range tc.want {
+				if !strings.Contains(got, w) {
+					t.Errorf("restore = %q, missing %q", got, w)
+				}
+			}
+			for _, w := range append(tc.without, "hunter2", "api-key") {
+				if strings.Contains(got, w) {
+					t.Errorf("restore = %q, want no %q in it", got, w)
+				}
+			}
+		})
+	}
+}
+
 // A failed transfer must remove its half-written file — a partial snapshot
 // is the one that gets restored six months later — and must still delete the
 // server-side copy, or every broken download also eats the server's disk.
