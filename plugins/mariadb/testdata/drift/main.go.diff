@@ -28,8 +28,6 @@
 + // here and is not guessed at. plugins/mariadb is the one that knows about
 + // that, and it is a separate artifact for the reason every plugin is —
 + // approving one binary is not approving another.
-- // and export RTA_MARIADB_PASSWORD. Every capability here reaches off the box,
-+ // and export RTA_MYSQL_PASSWORD. Every capability here reaches off the box,
 - // are nine of them and the one that forgot would leak a connection against
 + // are eight of them and the one that forgot would leak a connection against
 - 		Summary: "MySQL: connection health, schema, rows, activity and cluster state",
