@@ -2,12 +2,15 @@ package main
 
 import (
 	stdnet "net"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/go-sql-driver/mysql"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
+	"github.com/this-is-tobi/rta/pkg/sdk/sdktest"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
@@ -23,6 +26,48 @@ func req(t *testing.T, capID string, values map[string]any) plugin.Request {
 	}
 	t.Fatalf("no capability %q", capID)
 	return plugin.Request{}
+}
+
+// sdktest is the definition of "a correct plugin", and mysql gets no
+// exemption from it — the spelling rule among the others, which holds what
+// every capability declares to the SDK's speller.
+//
+// Every read here is NoPreview, so the suite runs none of them. What it
+// drives is the four writes, under --dry-run, and two of them take an input
+// no default supplies: without one the suite fails rather than report a
+// pass for a capability it never ran.
+func TestConformance(t *testing.T) {
+	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs))
+}
+
+// conformanceInputs points every write at a port nothing listens on, so none
+// of them reaches a server. mysql.query and mysql.activity have no dry run
+// of their own — they change nothing, and read under --dry-run as they do
+// without — so left at the default host they would read whatever server the
+// machine running the tests has. A dump's or a restore's dry run that
+// stopped being dry fails as a refused connection.
+//
+// The dump's file and the restore's fixture are inside dir, the directory
+// the suite watches: a dry run that wrote the one or touched the other is
+// caught where it happened. A real SQL fixture, because the restore looks
+// at the file before its dry run says anything, and refuses one that is not
+// there or is empty. Which way either dry run answers depends on whether
+// the client tools are on $PATH — a description of the call, or a refusal
+// naming the missing tool — and both leave dir as it was.
+func conformanceInputs(dir string) map[string]map[string]any {
+	conn := func(m map[string]any) map[string]any {
+		m["host"], m["port"] = "127.0.0.1", 1
+		m["user"], m["database"] = "conformance", "conformance"
+		return m
+	}
+	fixture := filepath.Join(dir, "conformance.sql")
+	_ = os.WriteFile(fixture, []byte("select 1;\n"), 0o600)
+	return map[string]map[string]any{
+		"mysql.query":    conn(map[string]any{"sql": "select 1"}),
+		"mysql.activity": conn(map[string]any{}),
+		"mysql.dump":     conn(map[string]any{"out": filepath.Join(dir, "mysql.sql")}),
+		"mysql.restore":  conn(map[string]any{"file": fixture}),
+	}
 }
 
 // A password containing '@' or '/' silently produces a different DSN under
