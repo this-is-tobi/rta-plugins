@@ -160,7 +160,7 @@ jobs:
       env:
         SCOPE: ${{ needs.scope.outputs.plugins }}
       run: |-
-        make fmt-check name-check replace-check docs-check
+        make fmt-check name-check replace-check version-check docs-check
         make -k check PLUGINS="$SCOPE" && make docs-drift PLUGINS="$SCOPE"
 
     # Once, not per operating system: the linters read source, and no plugin
