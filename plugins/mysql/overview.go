@@ -99,7 +99,7 @@ func statusView(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 		return nil, classify(err, req)
 	}
 	pairs := []view.Pair{
-		{Key: "server", Value: fmt.Sprintf("%s:%d", req.String("host"), req.Int("port"))},
+		{Key: "server", Value: address(req)},
 		{Key: "flavour", Value: info.flavour},
 		{Key: "version", Value: info.version},
 		{Key: "uptime", Value: info.uptime.Round(time.Second).String()},
