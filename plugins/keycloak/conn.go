@@ -105,11 +105,14 @@ func connect(ctx context.Context, req plugin.Request) (*session, *view.Error) {
 		return nil, view.Errorf("keycloak.realm.missing", "no realm named").
 			WithHint(setting(req.Surface(), "realm") + ", or `realm:` under this plugin's section in rta's config")
 	}
+	// Where the secret comes from rather than a verb telling the reader to
+	// set one: an agent has no host environment to set, and no secret
+	// argument either, since the bridge drops a Local input given.
 	secret := req.String("client-secret")
 	if secret == "" {
 		return nil, view.Errorf("keycloak.secret.missing", "no client secret").
-			WithHint("set $" + plugin.LocalEnvVar("keycloak.overview", "client-secret") +
-				", or map it from the store in a profile's secrets:")
+			WithHint("the secret is read from $" + plugin.LocalEnvVar("keycloak.overview", "client-secret") +
+				" or " + setting(req.Surface(), "client-secret") + ", or mapped from the store in a profile's secrets:")
 	}
 	client, verr := httpClient(req)
 	if verr != nil {
@@ -261,13 +264,15 @@ func segment(v string) string { return url.PathEscape(v) }
 // places.
 func (s *session) classifyToken(code int, body []byte) *view.Error {
 	oauthErr, desc := oauthError(body)
+	sf := s.req.Surface()
 	switch {
 	case code == http.StatusNotFound:
 		return view.Errorf("keycloak.realm.unknown", "%s has no realm to authenticate against: %s", s.base, firstOf(desc, oauthErr)).
-			WithHint("auth-realm (or realm) names the realm the client lives in; the issuer URL's last segment is its name")
+			WithHint(setting(sf, "auth-realm") + " (or " + setting(sf, "realm") + ") names the realm the client " +
+				"lives in; the issuer URL's last segment is its name")
 	case code == http.StatusUnauthorized, code == http.StatusBadRequest && oauthErr == "invalid_client":
 		return view.Errorf("keycloak.auth.failed", "%s refused the client credentials: %s", s.base, firstOf(desc, oauthErr)).
-			WithHint("client-id names a confidential client with service accounts enabled, and $" +
+			WithHint(setting(sf, "client-id") + " names a confidential client with service accounts enabled, and $" +
 				plugin.LocalEnvVar("keycloak.overview", "client-secret") + " is its secret")
 	case code == http.StatusBadRequest && oauthErr == "unauthorized_client":
 		return view.Errorf("keycloak.auth.grant", "%s: %s", s.base, firstOf(desc, oauthErr)).
@@ -320,7 +325,7 @@ func (s *session) classifyTransport(err error) *view.Error {
 	var netErr *stdnet.OpError
 	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
 		return view.Errorf("keycloak.conn.refused", "nothing is listening on %s", s.base).
-			WithHint("is the server up, and is the URL right?")
+			WithHint("is the server up, and is " + setting(s.req.Surface(), "url") + " right?")
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
