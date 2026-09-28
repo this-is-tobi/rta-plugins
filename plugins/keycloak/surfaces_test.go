@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	"strings"
 	"testing"
@@ -58,6 +59,16 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 					t.Fatal(err)
 				}
 				return graded(t, v)["version"].detail
+			},
+		},
+		{
+			name: "a certificate nothing here trusts",
+			cli:  "a Keycloak behind an internal CA wants that CA in --ca-file rather than verification turned off",
+			mcp:  "a Keycloak behind an internal CA wants that CA in `ca-file` rather than verification turned off",
+			say: func(sf plugin.Surface) string {
+				s := &session{req: req(t, "keycloak.overview", nil).WithSurface(sf), base: "https://sso.internal"}
+				verr := s.classifyTransport(x509.UnknownAuthorityError{})
+				return verr.Message + "\n" + verr.Hint
 			},
 		},
 	} {
