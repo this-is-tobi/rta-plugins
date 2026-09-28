@@ -86,7 +86,7 @@ func connect(ctx context.Context, req plugin.Request) (*clientv3.Client, *view.E
 // of the wait without sitting out the real one.
 func connectWithin(ctx context.Context, req plugin.Request, within time.Duration) (*clientv3.Client, *view.Error) {
 	cfg := clientv3.Config{
-		Endpoints:   []string{req.String("endpoint")},
+		Endpoints:   []string{endpointOf(req)},
 		DialTimeout: within,
 		Username:    req.String("username"),
 		Password:    req.String("password"),
@@ -101,7 +101,7 @@ func connectWithin(ctx context.Context, req plugin.Request, within time.Duration
 		}
 		cfg.TLS = tlsCfg
 	}
-	to := dialTarget(req.String("endpoint"), tlsCfg)
+	to := dialTarget(endpointOf(req), tlsCfg)
 
 	client, err := clientv3.New(cfg)
 	if err != nil {
@@ -186,7 +186,7 @@ func awaitConnection(ctx context.Context, c *clientv3.Client, req plugin.Request
 
 // noConnection is the bound run out with no connection up.
 func noConnection(req plugin.Request) *view.Error {
-	return view.Errorf("etcd.timeout", "%s did not answer in time", req.String("endpoint")).
+	return view.Errorf("etcd.timeout", "%s did not answer in time", endpointOf(req)).
 		WithHint("no connection came up: a firewall that drops rather than refuses looks exactly " +
 			"like this, and so does a listener that takes the connection and never speaks")
 }
@@ -211,7 +211,7 @@ func until(ctx context.Context, conn *grpc.ClientConn, states ...connectivity.St
 // client protocol over it.
 func wrongPort(req plugin.Request, to target) *view.Error {
 	refusal := view.Errorf("etcd.conn.protocol", "%s takes a connection and answers nothing etcd's client "+
-		"understands", req.String("endpoint"))
+		"understands", endpointOf(req))
 	if to.tls != nil {
 		return refusal.WithHint("etcd listens on 2379 for clients and 2380 for peers, and the peer port " +
 			"will not answer this — nor will a client port serving TLS to a certificate it does not accept")
@@ -352,7 +352,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	if errors.As(err, &already) {
 		return already
 	}
-	where, sf := req.String("endpoint"), req.Surface()
+	where, sf := endpointOf(req), req.Surface()
 
 	// etcd's own sentinel errors are checked before the gRPC codes, because
 	// several of them share a code and only the sentinel says which is which.
@@ -490,6 +490,48 @@ func untrusted(err error) bool {
 func unroutable(err error) bool {
 	return errors.Is(err, syscall.ENETUNREACH) || errors.Is(err, syscall.EHOSTUNREACH) ||
 		errors.Is(err, syscall.EHOSTDOWN)
+}
+
+// clientPort is the port etcd serves its clients on.
+const clientPort = "2379"
+
+// endpointOf is the endpoint as etcd's client is handed it: the one given,
+// with the client port when it names none, behind a scheme or not.
+//
+// The input's help says host[:port], as redis's address does, and etcd's
+// client has no default port: a bare host is dialled as it stands and fails
+// "missing port in address" on every retry, so a call over one hung until
+// interrupted, and once the connect was bounded it read "nothing is
+// listening" about a port nobody had named. A unix socket, and a host this
+// cannot name a port for — an IPv6 address with a zone, a bracket left open —
+// pass as given, for the dial to refuse.
+func endpointOf(req plugin.Request) string {
+	endpoint := req.String("endpoint")
+	if strings.HasPrefix(endpoint, "unix:") || strings.HasPrefix(endpoint, "unixs:") {
+		return endpoint
+	}
+	if scheme, rest, ok := strings.Cut(endpoint, "://"); ok {
+		hostport, path, slash := strings.Cut(rest, "/")
+		if slash {
+			path = "/" + path
+		}
+		return scheme + "://" + withPort(hostport) + path
+	}
+	return withPort(endpoint)
+}
+
+func withPort(hostport string) string {
+	if _, _, err := stdnet.SplitHostPort(hostport); err == nil {
+		return hostport
+	}
+	if strings.HasPrefix(hostport, "[") != strings.HasSuffix(hostport, "]") {
+		return hostport
+	}
+	host := strings.TrimSuffix(strings.TrimPrefix(hostport, "["), "]")
+	if host == "" || strings.ContainsAny(host, "[]") || (strings.Contains(host, ":") && stdnet.ParseIP(host) == nil) {
+		return hostport
+	}
+	return stdnet.JoinHostPort(host, clientPort)
 }
 
 func hostOnly(endpoint string) string {
