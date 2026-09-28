@@ -362,7 +362,7 @@ func classify(err error, addr string, sf plugin.Surface) *view.Error {
 	case errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused"):
 		var dnsErr *stdnet.DNSError
 		if errors.As(err, &dnsErr) {
-			return view.Errorf("redis.host.unknown", "no address for %q", addr).
+			return view.Errorf("redis.host.unknown", "no address for %q", hostOnly(addr)).
 				WithHint(dnsHint(sf, hostOnly(addr)))
 		}
 		return view.Errorf("redis.conn.refused", "nothing is listening on %s", addr).
