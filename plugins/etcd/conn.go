@@ -361,9 +361,14 @@ func classify(err error, req plugin.Request) *view.Error {
 	if st, ok := status.FromError(err); ok {
 		switch st.Code() {
 		case codes.Unauthenticated:
+			// Where the password comes from rather than a verb telling the
+			// reader to set one: an agent has no host environment to set, and
+			// no password argument either, since the bridge drops a Local
+			// input given.
 			return view.Errorf("etcd.auth.failed", "%s rejected the credentials", where).
-				WithHint("set $" + plugin.LocalEnvVar("etcd.overview", "password") +
-					", or check " + setting(sf, "username") + " — a cluster with auth disabled refuses a username too")
+				WithHint("the password is read from $" + plugin.LocalEnvVar("etcd.overview", "password") +
+					" or " + setting(sf, "password") + " — check it, and " + setting(sf, "username") +
+					": a cluster with auth disabled refuses a username too")
 		case codes.PermissionDenied:
 			return view.Errorf("etcd.denied", "%s: %s", where, st.Message()).
 				WithHint("the credentials are valid but the role does not cover this key range")
@@ -390,9 +395,14 @@ func classify(err error, req plugin.Request) *view.Error {
 	// failed its handshake is something listening, and a reset or a hang-up
 	// inside the handshake arrives as the same *net.OpError a refused dial
 	// does. The certificate is the most specific of the three.
+	//
+	// The CA is named as where it belongs, not as something to pass: over MCP
+	// ca-file is the operator's setting, and an agent told to pass it has no
+	// such argument to give.
 	if untrusted(err) {
 		return view.Errorf("etcd.tls.untrusted", "%s presented a certificate nothing here trusts", where).
-			WithHint("etcd clusters usually have their own CA — pass it with " + setting(sf, "ca-file"))
+			WithHint("etcd clusters usually have their own CA, and it belongs in " + setting(sf, "ca-file") +
+				" — a self-signed certificate is its own CA")
 	}
 	var verifyErr *tls.CertificateVerificationError
 	if errors.As(err, &verifyErr) {

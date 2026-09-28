@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	stdnet "net"
 	"strings"
 	"testing"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
@@ -62,6 +65,26 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 			refuse: func(sf plugin.Surface) *view.Error {
 				err := &stdnet.OpError{Op: "dial", Net: "tcp", Err: &stdnet.DNSError{Err: "no such host", Name: "etcd-0.internal"}}
 				return classify(err, req(t, "etcd.overview", map[string]any{"endpoint": "etcd-0.internal:2379"}).WithSurface(sf))
+			},
+		},
+		{
+			name:    "a certificate nothing here trusts",
+			cli:     "etcd clusters usually have their own CA, and it belongs in --ca-file",
+			other:   "etcd clusters usually have their own CA, and it belongs in `ca-file`",
+			surface: plugin.SurfaceMCP,
+			refuse: func(sf plugin.Surface) *view.Error {
+				return classify(x509.UnknownAuthorityError{}, req(t, "etcd.overview", nil).WithSurface(sf))
+			},
+		},
+		{
+			// Where the password comes from, never a verb for the reader: an
+			// agent has no host environment to set and no password to pass.
+			name:    "credentials the cluster rejects",
+			cli:     "the password is read from $RTA_ETCD_PASSWORD or --password — check it, and --username:",
+			other:   "the password is read from $RTA_ETCD_PASSWORD or `password` — check it, and `username`:",
+			surface: plugin.SurfaceMCP,
+			refuse: func(sf plugin.Surface) *view.Error {
+				return classify(status.Error(codes.Unauthenticated, "authentication failed"), req(t, "etcd.overview", nil).WithSurface(sf))
 			},
 		},
 		{
