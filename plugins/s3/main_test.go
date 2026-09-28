@@ -45,6 +45,13 @@ func conformanceInputs(dir string) map[string]map[string]any {
 		m["access-key"], m["secret-key"] = "conformance", "conformance"
 		return m
 	}
+	// The upload's source is inside dir, beside everything else. The suite
+	// snapshots dir after this function has run, before each dry run, so a
+	// fixture written here is part of what a dry run is compared against
+	// rather than a stray write — and one that touched it is caught.
+	upload := filepath.Join(dir, "upload")
+	_ = os.Mkdir(upload, 0o700)
+	_ = os.WriteFile(filepath.Join(upload, "a.txt"), []byte("x"), 0o600)
 	return map[string]map[string]any{
 		"s3.object.get":  conn(map[string]any{"bucket": "conformance", "key": "some/key", "out": filepath.Join(dir, "got.bin")}),
 		"s3.object.set":  conn(map[string]any{"bucket": "conformance", "key": "some/key", "value": "x"}),
@@ -55,23 +62,8 @@ func conformanceInputs(dir string) map[string]map[string]any {
 		"s3.object.presign": conn(map[string]any{"bucket": "conformance", "key": "some/key"}),
 		"s3.bucket.download": conn(map[string]any{"bucket": "conformance",
 			"out": filepath.Join(dir, "bucket-copy")}),
-		// The source directory lives outside dir on purpose: sdktest watches
-		// dir for stray writes, and a fixture pre-created there would read as
-		// one. os.MkdirTemp because this function has no *testing.T; the OS
-		// temp dir's own cleanup owns the leftover.
-		"s3.bucket.upload": conn(map[string]any{"bucket": "conformance", "dir": uploadFixture()}),
+		"s3.bucket.upload": conn(map[string]any{"bucket": "conformance", "dir": upload}),
 	}
-}
-
-func uploadFixture() string {
-	root, err := os.MkdirTemp("", "rta-s3-upload")
-	if err != nil {
-		return "unwritable"
-	}
-	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("x"), 0o600); err != nil {
-		return "unwritable"
-	}
-	return root
 }
 
 // req builds a resolved request the way the host would, against the named
