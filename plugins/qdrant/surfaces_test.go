@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/x509"
 	"errors"
 	"net/http"
 	"path/filepath"
@@ -48,6 +49,15 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			},
 		},
 		{
+			name:    "a certificate nothing here trusts",
+			cli:     "the CA that issued it belongs in --ca-file — a self-signed certificate is its own CA",
+			other:   "the CA that issued it belongs in `ca-file` — a self-signed certificate is its own CA",
+			surface: plugin.SurfaceMCP,
+			say: func(sf plugin.Surface) string {
+				return refusal(classify(x509.UnknownAuthorityError{}, req(t, "qdrant.overview", nil).WithSurface(sf)))
+			},
+		},
+		{
 			name:    "anything else",
 			cli:     "`rta explain qdrant.overview` lists every input and where each one can come from",
 			other:   "ask the operator to run `rta explain qdrant.overview`, which lists every input",
@@ -88,16 +98,5 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 				t.Errorf("%s reads the CLI's %q", tc.surface, tc.cli)
 			}
 		})
-	}
-}
-
-// A switch is turned off on the CLI as --tls=false, joined: given as a
-// separate word, false is an argument and the switch stays on.
-func TestTurningTLSOffIsSpelledSoTheCLIReadsIt(t *testing.T) {
-	if got := settingTo(plugin.SurfaceCLI, "tls", "false"); got != "--tls=false" {
-		t.Errorf("the CLI reads %q, want --tls=false", got)
-	}
-	if got := settingTo(plugin.SurfaceMCP, "tls", "false"); got != "`tls` set to false" {
-		t.Errorf("an agent reads %q, want the operator's setting named", got)
 	}
 }

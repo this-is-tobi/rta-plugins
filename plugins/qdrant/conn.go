@@ -302,11 +302,17 @@ func classify(err error, req plugin.Request) *view.Error {
 		return view.Errorf("qdrant.timeout", "%s did not answer in time", where).
 			WithHint("a firewall that drops rather than refuses looks exactly like this")
 	}
+	// The CA, and never TLS off. A server that got as far as presenting a
+	// certificate speaks only TLS on that port and refuses a plain-HTTP
+	// request, so turning tls off reaches nothing — and with ca-file set it
+	// does not even turn TLS off, since ca-file alone turns it on. The hint
+	// once offered it anyway, as the quick way round.
 	var certErr x509.UnknownAuthorityError
 	if errors.As(err, &certErr) {
 		return view.Errorf("qdrant.tls.untrusted", "%s presented a certificate nothing here trusts", where).
-			WithHint("a self-signed certificate needs " + settingTo(req.Surface(), "tls", "false") +
-				" for a real try, or its CA trusted with ca-file for the real thing")
+			WithHint("the CA that issued it belongs in " + setting(req.Surface(), "ca-file") +
+				" — a self-signed certificate is its own CA; turning TLS off is no way round it, " +
+				"as the server refuses plain HTTP")
 	}
 	return view.Errorf("qdrant.conn.failed", "could not reach %s: %v", where, err).
 		WithHint(explainHint(req.Surface(), "qdrant.overview"))
@@ -325,16 +331,6 @@ func setting(sf plugin.Surface, name string) string {
 		return "`" + name + "`"
 	}
 	return sf.InputName(name)
-}
-
-// settingTo is setting with the value to give it. On the CLI it is joined to
-// the flag, --tls=false: a switch given a separate word takes it as an
-// argument and stays on.
-func settingTo(sf plugin.Surface, name, value string) string {
-	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
-		return setting(sf, name) + " set to " + value
-	}
-	return sf.InputName(name) + "=" + value
 }
 
 // given names input name set to value, as the reader would give it: "--out
