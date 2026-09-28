@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.4.0...plugins/s3/v0.4.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* **s3:** a ca-file that cannot be used says what it must hold, named as its reader sets it ([620a17e](https://github.com/this-is-tobi/rta-plugins/commit/620a17ecb0a1348e6f2242b3d05f63d5549fac31))
+* **s3:** a name DNS cannot resolve is named alone, without the port beside it ([a507954](https://github.com/this-is-tobi/rta-plugins/commit/a5079540866abc3c8f089ac81a945a8965726b5e))
+* **s3:** an untrusted certificate is answered with the CA to trust, never with TLS off ([d5de116](https://github.com/this-is-tobi/rta-plugins/commit/d5de116d03e39396f2847e74befe0764c96e9bb8))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.30.0 ([df1097a](https://github.com/this-is-tobi/rta-plugins/commit/df1097ad5b38f9d45c1f7efd4dd48a941b9e62d8))
+
 ## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.3.16...plugins/s3/v0.4.0) (2026-09-28)
 
 
