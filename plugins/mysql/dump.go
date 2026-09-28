@@ -416,6 +416,8 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 	case strings.Contains(stderr, "Unknown MySQL server host"):
 		return view.Errorf("mysql.host.unknown", "%s", msg("Unknown MySQL server host")).
 			WithHint(dnsHint(req.Surface(), req.String("host")))
+	case strings.Contains(stderr, "CA certificate is required"):
+		return noCA(req.Surface(), msg("CA certificate is required"))
 	case strings.Contains(stderr, "Can't connect"):
 		return view.Errorf("mysql.conn.refused", "%s", msg("Can't connect")).
 			WithHint(reachHint(req.Surface()))
@@ -433,6 +435,20 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 	}
 	return view.Errorf("mysql.dump.failed", "%s", msg("error:", "Error:")).
 		WithHint("`" + filepath.Base(dumpTools[0]) + "` reported this; rta passed it through unchanged")
+}
+
+// noCA answers the client refusing tls=true for want of a CA. true is
+// VERIFY_IDENTITY to the child, and the MySQL client, unlike the driver, never
+// reads the machine's own trust store: with no --ssl-ca it will not connect at
+// all. The pre-flight connection verified against that store and passed — a
+// certificate nothing here trusts is refused there, naming ca-file — so this
+// is a server the machine already vouches for, and the CA that does so is
+// what the child needs named.
+func noCA(sf plugin.Surface, line string) *view.Error {
+	return view.Errorf("mysql.tls.ca.required", "%s", line).
+		WithHint("the MySQL client verifies only against a CA it is given, never the store this machine " +
+			"trusted the server through — " + setting(sf, "ca-file") + " names one: the CA that issued " +
+			"the server's certificate, or the machine's CA bundle")
 }
 
 // restoreCommand names the other half. A backup capability that does not say
