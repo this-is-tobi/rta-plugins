@@ -80,8 +80,34 @@ func rowsIn(t *testing.T, database string) (count int, note string) {
 	return count, note
 }
 
+// majors is the major version of the pg_dump on $PATH and of the server
+// these tests reach, skipping the test that asks when there is no pg_dump.
+func majors(t *testing.T) (client, server int) {
+	t.Helper()
+	ctx := context.Background()
+	tool, err := lookupDumpTool()
+	if err != nil {
+		t.Skip("no pg_dump on $PATH")
+	}
+	src, verr := describeSource(ctx, reqFor(t, "pg.dump", liveValues(t, map[string]any{"database": "postgres"})))
+	if verr != nil {
+		t.Fatal(verr)
+	}
+	return toolMajor(ctx, tool), src.version / 10000
+}
+
+// The round trip is only promised where pg_dump is no newer than the server:
+// a newer one writes for itself — pg_dump 17 and later set
+// transaction_timeout, which PostgreSQL 16 does not have — and its file does
+// not go back in. That pair is the next test's, which checks both ends say
+// so; run here, it failed every format on the SET and read as a broken chain.
 func TestTheChainRoundTripsAgainstARealServer(t *testing.T) {
 	ctx := context.Background()
+	if client, server := majors(t); client > server {
+		t.Skipf("pg_dump %d is newer than PostgreSQL %d, and what it writes does not restore there — "+
+			"TestADumpNewerThanItsServerIsNamedAtBothEnds is this pair's test; a PostgreSQL %d or newer is this one's",
+			client, server, client)
+	}
 
 	const src = "rta_chain_src"
 	admin(t, "postgres", "drop database if exists "+src)
@@ -188,15 +214,7 @@ func TestTheChainRoundTripsAgainstARealServer(t *testing.T) {
 //	docker rm -f rta-pg-old
 func TestADumpNewerThanItsServerIsNamedAtBothEnds(t *testing.T) {
 	ctx := context.Background()
-	tool, err := lookupDumpTool()
-	if err != nil {
-		t.Skip("no pg_dump on $PATH")
-	}
-	src, verr := describeSource(ctx, reqFor(t, "pg.dump", liveValues(t, map[string]any{"database": "postgres"})))
-	if verr != nil {
-		t.Fatal(verr)
-	}
-	client, server := toolMajor(ctx, tool), src.version/10000
+	client, server := majors(t)
 	if client <= server {
 		t.Skipf("pg_dump %d is not newer than PostgreSQL %d — see this test's comment for an older server", client, server)
 	}
