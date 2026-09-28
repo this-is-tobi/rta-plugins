@@ -289,6 +289,8 @@ func classifyRestore(err error, stderr string, req plugin.Request) *view.Error {
 		return view.Errorf("mysql.restore.readonly", "%s", msg("read")).
 			WithHint("the target became read-only after the pre-flight check — a promoted " +
 				"replica, usually. Restore on the primary")
+	case strings.Contains(stderr, "CA certificate is required"):
+		return noCA(req.Surface(), msg("CA certificate is required"))
 	case strings.Contains(stderr, "Can't connect"):
 		return view.Errorf("mysql.conn.refused", "%s", msg("Can't connect")).
 			WithHint(reachHint(req.Surface()))

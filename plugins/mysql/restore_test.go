@@ -106,6 +106,8 @@ func TestClassifyRestoreNamesTheFailure(t *testing.T) {
 		"refused":   {"ERROR 2002 (HY000): Can't connect to server on '127.0.0.1'", "mysql.conn.refused"},
 		"mid file":  {"ERROR 1064 (42000) at line 42: You have an error in your SQL syntax", "mysql.restore.failed"},
 		"anything":  {"something nobody anticipated", "mysql.restore.failed"},
+		"no CA": {"ERROR 2026 (HY000): SSL connection error: CA certificate is required if ssl-mode is " +
+			"VERIFY_CA or VERIFY_IDENTITY", "mysql.tls.ca.required"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			verr := classifyRestore(boom, tc.stderr, r)

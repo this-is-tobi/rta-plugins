@@ -248,6 +248,8 @@ func TestClassifyDumpNamesTheFailure(t *testing.T) {
 		"bad host":  {"mysqldump: Got error: 2005: Unknown MySQL server host 'db.internal'", "mysql.host.unknown"},
 		"tool skew": {"mysqldump: unknown variable 'ssl-mode=DISABLED'", "mysql.dump.toolskew"},
 		"atstraws":  {"mysqldump: something nobody anticipated", "mysql.dump.failed"},
+		"no CA": {"mysqldump: Got error: 2026: SSL connection error: CA certificate is required if ssl-mode is " +
+			"VERIFY_CA or VERIFY_IDENTITY when trying to connect", "mysql.tls.ca.required"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			verr := classifyDump(boom, tc.stderr, r)
