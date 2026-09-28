@@ -530,6 +530,14 @@ func childEnv(req plugin.Request) []string {
 		// modes, so an sslmode the operator configured keeps working.
 		env = append(env, "HOME="+home)
 	}
+	// The bound dsn() gives the in-process connect, given to the child the
+	// way libpq reads it, in the same seconds. pgx connecting first proves
+	// the server was there a moment ago, and nothing about the child's own
+	// connection a moment later: a server gone in between — a failover, a
+	// port-forward that exited, a firewall that began dropping — left
+	// pg_dump, psql or pg_restore waiting on the operating system's connect
+	// timeout, more than a minute, with nothing on the terminal to say why.
+	env = append(env, "PGCONNECT_TIMEOUT="+strconv.Itoa(int(connectTimeout/time.Second)))
 	// The same ambient credential dsn() closes for the in-process driver,
 	// closed here for the subprocess — a separate fix, because libpq and
 	// pgconn disagree about what an empty value means. `PGPASSFILE=` is read
@@ -546,6 +554,13 @@ func childEnv(req plugin.Request) []string {
 	env = append(env, "PGPASSFILE=/nonexistent/rta-refuses-ambient-credentials")
 	return env
 }
+
+// childTimeoutHint answers a child whose connect ran out the bound childEnv
+// gives it, libpq's "timeout expired". rta's own connection reached the
+// server a moment before, so what is in question is what changed in between,
+// not the address, and the hint the in-process timeout gives would not say so.
+const childTimeoutHint = "rta's own connection reached the server a moment before — a failover, " +
+	"a port-forward that exited, or a firewall that began dropping rather than refusing looks exactly like this"
 
 // classifyDump turns pg_dump's exit into something an operator can act on —
 // the same job classify does for the driver, for the failures that only
@@ -610,6 +625,8 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 			WithHint("set $" + plugin.LocalEnvVar("pg.dump", "password") +
 				" — it runs as `pg_dump --no-password`, so it fails here instead of " +
 				"waiting at a prompt nothing can answer")
+	case strings.Contains(stderr, "timeout expired"):
+		return view.Errorf("pg.conn.timeout", "%s", msg("timeout expired")).WithHint(childTimeoutHint)
 	case strings.Contains(stderr, "permission denied"):
 		return view.Errorf("pg.denied", "%s", msg("permission denied")).
 			WithHint("dumping every table needs a role that can read every table — this is " +

@@ -2,8 +2,11 @@ package main
 
 import (
 	"os"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
 )
@@ -170,6 +173,26 @@ func TestTheChildGetsSSLRootCert(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("PGSSLROOTCERT did not reach the child: %v", env)
+	}
+}
+
+// pgx connecting first proves the server was there a moment ago, and nothing
+// about the child's own connection a moment later. With no bound of its own,
+// a server gone in between left pg_dump, psql or pg_restore waiting on the
+// operating system's connect timeout, more than a minute. The child is bound
+// as the plugin's own connect is, in the seconds libpq counts in, and the
+// bound's end is named as a timeout rather than passed through as the tool's.
+func TestTheChildsConnectIsBoundAsThePluginsIs(t *testing.T) {
+	env := childEnv(reqFor(t, "pg.dump", map[string]any{}))
+	want := "PGCONNECT_TIMEOUT=" + strconv.Itoa(int(connectTimeout/time.Second))
+	if !slices.Contains(env, want) {
+		t.Errorf("%s did not reach the child: %v", want, env)
+	}
+	stderr := "pg_dump: error: connection to server at \"192.0.2.1\", port 5432 failed: timeout expired\n"
+	verr := classifyDump(errStub{}, stderr, reqFor(t, "pg.dump", map[string]any{}))
+	if verr.Code != "pg.conn.timeout" || !strings.Contains(verr.Hint, "a moment before") {
+		t.Errorf("the bound's end = %s: %s, want pg.conn.timeout saying the server was there a moment before",
+			verr.Code, verr.Hint)
 	}
 }
 
