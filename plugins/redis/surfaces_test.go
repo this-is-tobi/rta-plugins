@@ -4,6 +4,8 @@ import (
 	"crypto/x509"
 	"errors"
 	stdnet "net"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -27,6 +29,23 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 			refuse: func(sf plugin.Surface) *view.Error {
 				r := req(t, "redis.overview", map[string]any{"cert-file": "/tmp/client.pem"})
 				_, verr := tlsConfig(r.WithSurface(sf))
+				return verr
+			},
+		},
+		{
+			// What the file must hold, never a guess that it held the client
+			// certificate: one in PEM would have been read as a certificate,
+			// and only a file with none in it, a private key among them, gets
+			// here.
+			name: "a CA file with no PEM certificate in it",
+			cli:  "--ca-file wants a PEM certificate — the CA's, or a self-signed server's own — and a private key, which belongs in --key-file,",
+			mcp:  "`ca-file` wants a PEM certificate — the CA's, or a self-signed server's own — and a private key, which belongs in `key-file`,",
+			refuse: func(sf plugin.Surface) *view.Error {
+				der := filepath.Join(t.TempDir(), "server.der")
+				if err := os.WriteFile(der, []byte{0x30, 0x03, 0x02, 0x01, 0x01}, 0o600); err != nil {
+					t.Fatal(err)
+				}
+				_, verr := tlsConfig(req(t, "redis.overview", map[string]any{"ca-file": der}).WithSurface(sf))
 				return verr
 			},
 		},
