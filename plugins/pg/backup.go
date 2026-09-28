@@ -132,7 +132,7 @@ func runFullDump(ctx context.Context, req plugin.Request) (view.View, error) {
 		return nil, verr
 	}
 
-	return view.KeyValue{Pairs: []view.Pair{
+	pairs := []view.Pair{
 		{Key: "wrote", Value: path},
 		{Key: "size", Value: format.Bytes(written)},
 		{Key: "took", Value: time.Since(started).Round(time.Millisecond).String()},
@@ -153,7 +153,78 @@ func runFullDump(ctx context.Context, req plugin.Request) (view.View, error) {
 			"globals out, and a restore onto a fresh server fails on every ownership line " +
 			"until `pg_dumpall --globals-only` has been replayed first"},
 		{Key: "restore with", Value: restoreCommand(req, path)},
-	}}, nil
+	}
+	if pair, ok := restoresInto(toolMajor(ctx, tool), src.version/10000); ok {
+		pairs = append(pairs, pair)
+	}
+	return view.KeyValue{Pairs: pairs}, nil
+}
+
+// restoresInto is the receipt's note when the pg_dump that wrote the file is
+// a newer major than the server it read, and nothing when it is not.
+//
+// **pg_dump writes for its own version, and a restore reads what it wrote.**
+// Its output loads into a server as new as itself or newer; an older one can
+// refuse a setting it sets. pg_dump 17 and later set transaction_timeout,
+// which PostgreSQL 16 and older do not have, so a pg_dump 18 dump of a 16
+// server does not go back into that server: the plain SQL stops at the SET,
+// and an archive is either replayed by a pg_restore 17 or later, which sets
+// it too, or refused by 16's own pg_restore, which cannot read the newer
+// archive. Found the way somebody would, by running the restore this receipt
+// had just named, and said here, while the server that can still be dumped
+// the right way is the one on the other end.
+//
+// The way out is the server's own major: its pg_dump writes a file that
+// restores into it and into anything newer. A version either side could not
+// read (0) says nothing, rather than a guess.
+func restoresInto(client, server int) (view.Pair, bool) {
+	if client == 0 || server == 0 || client <= server {
+		return view.Pair{}, false
+	}
+	why := fmt.Sprintf("pg_dump %d wrote it, newer than this PostgreSQL %d server, and a server "+
+		"older than the pg_dump that wrote a dump can refuse a setting its restore sets", client, server)
+	if server < 17 {
+		why = fmt.Sprintf("pg_dump %d wrote it, and its restore sets transaction_timeout, which "+
+			"PostgreSQL %d does not have — a restore into this server stops at that line", client, server)
+	}
+	return view.Pair{Key: "restores into", Value: fmt.Sprintf("PostgreSQL %d or newer, reliably: %s. "+
+		"PostgreSQL %d's own pg_dump takes one that restores here: put it first on $PATH "+
+		"(`brew install postgresql@%d`, `apt install postgresql-client-%d`) and dump again",
+		client, why, server, server, server)}, true
+}
+
+// toolMajor is the major version the PostgreSQL client at path reports —
+// "pg_dump (PostgreSQL) 18.6 (Homebrew)" is 18 — or 0 when it says nothing
+// that reads as one. It runs with PATH and the C locale alone: asking a
+// client its version needs no credential, so it is handed none.
+func toolMajor(ctx context.Context, path string) int {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, path, "--version")
+	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "LC_ALL=C"}
+	out, err := cmd.Output()
+	if err != nil {
+		return 0
+	}
+	return majorOf(string(out), "(PostgreSQL) ")
+}
+
+// majorOf reads the major version that follows label in text — the digits up
+// to the first that are not — or 0 when there is none.
+func majorOf(text, label string) int {
+	_, rest, ok := strings.Cut(text, label)
+	if !ok {
+		return 0
+	}
+	end := strings.IndexFunc(rest, func(r rune) bool { return r < '0' || r > '9' })
+	if end < 0 {
+		end = len(rest)
+	}
+	n, err := strconv.Atoi(rest[:end])
+	if err != nil {
+		return 0
+	}
+	return n
 }
 
 // source is what the server said it is when asked, just before the dump.
