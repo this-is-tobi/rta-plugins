@@ -153,8 +153,8 @@ func classify(err error, req plugin.Request) *view.Error {
 	if errors.As(err, &certErr) {
 		return view.Errorf("vault.tls.untrusted", "%s presented a certificate rta does not trust", addr).
 			WithHint("this is a real TLS trust failure, not something to work around here — a Vault " +
-				"behind a tunnel commonly has its own operator- or cluster-generated CA; pass it with " +
-				"ca-file rather than disabling verification")
+				"behind a tunnel commonly has its own operator- or cluster-generated CA, and it belongs " +
+				"in " + setting(sf, "ca-file") + " rather than verification turned off")
 	}
 	return view.Errorf("vault.conn.failed", "could not reach %s: %v", addr, err).
 		WithHint(explainHint(sf, "vault.seal.status"))

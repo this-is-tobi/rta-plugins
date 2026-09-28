@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/x509"
 	"errors"
 	"net"
 	"path/filepath"
@@ -43,6 +44,15 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(&net.DNSError{Err: "no such host", Name: "vault.internal"}, r(sf)))
+			},
+		},
+		{
+			name:    "a certificate nothing here trusts",
+			cli:     "it belongs in --ca-file rather than verification turned off",
+			other:   "it belongs in `ca-file` rather than verification turned off",
+			surface: plugin.SurfaceMCP,
+			say: func(sf plugin.Surface) string {
+				return refusal(classify(x509.UnknownAuthorityError{}, r(sf)))
 			},
 		},
 		{
