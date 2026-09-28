@@ -169,7 +169,7 @@ func databaseListCapability() plugin.Capability {
 		Description: "Names, table counts and on-disk sizes. Sizes come from INFORMATION_SCHEMA " +
 			"and are what the storage engine last reported rather than a live measurement — " +
 			"close enough to find the big one, not close enough to bill on.\n\n" +
-			"Only the databases this user may see: MySQL filters INFORMATION_SCHEMA by grant, so " +
+			"Only the databases this user may see: MariaDB filters INFORMATION_SCHEMA by grant, so " +
 			"a short list here means a narrow grant and not an empty server.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withDB(ctx, req, func(ctx context.Context, db *sql.DB) (view.View, error) {
