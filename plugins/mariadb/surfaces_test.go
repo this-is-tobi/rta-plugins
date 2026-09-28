@@ -26,9 +26,11 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		say              func(sf plugin.Surface) string
 	}{
 		{
+			// Where the password comes from, never a verb for the reader: an
+			// agent has no host environment to set and no password to pass.
 			name:    "credentials the server rejected",
-			cli:     "or check --user",
-			other:   "or check `user`",
+			cli:     "the password is read from $RTA_MARIADB_PASSWORD or --password — check it, and --user",
+			other:   "the password is read from $RTA_MARIADB_PASSWORD or `password` — check it, and `user`",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(&mysql.MySQLError{Number: 1045, Message: "Access denied"},

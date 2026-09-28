@@ -37,6 +37,7 @@ const otherFork = "../mysql"
 var vendorNames = [][2]string{
 	{"mariadb-dump", "mysqldump"},
 	{"MariaDB", "MySQL"},
+	{"MARIADB", "MYSQL"},
 	{"Mariadb", "Mysql"},
 	{"mariadb", "mysql"},
 }
