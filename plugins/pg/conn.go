@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -117,6 +118,11 @@ func connFields() []plugin.Field {
 	}
 }
 
+// connectTimeout bounds a connection's coming up, the handshake and the
+// login with it — as long as etcd's and mysql's plugins give theirs, and far
+// past what a server on the other end of a port-forward takes.
+const connectTimeout = 10 * time.Second
+
 // dsn builds a connection string from the resolved inputs.
 //
 // Assembled as key=value with each value quoted rather than as a URL, because
@@ -149,6 +155,13 @@ func dsn(req plugin.Request) string {
 		// and reads ~/.pgpass anyway, which is why backup.go names a path
 		// instead.
 		"passfile=''",
+		// The connect is bounded, and nothing after it. Without one it
+		// waited on the operating system's own connect timeout, more than
+		// a minute, and twice over under sslmode's default, prefer, which
+		// tries TLS and then plaintext: a server behind a firewall that
+		// drops packets was answered two and a half minutes in. The seconds
+		// are pgconn's unit; each address a name resolves to gets them.
+		fmt.Sprintf("connect_timeout=%d", int(connectTimeout/time.Second)),
 	}
 	if pw := req.String("password"); pw != "" {
 		parts = append(parts, "password="+quote(pw))
@@ -213,7 +226,25 @@ func classify(err error, req plugin.Request) *view.Error {
 			WithHint("SQLSTATE " + pgErr.Code)
 	}
 
+	// Short of the host, before the port: a dial that timed out, or found no
+	// way there, reached nothing that could refuse it. Read as refused, a
+	// server behind a VPN that is down, or at an address of another
+	// network's, was "nothing is listening" about a port no packet reached.
+	// The bound's own end arrives as a deadline, and the operating system's
+	// connect timeout as a dial that timed out. Windows numbers its socket
+	// errors otherwise, and there no route falls through to the refusal
+	// below, as it always did.
 	var netErr *net.OpError
+	if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout()) {
+		return view.Errorf("pg.conn.timeout", "%s did not answer in time", where).
+			WithHint("a firewall that drops rather than refuses looks exactly like this")
+	}
+	if errors.As(err, &netErr) && unroutable(err) {
+		return view.Errorf("pg.conn.unreachable", "%s cannot be reached from this machine: %v", where, netErr.Err).
+			WithHint("no route leads there from here — a VPN or tunnel the server sits behind that is " +
+				"down looks exactly like this, and so does " + setting(sf, "host") + " naming an address " +
+				"on a network this machine is not on")
+	}
 	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
 		refused := view.Errorf("pg.conn.refused", "nothing is listening on %s", where)
 		if loopback(req.String("host")) {
@@ -236,10 +267,6 @@ func classify(err error, req plugin.Request) *view.Error {
 	if errors.As(err, &dnsErr) {
 		return view.Errorf("pg.host.unknown", "no address for %q", req.String("host")).
 			WithHint(dnsHint(sf, req.String("host")))
-	}
-	if errors.Is(err, context.DeadlineExceeded) {
-		return view.Errorf("pg.conn.timeout", "%s did not answer in time", where).
-			WithHint("a firewall that drops rather than refuses looks exactly like this")
 	}
 	if strings.Contains(err.Error(), "SSL is not enabled") ||
 		strings.Contains(err.Error(), "server does not support SSL") {
@@ -292,6 +319,14 @@ func untrusted(err error) bool {
 		}
 	}
 	return true
+}
+
+// unroutable reports whether err is a dial that found no way to the host: no
+// route to it, a network this machine has no way onto, a host its own network
+// reports down.
+func unroutable(err error) bool {
+	return errors.Is(err, syscall.ENETUNREACH) || errors.Is(err, syscall.EHOSTUNREACH) ||
+		errors.Is(err, syscall.EHOSTDOWN)
 }
 
 // setting names connection input name in a message the way its reader

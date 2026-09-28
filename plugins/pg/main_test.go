@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -115,6 +116,36 @@ func TestTheDSNAlwaysRefusesTheAmbientPassfile(t *testing.T) {
 		}))
 		if !strings.Contains(got, "passfile=''") {
 			t.Errorf("password=%q: dsn does not refuse the ambient passfile: %s", password, got)
+		}
+	}
+}
+
+// The connect is bounded: without connect_timeout pgconn waits on the
+// operating system's own, more than a minute and twice under prefer.
+func TestTheDSNBoundsTheConnect(t *testing.T) {
+	if got := dsn(req(t, map[string]any{})); !strings.Contains(got, "connect_timeout=10") {
+		t.Errorf("the connection string carries no connect bound: %s", got)
+	}
+}
+
+// A dial that timed out or found no route reached nothing that could refuse
+// it, and is not a port nobody is on; one the host refused still is.
+func TestAHostNoRouteReachesIsNotAPortNobodyIsOn(t *testing.T) {
+	r := req(t, map[string]any{"host": "10.0.0.9", "port": 5432})
+	for errno, want := range map[syscall.Errno]string{
+		syscall.ENETUNREACH:  "pg.conn.unreachable",
+		syscall.EHOSTUNREACH: "pg.conn.unreachable",
+		syscall.EHOSTDOWN:    "pg.conn.unreachable",
+		syscall.ETIMEDOUT:    "pg.conn.timeout",
+		syscall.ECONNREFUSED: "pg.conn.refused",
+	} {
+		err := &net.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", errno)}
+		got := classify(err, r)
+		if got.Code != want || !strings.Contains(got.Message, "10.0.0.9:5432") {
+			t.Errorf("%v: %s %q, want %s naming the server", errno, got.Code, got.Message, want)
+		}
+		if want == "pg.conn.unreachable" && !strings.Contains(got.Message, errno.Error()) {
+			t.Errorf("%v: %q does not say why", errno, got.Message)
 		}
 	}
 }
