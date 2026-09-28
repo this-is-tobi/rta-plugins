@@ -34,7 +34,7 @@ func queryCapability() plugin.Capability {
 		Safety:     plugin.Write,
 		Idempotent: true,
 		Description: "Runs inside a READ ONLY transaction, so the server refuses any statement " +
-			"that would write. rta does not inspect the SQL and does not try to — MySQL enforces " +
+			"that would write. rta does not inspect the SQL and does not try to — MariaDB enforces " +
 			"it, which is the only place the enforcement is worth trusting.\n\n" +
 			"**Classified write for what it discloses, not what it changes.** It returns rows, and " +
 			"there is no table it may read by default because there is no table known to be safe. " +

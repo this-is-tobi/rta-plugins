@@ -61,7 +61,7 @@ Classified write for what it discloses rather than what it changes: the info col
 
 Names, table counts and on-disk sizes. Sizes come from INFORMATION_SCHEMA and are what the storage engine last reported rather than a live measurement — close enough to find the big one, not close enough to bill on.
 
-Only the databases this user may see: MySQL filters INFORMATION_SCHEMA by grant, so a short list here means a narrow grant and not an empty server.
+Only the databases this user may see: MariaDB filters INFORMATION_SCHEMA by grant, so a short list here means a narrow grant and not an empty server.
 
 | Field          | Value                                                                                                                                                                                                                  |
 |----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -163,7 +163,7 @@ What server this is, how long it has been up, how much of its connection budget 
 
 ## mariadb.query
 
-Runs inside a READ ONLY transaction, so the server refuses any statement that would write. rta does not inspect the SQL and does not try to — MySQL enforces it, which is the only place the enforcement is worth trusting.
+Runs inside a READ ONLY transaction, so the server refuses any statement that would write. rta does not inspect the SQL and does not try to — MariaDB enforces it, which is the only place the enforcement is worth trusting.
 
 **Classified write for what it discloses, not what it changes.** It returns rows, and there is no table it may read by default because there is no table known to be safe. So it needs a grant a person issued (`grant.allow`, for `mariadb.query`), which is the operator saying that this agent may read this database's contents; the read tier below it describes the database and hands back nothing stored in it. Where the connection is a named profile, every call in this namespace needs one, the read tier included.
 
@@ -220,7 +220,7 @@ The other half of mariadb.dump — the file back into a database. **Refuses MCP 
 
 **A database already holding tables is refused.** Whether a dump drops objects first was decided when mariadb-dump wrote it, so there is no `clean` to offer — restore into a fresh database, which stays one CREATE DATABASE away. rta does not create it: a typo'd name becoming a new database is worse than the refusal. A read-only server — a replica, usually — is refused before anything runs; restore on the primary, which is the only path that keeps the two the same database.
 
-Stops at the first error, which is the strongest guarantee MySQL allows: DDL commits implicitly, so a failed restore cannot roll back and the receipt says so. `mariadb --force` — the client's flag that counts errors quietly and calls the survivor a restore — is never passed. LOAD DATA LOCAL is disabled, so a dump file cannot direct the client to read this machine's own files into the server.
+Stops at the first error, which is the strongest guarantee MariaDB allows: DDL commits implicitly, so a failed restore cannot roll back and the receipt says so. `mariadb --force` — the client's flag that counts errors quietly and calls the survivor a restore — is never passed. LOAD DATA LOCAL is disabled, so a dump file cannot direct the client to read this machine's own files into the server.
 
 | Field          | Value                                                                                                                                                                                                                  |
 |----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|

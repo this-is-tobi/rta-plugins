@@ -44,7 +44,7 @@ func connFields() []plugin.Field {
 			Local: true, Endpoint: plugin.EndpointPort, Min: 1, Max: 65535, Help: "database port"},
 		{Name: "user", Type: plugin.String, Default: "root", Config: "user",
 			Local: true, Help: "user to connect as"},
-		// Empty by default rather than a guessed name. MySQL will connect with
+		// Empty by default rather than a guessed name. MariaDB will connect with
 		// no default database selected, and every capability here that needs
 		// one qualifies its own tables — so the zero-config case reaches a
 		// server and can still describe it, instead of failing on a database
@@ -159,7 +159,7 @@ func classify(err error, req plugin.Request) *view.Error {
 				WithHint("the credentials are valid but not authorized for this — check SHOW GRANTS")
 		case 1130: // ER_HOST_NOT_PRIVILEGED
 			return view.Errorf("mariadb.host.denied", "%s will not accept connections from this machine", where).
-				WithHint("MySQL authorizes on user@host — the grant has to name where you are connecting from")
+				WithHint("MariaDB authorizes on user@host — the grant has to name where you are connecting from")
 		case 1290: // ER_OPTION_PREVENTS_STATEMENT
 			return view.Errorf("mariadb.readonly", "%s", myErr.Message).
 				WithHint("the server is running with read_only on; this is a replica or was set that way deliberately")

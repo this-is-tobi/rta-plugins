@@ -91,6 +91,43 @@ func TestDriftBetweenTheForksIsOnlyWhatTheRecordSays(t *testing.T) {
 	}
 }
 
+// meansMySQL is every phrase this plugin's text may name MySQL in, because
+// it means MySQL itself there: its tools answering in MariaDB's place, or its
+// server on the other end of this plugin's connection. Everywhere else the
+// server is MariaDB.
+//
+// The mapping above is what lets the forks be compared, and it is also what
+// hides a sentence carried over from the other fork with that fork's name
+// still in it: mapped, "MySQL enforces it" and "MariaDB enforces it" are the
+// same line, and this plugin's query description, its restore's guarantee
+// and a grant hint called the server MySQL for as long as the drift gate was
+// green. A sentence ported from plugins/mysql is worded for MariaDB here, or
+// its phrase is added to this list when it does mean MySQL.
+var meansMySQL = []string{
+	"MySQL's own tools",              // a dump flag refused because the other client answered
+	"Unknown MySQL server host",      // the client's own words, matched in its stderr
+	"MySQL server, the mysql plugin", // the way out when MySQL is what answered
+}
+
+func TestEverySentenceNamesTheServerThisPluginTalksTo(t *testing.T) {
+	fset, files := parseSource(t)
+	for _, f := range files {
+		for _, s := range sentences(f) {
+			rest := s.text
+			for _, phrase := range meansMySQL {
+				rest = strings.ReplaceAll(rest, phrase, "")
+			}
+			// The flavour a version string reads as, when it names no fork.
+			if rest == "MySQL" || !strings.Contains(rest, "MySQL") {
+				continue
+			}
+			t.Errorf("%s: %q names MySQL where the server this plugin talks to is MariaDB — "+
+				"word it for MariaDB, or add the phrase to meansMySQL if it does mean MySQL",
+				fset.Position(s.pos), s.text)
+		}
+	}
+}
+
 func normalise(s string) string {
 	for _, pair := range vendorNames {
 		s = strings.ReplaceAll(s, pair[0], pair[1])

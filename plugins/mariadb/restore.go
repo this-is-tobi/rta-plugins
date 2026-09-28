@@ -24,8 +24,8 @@ import (
 // it carries on the way in (--add-drop-table is part of --opt). The --yes
 // gate is what a person should type through before that happens.
 //
-// **The guarantee is honest and weaker than pg's, because MySQL's is.**
-// psql can replay a plain dump inside one transaction; MySQL cannot — DDL
+// **The guarantee is honest and weaker than pg's, because MariaDB's is.**
+// psql can replay a plain dump inside one transaction; MariaDB cannot — DDL
 // commits implicitly, so there is no transaction to roll a failed restore
 // back with. What remains is stop-at-first-error, and the load-bearing
 // choice here is an *absence*: --force is never passed, because it is the
@@ -64,7 +64,7 @@ func restoreCapability() plugin.Capability {
 			"a typo'd name becoming a new database is worse than the refusal. A read-only server " +
 			"— a replica, usually — is refused before anything runs; restore on the primary, " +
 			"which is the only path that keeps the two the same database.\n\n" +
-			"Stops at the first error, which is the strongest guarantee MySQL allows: DDL commits " +
+			"Stops at the first error, which is the strongest guarantee MariaDB allows: DDL commits " +
 			"implicitly, so a failed restore cannot roll back and the receipt says so. `mariadb --force` " +
 			"— the client's flag that counts errors quietly and calls the survivor a restore — is never " +
 			"passed. LOAD DATA LOCAL is disabled, so a dump file cannot direct the client to " +
@@ -136,7 +136,7 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 		// pg's restore can promise a rollback; this one cannot, and saying so
 		// here is what keeps the difference from being discovered during an
 		// incident.
-		{Key: "guarantee", Value: "stopped at the first error — MySQL DDL commits implicitly, " +
+		{Key: "guarantee", Value: "stopped at the first error — MariaDB DDL commits implicitly, " +
 			"so a failure leaves a partial restore, and a fresh database is the clean way back"},
 	}}, nil
 }
@@ -293,7 +293,7 @@ func classifyRestore(err error, stderr string, req plugin.Request) *view.Error {
 		// file — the one detail worth surfacing verbatim, because it is where
 		// the operator's investigation starts.
 		return view.Errorf("mariadb.restore.failed", "%s", msg("at line")).
-			WithHint("the restore stopped there; everything before it is applied — MySQL " +
+			WithHint("the restore stopped there; everything before it is applied — MariaDB " +
 				"cannot roll a restore back. A fresh database and a fresh run is the clean " +
 				"way back")
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
