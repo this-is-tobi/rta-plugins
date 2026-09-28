@@ -136,8 +136,9 @@ func classify(err error, req plugin.Request) *view.Error {
 	// every name nothing resolves was reported as a port nothing listens on.
 	var dnsErr *net.DNSError
 	if errors.As(err, &dnsErr) {
-		return view.Errorf("vault.host.unknown", "no address for %s", addr).
-			WithHint(sf.CapabilityName("net.dns") + " on the host part of " + setting(sf, "address") + " shows what DNS returns")
+		host := hostOf(addr)
+		return view.Errorf("vault.host.unknown", "no address for %q", host).
+			WithHint(dnsHint(sf, host))
 	}
 	var netErr *net.OpError
 	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
@@ -204,6 +205,22 @@ func explainHint(sf plugin.Surface, id string) string {
 		return plugin.AskOperator("explain "+id) + ", which lists every input and where each can come from"
 	}
 	return "`rta explain " + id + "` lists every input and where each can come from"
+}
+
+// dnsHint is the call that shows what DNS returns for host, spelled for the
+// surface that will make it.
+func dnsHint(sf plugin.Surface, host string) string {
+	return "`" + sf.Call("net.dns", plugin.Arg{Name: "name", Value: host, Positional: true}) + "` shows what DNS returns"
+}
+
+// hostOf is the name in address, the one DNS was asked for: address is a
+// URL, and a lookup given the whole of it, scheme and port and all, answers
+// for no name anybody has. The address itself when it holds no host to take.
+func hostOf(address string) string {
+	if u, err := url.Parse(address); err == nil && u.Hostname() != "" {
+		return u.Hostname()
+	}
+	return address
 }
 
 // joinErrors renders a ResponseError's Errors slice the way Vault's own CLI

@@ -39,8 +39,8 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "a name DNS does not know",
-			cli:     "`rta net dns` on the host part of --address shows what DNS returns",
-			other:   "the `net_dns` tool on the host part of `address` shows what DNS returns",
+			cli:     "no address for \"vault.internal\"\n`rta net dns vault.internal` shows what DNS returns",
+			other:   "`net_dns {\"name\":\"vault.internal\"}` shows what DNS returns",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(&net.DNSError{Err: "no such host", Name: "vault.internal"}, r(sf)))
@@ -96,5 +96,20 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 				t.Errorf("%s reads the CLI's %q", tc.surface, tc.cli)
 			}
 		})
+	}
+}
+
+// The host DNS was asked for is the name in address, never the URL around
+// it: a bracketed IPv6 literal loses its brackets and the port its colon, and
+// an address with no host to take is named as it was given.
+func TestTheHostIsTheNameInTheAddress(t *testing.T) {
+	for address, want := range map[string]string{
+		"https://vault.internal:8200": "vault.internal",
+		"http://[fd00::1]:8200":       "fd00::1",
+		"vault.internal":              "vault.internal",
+	} {
+		if got := hostOf(address); got != want {
+			t.Errorf("hostOf(%q) = %q, want %q", address, got, want)
+		}
 	}
 }
