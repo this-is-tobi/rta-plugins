@@ -513,6 +513,8 @@ func classifyRestore(err error, stderr string, req plugin.Request, format dumpFo
 			WithHint("set $" + plugin.LocalEnvVar("pg.restore", "password") +
 				" — the child runs as `psql --no-password` or `pg_restore --no-password`, so it " +
 				"fails here instead of waiting at a prompt nothing can answer")
+	case strings.Contains(stderr, "timeout expired"):
+		return view.Errorf("pg.conn.timeout", "%s", msg("timeout expired")).WithHint(childTimeoutHint)
 	case strings.Contains(stderr, "permission denied"):
 		return view.Errorf("pg.denied", "%s", msg("permission denied")).
 			WithHint("recreating every object needs a role that may create every object — " +
