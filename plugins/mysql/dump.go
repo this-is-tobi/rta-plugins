@@ -423,13 +423,28 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 
 // restoreCommand names the other half. A backup capability that does not say
 // how to restore is the shape of every backup that turned out not to be one.
+//
+// **tls travels when the dump insisted on it** — true, which verifies, and
+// skip-verify, which at least never falls back to plaintext. Left out, the
+// line connected however the config where it was pasted said, preferred on a
+// machine with none: a dump taken over a verified connection printed a
+// restore that sent the password to a server nothing had verified, or in the
+// clear to one that offered no TLS. A looser tls stays off the line — the
+// default is at least as protected, a stricter config there still wins, and
+// false is what a tunnel forces for the forward alone, which a line that
+// spelled it would carry to a restore with no tunnel. Never the password.
 func restoreCommand(req plugin.Request, path string) string {
-	return req.Surface().Call("mysql.restore",
-		plugin.Arg{Name: "file", Value: path, Positional: true},
-		plugin.Arg{Name: "host", Value: req.String("host")},
-		plugin.Arg{Name: "port", Value: req.Int("port")},
-		plugin.Arg{Name: "user", Value: req.String("user")},
-		plugin.Arg{Name: "database", Value: req.String("database")})
+	args := []plugin.Arg{
+		{Name: "file", Value: path, Positional: true},
+		{Name: "host", Value: req.String("host")},
+		{Name: "port", Value: req.Int("port")},
+		{Name: "user", Value: req.String("user")},
+		{Name: "database", Value: req.String("database")},
+	}
+	if mode := req.String("tls"); mode == "true" || mode == "skip-verify" {
+		args = append(args, plugin.Arg{Name: "tls", Value: mode})
+	}
+	return req.Surface().Call("mysql.restore", args...)
 }
 
 func alreadyThere(path string) *view.Error {
