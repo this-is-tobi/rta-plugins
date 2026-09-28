@@ -176,6 +176,10 @@ func restoreArgs(req plugin.Request) []string {
 		"--no-defaults",
 		"--host=" + req.String("host"),
 		"--port=" + strconv.Itoa(req.Int("port")),
+		// dumpArgs' reason, with more at stake: the Unix socket localhost
+		// can otherwise mean is a server checkTarget never asked, and this
+		// direction writes into it.
+		"--protocol=TCP",
 		"--user=" + req.String("user"),
 		// A dump file can contain LOAD DATA LOCAL INFILE, which directs the
 		// *client* to read a file off this machine and hand it to the server.
