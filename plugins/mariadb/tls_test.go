@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-sql-driver/mysql"
+
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -104,6 +106,13 @@ func writeFile(t *testing.T, name string, content []byte) string {
 // returns the port.
 func tlsServer(t *testing.T, cert tls.Certificate) int {
 	t.Helper()
+	return fakeServer(t, &cert)
+}
+
+// fakeServer is tlsServer, or with no certificate a server that offers no
+// TLS at all, and hangs up on a client that wanted it.
+func fakeServer(t *testing.T, cert *tls.Certificate) int {
+	t.Helper()
 	ln, err := stdnet.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -115,34 +124,38 @@ func tlsServer(t *testing.T, cert tls.Certificate) int {
 			if err != nil {
 				return
 			}
-			go serveTLS(c, cert)
+			go serve(c, cert)
 		}
 	}()
 	return ln.Addr().(*stdnet.TCPAddr).Port
 }
 
-func serveTLS(c stdnet.Conn, cert tls.Certificate) {
+func serve(c stdnet.Conn, cert *tls.Certificate) {
 	defer func() { _ = c.Close() }()
 	_ = c.SetDeadline(time.Now().Add(10 * time.Second))
 	// CLIENT_LONG_PASSWORD, LONG_FLAG, PROTOCOL_41, SSL, TRANSACTIONS,
 	// SECURE_CONNECTION and PLUGIN_AUTH: what a server needs to offer for
-	// the driver to ask for TLS and log in over it.
-	const caps = 1 | 1<<2 | 1<<9 | 1<<11 | 1<<13 | 1<<15 | 1<<19
+	// the driver to ask for TLS and log in over it. SSL is left out by one
+	// with no certificate.
+	caps := 1 | 1<<2 | 1<<9 | 1<<11 | 1<<13 | 1<<15 | 1<<19
+	if cert == nil {
+		caps &^= 1 << 11
+	}
 	nul := func(s string) []byte { return append([]byte(s), 0) }
 	hello := append([]byte{10}, nul("rta-fake")...)
 	hello = append(hello, 1, 0, 0, 0)
 	hello = append(hello, nul("12345678")...)
-	hello = append(hello, caps&0xff, caps>>8&0xff, 0x21, 2, 0, caps>>16&0xff, caps>>24&0xff, 21)
+	hello = append(hello, byte(caps), byte(caps>>8), 0x21, 2, 0, byte(caps>>16), byte(caps>>24), 21)
 	hello = append(hello, make([]byte, 10)...)
 	hello = append(hello, nul("123456789012")...)
 	hello = append(hello, nul("mysql_native_password")...)
-	if writePacket(c, 0, hello) != nil {
+	if writePacket(c, 0, hello) != nil || cert == nil {
 		return
 	}
 	if _, _, err := readPacket(c); err != nil { // the request to switch to TLS
 		return
 	}
-	tc := tls.Server(c, &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12})
+	tc := tls.Server(c, &tls.Config{Certificates: []tls.Certificate{*cert}, MinVersion: tls.VersionTLS12})
 	if tc.Handshake() != nil {
 		return
 	}
@@ -203,6 +216,28 @@ func TestACAFileVerifiesAServerWithAPrivateCA(t *testing.T) {
 		t.Fatalf("ca-file did not verify the server it issued for: %s: %s", verr.Code, verr.Message)
 	}
 	_ = db.Close()
+}
+
+// A server that offers no TLS, asked for it, answered; it did not go
+// unreached, which is what the driver's own sentence read as. And one that
+// insists on TLS refused a connection without it, which is not a query that
+// failed.
+func TestWhatTheServerSaysAboutTLSIsNamedAsThat(t *testing.T) {
+	_, verr := connect(context.Background(), req(t, "mariadb.status", map[string]any{
+		"host": "127.0.0.1", "port": fakeServer(t, nil), "tls": "true",
+	}))
+	if verr == nil || verr.Code != "mariadb.tls.unsupported" {
+		t.Fatalf("err = %v, want mariadb.tls.unsupported", verr)
+	}
+	if !strings.Contains(verr.Hint, "--tls false if that is expected") {
+		t.Errorf("hint = %q, want --tls false named", verr.Hint)
+	}
+
+	required := classify(&mysql.MySQLError{Number: 3159, Message: "Connections using insecure transport are prohibited"},
+		req(t, "mariadb.status", map[string]any{"tls": "false"}))
+	if required.Code != "mariadb.tls.required" || !strings.Contains(required.Hint, "--tls true connects over it") {
+		t.Errorf("3159 = %s: %s, want mariadb.tls.required naming --tls true", required.Code, required.Hint)
+	}
 }
 
 // A CA named that did not issue the server's certificate is said to be
