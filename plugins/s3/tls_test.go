@@ -50,6 +50,17 @@ func TestCAFileTrustsATunneledServersOwnCertificate(t *testing.T) {
 	if !ok || verr.Code != "s3.tls.untrusted" {
 		t.Fatalf("err = %v, want s3.tls.untrusted", err)
 	}
+	// The way past it is the CA. TLS off is not one: this server, like any
+	// that presents a certificate, refuses plain HTTP on the port.
+	if !strings.Contains(verr.Hint, "--ca-file") || strings.Contains(verr.Hint, "false") {
+		t.Errorf("hint = %q, want the CA named in --ca-file and no TLS off", verr.Hint)
+	}
+	_, err = runOverview(context.Background(), req(t, "s3.overview", map[string]any{
+		"endpoint": endpoint, "tls": false,
+	}))
+	if verr, ok := err.(*view.Error); !ok || verr.Code != "s3.request.failed" {
+		t.Fatalf("plain HTTP against a TLS server answered %v, want the server's refusal", err)
+	}
 
 	// With ca-file naming the server's own certificate: the handshake
 	// succeeds and the call reaches the server for a real answer — a

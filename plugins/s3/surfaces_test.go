@@ -59,8 +59,8 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "a certificate nothing trusts",
-			cli:     "self-signed cert needs --tls=false for a real try",
-			other:   "self-signed cert needs `tls` set to false for a real try",
+			cli:     "the CA that issued it belongs in --ca-file — a local MinIO's self-signed public.crt is its own CA",
+			other:   "the CA that issued it belongs in `ca-file` — a local MinIO's self-signed public.crt is its own CA",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(x509.UnknownAuthorityError{}, r(sf)))
