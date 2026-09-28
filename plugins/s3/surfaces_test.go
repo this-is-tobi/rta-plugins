@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"net"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -25,11 +26,43 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 	r := func(sf plugin.Surface) plugin.Request {
 		return req(t, "s3.object.get", map[string]any{"key": "k", "endpoint": "s3.internal:9000"}).WithSurface(sf)
 	}
+	caRefusal := func(sf plugin.Surface, ca string) string {
+		_, verr := connect(req(t, "s3.overview", map[string]any{"ca-file": ca}).WithSurface(sf))
+		if verr == nil {
+			t.Fatalf("a ca-file of %s was accepted", ca)
+		}
+		return refusal(verr)
+	}
 	for _, tc := range []struct {
 		name, cli, other string
 		surface          plugin.Surface
 		say              func(sf plugin.Surface) string
 	}{
+		{
+			name:    "a CA file that cannot be read",
+			cli:     "--ca-file is a path on this machine",
+			other:   "`ca-file` is a path on this machine",
+			surface: plugin.SurfaceMCP,
+			say: func(sf plugin.Surface) string {
+				return caRefusal(sf, filepath.Join(t.TempDir(), "absent.pem"))
+			},
+		},
+		{
+			// What the file must hold, never a refusal calling a self-signed
+			// server's own certificate the wrong file: it is the file the
+			// untrusted-certificate hint sends the reader to name.
+			name:    "a CA file with no PEM certificate in it",
+			cli:     "--ca-file wants a PEM certificate — the CA's, or a self-signed server's own",
+			other:   "`ca-file` wants a PEM certificate — the CA's, or a self-signed server's own",
+			surface: plugin.SurfaceMCP,
+			say: func(sf plugin.Surface) string {
+				der := filepath.Join(t.TempDir(), "public.der")
+				if err := os.WriteFile(der, []byte{0x30, 0x03, 0x02, 0x01, 0x01}, 0o600); err != nil {
+					t.Fatal(err)
+				}
+				return caRefusal(sf, der)
+			},
+		},
 		{
 			name:    "a bucket that is not there",
 			cli:     "`rta s3 bucket list` shows what is there",

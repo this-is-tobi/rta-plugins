@@ -87,7 +87,7 @@ func connect(req plugin.Request) (*minio.Client, *view.Error) {
 		Region: req.String("region"),
 	}
 	if ca := req.String("ca-file"); ca != "" {
-		transport, verr := caTransport(ca)
+		transport, verr := caTransport(req.Surface(), ca)
 		if verr != nil {
 			return nil, verr
 		}
@@ -107,16 +107,24 @@ func connect(req plugin.Request) (*minio.Client, *view.Error) {
 // system trust store, the same full-replacement etcd's and vault's own
 // ca-file already give: an operator naming a private CA means exactly that
 // CA, not that CA in addition to the public web PKI.
-func caTransport(ca string) (*http.Transport, *view.Error) {
+func caTransport(sf plugin.Surface, ca string) (*http.Transport, *view.Error) {
 	pem, err := os.ReadFile(ca)
 	if err != nil {
 		return nil, view.Errorf("s3.tls.ca.unreadable", "%v", err).
-			WithHint("ca-file is a path on this machine, read by rta rather than by the server")
+			WithHint(setting(sf, "ca-file") + " is a path on this machine, read by rta rather than by the server")
 	}
 	pool := x509.NewCertPool()
+	// What the file has to hold, rather than a guess at what it held instead.
+	// The hint once said "not the server's own certificate", and a local
+	// MinIO's self-signed public.crt is exactly what belongs here — the
+	// untrusted-certificate hint in classify sends the reader to put it here —
+	// while one in PEM never reaches this line at all: only a file with no PEM
+	// certificate in it does, a private key or a DER-encoded certificate.
 	if !pool.AppendCertsFromPEM(pem) {
 		return nil, view.Errorf("s3.tls.ca.invalid", "%s holds no PEM certificate", ca).
-			WithHint("this wants the CA bundle, not the server's own certificate")
+			WithHint(setting(sf, "ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
+				"server's own such as a local MinIO's public.crt — and a private key or a DER-encoded " +
+				"certificate is not one")
 	}
 	transport, err := minio.DefaultTransport(true)
 	if err != nil {
