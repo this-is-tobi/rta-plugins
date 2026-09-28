@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -238,7 +239,7 @@ func TestRestoreFailuresAreClassified(t *testing.T) {
 		{`connection to server failed: fe_sendauth: no password supplied`,
 			"pg.auth.failed", "RTA_PG_PASSWORD"},
 	} {
-		verr := classifyRestore(exit, tc.stderr, r, formatCustom)
+		verr := classifyRestore(exit, tc.stderr, r, formatCustom, versions{})
 		if verr.Code != tc.code {
 			t.Errorf("stderr %q -> %s, want %s", tc.stderr, verr.Code, tc.code)
 			continue
@@ -252,13 +253,114 @@ func TestRestoreFailuresAreClassified(t *testing.T) {
 // An interrupted single-transaction restore rolled back; an interrupted
 // parallel one may not have. The hint is the one thing the operator reads
 // next, so the two cases must not share it.
+// A restore into a server older than what wrote it fails on a SET the server
+// does not have, and is named as that, with the way to a file that goes in:
+// the words alone said the tool reported it, and nothing about which side
+// was too new. The fix depends on who set the parameter — the file, for
+// plain SQL, or pg_restore itself, for an archive — and on whether an older
+// pg_restore can read the archive at all.
+func TestARestoreIntoAnOlderServerNamesTheSkewAndTheWayThrough(t *testing.T) {
+	const refused = `ERROR:  unrecognized configuration parameter "transaction_timeout"`
+	r := reqFor(t, "pg.restore", nil)
+	exit := errors.New("exit status 3")
+	for _, tc := range []struct {
+		name   string
+		format dumpFormat
+		stderr string
+		v      versions
+		want   []string
+	}{
+		{
+			name: "a plain file a newer pg_dump wrote", format: formatPlain,
+			stderr: "psql:/backups/app.sql:13: " + refused + "\n",
+			v:      versions{server: 16, dump: 18},
+			want: []string{
+				"pg_dump 18 wrote this file for PostgreSQL 18 and newer",
+				"PostgreSQL 16's own pg_dump writes one that restores here",
+				"`brew install postgresql@16`", "`apt install postgresql-client-16`",
+				"a copy of this file without its SET transaction_timeout line",
+			},
+		},
+		{
+			name: "an archive an older pg_restore can read", format: formatCustom,
+			stderr: "pg_restore: error: could not execute query: " + refused + "\n",
+			v:      versions{server: 16, dump: 16, restore: 18},
+			want: []string{
+				"pg_restore 18 sets a parameter PostgreSQL 16 does not have",
+				"PostgreSQL 16's own pg_restore reads this archive",
+			},
+		},
+		{
+			name: "an archive only a newer pg_restore reads", format: formatCustom,
+			stderr: "pg_restore: error: could not execute query: " + refused + "\n",
+			v:      versions{server: 16, dump: 18, restore: 18},
+			want: []string{
+				"cannot read an archive a newer pg_dump wrote",
+				"PostgreSQL 16's own pg_dump takes one it can",
+				"`pg_restore --file`",
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			verr := classifyRestore(exit, tc.stderr, r, tc.format, tc.v)
+			if verr.Code != "pg.restore.skew" || !strings.Contains(verr.Message, "transaction_timeout") {
+				t.Fatalf("got %s %q, want pg.restore.skew with the tool's line", verr.Code, verr.Message)
+			}
+			for _, want := range tc.want {
+				if !strings.Contains(verr.Hint, want) {
+					t.Errorf("hint = %q, want %q in it", verr.Hint, want)
+				}
+			}
+		})
+	}
+
+	// A parameter nothing newer set — a function's own SET clause, a file
+	// from this very version — is not the skew, and is passed through.
+	same := classifyRestore(exit, "psql:/backups/app.sql:40: "+refused+"\n", r, formatPlain,
+		versions{server: 17, dump: 17})
+	if same.Code != "pg.restore.failed" {
+		t.Errorf("a parameter from a file of the server's own version = %s, want pg.restore.failed", same.Code)
+	}
+}
+
+// What wrote a dump is read off the dump: the header a plain file opens with,
+// and the listing pg_restore prints of an archive, whose own header is binary.
+func TestTheDumpsWriterIsReadOffTheDump(t *testing.T) {
+	dir := t.TempDir()
+	plain := filepath.Join(dir, "app.sql")
+	header := "--\n-- PostgreSQL database dump\n--\n\n-- Dumped from database version 16.15\n" +
+		"-- Dumped by pg_dump version 18.6 (Homebrew)\n\nSET statement_timeout = 0;\n"
+	if err := os.WriteFile(plain, []byte(header), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := plainDumpedBy(plain); got != 18 {
+		t.Errorf("a plain dump by pg_dump 18.6 read as %d", got)
+	}
+	if got := plainDumpedBy(filepath.Join(dir, "absent.sql")); got != 0 {
+		t.Errorf("a file that is not there read as %d, want 0", got)
+	}
+
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake pg_restore is a shell script")
+	}
+	fake := filepath.Join(dir, "pg_restore")
+	listing := "echo ';     Dumped from database version: 16.15'\n" +
+		"echo ';     Dumped by pg_dump version: 18.6 (Homebrew)'"
+	if err := os.WriteFile(fake, []byte("#!/bin/sh\n"+listing+"\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if got := archiveDumpedBy(context.Background(), fake, filepath.Join(dir, "app.dump")); got != 18 {
+		t.Errorf("an archive listed as by pg_dump 18.6 read as %d", got)
+	}
+}
+
 func TestAnInterruptedRestoreSaysWhatItLeftBehind(t *testing.T) {
-	serial := classifyRestore(context.Canceled, "", reqFor(t, "pg.restore", nil), formatCustom)
+	serial := classifyRestore(context.Canceled, "", reqFor(t, "pg.restore", nil), formatCustom, versions{})
 	if serial.Code != "pg.restore.cancelled" || !strings.Contains(serial.Hint, "holds what it held") {
 		t.Errorf("serial cancel = %s %q, want the rolled-back reassurance", serial.Code, serial.Hint)
 	}
 	parallel := classifyRestore(context.Canceled, "",
-		reqFor(t, "pg.restore", map[string]any{"jobs": 4}), formatDirectory)
+		reqFor(t, "pg.restore", map[string]any{"jobs": 4}), formatDirectory, versions{})
 	if parallel.Code != "pg.restore.cancelled" || !strings.Contains(parallel.Hint, "partial") {
 		t.Errorf("parallel cancel = %s %q, want the partial-restore warning", parallel.Code, parallel.Hint)
 	}

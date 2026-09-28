@@ -98,7 +98,7 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 	}
 
 	started := time.Now()
-	if verr := runRestoreTool(ctx, tool, args, req, format); verr != nil {
+	if verr := runRestoreTool(ctx, tool, args, req, format, path, src); verr != nil {
 		return nil, verr
 	}
 
@@ -328,22 +328,137 @@ func checkTarget(ctx context.Context, req plugin.Request, format dumpFormat) (so
 // stderr is kept for classification, in the C locale for the dump's reason:
 // rta reads this text.
 func runRestoreTool(ctx context.Context, tool string, args []string,
-	req plugin.Request, format dumpFormat) *view.Error {
+	req plugin.Request, format dumpFormat, path string, target source) *view.Error {
 	cmd := exec.CommandContext(ctx, tool, args...)
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 	cmd.Env = childEnv(req)
 
 	if err := cmd.Run(); err != nil {
-		return classifyRestore(err, stderr.String(), req, format)
+		var v versions
+		if strings.Contains(stderr.String(), unknownParameter) {
+			v = restoreVersions(ctx, tool, format, path, target)
+		}
+		return classifyRestore(err, stderr.String(), req, format, v)
 	}
 	return nil
+}
+
+// unknownParameter is how a server refuses a SET for a parameter it does not
+// have. The words are the server's, in its lc_messages, the same limit every
+// text match in classifyRestore lives with.
+const unknownParameter = "unrecognized configuration parameter"
+
+// versions is what a restore refused a parameter needs to say whose it was:
+// the target's major, the major of the pg_dump that wrote the file, and for
+// an archive the major of the pg_restore replaying it, which writes the
+// session's settings itself rather than reading them from the file. 0 is a
+// version not read.
+type versions struct {
+	server, dump, restore int
+}
+
+// skewed reports whether the parameter the server refused was set by
+// something newer than it: the pg_dump that wrote a plain file, or the
+// pg_restore replaying an archive. Only then is the refusal the version
+// skew; a parameter that came from anywhere else, a function's own SET
+// clause among them, is the tool's words passed through.
+func (v versions) skewed(format dumpFormat) bool {
+	writer := v.dump
+	if format != formatPlain {
+		writer = v.restore
+	}
+	return v.server > 0 && writer > v.server
+}
+
+// restoreVersions reads the versions on either side of a refused parameter,
+// once a restore has failed on one — never before, since a restore that
+// works has no use for them.
+func restoreVersions(ctx context.Context, tool string, format dumpFormat, path string, target source) versions {
+	v := versions{server: target.version / 10000}
+	if format == formatPlain {
+		v.dump = plainDumpedBy(path)
+		return v
+	}
+	v.restore = toolMajor(ctx, tool)
+	v.dump = archiveDumpedBy(ctx, tool, path)
+	return v
+}
+
+// plainDumpedBy is the major of the pg_dump that wrote a plain dump, read off
+// the header it opens every file with — "-- Dumped by pg_dump version 18.6"
+// — or 0 when the head of the file holds none.
+func plainDumpedBy(path string) int {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0
+	}
+	defer func() { _ = f.Close() }()
+	head := make([]byte, 4096)
+	n, _ := io.ReadFull(f, head)
+	return majorOf(string(head[:n]), "-- Dumped by pg_dump version ")
+}
+
+// archiveDumpedBy is the same for an archive, whose own header is binary:
+// read off the listing pg_restore prints of it — ";     Dumped by pg_dump
+// version: 18.6". Listing reads the table of contents and nothing else, and
+// reaches no server, so it runs with PATH and the C locale alone.
+func archiveDumpedBy(ctx context.Context, tool, path string) int {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, tool, "--list", path)
+	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "LC_ALL=C"}
+	out, err := cmd.Output()
+	if err != nil {
+		return 0
+	}
+	return majorOf(string(out), "Dumped by pg_dump version: ")
+}
+
+// skewHint names what set the parameter the target does not have, and the
+// way to a file that restores there.
+//
+// **A plain file carries its own SETs**, written by the pg_dump that made it,
+// so the way out is that server's own pg_dump — or, when the source is gone,
+// the file without the line, if the line is the transaction_timeout that
+// pg_dump 17 and later add: it only turns off a timeout the older server does
+// not have. **An archive carries none**: pg_restore writes the session's
+// settings itself, for its own version, so an older pg_restore is the way
+// out — unless a newer pg_dump wrote the archive, which an older pg_restore
+// cannot read, and then it is the dump that has to be taken again.
+func skewHint(format dumpFormat, v versions, stderr string) string {
+	n := v.server
+	install := fmt.Sprintf("put it first on $PATH (`brew install postgresql@%d`, `apt install postgresql-client-%d`)", n, n)
+	timeout := strings.Contains(stderr, `"transaction_timeout"`)
+	if format == formatPlain {
+		hint := fmt.Sprintf("pg_dump %d wrote this file for PostgreSQL %d and newer, and it sets a parameter "+
+			"PostgreSQL %d does not have. PostgreSQL %d's own pg_dump writes one that restores here: %s and "+
+			"dump the source again", v.dump, v.dump, n, n, install)
+		if timeout {
+			hint += " — or restore a copy of this file without its SET transaction_timeout line, which only " +
+				"turns off a timeout this server does not have"
+		}
+		return hint
+	}
+	hint := fmt.Sprintf("pg_restore %d sets a parameter PostgreSQL %d does not have, before anything in the "+
+		"archive runs", v.restore, n)
+	if v.dump > 0 && v.dump <= n {
+		return hint + fmt.Sprintf(". PostgreSQL %d's own pg_restore reads this archive and sets no such thing: "+
+			"%s and restore again", n, install)
+	}
+	hint += fmt.Sprintf(", and PostgreSQL %d's own pg_restore cannot read an archive a newer pg_dump wrote. "+
+		"PostgreSQL %d's own pg_dump takes one it can: %s and dump the source again", n, n, install)
+	if timeout {
+		hint += " — or write this archive out as SQL with `pg_restore --file`, and restore that without its " +
+			"SET transaction_timeout line"
+	}
+	return hint
 }
 
 // classifyRestore turns the child's exit into something an operator can act
 // on — classifyDump's job, for the failures that only happen in this
 // direction.
-func classifyRestore(err error, stderr string, req plugin.Request, format dumpFormat) *view.Error {
+func classifyRestore(err error, stderr string, req plugin.Request, format dumpFormat, v versions) *view.Error {
 	msg := func(needles ...string) string {
 		if line := lineMatching(stderr, needles...); line != "" {
 			return line
@@ -355,6 +470,13 @@ func classifyRestore(err error, stderr string, req plugin.Request, format dumpFo
 	}
 
 	switch {
+	// **A target older than what wrote the restore.** It reads like a broken
+	// file and is a version skew: the tool's words said only that the tool
+	// reported it, and the one fix, a client of the target's own major, is
+	// nothing a person guesses from "unrecognized configuration parameter".
+	case strings.Contains(stderr, unknownParameter) && v.skewed(format):
+		return view.Errorf("pg.restore.skew", "%s", msg(unknownParameter)).
+			WithHint(skewHint(format, v, stderr))
 	case strings.Contains(stderr, "database") && strings.Contains(stderr, "does not exist"):
 		return view.Errorf("pg.restore.nodatabase", "%s", msg("does not exist")).
 			WithHint("rta does not create databases on its own — a typo'd name becoming a new " +

@@ -176,6 +176,73 @@ func TestTheChainRoundTripsAgainstARealServer(t *testing.T) {
 	}
 }
 
+// A dump whose pg_dump is a newer major than its server does not go back into
+// that server, and both ends say so: the dump's receipt names the servers it
+// restores into and how to take one that restores here, and the restore names
+// the skew rather than passing the tool's words through. It runs only where
+// the pg_dump on $PATH is newer than the server, so against an older one:
+//
+//	docker run --rm -d --name rta-pg-old -e POSTGRES_PASSWORD=lab -p 5498:5432 postgres:16
+//	RTA_TEST_PG_PORT=5498 RTA_TEST_PG_PASSWORD=lab \
+//	  go test . -tags livepg -count=1 -v -run TestADumpNewerThanItsServer
+//	docker rm -f rta-pg-old
+func TestADumpNewerThanItsServerIsNamedAtBothEnds(t *testing.T) {
+	ctx := context.Background()
+	tool, err := lookupDumpTool()
+	if err != nil {
+		t.Skip("no pg_dump on $PATH")
+	}
+	src, verr := describeSource(ctx, reqFor(t, "pg.dump", liveValues(t, map[string]any{"database": "postgres"})))
+	if verr != nil {
+		t.Fatal(verr)
+	}
+	client, server := toolMajor(ctx, tool), src.version/10000
+	if client <= server {
+		t.Skipf("pg_dump %d is not newer than PostgreSQL %d — see this test's comment for an older server", client, server)
+	}
+
+	const db = "rta_skew_src"
+	admin(t, "postgres", "drop database if exists "+db)
+	admin(t, "postgres", "create database "+db)
+	t.Cleanup(func() { admin(t, "postgres", "drop database if exists "+db) })
+	admin(t, db, "create table orders (id int primary key, note text)")
+	admin(t, db, "insert into orders values (1, 'one')")
+
+	for _, format := range []string{"plain", "custom"} {
+		t.Run(format, func(t *testing.T) {
+			out := filepath.Join(t.TempDir(), "skew"+backupSuffix(format))
+			v, err := runFullDump(ctx, reqFor(t, "pg.dump", liveValues(t, map[string]any{
+				"database": db, "out": out, "format": format,
+			})))
+			if err != nil {
+				t.Fatalf("dump: %v", err)
+			}
+			note := ""
+			for _, p := range v.(view.KeyValue).Pairs {
+				if p.Key == "restores into" {
+					note = p.Value
+				}
+			}
+			if want := "PostgreSQL " + strconv.Itoa(server) + "'s own pg_dump"; !strings.Contains(note, want) {
+				t.Errorf("receipt's restores-into note = %q, want %q in it", note, want)
+			}
+
+			tgt := "rta_skew_tgt_" + format
+			admin(t, "postgres", "drop database if exists "+tgt)
+			admin(t, "postgres", "create database "+tgt)
+			t.Cleanup(func() { admin(t, "postgres", "drop database if exists "+tgt) })
+			_, err = runRestore(ctx, reqFor(t, "pg.restore", liveValues(t, map[string]any{
+				"database": tgt, "file": out,
+			})))
+			var verr *view.Error
+			if !errors.As(err, &verr) || verr.Code != "pg.restore.skew" {
+				t.Fatalf("restore into PostgreSQL %d = %v, want pg.restore.skew", server, err)
+			}
+			t.Logf("%s\n%s", verr.Message, verr.Hint)
+		})
+	}
+}
+
 // A failed plain restore rolls back to nothing rather than to half a
 // database — ON_ERROR_STOP inside --single-transaction is the pair that
 // makes the receipt's guarantee true, and this is the test that would catch
