@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"errors"
+	stdnet "net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -68,6 +69,49 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 					t.Fatal(err)
 				}
 				return graded(t, v)["version"].detail
+			},
+		},
+		{
+			// The connection's settings are the operator's: each is named as
+			// the flag at a terminal and as the setting to an agent, never
+			// bare, which reads as neither.
+			name: "a realm the client does not live in",
+			cli:  "--auth-realm (or --realm) names the realm the client lives in",
+			mcp:  "`auth-realm` (or `realm`) names the realm the client lives in",
+			say: func(sf plugin.Surface) string {
+				return refusal(sf, "keycloak.overview", map[string]any{"auth-realm": "elsewhere"})
+			},
+		},
+		{
+			name: "client credentials the server refuses",
+			cli:  "--client-id names a confidential client with service accounts enabled",
+			mcp:  "`client-id` names a confidential client with service accounts enabled",
+			say: func(sf plugin.Surface) string {
+				_, verr := connect(context.Background(), req(t, "keycloak.overview", map[string]any{
+					"url": f.URL, "realm": "demo", "client-id": "someone-else", "client-secret": fakeSecret,
+				}).WithSurface(sf))
+				return verr.Message + "\n" + verr.Hint
+			},
+		},
+		{
+			// Where the secret comes from, never a verb for the reader: an
+			// agent has no host environment to set and no secret to pass.
+			name: "no client secret",
+			cli:  "the secret is read from $RTA_KEYCLOAK_CLIENT_SECRET or --client-secret, or mapped",
+			mcp:  "the secret is read from $RTA_KEYCLOAK_CLIENT_SECRET or `client-secret`, or mapped",
+			say: func(sf plugin.Surface) string {
+				_, verr := connect(context.Background(), req(t, "keycloak.overview", map[string]any{}).WithSurface(sf))
+				return verr.Message + "\n" + verr.Hint
+			},
+		},
+		{
+			name: "nothing listening",
+			cli:  "is the server up, and is --url right?",
+			mcp:  "is the server up, and is `url` right?",
+			say: func(sf plugin.Surface) string {
+				s := &session{req: req(t, "keycloak.overview", nil).WithSurface(sf), base: "http://127.0.0.1:1"}
+				verr := s.classifyTransport(&stdnet.OpError{Op: "dial", Net: "tcp", Err: errors.New("connection refused")})
+				return verr.Message + "\n" + verr.Hint
 			},
 		},
 		{
