@@ -43,6 +43,17 @@ func TestCAFileTrustsATunneledServersOwnCertificate(t *testing.T) {
 	if err.Code != "qdrant.tls.untrusted" {
 		t.Fatalf("code = %s, want qdrant.tls.untrusted", err.Code)
 	}
+	// The way past it is the CA. TLS off is not one: this server, like any
+	// that presents a certificate, refuses plain HTTP on the port.
+	if !strings.Contains(err.Hint, "--ca-file") || strings.Contains(err.Hint, "false") {
+		t.Errorf("hint = %q, want the CA named in --ca-file and no TLS off", err.Hint)
+	}
+	_, plain := collectionTable(context.Background(), req(t, "qdrant.collection.list", map[string]any{
+		"endpoint": endpoint, "tls": false,
+	}))
+	if plain == nil {
+		t.Fatal("plain HTTP reached a TLS server")
+	}
 
 	// With ca-file naming the server's own certificate: the handshake
 	// succeeds and the call goes all the way through to a real answer.
