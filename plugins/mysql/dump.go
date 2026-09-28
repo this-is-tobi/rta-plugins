@@ -272,6 +272,13 @@ func dumpArgs(req plugin.Request) []string {
 		"--no-defaults",
 		"--host=" + req.String("host"),
 		"--port=" + strconv.Itoa(req.Int("port")),
+		// TCP, said outright, because the client does not assume it: given
+		// localhost, this plugin's default host, it may take the name for
+		// its Unix socket and leave --port unread. The pre-flight connection
+		// dialled host:port over TCP, and the socket can be another server —
+		// a local mysqld, where the one checked was a container's port — so
+		// the receipt would describe a server this file never came from.
+		"--protocol=TCP",
 		"--user=" + req.String("user"),
 		// One snapshot for everything transactional; describeSource counts
 		// what falls outside it for the receipt.

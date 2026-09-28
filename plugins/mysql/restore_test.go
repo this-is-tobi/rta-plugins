@@ -82,6 +82,10 @@ func TestRestoreArgsCarryTheDecidedFlags(t *testing.T) {
 		t.Errorf("LOAD DATA LOCAL is not disabled — a dump file could read this machine's "+
 			"files into the server: %q", args)
 	}
+	if !strings.Contains(args, "--protocol=TCP") {
+		t.Errorf("TCP is not asked for — given localhost the client may write into whatever its "+
+			"Unix socket reaches, not the server checkTarget asked: %q", args)
+	}
 	if strings.Contains(args, "--force") {
 		t.Errorf("--force reached argv; stop-at-first-error is the whole guarantee: %q", args)
 	}
