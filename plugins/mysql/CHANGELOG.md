@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.18](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.3.17...plugins/mysql/v0.3.18) (2026-09-28)
+
+
+### Bug Fixes
+
+* **mysql:** the dump receipt's restore line keeps the TLS the dump was taken over ([49bb8fa](https://github.com/this-is-tobi/rta-plugins/commit/49bb8fa3dd71c8029554561019033d8b6381e26e))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.30.0 ([df1097a](https://github.com/this-is-tobi/rta-plugins/commit/df1097ad5b38f9d45c1f7efd4dd48a941b9e62d8))
+
 ## [0.3.17](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.3.16...plugins/mysql/v0.3.17) (2026-09-28)
 
 

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.18](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.17...plugins/qdrant/v0.3.18) (2026-09-28)
+
+
+### Bug Fixes
+
+* **qdrant:** a ca-file that cannot be used says what it must hold, named as its reader sets it ([f0c3cfc](https://github.com/this-is-tobi/rta-plugins/commit/f0c3cfc0e1804930fa895323dbca2cbd158266ea))
+* **qdrant:** a collection listing that succeeds is answered as a listing, not an empty error ([0a24496](https://github.com/this-is-tobi/rta-plugins/commit/0a244968304315f1a1628d719c26d2ad169716a1))
+* **qdrant:** an untrusted certificate is answered with the CA to trust, never with TLS off ([3ce4b9b](https://github.com/this-is-tobi/rta-plugins/commit/3ce4b9bf9eba452dfc8cdc16776c6b419dfac972))
+* **qdrant:** the dump receipt's restore line keeps the TLS the dump was taken over ([4b17b2e](https://github.com/this-is-tobi/rta-plugins/commit/4b17b2e5facadd9804e6aea92ff030ec924bfd1e))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.30.0 ([df1097a](https://github.com/this-is-tobi/rta-plugins/commit/df1097ad5b38f9d45c1f7efd4dd48a941b9e62d8))
+
 ## [0.3.17](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.16...plugins/qdrant/v0.3.17) (2026-09-28)
 
 

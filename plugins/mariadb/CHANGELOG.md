@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.18](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.3.17...plugins/mariadb/v0.3.18) (2026-09-28)
+
+
+### Bug Fixes
+
+* **mariadb:** the dump receipt's restore line keeps the TLS the dump was taken over ([e935129](https://github.com/this-is-tobi/rta-plugins/commit/e93512941d4b53e7fbcbace2f6e2e3f993aa14ff))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.30.0 ([df1097a](https://github.com/this-is-tobi/rta-plugins/commit/df1097ad5b38f9d45c1f7efd4dd48a941b9e62d8))
+
 ## [0.3.17](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.3.16...plugins/mariadb/v0.3.17) (2026-09-28)
 
 

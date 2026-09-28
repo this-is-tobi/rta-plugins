@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.19](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.18...plugins/redis/v0.1.19) (2026-09-28)
+
+
+### Bug Fixes
+
+* **redis:** a ca-file with no PEM certificate says what it must hold, not what it might have been ([1535751](https://github.com/this-is-tobi/rta-plugins/commit/1535751f13bb8e3307cf63b12cff7a02d5c9eed2))
+* **redis:** a name DNS cannot resolve is named alone, without the port beside it ([57356e7](https://github.com/this-is-tobi/rta-plugins/commit/57356e773bd97c5aa0f0678f2dbb716b55bd584b))
+* **redis:** a password or CA the server wants is named as the operator's setting, never passed ([fe22a12](https://github.com/this-is-tobi/rta-plugins/commit/fe22a126fb1decec7cec12201b063a9ad97a5263))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.30.0 ([df1097a](https://github.com/this-is-tobi/rta-plugins/commit/df1097ad5b38f9d45c1f7efd4dd48a941b9e62d8))
+
 ## [0.1.18](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.17...plugins/redis/v0.1.18) (2026-09-28)
 
 

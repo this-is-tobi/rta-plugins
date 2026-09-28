@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.4.16](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.4.15...plugins/vault/v0.4.16) (2026-09-28)
+
+
+### Bug Fixes
+
+* **vault:** a ca-file that cannot be used names ca-file as its reader sets it ([8021f3f](https://github.com/this-is-tobi/rta-plugins/commit/8021f3fe959141c9aa8ea658663096634da75cd6))
+* **vault:** a name DNS cannot resolve is named, with the lookup that shows what DNS returns ([4031ec6](https://github.com/this-is-tobi/rta-plugins/commit/4031ec6bece47261234f662c46cdc613b1125d48))
+* **vault:** an untrusted certificate names ca-file as the operator's setting, never as passed ([e88eb3b](https://github.com/this-is-tobi/rta-plugins/commit/e88eb3b9b1417bc81800e369e56b54264a58a933))
+* **vault:** the snapshot receipt names a restore into the Vault the snapshot came from ([a5116c8](https://github.com/this-is-tobi/rta-plugins/commit/a5116c8dba55d95bc8d281386b6f373411e98bc6))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.30.0 ([df1097a](https://github.com/this-is-tobi/rta-plugins/commit/df1097ad5b38f9d45c1f7efd4dd48a941b9e62d8))
+
 ## [0.4.15](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.4.14...plugins/vault/v0.4.15) (2026-09-28)
 
 
