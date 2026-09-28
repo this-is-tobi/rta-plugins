@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"errors"
 	stdnet "net"
 	"net/http"
 	"net/http/httptest"
@@ -523,6 +526,33 @@ func TestUserAttributesAreNeverRendered(t *testing.T) {
 	} {
 		if out := rendered(t, run(t, f, tc.cap, tc.values)); strings.Contains(out, "attributes") || strings.Contains(out, "is_temporary_admin") {
 			t.Errorf("%s rendered user attributes", tc.cap)
+		}
+	}
+}
+
+// macOS verifies against the system's trust store itself and reports an
+// untrusted chain as a bare error, never as x509.UnknownAuthorityError: that
+// is still a certificate nothing here trusts, and the answer is the CA, while
+// a name or a date that fails verification is not the CA's to fix.
+func TestACertificateThePlatformDoesNotTrustIsNamedAsUntrusted(t *testing.T) {
+	s := &session{req: plugin.NewRequest(nil, false, false), base: "https://sso.internal"}
+	for _, tc := range []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"Go's own verifier", x509.UnknownAuthorityError{}, "keycloak.tls.untrusted"},
+		{"the platform's verifier", errors.New(`x509: "sso" certificate is not trusted`), "keycloak.tls.untrusted"},
+		{"a name it is not for", x509.HostnameError{Certificate: &x509.Certificate{}, Host: "sso.internal"}, "keycloak.conn.failed"},
+		{"a date it is not valid on", x509.CertificateInvalidError{Cert: &x509.Certificate{}, Reason: x509.Expired}, "keycloak.conn.failed"},
+		// Go's verifier types each reason of its own, and no CA cures one.
+		{"a signature algorithm it refuses", x509.InsecureAlgorithmError(x509.SHA1WithRSA), "keycloak.conn.failed"},
+		{"a critical extension it does not handle", x509.UnhandledCriticalExtension{}, "keycloak.conn.failed"},
+	} {
+		err := &url.Error{Op: "Post", URL: "https://sso.internal/realms/demo/protocol/openid-connect/token",
+			Err: &tls.CertificateVerificationError{Err: tc.err}}
+		if got := s.classifyTransport(err); got.Code != tc.want {
+			t.Errorf("%s: classified %s, want %s", tc.name, got.Code, tc.want)
 		}
 	}
 }
