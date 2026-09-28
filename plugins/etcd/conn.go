@@ -304,9 +304,18 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 				WithHint(setting(sf, "ca-file") + " is a path on this machine, read by rta rather than by the cluster")
 		}
 		pool := x509.NewCertPool()
+		// What the file has to hold, rather than a guess at what it held
+		// instead. The hint once said "not the client certificate", and a
+		// client certificate in PEM never reaches this line: only a file with
+		// no PEM certificate in it does, the client's private key among them,
+		// or a DER-encoded certificate. And a self-signed cluster's own
+		// certificate is exactly what belongs here, the file the
+		// untrusted-certificate hint in classify sends the reader to name.
 		if !pool.AppendCertsFromPEM(pem) {
 			return nil, view.Errorf("etcd.tls.ca.invalid", "%s holds no PEM certificate", ca).
-				WithHint("this wants the CA bundle, not the client certificate")
+				WithHint(setting(sf, "ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
+					"server's own — and a private key, which belongs in " + setting(sf, "key-file") +
+					", or a DER-encoded certificate is not one")
 		}
 		cfg.RootCAs = pool
 	}
