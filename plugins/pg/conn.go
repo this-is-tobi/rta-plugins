@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"database/sql/driver"
 	"errors"
@@ -245,8 +246,7 @@ func classify(err error, req plugin.Request) *view.Error {
 		return view.Errorf("pg.tls.unsupported", "%s does not offer TLS", where).
 			WithHint(settingTo(sf, "sslmode", "disable") + " if that is expected on this network")
 	}
-	var certErr x509.UnknownAuthorityError
-	if errors.As(err, &certErr) {
+	if untrusted(err) {
 		return view.Errorf("pg.tls.untrusted", "%s presented a certificate nothing here trusts", where).
 			WithHint("a tunnelled PostgreSQL commonly has its own operator- or cluster-generated CA, and " +
 				"it belongs in " + setting(sf, "sslrootcert") + " — and check " + setting(sf, "sslmode") +
@@ -254,6 +254,44 @@ func classify(err error, req plugin.Request) *view.Error {
 	}
 	return view.Errorf("pg.conn.failed", "could not connect to %s: %v", where, err).
 		WithHint(explainHint(sf, "pg.status"))
+}
+
+// untrusted reports whether err is a certificate that nothing here vouches
+// for. Go's own verifier says so as an x509.UnknownAuthorityError, and it is
+// the one that runs whenever sslrootcert is set. Without one, on macOS, the
+// system's trust store is consulted through the platform's verifier, and an
+// untrusted chain comes back from it as a bare error inside the handshake's
+// *tls.CertificateVerificationError — as does a self-signed certificate
+// valid for longer than Apple's policy allows, "not standards compliant" —
+// so a verification failure the platform answers untyped is read as one too.
+// Read the typed way alone, a server with its own CA reached from a Mac over
+// verify-full was answered "could not connect", with the page of every input
+// for a hint, rather than with the CA to trust.
+//
+// Untyped, and not merely not UnknownAuthorityError: Go's verifier types
+// every failure it names — a host the certificate is not for, a date or a
+// use it is not valid for, a signature algorithm it will not accept, a
+// critical extension it does not handle — and each of those is a reason of
+// its own, which no CA in sslrootcert would cure. Read as untrusted, a SHA-1
+// certificate was answered "nothing here trusts" with the CA to name, and the
+// reason itself, which pg.conn.failed quotes, went unsaid.
+func untrusted(err error) bool {
+	var authErr x509.UnknownAuthorityError
+	if errors.As(err, &authErr) {
+		return true
+	}
+	var verifyErr *tls.CertificateVerificationError
+	if !errors.As(err, &verifyErr) {
+		return false
+	}
+	for _, reason := range []any{new(x509.HostnameError), new(x509.CertificateInvalidError),
+		new(x509.InsecureAlgorithmError), new(x509.UnhandledCriticalExtension),
+		new(x509.ConstraintViolationError)} {
+		if errors.As(verifyErr.Err, reason) {
+			return false
+		}
+	}
+	return true
 }
 
 // setting names connection input name in a message the way its reader

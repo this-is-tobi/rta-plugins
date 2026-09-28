@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"net"
@@ -142,6 +143,15 @@ func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
 		{"timed out", context.DeadlineExceeded, "pg.conn.timeout"},
 		{"no TLS", errors.New("server does not support SSL"), "pg.tls.unsupported"},
 		{"untrusted CA", x509.UnknownAuthorityError{}, "pg.tls.untrusted"},
+		// macOS's own verifier, consulted for the system's trust store,
+		// reports an untrusted chain as a bare error; a name or a date that
+		// fails is not the CA's to fix.
+		{"untrusted CA, by the platform's verifier",
+			&tls.CertificateVerificationError{Err: errors.New(`x509: "db" certificate is not trusted`)}, "pg.tls.untrusted"},
+		{"a certificate for another name",
+			&tls.CertificateVerificationError{Err: x509.HostnameError{Certificate: &x509.Certificate{}, Host: "db"}}, "pg.conn.failed"},
+		{"a signature algorithm Go's verifier refuses",
+			&tls.CertificateVerificationError{Err: x509.InsecureAlgorithmError(x509.SHA1WithRSA)}, "pg.conn.failed"},
 		{"anything else", errors.New("something unexpected"), "pg.conn.failed"},
 	}
 	for _, tc := range cases {
