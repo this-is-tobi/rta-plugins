@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/x509"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -23,6 +25,13 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		var verr *view.Error
 		if !errors.As(err, &verr) {
 			t.Fatalf("%s: err = %v, want a refusal", id, err)
+		}
+		return verr.Message + "\n" + verr.Hint
+	}
+	caRefusal := func(sf plugin.Surface, ca string) string {
+		_, verr := httpClient(req(t, "keycloak.overview", map[string]any{"ca-file": ca}).WithSurface(sf))
+		if verr == nil {
+			t.Fatalf("a ca-file of %s was accepted", ca)
 		}
 		return verr.Message + "\n" + verr.Hint
 	}
@@ -59,6 +68,29 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 					t.Fatal(err)
 				}
 				return graded(t, v)["version"].detail
+			},
+		},
+		{
+			name: "a CA file that cannot be read",
+			cli:  "--ca-file is a path on this machine",
+			mcp:  "`ca-file` is a path on this machine",
+			say: func(sf plugin.Surface) string {
+				return caRefusal(sf, filepath.Join(t.TempDir(), "absent.pem"))
+			},
+		},
+		{
+			// What the file must hold, never a refusal calling a self-signed
+			// server's own certificate the wrong file: it is the file the
+			// untrusted-certificate hint sends the reader to name.
+			name: "a CA file with no PEM certificate in it",
+			cli:  "--ca-file wants a PEM certificate — the CA's, or a self-signed server's own",
+			mcp:  "`ca-file` wants a PEM certificate — the CA's, or a self-signed server's own",
+			say: func(sf plugin.Surface) string {
+				der := filepath.Join(t.TempDir(), "server.der")
+				if err := os.WriteFile(der, []byte{0x30, 0x03, 0x02, 0x01, 0x01}, 0o600); err != nil {
+					t.Fatal(err)
+				}
+				return caRefusal(sf, der)
 			},
 		},
 		{
