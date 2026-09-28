@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	stdnet "net"
 	"os"
 	"path/filepath"
@@ -103,6 +104,24 @@ func TestTheAddressCarriesHostAndPort(t *testing.T) {
 	}
 	if cfg.Net != "tcp" {
 		t.Errorf("net = %q, want tcp", cfg.Net)
+	}
+}
+
+// An IPv6 literal has colons of its own, so host and port joined with one
+// more made ::1 into ::1:3307, which the driver took for a name to look up,
+// and the refusal said there was no address for ::1. Bracketed, it is the
+// address it was.
+func TestAnIPv6HostIsAnAddressNotAName(t *testing.T) {
+	r := req(t, "mariadb.status", map[string]any{"host": "::1", "port": 3307})
+	cfg, verr := driverConfig(r)
+	if verr != nil {
+		t.Fatal(verr)
+	}
+	if cfg.Addr != "[::1]:3307" {
+		t.Errorf("addr = %q, want [::1]:3307", cfg.Addr)
+	}
+	if got := classify(errors.New("boom"), r); !strings.Contains(got.Message, "[::1]:3307") {
+		t.Errorf("refusal = %q, want the address named as [::1]:3307", got.Message)
 	}
 }
 
