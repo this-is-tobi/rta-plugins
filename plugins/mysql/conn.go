@@ -10,6 +10,7 @@ import (
 	stdnet "net"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -114,7 +115,7 @@ func connFields() []plugin.Field {
 func driverConfig(req plugin.Request) (*mysql.Config, *view.Error) {
 	c := mysql.NewConfig()
 	c.Net = "tcp"
-	c.Addr = fmt.Sprintf("%s:%d", req.String("host"), req.Int("port"))
+	c.Addr = address(req)
 	c.User = req.String("user")
 	c.Passwd = req.String("password")
 	c.DBName = req.String("database")
@@ -135,6 +136,14 @@ func driverConfig(req plugin.Request) (*mysql.Config, *view.Error) {
 	// classify below turns into something an operator can act on.
 	c.CheckConnLiveness = true
 	return c, nil
+}
+
+// address is host and port as one address to dial, an IPv6 literal
+// bracketed. Joined with a colon, as it once was, ::1 became ::1:3306, which
+// the driver took for a name to look up, and the refusal said there was no
+// address for ::1 — a message that sent the reader to DNS for an address.
+func address(req plugin.Request) string {
+	return stdnet.JoinHostPort(req.String("host"), strconv.Itoa(req.Int("port")))
 }
 
 // connect opens a pool and proves it works before handing it back.
@@ -241,7 +250,7 @@ func classify(err error, req plugin.Request) *view.Error {
 		return already
 	}
 
-	where := fmt.Sprintf("%s:%d", req.String("host"), req.Int("port"))
+	where := address(req)
 
 	var myErr *mysql.MySQLError
 	if errors.As(err, &myErr) {
