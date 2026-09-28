@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	stdnet "net"
 	"strings"
 	"testing"
 
@@ -51,6 +52,19 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 			},
 		},
 		{
+			// A dial's lookup failure arrives inside the dial's own error, and
+			// what DNS was asked is the host alone: the port beside it is
+			// nothing a lookup was made for.
+			name:    "a name DNS does not know",
+			cli:     "no address for \"etcd-0.internal\"\n`rta net dns etcd-0.internal` shows what DNS returns",
+			other:   "no address for \"etcd-0.internal\"\n`net_dns {\"name\":\"etcd-0.internal\"}` shows what DNS returns",
+			surface: plugin.SurfaceMCP,
+			refuse: func(sf plugin.Surface) *view.Error {
+				err := &stdnet.OpError{Op: "dial", Net: "tcp", Err: &stdnet.DNSError{Err: "no such host", Name: "etcd-0.internal"}}
+				return classify(err, req(t, "etcd.overview", map[string]any{"endpoint": "etcd-0.internal:2379"}).WithSurface(sf))
+			},
+		},
+		{
 			name:    "anything else",
 			cli:     "`rta explain etcd.overview` lists every input and where each one can come from",
 			other:   "ask the operator to run `rta explain etcd.overview`, which lists every input",
@@ -88,5 +102,22 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 				t.Errorf("%s reads the CLI's %q", tc.surface, tc.cli)
 			}
 		})
+	}
+}
+
+// What DNS was asked is the host, whatever form the endpoint takes: a URL,
+// which etcd's client reads as readily as host:port, names the same host.
+func TestADNSRefusalNamesTheHostOfEveryEndpointForm(t *testing.T) {
+	err := &stdnet.OpError{Op: "dial", Net: "tcp", Err: &stdnet.DNSError{Err: "no such host", Name: "etcd-0.internal"}}
+	for _, endpoint := range []string{
+		"etcd-0.internal:2379", "https://etcd-0.internal:2379", "http://etcd-0.internal:2379/", "etcd-0.internal",
+	} {
+		got := classify(err, req(t, "etcd.overview", map[string]any{"endpoint": endpoint}))
+		if want := `no address for "etcd-0.internal"`; got.Message != want {
+			t.Errorf("%s: %q, want %q", endpoint, got.Message, want)
+		}
+		if want := "`rta net dns etcd-0.internal`"; !strings.Contains(got.Hint, want) {
+			t.Errorf("%s: hint %q, want %q in it", endpoint, got.Hint, want)
+		}
 	}
 }

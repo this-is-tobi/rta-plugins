@@ -170,15 +170,20 @@ func classify(err error, req plugin.Request) *view.Error {
 		}
 	}
 
+	// The name first, and the name alone: a dial that could not resolve its
+	// host fails with a *net.OpError wrapping the *net.DNSError, and read the
+	// other way round every name nothing resolves was reported as a port
+	// nothing listens on. What DNS was asked is the host, never host:port —
+	// quoting the port beside it names something no lookup was ever made for.
+	var dnsErr *stdnet.DNSError
+	if errors.As(err, &dnsErr) {
+		return view.Errorf("etcd.host.unknown", "no address for %q", hostOnly(where)).
+			WithHint(dnsHint(sf, hostOnly(where)))
+	}
 	var netErr *stdnet.OpError
 	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
 		return view.Errorf("etcd.conn.refused", "nothing is listening on %s", where).
 			WithHint("etcd listens on 2379 for clients and 2380 for peers — the peer port will not answer this")
-	}
-	var dnsErr *stdnet.DNSError
-	if errors.As(err, &dnsErr) {
-		return view.Errorf("etcd.host.unknown", "no address for %q", where).
-			WithHint(dnsHint(sf, hostOnly(where)))
 	}
 	var authErr x509.UnknownAuthorityError
 	if errors.As(err, &authErr) {
@@ -190,6 +195,13 @@ func classify(err error, req plugin.Request) *view.Error {
 }
 
 func hostOnly(endpoint string) string {
+	// An http:// or https:// endpoint is one etcd's client takes as readily
+	// as a bare host:port, and split as host:port whole it is not one: a name
+	// DNS did not know behind https:// was quoted scheme, port and all, with
+	// a lookup for the whole URL offered as the next step.
+	if _, rest, ok := strings.Cut(endpoint, "://"); ok {
+		endpoint, _, _ = strings.Cut(rest, "/")
+	}
 	host, _, err := stdnet.SplitHostPort(endpoint)
 	if err != nil {
 		return endpoint
