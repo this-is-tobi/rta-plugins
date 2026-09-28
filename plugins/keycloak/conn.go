@@ -228,15 +228,24 @@ func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 	if ca == "" {
 		return http.DefaultClient, nil
 	}
+	sf := req.Surface()
 	pem, err := os.ReadFile(ca)
 	if err != nil {
 		return nil, view.Errorf("keycloak.tls.ca.unreadable", "%v", err).
-			WithHint("ca-file is a path on this machine, read by rta rather than by the server")
+			WithHint(setting(sf, "ca-file") + " is a path on this machine, read by rta rather than by the server")
 	}
 	pool := x509.NewCertPool()
+	// What the file has to hold, rather than a guess at what it held instead.
+	// The hint once said "not the server's own certificate", and a
+	// self-signed server's own certificate is exactly what belongs here — the
+	// untrusted-certificate hint in classifyTransport sends the reader to put
+	// it here — while one in PEM never reaches this line at all: only a file
+	// with no PEM certificate in it does, a private key or a DER-encoded
+	// certificate.
 	if !pool.AppendCertsFromPEM(pem) {
 		return nil, view.Errorf("keycloak.tls.ca.invalid", "%s holds no PEM certificate", ca).
-			WithHint("this wants the CA bundle, not the server's own certificate")
+			WithHint(setting(sf, "ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
+				"server's own — and a private key or a DER-encoded certificate is not one")
 	}
 	return &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}}}, nil
 }
