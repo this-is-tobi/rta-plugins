@@ -40,7 +40,7 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name: "a name DNS does not know",
-			cli:  "`rta net dns cache.internal` shows what DNS returns",
+			cli:  "no address for \"cache.internal\"\n`rta net dns cache.internal` shows what DNS returns",
 			mcp:  "`net_dns {\"name\":\"cache.internal\"}` shows what DNS returns",
 			refuse: func(sf plugin.Surface) *view.Error {
 				err := &stdnet.OpError{Op: "dial", Net: "tcp", Err: &stdnet.DNSError{Err: "no such host", Name: "cache.internal"}}
