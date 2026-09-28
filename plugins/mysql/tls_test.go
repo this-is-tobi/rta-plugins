@@ -69,14 +69,23 @@ func newPrivateCA(t *testing.T) privateCA {
 // tests dial, so the name check passes and the chain is the only question.
 func (ca privateCA) serverCert(t *testing.T) tls.Certificate {
 	t.Helper()
+	return ca.certFor(t, "127.0.0.1", []stdnet.IP{stdnet.ParseIP("127.0.0.1")})
+}
+
+// certFor is a certificate this CA issued under common name cn for the
+// given DNS names and addresses; with neither, the shape of the one a server
+// generates for itself, which names itself in a CN no verifier reads.
+func (ca privateCA) certFor(t *testing.T, cn string, ips []stdnet.IP, dnsNames ...string) tls.Certificate {
+	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
 	tmpl := &x509.Certificate{
 		SerialNumber: big.NewInt(2),
-		Subject:      pkix.Name{CommonName: "127.0.0.1"},
-		IPAddresses:  []stdnet.IP{stdnet.ParseIP("127.0.0.1")},
+		Subject:      pkix.Name{CommonName: cn},
+		IPAddresses:  ips,
+		DNSNames:     dnsNames,
 		NotBefore:    time.Now().Add(-time.Hour),
 		NotAfter:     time.Now().Add(time.Hour),
 		KeyUsage:     x509.KeyUsageDigitalSignature,
@@ -254,6 +263,41 @@ func TestACAFileThatDidNotIssueTheCertificateIsNamed(t *testing.T) {
 	}
 	if !strings.Contains(verr.Hint, other) || !strings.Contains(verr.Hint, "does not hold the CA that issued it") {
 		t.Errorf("hint = %q, want %s named as not holding the issuer", verr.Hint, other)
+	}
+}
+
+// The CA right and the name wrong came out as "could not reach", with the
+// page of every input for a hint, and the untrusted hint had just sent the
+// reader to ca-file, which cannot cure it. The certificate a server generates
+// for itself names no host at all, and is the one met most: said as that, the
+// reader stops looking for a better CA — and said so with no CA named yet,
+// rather than after the detour the untrusted hint would send them on.
+func TestACertificateForAnotherNameIsNamedAsThat(t *testing.T) {
+	ca := newPrivateCA(t)
+	caFile := writeFile(t, "ca.pem", ca.pem)
+	for _, tc := range []struct {
+		name, message, hint, ca string
+		cert                    tls.Certificate
+	}{
+		{"another name", "a certificate for db.internal, not 127.0.0.1", "reach the server by one it carries",
+			caFile, ca.certFor(t, "db.internal", nil, "db.internal")},
+		{"no name", "a certificate that names no host, 127.0.0.1 or any other",
+			"--tls true reaches the server once its certificate is reissued with 127.0.0.1 among them",
+			caFile, ca.certFor(t, "MySQL_Server_Auto_Generated_Server_Certificate", nil)},
+		{"no name, and no CA named for it", "a certificate that names no host", "reissued with 127.0.0.1",
+			"", ca.certFor(t, "MySQL_Server_Auto_Generated_Server_Certificate", nil)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, verr := connect(context.Background(), req(t, "mysql.status", map[string]any{
+				"host": "127.0.0.1", "port": tlsServer(t, tc.cert), "tls": "true", "ca-file": tc.ca,
+			}))
+			if verr == nil || verr.Code != "mysql.tls.name" {
+				t.Fatalf("err = %v, want mysql.tls.name", verr)
+			}
+			if !strings.Contains(verr.Message, tc.message) || !strings.Contains(verr.Hint, tc.hint) {
+				t.Errorf("got %q (hint %q), want %q with %q", verr.Message, verr.Hint, tc.message, tc.hint)
+			}
+		})
 	}
 }
 
