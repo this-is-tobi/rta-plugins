@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	stdnet "net"
 	"path/filepath"
@@ -55,6 +56,25 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(&stdnet.OpError{Op: "dial", Net: "tcp", Err: errors.New("connection refused")},
 					req(t, "mysql.overview", nil).WithSurface(sf)))
+			},
+		},
+		{
+			name:    "a certificate nothing here trusts",
+			cli:     "wants that CA in --ca-file rather than --tls skip-verify, which turns verification off",
+			other:   "wants that CA in `ca-file` rather than `tls` set to skip-verify, which turns verification off",
+			surface: plugin.SurfaceMCP,
+			say: func(sf plugin.Surface) string {
+				return refusal(classify(x509.UnknownAuthorityError{}, req(t, "mysql.overview", nil).WithSurface(sf)))
+			},
+		},
+		{
+			name:    "a CA beside a mode that never verifies",
+			cli:     "--ca-file names a CA, and --tls preferred never verifies against one\n--tls true verifies",
+			other:   "the ca-file box names a CA, and the tls box set to preferred never verifies against one",
+			surface: plugin.SurfaceTUI,
+			say: func(sf plugin.Surface) string {
+				_, verr := tlsConfig(req(t, "mysql.overview", map[string]any{"ca-file": "/etc/mysql/ca.pem"}).WithSurface(sf))
+				return refusal(verr)
 			},
 		},
 		{

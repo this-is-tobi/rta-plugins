@@ -70,25 +70,22 @@ func conformanceInputs(dir string) map[string]map[string]any {
 	}
 }
 
-// A password containing '@' or '/' silently produces a different DSN under
-// hand assembly, and the failure it causes is an authentication error naming
-// nothing. Built through mysql.Config so the driver's own escaping applies —
-// this checks the escaping actually round-trips rather than that a string was
-// concatenated.
-func TestDSNSurvivesAwkwardPasswords(t *testing.T) {
+// A password containing '@' or '/' once had to survive a DSN, where hand
+// assembly ran it into the next component and the failure was an
+// authentication error naming nothing. The driver is handed its Config now,
+// with no string between, and this holds it to that: the password, and the
+// address beside it, arrive exactly as given.
+func TestAwkwardPasswordsReachTheDriverAsGiven(t *testing.T) {
 	for _, pw := range []string{"p@ss/word", "with'quote'", `back\slash`, "sp ace", "a:b@c/d?e"} {
-		got := dsn(req(t, "mysql.status", map[string]any{"password": pw, "host": "db.internal"}))
-		parsed, err := mysql.ParseDSN(got)
-		if err != nil {
-			t.Fatalf("password %q produced an unparseable DSN %q: %v", pw, got, err)
+		cfg, verr := driverConfig(req(t, "mysql.status", map[string]any{"password": pw, "host": "db.internal"}))
+		if verr != nil {
+			t.Fatalf("password %q: %v", pw, verr)
 		}
-		if parsed.Passwd != pw {
-			t.Errorf("password %q round-tripped as %q", pw, parsed.Passwd)
+		if cfg.Passwd != pw {
+			t.Errorf("password %q reached the driver as %q", pw, cfg.Passwd)
 		}
-		// The address must still parse as its own field: bad escaping would
-		// run the password into the next component.
-		if parsed.Addr != "db.internal:3306" {
-			t.Errorf("password %q corrupted the address: %q", pw, parsed.Addr)
+		if cfg.Addr != "db.internal:3306" {
+			t.Errorf("password %q corrupted the address: %q", pw, cfg.Addr)
 		}
 	}
 }
@@ -96,17 +93,16 @@ func TestDSNSurvivesAwkwardPasswords(t *testing.T) {
 // The port belongs to the address, not to a separate field the driver would
 // ignore. Getting this wrong reaches the default port against the right host,
 // which looks like the server being down.
-func TestDSNCarriesHostAndPort(t *testing.T) {
-	got := dsn(req(t, "mysql.status", map[string]any{"host": "10.0.0.5", "port": 3307}))
-	parsed, err := mysql.ParseDSN(got)
-	if err != nil {
-		t.Fatal(err)
+func TestTheAddressCarriesHostAndPort(t *testing.T) {
+	cfg, verr := driverConfig(req(t, "mysql.status", map[string]any{"host": "10.0.0.5", "port": 3307}))
+	if verr != nil {
+		t.Fatal(verr)
 	}
-	if parsed.Addr != "10.0.0.5:3307" {
-		t.Errorf("addr = %q, want 10.0.0.5:3307", parsed.Addr)
+	if cfg.Addr != "10.0.0.5:3307" {
+		t.Errorf("addr = %q, want 10.0.0.5:3307", cfg.Addr)
 	}
-	if parsed.Net != "tcp" {
-		t.Errorf("net = %q, want tcp", parsed.Net)
+	if cfg.Net != "tcp" {
+		t.Errorf("net = %q, want tcp", cfg.Net)
 	}
 }
 
