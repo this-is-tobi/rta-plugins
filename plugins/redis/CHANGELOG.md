@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.18](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.17...plugins/redis/v0.1.18) (2026-09-28)
+
+
+### Bug Fixes
+
+* **redis:** a message names capabilities and inputs the way its reader's surface gives them ([6615aac](https://github.com/this-is-tobi/rta-plugins/commit/6615aac96d7280426e20d37d4d525cfab9484b46))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.29.0 ([af6b7e9](https://github.com/this-is-tobi/rta-plugins/commit/af6b7e93f56ab6311467c0c7bfe64f4728d41486))
+
 ## [0.1.17](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.16...plugins/redis/v0.1.17) (2026-09-27)
 
 

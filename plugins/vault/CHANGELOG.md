@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.4.15](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.4.14...plugins/vault/v0.4.15) (2026-09-28)
+
+
+### Bug Fixes
+
+* **vault:** a message names capabilities and inputs the way its reader's surface gives them ([b97c52d](https://github.com/this-is-tobi/rta-plugins/commit/b97c52dc862be543ab44e19547bc4d4174377a46))
+* **vault:** a name DNS cannot resolve is reported as that, not as nothing listening ([5076a31](https://github.com/this-is-tobi/rta-plugins/commit/5076a313b1f13e91e1936e7cbea0ba6ebefc191b))
+* **vault:** a refused request points at vault.token.status, a capability rta has ([a896dd3](https://github.com/this-is-tobi/rta-plugins/commit/a896dd3428bbc888bdd786bffa032bdd01a4c562))
+* **vault:** a truncated tree points at the path argument, which the CLI takes by its place ([5e3f418](https://github.com/this-is-tobi/rta-plugins/commit/5e3f418f5bbb4e4fad6493aa5d9dddaa5946c71d))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.29.0 ([af6b7e9](https://github.com/this-is-tobi/rta-plugins/commit/af6b7e93f56ab6311467c0c7bfe64f4728d41486))
+
 ## [0.4.14](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.4.13...plugins/vault/v0.4.14) (2026-09-27)
 
 

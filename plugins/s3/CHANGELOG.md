@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.3.16...plugins/s3/v0.4.0) (2026-09-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* **s3:** s3.object.set with --file naming standard input, as /dev/stdin or as descriptor 0 under /dev/fd or /proc, is refused as s3.file.stdin, where it stored an empty object.
+* **s3:** a copy or rename grant naming only the source key, or a prefix holding it, no longer authorizes writing the object under a key the grant does not cover.
+
+### Bug Fixes
+
+* **s3:** a copy or rename grant has to cover the key it writes as well as the one it reads ([b448fa8](https://github.com/this-is-tobi/rta-plugins/commit/b448fa83b427ac0e7c5a41f9289966a19b1b20fc))
+* **s3:** a message names capabilities and inputs the way its reader's surface gives them ([fce1b7b](https://github.com/this-is-tobi/rta-plugins/commit/fce1b7bd83bc8eb7309535e1b78712ae7d263344))
+* **s3:** a missing object points at the listing with its bucket as the flag the CLI takes ([130eaa4](https://github.com/this-is-tobi/rta-plugins/commit/130eaa4775d116bfc57603333fd209f3886ccb84))
+* **s3:** a name DNS cannot resolve is reported as that, not as nothing listening ([b6b41f2](https://github.com/this-is-tobi/rta-plugins/commit/b6b41f28d0152f85cfa5a826a0587ed024e90ad6))
+* **s3:** copy, rename and set name their inputs without a flag, and s3 carries the spelling guard ([c41f7e2](https://github.com/this-is-tobi/rta-plugins/commit/c41f7e2d61356e138362d02a8548464f3980999c))
+* **s3:** object set --dry-run says a stream's size is unknown rather than 0 B ([2b886ab](https://github.com/this-is-tobi/rta-plugins/commit/2b886aba4c0048c1e1a00375d6fbf4c5b393870c))
+* **s3:** object set --file streams a pipe or a device rather than failing to seek it ([e52dbd8](https://github.com/this-is-tobi/rta-plugins/commit/e52dbd8300935ce263c968ba07927a861cf8485f))
+* **s3:** object set refuses --file naming standard input rather than storing an empty object ([7c15e1e](https://github.com/this-is-tobi/rta-plugins/commit/7c15e1e1d9bc9c82515004d76490b5b962cc4f36))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.29.0 ([af6b7e9](https://github.com/this-is-tobi/rta-plugins/commit/af6b7e93f56ab6311467c0c7bfe64f4728d41486))
+
 ## [0.3.16](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.3.15...plugins/s3/v0.3.16) (2026-09-27)
 
 

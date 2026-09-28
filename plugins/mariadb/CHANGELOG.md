@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.17](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.3.16...plugins/mariadb/v0.3.17) (2026-09-28)
+
+
+### Bug Fixes
+
+* **mariadb:** a flag of mariadb-dump, the client or the server is named with its program ([067646c](https://github.com/this-is-tobi/rta-plugins/commit/067646cabc717746a91e5fb06784003a3cbd0302))
+* **mariadb:** a message names capabilities and inputs the way its reader's surface gives them ([9f5cfb5](https://github.com/this-is-tobi/rta-plugins/commit/9f5cfb568c3e01e42d9503c5e586f51e83a3b2c8))
+* **mariadb:** a name DNS cannot resolve is reported as that, not as nothing listening ([3dbf812](https://github.com/this-is-tobi/rta-plugins/commit/3dbf812667d95f01a429a5986f24299828d4741e))
+* **mariadb:** a split Galera node's receipt points at mariadb.galera.status, which rta has ([a352318](https://github.com/this-is-tobi/rta-plugins/commit/a352318df9c890eb541a7e1189cb87fcb7c7365c))
+* **mariadb:** the query's description says it needs a grant, as every write now does ([d215cb7](https://github.com/this-is-tobi/rta-plugins/commit/d215cb7bb5373e5a1ffd0827a6c431c053446a53))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.29.0 ([af6b7e9](https://github.com/this-is-tobi/rta-plugins/commit/af6b7e93f56ab6311467c0c7bfe64f4728d41486))
+
 ## [0.3.16](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.3.15...plugins/mariadb/v0.3.16) (2026-09-27)
 
 

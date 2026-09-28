@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.17](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.16...plugins/qdrant/v0.3.17) (2026-09-28)
+
+
+### Bug Fixes
+
+* **qdrant:** a message names capabilities and inputs the way its reader's surface gives them ([101247a](https://github.com/this-is-tobi/rta-plugins/commit/101247a754ba1611269b7317d06043c22f189f57))
+* **qdrant:** a name DNS cannot resolve is reported as that, not as nothing listening ([9b658e3](https://github.com/this-is-tobi/rta-plugins/commit/9b658e373530386489fb5159eb97f9517f6bacc0))
+* **qdrant:** a snapshot's receipt names a restore the CLI takes, with the collection as a flag ([0d2b98e](https://github.com/this-is-tobi/rta-plugins/commit/0d2b98e18662a2b3aac35b7984accc01e795295a))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.29.0 ([af6b7e9](https://github.com/this-is-tobi/rta-plugins/commit/af6b7e93f56ab6311467c0c7bfe64f4728d41486))
+
 ## [0.3.16](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.15...plugins/qdrant/v0.3.16) (2026-09-27)
 
 

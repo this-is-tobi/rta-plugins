@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.4.3...plugins/kube/v0.4.4) (2026-09-28)
+
+
+### Bug Fixes
+
+* **kube:** a message names capabilities and inputs the way its reader's surface gives them ([5867f36](https://github.com/this-is-tobi/rta-plugins/commit/5867f36210e05e34c5da1069b2a9d333a7c6b9b8))
+* **kube:** a partial provision names the revoke that cleans it up as a call rta takes ([24016d6](https://github.com/this-is-tobi/rta-plugins/commit/24016d685b1f60b09d5cc4d4a938a484f4730f31))
+* **kube:** switching to a missing context says when the kubeconfig has none at all ([c76ff75](https://github.com/this-is-tobi/rta-plugins/commit/c76ff7590d9588e1f4fdcd2f38e58bee0f75cec8))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.29.0 ([af6b7e9](https://github.com/this-is-tobi/rta-plugins/commit/af6b7e93f56ab6311467c0c7bfe64f4728d41486))
+
 ## [0.4.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.4.2...plugins/kube/v0.4.3) (2026-09-27)
 
 
