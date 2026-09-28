@@ -333,6 +333,7 @@ func TestConnectionFailuresAreClassifiedByNumber(t *testing.T) {
 		{1142, "mariadb.denied"},
 		{1130, "mariadb.host.denied"},
 		{1290, "mariadb.readonly"},
+		{3159, "mariadb.tls.required"},
 	}
 	r := req(t, "mariadb.status", map[string]any{"host": "db.internal", "database": "app"})
 	for _, c := range cases {

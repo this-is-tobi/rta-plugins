@@ -271,9 +271,26 @@ func classify(err error, req plugin.Request) *view.Error {
 		case 1290: // ER_OPTION_PREVENTS_STATEMENT
 			return view.Errorf("mariadb.readonly", "%s", myErr.Message).
 				WithHint("the server is running with read_only on; this is a replica or was set that way deliberately")
+		case 3159: // ER_SECURE_TRANSPORT_REQUIRED
+			// The server refusing a connection without TLS, which is not a
+			// query that failed: nothing was queried, and the answer is a
+			// setting, not the page of every input. false is what a tunnel
+			// forces, so this is where a server started with
+			// require_secure_transport meets one.
+			return view.Errorf("mariadb.tls.required", "%s accepts connections over TLS only", where).
+				WithHint(settingTo(req.Surface(), "tls", "true") + " connects over it, with " +
+					setting(req.Surface(), "ca-file") + " naming the CA if the server's certificate is from one of its own")
 		}
 		return view.Errorf("mariadb.query.failed", "%d: %s", myErr.Number, myErr.Message).
 			WithHint(explainHint(req.Surface(), "mariadb.overview"))
+	}
+
+	// true or skip-verify against a server that offers no TLS. The driver's
+	// own sentence for it came out as "could not reach", which the server
+	// was not: it answered, without the TLS that was asked for.
+	if errors.Is(err, mysql.ErrNoTLS) {
+		return view.Errorf("mariadb.tls.unsupported", "%s does not offer TLS", where).
+			WithHint(settingTo(req.Surface(), "tls", "false") + " if that is expected on this network")
 	}
 
 	// The CA named as where it belongs, and as what to use instead of
