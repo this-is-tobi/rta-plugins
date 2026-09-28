@@ -6,6 +6,7 @@
   "tag-separator": "/",
   "separate-pull-requests": false,
   "initial-version": "0.1.0",
+  "bump-minor-pre-major": true,
   "draft": false,
   "force-tag-creation": true,
   "changelog-sections": [
