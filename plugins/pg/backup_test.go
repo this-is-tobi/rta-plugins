@@ -296,6 +296,57 @@ func TestTheRestoreCommandNamesTheOtherHalf(t *testing.T) {
 	}
 }
 
+// The restore connects as protected as the dump did. A dump over verify-full
+// printed a line with no sslmode, which ran at prefer on a machine whose
+// config said nothing: the password went to a server nothing had verified.
+// A looser mode stays off the line, disable above all, since that is what a
+// tunnel forces for the forward alone — and the password never goes on it.
+func TestTheRestoreConnectsAsProtectedAsTheDump(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		values  map[string]any
+		want    []string
+		without []string
+	}{
+		{
+			name:   "a verified dump",
+			values: map[string]any{"sslmode": "verify-full", "sslrootcert": "/etc/pg/ca.pem"},
+			want:   []string{"--sslmode verify-full", "--sslrootcert /etc/pg/ca.pem"},
+		},
+		{
+			name:   "a dump that required TLS",
+			values: map[string]any{"sslmode": "require"},
+			want:   []string{"--sslmode require"},
+		},
+		{
+			name:    "the default",
+			values:  map[string]any{"sslrootcert": "/etc/pg/ca.pem"},
+			without: []string{"--sslmode", "--sslrootcert"},
+		},
+		{
+			name:    "TLS off, as a tunnel forces it",
+			values:  map[string]any{"sslmode": "disable"},
+			without: []string{"--sslmode"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.values["host"] = "db.internal"
+			tc.values["password"] = "hunter2"
+			got := restoreCommand(reqFor(t, "pg.dump", tc.values), "/backups/app.dump")
+			for _, w := range tc.want {
+				if !strings.Contains(got, w) {
+					t.Errorf("restore = %q, missing %q", got, w)
+				}
+			}
+			for _, w := range append(tc.without, "hunter2", "password") {
+				if strings.Contains(got, w) {
+					t.Errorf("restore = %q, want no %q in it", got, w)
+				}
+			}
+		})
+	}
+}
+
 // The failure nobody guesses from the message, because it reads like a
 // server problem and is a client one.
 func TestAVersionMismatchIsNamedAsAClientProblem(t *testing.T) {
