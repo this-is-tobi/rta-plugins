@@ -46,6 +46,17 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			},
 		},
 		{
+			// Where the password comes from, never a verb for the reader: an
+			// agent has no host environment to set and no password to pass.
+			name:    "credentials the server rejects",
+			cli:     "the password is read from $RTA_PG_PASSWORD or --password — check it, and --user:",
+			other:   "the password is read from $RTA_PG_PASSWORD or `password` — check it, and `user`:",
+			surface: plugin.SurfaceMCP,
+			say: func(sf plugin.Surface) string {
+				return refusal(classify(&pgconn.PgError{Code: "28P01"}, reqFor(t, "pg.status", nil).WithSurface(sf)))
+			},
+		},
+		{
 			name:    "a server that offers no TLS",
 			cli:     "--sslmode disable if that is expected on this network",
 			other:   "`sslmode` set to disable if that is expected on this network",

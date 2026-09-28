@@ -190,11 +190,15 @@ func classify(err error, req plugin.Request) *view.Error {
 	if errors.As(err, &pgErr) {
 		switch pgErr.Code {
 		case "28P01", "28000": // invalid_password, invalid_authorization
+			// Where the password comes from rather than a verb telling the
+			// reader to set one: pg.status and the reads beside it answer an
+			// agent too, which has no host environment to set and no password
+			// argument, since the bridge drops a Local input given.
 			return view.Errorf("pg.auth.failed", "%s rejected the credentials for %q",
 				where, req.String("user")).
-				WithHint("set $" + plugin.LocalEnvVar("pg.status", "password") +
-					", or check the role name — rta only ever uses the password you give it, " +
-					"never ~/.pgpass")
+				WithHint("the password is read from $" + plugin.LocalEnvVar("pg.status", "password") +
+					" or " + setting(sf, "password") + " — check it, and " + setting(sf, "user") +
+					": rta only ever uses the password it is given, never ~/.pgpass")
 		case "3D000": // invalid_catalog_name
 			return view.Errorf("pg.database.missing", "%s has no database named %q",
 				where, req.String("database")).
