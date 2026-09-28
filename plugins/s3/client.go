@@ -186,7 +186,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	// every name nothing resolves was reported as a port nothing listens on.
 	var dnsErr *stdnet.DNSError
 	if errors.As(err, &dnsErr) {
-		return view.Errorf("s3.host.unknown", "no address for %q", where).
+		return view.Errorf("s3.host.unknown", "no address for %q", hostOnly(where)).
 			WithHint(dnsHint(sf, hostOnly(where)))
 	}
 	var netErr *stdnet.OpError
