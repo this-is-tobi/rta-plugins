@@ -36,6 +36,12 @@ func conformanceInputs(dir string) map[string]map[string]any {
 		m["token"] = "conformance"
 		return m
 	}
+	// The restore's input is inside dir, beside everything else. The suite
+	// snapshots dir after this function has run, before each dry run, so a
+	// fixture written here is part of what a dry run is compared against
+	// rather than a stray write — and one that touched it is caught.
+	fixture := filepath.Join(dir, "restore.snap")
+	_ = os.WriteFile(fixture, []byte("archive"), 0o600)
 	return map[string]map[string]any{
 		"vault.kv.get":          conn(map[string]any{"path": "app/db"}),
 		"vault.kv.set":          conn(map[string]any{"path": "app/db", "data": []string{"password=s3cret"}}),
@@ -51,24 +57,8 @@ func conformanceInputs(dir string) map[string]map[string]any {
 		// in the operator's own home. Pointed inside dir so the rule that
 		// watches for a stray write is watching the place it would land.
 		"vault.snapshot": conn(map[string]any{"out": filepath.Join(dir, "vault.snap")}),
-		// The input file lives outside dir on purpose: sdktest watches dir
-		// for stray writes, and a fixture pre-created there would read as
-		// one. os.MkdirTemp because this function has no *testing.T; the OS
-		// temp dir's own cleanup owns the leftover.
-		"vault.restore": conn(map[string]any{"file": restoreFixture()}),
+		"vault.restore":  conn(map[string]any{"file": fixture}),
 	}
-}
-
-func restoreFixture() string {
-	dir, err := os.MkdirTemp("", "rta-vault-restore")
-	if err != nil {
-		return "unwritable"
-	}
-	path := filepath.Join(dir, "vault.snap")
-	if err := os.WriteFile(path, []byte("archive"), 0o600); err != nil {
-		return "unwritable"
-	}
-	return path
 }
 
 // req builds a resolved request the way the host would, against the named
