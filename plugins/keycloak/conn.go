@@ -330,14 +330,51 @@ func (s *session) classifyTransport(err error) *view.Error {
 	// The CA named as where it belongs, not as something to pass: over MCP
 	// ca-file is the operator's setting, Local, and an agent told to pass it
 	// has no such argument to give and would read this refusal again.
-	var certErr x509.UnknownAuthorityError
-	if errors.As(err, &certErr) {
+	if untrusted(err) {
 		return view.Errorf("keycloak.tls.untrusted", "%s presented a certificate nothing here trusts", s.base).
 			WithHint("a Keycloak behind an internal CA wants that CA in " + setting(s.req.Surface(), "ca-file") +
 				" rather than verification turned off — a self-signed certificate is its own CA")
 	}
 	return view.Errorf("keycloak.conn.failed", "could not reach %s: %v", s.base, err).
 		WithHint(explainHint(s.req.Surface(), "keycloak.overview"))
+}
+
+// untrusted reports whether err is a certificate that nothing here vouches
+// for. Go's own verifier says so as an x509.UnknownAuthorityError, and it is
+// the one that runs whenever ca-file is set. Without one, on macOS, the
+// system's trust store is consulted through the platform's verifier, and an
+// untrusted chain comes back from it as a bare error inside the handshake's
+// *tls.CertificateVerificationError — as does a self-signed certificate
+// valid for longer than Apple's policy allows, "not standards compliant" —
+// so a verification failure the platform answers untyped is read as one too.
+// Read the typed way alone, a Keycloak behind its own CA reached from a Mac
+// was answered "could not reach", with the page of every input for a hint,
+// rather than with the CA to trust.
+//
+// Untyped, and not merely not UnknownAuthorityError: Go's verifier types
+// every failure it names — a host the certificate is not for, a date or a
+// use it is not valid for, a signature algorithm it will not accept, a
+// critical extension it does not handle — and each of those is a reason of
+// its own, which no CA in ca-file would cure. Read as untrusted, a SHA-1
+// certificate was answered "nothing here trusts" with the CA to name, and the
+// reason itself, which keycloak.conn.failed quotes, went unsaid.
+func untrusted(err error) bool {
+	var authErr x509.UnknownAuthorityError
+	if errors.As(err, &authErr) {
+		return true
+	}
+	var verifyErr *tls.CertificateVerificationError
+	if !errors.As(err, &verifyErr) {
+		return false
+	}
+	for _, reason := range []any{new(x509.HostnameError), new(x509.CertificateInvalidError),
+		new(x509.InsecureAlgorithmError), new(x509.UnhandledCriticalExtension),
+		new(x509.ConstraintViolationError)} {
+		if errors.As(verifyErr.Err, reason) {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *session) host() string {
