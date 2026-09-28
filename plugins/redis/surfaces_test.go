@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/x509"
 	"errors"
 	stdnet "net"
 	"strings"
@@ -47,6 +48,22 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 			},
 		},
 		{
+			name: "a server that wants a password",
+			cli:  "the password belongs in $RTA_REDIS_PASSWORD or --password",
+			mcp:  "the password belongs in $RTA_REDIS_PASSWORD or `password`",
+			refuse: func(sf plugin.Surface) *view.Error {
+				return classify(&serverError{msg: "NOAUTH Authentication required."}, "10.0.0.1:6379", sf)
+			},
+		},
+		{
+			name: "a certificate nothing here trusts",
+			cli:  "the CA that issued it belongs in --ca-file",
+			mcp:  "the CA that issued it belongs in `ca-file`",
+			refuse: func(sf plugin.Surface) *view.Error {
+				return classify(x509.UnknownAuthorityError{}, "10.0.0.1:6379", sf)
+			},
+		},
+		{
 			name: "anything else",
 			cli:  "`rta explain redis.overview` lists every input and where each one can come from",
 			mcp:  "ask the operator to run `rta explain redis.overview`, which lists every input",
@@ -67,6 +84,12 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 			}
 			if strings.Contains(said, tc.cli) {
 				t.Errorf("an agent reads the CLI's %q", tc.cli)
+			}
+			// A connection input is Local, and the bridge drops one an
+			// agent gives: told to pass one, it passes an argument that is
+			// thrown away and reads the same refusal again.
+			if strings.Contains(said, "pass ") {
+				t.Errorf("an agent is told to pass a setting it cannot: %q", said)
 			}
 		})
 	}

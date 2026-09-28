@@ -317,8 +317,13 @@ func classify(err error, addr string, sf plugin.Surface) *view.Error {
 		code, _, _ := strings.Cut(srv.msg, " ")
 		switch code {
 		case "NOAUTH":
+			// Where the password comes from rather than a verb telling the
+			// reader to pass one: an agent told to pass `password` has no
+			// such argument, since the bridge drops a Local input given, and
+			// would read this refusal again.
 			return view.Errorf("redis.auth.required", "%s requires a password", addr).
-				WithHint("set $" + plugin.LocalEnvVar("redis.overview", "password") + " or pass " + setting(sf, "password"))
+				WithHint("the password belongs in $" + plugin.LocalEnvVar("redis.overview", "password") +
+					" or " + setting(sf, "password"))
 		case "WRONGPASS":
 			return view.Errorf("redis.auth.failed", "%s rejected the credentials", addr).
 				WithHint("check the password, and " + setting(sf, "username") + " if the server uses ACLs")
@@ -366,7 +371,7 @@ func classify(err error, addr string, sf plugin.Surface) *view.Error {
 	var authErr x509.UnknownAuthorityError
 	if errors.As(err, &authErr) {
 		return view.Errorf("redis.tls.untrusted", "%s presented a certificate nothing here trusts", addr).
-			WithHint("pass the CA that issued it with " + setting(sf, "ca-file"))
+			WithHint("the CA that issued it belongs in " + setting(sf, "ca-file"))
 	}
 	if errors.Is(err, io.EOF) {
 		return view.Errorf("redis.conn.closed", "%s closed the connection", addr).
