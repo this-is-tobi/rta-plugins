@@ -136,6 +136,8 @@
 + // and passes nothing.
 - 		return []string{"--skip-ssl"}
 + 		return []string{"--ssl-mode=DISABLED"}
+- 			return []string{"--ssl", "--ssl-verify-server-cert", "--ssl-ca=" + ca}
++ 			return []string{"--ssl-mode=VERIFY_IDENTITY", "--ssl-ca=" + ca}
 - 		return []string{"--ssl", "--ssl-verify-server-cert"}
 + 		return []string{"--ssl-mode=VERIFY_IDENTITY"}
 - 		return []string{"--ssl"}

@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
 	"errors"
 	"fmt"
 	stdnet "net"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -64,19 +67,49 @@ func connFields() []plugin.Field {
 			Endpoint: plugin.EndpointTLS,
 			Options:  []string{"false", "preferred", "true", "skip-verify"},
 			Help:     "TLS negotiation mode"},
+		// The CA true verifies against. Without it a server whose
+		// certificate a private CA issued — an operator's own root, a
+		// cluster's issuer — could be reached only by skip-verify, which
+		// encrypts and checks nothing.
+		//
+		// Local for the reason every ca-file in these plugins is: it names a
+		// file on this machine that rta then reads, and a path a caller could
+		// choose would be a file-read primitive. Not a Secret: a CA
+		// certificate is the public half, the one handed out so anyone can
+		// verify what it signed.
+		//
+		// **Read by true alone, and never a reason for tls to change.**
+		// preferred and skip-verify negotiate TLS and verify nothing, so a CA
+		// named beside either would read as a verified connection and be
+		// none; tlsConfig refuses the pair rather than elevate the mode on
+		// the operator's behalf, which would be a second, unwritten way tls
+		// gets its value. false is left to stand: it negotiates nothing a CA
+		// could verify, and it is what a tunnel forces.
+		//
+		// TLSAdjacent for that last fact — see pg's sslrootcert, the other
+		// input beside a mode a tunnel turns off. The host then refuses a
+		// profile that sets this beside a forward instead of letting it sit
+		// inert.
+		{Name: "ca-file", Type: plugin.String, Default: "", Config: "ca-file",
+			Local: true, TLSAdjacent: true,
+			Help: "PEM bundle to verify the server against — read when tls is true, and " +
+				"overridden along with tls under a kube:/ssh: tunnel"},
 		{Name: "password", Type: plugin.Secret, Local: true, EnvFallback: true,
 			Help: "password for the user"},
 	}
 }
 
-// dsn builds go-sql-driver's connection string from the resolved inputs.
+// driverConfig is go-sql-driver's configuration for the resolved inputs.
 //
-// Built through mysql.Config rather than by concatenating a string, because
-// the driver's own FormatDSN escapes what needs escaping. A password
-// containing '@' or '/' silently produces a different DSN under hand
-// assembly, and the failure it causes is an authentication error that names
-// nothing.
-func dsn(req plugin.Request) string {
+// Handed to the driver as a mysql.Config, through mysql.NewConnector, and
+// never as a DSN string. The string was built through this same Config's
+// FormatDSN, which escaped what hand assembly got wrong — a password
+// containing '@' or '/' made a different DSN, and an authentication error
+// that named nothing — but a CA has no spelling in a DSN at all: the driver
+// takes one there only by the name of a tls.Config registered with
+// RegisterTLSConfig, a registry global to the process. Passed as the Config's
+// own TLS, it belongs to this call alone.
+func driverConfig(req plugin.Request) (*mysql.Config, *view.Error) {
 	c := mysql.NewConfig()
 	c.Net = "tcp"
 	c.Addr = fmt.Sprintf("%s:%d", req.String("host"), req.Int("port"))
@@ -84,6 +117,14 @@ func dsn(req plugin.Request) string {
 	c.Passwd = req.String("password")
 	c.DBName = req.String("database")
 	c.TLSConfig = req.String("tls")
+	// Nil, and the driver builds the tls.Config TLSConfig spells, unless
+	// ca-file names a CA. Set, it outranks TLSConfig, and the driver still
+	// takes the name to verify from the address, as it does for true.
+	tlsCfg, verr := tlsConfig(req)
+	if verr != nil {
+		return nil, verr
+	}
+	c.TLS = tlsCfg
 	// Timestamps come back as time.Time rather than []byte, so a column of
 	// them formats the same way everywhere instead of once per call site.
 	c.ParseTime = true
@@ -91,21 +132,25 @@ func dsn(req plugin.Request) string {
 	// "invalid connection" with nothing to classify. Named errors are what
 	// classify below turns into something an operator can act on.
 	c.CheckConnLiveness = true
-	return c.FormatDSN()
+	return c, nil
 }
 
 // connect opens a pool and proves it works before handing it back.
 //
-// sql.Open never dials — it validates the DSN and returns a lazy pool — so
-// without the ping here, every capability would discover an unreachable
-// server at its own first query and each would have to classify the same
-// failure separately.
+// sql.OpenDB never dials — it returns a lazy pool — so without the ping
+// here, every capability would discover an unreachable server at its own
+// first query and each would have to classify the same failure separately.
 func connect(ctx context.Context, req plugin.Request) (*sql.DB, *view.Error) {
-	db, err := sql.Open("mysql", dsn(req))
+	cfg, verr := driverConfig(req)
+	if verr != nil {
+		return nil, verr
+	}
+	connector, err := mysql.NewConnector(cfg)
 	if err != nil {
 		return nil, view.Errorf("mariadb.conn.invalid", "%v", err).
 			WithHint(explainHint(req.Surface(), "mariadb.overview"))
 	}
+	db := sql.OpenDB(connector)
 	// One connection, because a capability here runs one query and exits. A
 	// pool that outlives the call would hold a socket open against somebody
 	// else's server for nothing.
@@ -119,6 +164,64 @@ func connect(ctx context.Context, req plugin.Request) (*sql.DB, *view.Error) {
 		return nil, classify(err, req)
 	}
 	return db, nil
+}
+
+// tlsConfig is the TLS that verifies the server against ca-file's CA, or nil
+// when ca-file names none, or tls negotiates nothing for one to verify.
+//
+// Refused before anything dials, and before a dump or a restore's dry run
+// describes a child that would be refused the same way: a file that cannot
+// be read or holds no certificate, and a CA named beside a mode that would
+// never read it.
+func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
+	path := caFile(req)
+	if path == "" {
+		return nil, nil
+	}
+	sf := req.Surface()
+	switch mode := req.String("tls"); mode {
+	case "false":
+		return nil, nil
+	case "preferred", "skip-verify":
+		return nil, view.Errorf("mariadb.tls.ca.unused", "%s names a CA, and %s never verifies against one",
+			setting(sf, "ca-file"), settingTo(sf, "tls", mode)).
+			WithHint(settingTo(sf, "tls", "true") + " verifies the server against it")
+	}
+	pem, err := os.ReadFile(path)
+	if err != nil {
+		return nil, view.Errorf("mariadb.tls.ca.unreadable", "%v", err).
+			WithHint(setting(sf, "ca-file") + " names a file on this machine, read by rta rather than " +
+				"by the server, holding the CA's certificate in PEM")
+	}
+	// What the file has to hold, rather than a guess at what it held
+	// instead: only a file with no PEM certificate in it reaches this, a
+	// private key or a DER-encoded certificate most often. A self-signed
+	// server's own certificate is exactly what belongs here — it is its own
+	// CA, and the untrusted-certificate hint in classify sends the reader
+	// here with it.
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(pem) {
+		return nil, view.Errorf("mariadb.tls.ca.invalid", "%s holds no PEM certificate", path).
+			WithHint(setting(sf, "ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
+				"server's own — and a private key or a DER-encoded certificate is not one")
+	}
+	return &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}, nil
+}
+
+// caFile is ca-file with a leading ~ resolved and made absolute, or "" when
+// it names nothing. One resolution for the three places the path goes — this
+// process's read, the child's --ssl-ca, and the restore line a dump's receipt
+// prints — so they cannot name different files, and a restore line pasted
+// in another directory still names this one.
+func caFile(req plugin.Request) string {
+	ca := req.String("ca-file")
+	if ca == "" {
+		return ""
+	}
+	if abs, err := expandHome(ca); err == nil {
+		return abs
+	}
+	return plugin.ExpandHome(ca)
 }
 
 // classify turns a driver error into something an operator can act on.
@@ -173,6 +276,22 @@ func classify(err error, req plugin.Request) *view.Error {
 			WithHint(explainHint(req.Surface(), "mariadb.overview"))
 	}
 
+	// The CA named as where it belongs, and as what to use instead of
+	// skip-verify: that is the mode a reader reaches for next, and it
+	// connects by checking nothing. Only true verifies, so only true gets
+	// here. Over MCP ca-file is the operator's setting, Local, and an agent
+	// told to pass it has no such argument to give.
+	if untrusted(err) {
+		refused := view.Errorf("mariadb.tls.untrusted", "%s presented a certificate nothing here trusts", where)
+		if ca := caFile(req); ca != "" {
+			return refused.WithHint(ca + ", which " + setting(req.Surface(), "ca-file") + " names, does " +
+				"not hold the CA that issued it — a self-signed certificate is its own CA")
+		}
+		return refused.WithHint("a server with a CA of its own wants that CA in " +
+			setting(req.Surface(), "ca-file") + " rather than " + settingTo(req.Surface(), "tls", "skip-verify") +
+			", which turns verification off — a self-signed certificate is its own CA")
+	}
+
 	// The name first: a dial that could not resolve its host fails with a
 	// *net.OpError wrapping the *net.DNSError, and read the other way round
 	// every name nothing resolves was reported as a port nothing listens on.
@@ -199,6 +318,40 @@ func classify(err error, req plugin.Request) *view.Error {
 		WithHint(explainHint(req.Surface(), "mariadb.overview"))
 }
 
+// untrusted reports whether err is a certificate that nothing here vouches
+// for. Go's own verifier says so as an x509.UnknownAuthorityError, and it is
+// the one that runs whenever ca-file is set. Without one, on macOS, the
+// system's trust store is consulted through the platform's verifier, and an
+// untrusted chain comes back from it as a bare error inside the handshake's
+// *tls.CertificateVerificationError — as does a self-signed certificate
+// valid for longer than Apple's policy allows — so a verification failure
+// the platform answers untyped is read as one too.
+//
+// Untyped, and not merely not UnknownAuthorityError: Go's verifier types
+// every failure it names — a host the certificate is not for, a date or a
+// use it is not valid for, a signature algorithm it will not accept, a
+// critical extension it does not handle — and each of those is a reason of
+// its own, which no CA in ca-file would cure. mariadb.conn.failed quotes it.
+// The same reading as pg's, etcd's and keycloak's.
+func untrusted(err error) bool {
+	var authErr x509.UnknownAuthorityError
+	if errors.As(err, &authErr) {
+		return true
+	}
+	var verifyErr *tls.CertificateVerificationError
+	if !errors.As(err, &verifyErr) {
+		return false
+	}
+	for _, reason := range []any{new(x509.HostnameError), new(x509.CertificateInvalidError),
+		new(x509.InsecureAlgorithmError), new(x509.UnhandledCriticalExtension),
+		new(x509.ConstraintViolationError)} {
+		if errors.As(verifyErr.Err, reason) {
+			return false
+		}
+	}
+	return true
+}
+
 // setting names connection input name in a message the way its reader
 // changes it: the flag on the CLI, the box in a TUI form. Not the argument
 // over MCP, as plugin.Surface.InputName would: every connection input is
@@ -212,6 +365,16 @@ func setting(sf plugin.Surface, name string) string {
 		return "`" + name + "`"
 	}
 	return sf.InputName(name)
+}
+
+// settingTo is setting with the value to give it: "--tls true" on the CLI,
+// as a command line takes it, and elsewhere the setting with the value
+// beside it.
+func settingTo(sf plugin.Surface, name, value string) string {
+	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
+		return setting(sf, name) + " set to " + value
+	}
+	return sf.InputName(name) + " " + value
 }
 
 // explainHint sends the reader to the page listing every input and where each
