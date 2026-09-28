@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -18,6 +19,13 @@ import (
 // as a flag or an `rta` command line its reader has no terminal for.
 func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 	refusal := func(verr *view.Error) string { return verr.Message + "\n" + verr.Hint }
+	caRefusal := func(sf plugin.Surface, ca string) string {
+		_, verr := httpClient(req(t, "qdrant.overview", map[string]any{"ca-file": ca}).WithSurface(sf))
+		if verr == nil {
+			t.Fatalf("a ca-file of %s was accepted", ca)
+		}
+		return refusal(verr)
+	}
 	for _, tc := range []struct {
 		name, cli, other string
 		surface          plugin.Surface
@@ -73,6 +81,31 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			surface: plugin.SurfaceTUI,
 			say: func(sf plugin.Surface) string {
 				return refusal(checkSnapshotFile(sf, filepath.Join(t.TempDir(), "nope.snapshot")))
+			},
+		},
+		{
+			name:    "a CA file that cannot be read",
+			cli:     "--ca-file is a path on this machine",
+			other:   "`ca-file` is a path on this machine",
+			surface: plugin.SurfaceMCP,
+			say: func(sf plugin.Surface) string {
+				return caRefusal(sf, filepath.Join(t.TempDir(), "absent.pem"))
+			},
+		},
+		{
+			// What the file must hold, never a refusal calling a self-signed
+			// server's own certificate the wrong file: it is the file the
+			// untrusted-certificate hint above sends the reader to name.
+			name:    "a CA file with no PEM certificate in it",
+			cli:     "--ca-file wants a PEM certificate — the CA's, or a self-signed server's own",
+			other:   "`ca-file` wants a PEM certificate — the CA's, or a self-signed server's own",
+			surface: plugin.SurfaceMCP,
+			say: func(sf plugin.Surface) string {
+				der := filepath.Join(t.TempDir(), "server.der")
+				if err := os.WriteFile(der, []byte{0x30, 0x03, 0x02, 0x01, 0x01}, 0o600); err != nil {
+					t.Fatal(err)
+				}
+				return caRefusal(sf, der)
 			},
 		},
 		{
