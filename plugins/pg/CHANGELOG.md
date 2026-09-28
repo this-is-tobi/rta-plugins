@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.17](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.3.16...plugins/pg/v0.3.17) (2026-09-28)
+
+
+### Bug Fixes
+
+* **pg:** a flag of pg_dump or its clients is named with its program, never bare ([d7122ea](https://github.com/this-is-tobi/rta-plugins/commit/d7122eaa0917cd0252fcd6e1bbe71147c0a8c3e3))
+* **pg:** a message names capabilities and inputs the way its reader's surface gives them ([023da97](https://github.com/this-is-tobi/rta-plugins/commit/023da979c92e276c8dcba3c76298c69f342f71ec))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.29.0 ([af6b7e9](https://github.com/this-is-tobi/rta-plugins/commit/af6b7e93f56ab6311467c0c7bfe64f4728d41486))
+
 ## [0.3.16](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.3.15...plugins/pg/v0.3.16) (2026-09-27)
 
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.19](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.2.18...plugins/docker/v0.2.19) (2026-09-28)
+
+
+### Bug Fixes
+
+* **docker:** a message names the next call the way its reader's surface makes it ([31edbd0](https://github.com/this-is-tobi/rta-plugins/commit/31edbd0907a393a8cdb4e04cd78de1b287cf0d44))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.29.0 ([af6b7e9](https://github.com/this-is-tobi/rta-plugins/commit/af6b7e93f56ab6311467c0c7bfe64f4728d41486))
+
 ## [0.2.18](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.2.17...plugins/docker/v0.2.18) (2026-09-27)
 
 

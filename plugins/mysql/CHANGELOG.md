@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.17](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.3.16...plugins/mysql/v0.3.17) (2026-09-28)
+
+
+### Bug Fixes
+
+* **mysql:** a flag of mysqldump, the client or the server is named with its program, never bare ([0d068b2](https://github.com/this-is-tobi/rta-plugins/commit/0d068b236e354d0213ebff09c35aa33c9595bcd9))
+* **mysql:** a message names capabilities and inputs the way its reader's surface gives them ([e926105](https://github.com/this-is-tobi/rta-plugins/commit/e9261054cf03793f4dbc9ee5f446951ba1270291))
+* **mysql:** a name DNS cannot resolve is reported as that, not as nothing listening ([4ff50c9](https://github.com/this-is-tobi/rta-plugins/commit/4ff50c96d7f96bb9142b5bc94b6110b60e0b3df2))
+* **mysql:** the query's description says it needs a grant, as every write now does ([19d4099](https://github.com/this-is-tobi/rta-plugins/commit/19d4099c3c583840554fdcfa9046290255991d2d))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.29.0 ([af6b7e9](https://github.com/this-is-tobi/rta-plugins/commit/af6b7e93f56ab6311467c0c7bfe64f4728d41486))
+
 ## [0.3.16](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.3.15...plugins/mysql/v0.3.16) (2026-09-27)
 
 

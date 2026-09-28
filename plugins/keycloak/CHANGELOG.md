@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.10](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.1.9...plugins/keycloak/v0.1.10) (2026-09-28)
+
+
+### Bug Fixes
+
+* **keycloak:** a message names capabilities and inputs the way its reader's surface gives them ([17b5064](https://github.com/this-is-tobi/rta-plugins/commit/17b50641c33aba74c28dc72f82e4920da80d4851))
+* **keycloak:** a name DNS cannot resolve is reported as that, not as nothing listening ([9b25c58](https://github.com/this-is-tobi/rta-plugins/commit/9b25c5893a4a945ae846953288ce9404440a9cf0))
+* **keycloak:** an MFA coverage line over one enabled user counts it in the singular ([c11f53e](https://github.com/this-is-tobi/rta-plugins/commit/c11f53ec0546960b4fa3914c48e24e8495969421))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.29.0 ([af6b7e9](https://github.com/this-is-tobi/rta-plugins/commit/af6b7e93f56ab6311467c0c7bfe64f4728d41486))
+
 ## [0.1.9](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.1.8...plugins/keycloak/v0.1.9) (2026-09-27)
 
 

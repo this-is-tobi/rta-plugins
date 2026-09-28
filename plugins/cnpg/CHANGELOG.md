@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.19](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.2.18...plugins/cnpg/v0.2.19) (2026-09-28)
+
+
+### Bug Fixes
+
+* **cnpg:** a backup receipt's watch line gives the cluster and namespace as the listing takes them ([bebc129](https://github.com/this-is-tobi/rta-plugins/commit/bebc129a9fc933ed04661c4575fe07ba9f2127f8))
+* **cnpg:** a call a hint names reads the cluster in the namespace and context it was found in ([18e93f1](https://github.com/this-is-tobi/rta-plugins/commit/18e93f1da1af1ca46881c5e41e2f3ea8d72aa4cb))
+* **cnpg:** a message names capabilities and inputs the way its reader's surface gives them ([38a7182](https://github.com/this-is-tobi/rta-plugins/commit/38a7182800372286873f550fe5bf8ebc326377b0))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.29.0 ([af6b7e9](https://github.com/this-is-tobi/rta-plugins/commit/af6b7e93f56ab6311467c0c7bfe64f4728d41486))
+
 ## [0.2.18](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.2.17...plugins/cnpg/v0.2.18) (2026-09-27)
 
 

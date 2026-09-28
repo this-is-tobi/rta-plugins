@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.17](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.3.16...plugins/etcd/v0.3.17) (2026-09-28)
+
+
+### Bug Fixes
+
+* **etcd:** a message names capabilities and inputs the way its reader's surface gives them ([f4a3977](https://github.com/this-is-tobi/rta-plugins/commit/f4a3977c261c5acf137f0fc92a407295138faf95))
+* **etcd:** a truncated tree points at the prefix argument, which the CLI takes by its place ([31e7b0c](https://github.com/this-is-tobi/rta-plugins/commit/31e7b0c2738933e634f273f8755668a63484335e))
+* **etcd:** the snapshot receipt sets its etcdutl restore line in a code span, as a command ([32d2692](https://github.com/this-is-tobi/rta-plugins/commit/32d2692687d970d7a6c33d751c18671a3700f32b))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.29.0 ([af6b7e9](https://github.com/this-is-tobi/rta-plugins/commit/af6b7e93f56ab6311467c0c7bfe64f4728d41486))
+
 ## [0.3.16](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.3.15...plugins/etcd/v0.3.16) (2026-09-27)
 
 
