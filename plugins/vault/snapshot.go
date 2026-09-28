@@ -178,9 +178,35 @@ func runSnapshot(ctx context.Context, req plugin.Request) (view.View, error) {
 				"cluster's rather than the target's — without them this is a file nothing can " +
 				"open. Vault never hands them back; they are wherever `operator init` output " +
 				"was stashed"},
-			{Key: "restore with", Value: "vault operator raft snapshot restore " + path},
+			{Key: "restore with", Value: restoreCommand(req, path)},
 		}}, nil
 	})
+}
+
+// restoreCommand names the other half: vault.restore given this file and the
+// Vault it came from, spelled by the request's surface.
+//
+// **The Vault it came from is the point.** The line was `vault operator raft
+// snapshot restore <file>`, the vault CLI's own, which names no server at all
+// and restores into whatever $VAULT_ADDR says in the shell it is pasted into —
+// another cluster's storage replaced wholesale by a line that read as this
+// one's backup, and trusted by whatever $VAULT_CACERT happened to say. So it
+// carries address, which holds the scheme and with it TLS, the namespace when
+// one was set, and ca-file when one was named; never the token. And it names
+// rta's own restore rather than the vault CLI's, as pg's receipt names
+// pg.restore: the path quoted for a shell, and the file's checks and the
+// confirmation a destructive call asks for ahead of the storage going.
+func restoreCommand(req plugin.Request, path string) string {
+	args := []plugin.Arg{
+		{Name: "file", Value: path, Positional: true},
+		{Name: "address", Value: req.String("address")},
+	}
+	for _, name := range []string{"namespace", "ca-file"} {
+		if v := req.String(name); v != "" {
+			args = append(args, plugin.Arg{Name: name, Value: v})
+		}
+	}
+	return req.Surface().Call("vault.restore", args...)
 }
 
 func snapshotExists(path string) *view.Error {
