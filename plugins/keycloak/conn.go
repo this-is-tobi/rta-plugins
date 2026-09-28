@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -322,7 +323,19 @@ func (s *session) classifyTransport(err error) *view.Error {
 		return view.Errorf("keycloak.host.unknown", "no address for %q", s.host()).
 			WithHint(dnsHint(s.req.Surface(), s.host()))
 	}
+	// Short of the host, before the port: a dial that found no way there
+	// reached nothing that could refuse it, and read as refused, a Keycloak
+	// behind a VPN that is down, or at an address of another network's, was
+	// "nothing is listening" about a port no packet reached. Windows numbers
+	// its socket errors otherwise, and there this falls through to the
+	// refusal below, as it always did.
 	var netErr *stdnet.OpError
+	if errors.As(err, &netErr) && unroutable(err) {
+		return view.Errorf("keycloak.conn.unreachable", "%s cannot be reached from this machine: %v", s.base, netErr.Err).
+			WithHint("no route leads there from here — a VPN or tunnel the server sits behind that is " +
+				"down looks exactly like this, and so does " + setting(s.req.Surface(), "url") + " naming " +
+				"an address on a network this machine is not on")
+	}
 	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
 		return view.Errorf("keycloak.conn.refused", "nothing is listening on %s", s.base).
 			WithHint("is the server up, and is " + setting(s.req.Surface(), "url") + " right?")
@@ -380,6 +393,14 @@ func untrusted(err error) bool {
 		}
 	}
 	return true
+}
+
+// unroutable reports whether err is a dial that found no way to the host: no
+// route to it, a network this machine has no way onto, a host its own network
+// reports down.
+func unroutable(err error) bool {
+	return errors.Is(err, syscall.ENETUNREACH) || errors.Is(err, syscall.EHOSTUNREACH) ||
+		errors.Is(err, syscall.EHOSTDOWN)
 }
 
 func (s *session) host() string {

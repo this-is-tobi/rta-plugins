@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -553,6 +554,28 @@ func TestACertificateThePlatformDoesNotTrustIsNamedAsUntrusted(t *testing.T) {
 			Err: &tls.CertificateVerificationError{Err: tc.err}}
 		if got := s.classifyTransport(err); got.Code != tc.want {
 			t.Errorf("%s: classified %s, want %s", tc.name, got.Code, tc.want)
+		}
+	}
+}
+
+// A dial that found no route reached nothing that could refuse it, and is not
+// a port nobody is on; one the host refused still is.
+func TestAHostNoRouteReachesIsNotAPortNobodyIsOn(t *testing.T) {
+	s := &session{req: plugin.NewRequest(nil, false, false), base: "https://10.0.0.9"}
+	for errno, want := range map[syscall.Errno]string{
+		syscall.ENETUNREACH:  "keycloak.conn.unreachable",
+		syscall.EHOSTUNREACH: "keycloak.conn.unreachable",
+		syscall.EHOSTDOWN:    "keycloak.conn.unreachable",
+		syscall.ECONNREFUSED: "keycloak.conn.refused",
+	} {
+		err := &url.Error{Op: "Post", URL: "https://10.0.0.9/realms/demo/protocol/openid-connect/token",
+			Err: &stdnet.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", errno)}}
+		got := s.classifyTransport(err)
+		if got.Code != want || !strings.Contains(got.Message, "https://10.0.0.9") {
+			t.Errorf("%v: %s %q, want %s naming the server", errno, got.Code, got.Message, want)
+		}
+		if want == "keycloak.conn.unreachable" && !strings.Contains(got.Message, errno.Error()) {
+			t.Errorf("%v: %q does not say why", errno, got.Message)
 		}
 	}
 }
