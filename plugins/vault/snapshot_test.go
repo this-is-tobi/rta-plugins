@@ -122,9 +122,29 @@ func TestASnapshotIsWrittenSealedAndAtTheRightMode(t *testing.T) {
 		t.Errorf("at rest = %q, want it to say the snapshot is still sealed", pairs["at rest"])
 	}
 	// A backup capability that does not say how to restore is the shape of
-	// every backup that turned out not to be one.
-	if !strings.Contains(pairs["restore with"], "raft snapshot restore") {
-		t.Errorf("restore with = %q", pairs["restore with"])
+	// every backup that turned out not to be one — and the restore it names
+	// goes back to the Vault the snapshot came from, not to whatever
+	// $VAULT_ADDR says where the line is pasted.
+	if want := "rta vault restore " + path + " --address " + srv.URL; pairs["restore with"] != want {
+		t.Errorf("restore with = %q, want %q", pairs["restore with"], want)
+	}
+}
+
+// The restore reaches the Vault the snapshot came from, and trusts it the way
+// the snapshot did: the namespace and the CA travel with the address, which
+// carries the scheme. The token never does.
+func TestTheRestoreReachesTheVaultTheSnapshotCameFrom(t *testing.T) {
+	got := restoreCommand(req(t, "vault.snapshot", map[string]any{
+		"address": "https://vault.internal:8200", "namespace": "ops",
+		"ca-file": "/etc/vault/ca.pem", "token": "hunter2", "out": "/backups/vault.snap",
+	}), "/backups/vault.snap")
+	want := "rta vault restore /backups/vault.snap --address https://vault.internal:8200 " +
+		"--namespace ops --ca-file /etc/vault/ca.pem"
+	if got != want {
+		t.Errorf("restore = %q, want %q", got, want)
+	}
+	if strings.Contains(got, "hunter2") {
+		t.Errorf("restore = %q carries the token", got)
 	}
 }
 

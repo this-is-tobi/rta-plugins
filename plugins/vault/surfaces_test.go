@@ -83,6 +83,15 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 				return refusal(checkSnapshotFile(sf, filepath.Join(t.TempDir(), "nope.snap")))
 			},
 		},
+		{
+			name:    "the restore a snapshot names",
+			cli:     "rta vault restore '/backups/my vault.snap' --address https://vault.internal:8200",
+			other:   `vault.restore file="/backups/my vault.snap" address=https://vault.internal:8200`,
+			surface: plugin.SurfaceTUI,
+			say: func(sf plugin.Surface) string {
+				return restoreCommand(r(sf), "/backups/my vault.snap")
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if said := tc.say(plugin.SurfaceCLI); !strings.Contains(said, tc.cli) {
