@@ -142,8 +142,13 @@ func classify(err error, req plugin.Request) *view.Error {
 	if errors.As(err, &myErr) {
 		switch myErr.Number {
 		case 1045: // ER_ACCESS_DENIED_ERROR
+			// Where the password comes from rather than a verb telling the
+			// reader to set one: the reads here answer an agent too, which
+			// has no host environment to set and no password argument, since
+			// the bridge drops a Local input given.
 			return view.Errorf("mysql.auth.failed", "%s rejected user %q", where, req.String("user")).
-				WithHint("set $" + plugin.LocalEnvVar("mysql.overview", "password") + ", or check " + setting(req.Surface(), "user"))
+				WithHint("the password is read from $" + plugin.LocalEnvVar("mysql.overview", "password") + " or " +
+					setting(req.Surface(), "password") + " — check it, and " + setting(req.Surface(), "user"))
 		case 1044: // ER_DBACCESS_DENIED_ERROR
 			return view.Errorf("mysql.database.denied", "%q may not use database %q",
 				req.String("user"), req.String("database")).
