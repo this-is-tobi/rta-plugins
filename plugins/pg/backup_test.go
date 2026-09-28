@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -359,6 +360,78 @@ func TestAVersionMismatchIsNamedAsAClientProblem(t *testing.T) {
 	}
 	if !strings.Contains(verr.Hint, "newer than itself") {
 		t.Errorf("hint = %q, want it to say which side is too old", verr.Hint)
+	}
+}
+
+// A dump restores into a server as new as the pg_dump that wrote it, and one
+// newer than the server it read says so on the receipt, with the way to take
+// one that goes back: a pg_dump 18 dump of PostgreSQL 16 stops at the
+// transaction_timeout it sets, restored into that very server.
+func TestADumpNewerThanItsServerSaysWhereItRestores(t *testing.T) {
+	pair, ok := restoresInto(18, 16)
+	if !ok || pair.Key != "restores into" {
+		t.Fatalf("pg_dump 18 against PostgreSQL 16 = %+v, %v, want a restores-into note", pair, ok)
+	}
+	for _, want := range []string{
+		"PostgreSQL 18 or newer",
+		"transaction_timeout, which PostgreSQL 16 does not have",
+		"PostgreSQL 16's own pg_dump takes one that restores here",
+		"`brew install postgresql@16`", "`apt install postgresql-client-16`",
+	} {
+		if !strings.Contains(pair.Value, want) {
+			t.Errorf("note = %q, want %q in it", pair.Value, want)
+		}
+	}
+
+	// Past the one setting known to trip, the claim is only the general one.
+	pair, ok = restoresInto(18, 17)
+	if !ok || strings.Contains(pair.Value, "transaction_timeout") ||
+		!strings.Contains(pair.Value, "PostgreSQL 17's own pg_dump") {
+		t.Errorf("pg_dump 18 against PostgreSQL 17 = %q, want the general note naming 17's pg_dump", pair.Value)
+	}
+
+	for _, tc := range []struct{ client, server int }{{16, 16}, {0, 16}, {18, 0}} {
+		if pair, ok := restoresInto(tc.client, tc.server); ok {
+			t.Errorf("pg_dump %d against PostgreSQL %d noted %q, want nothing", tc.client, tc.server, pair.Value)
+		}
+	}
+}
+
+// The client's version is read off its own --version line, whichever
+// packager built it, and a line that names none reads as none.
+func TestTheClientsMajorIsReadOffItsVersionLine(t *testing.T) {
+	for line, want := range map[string]int{
+		"pg_dump (PostgreSQL) 18.6 (Homebrew)\n":              18,
+		"pg_dump (PostgreSQL) 16.4 (Debian 16.4-1.pgdg120+1)": 16,
+		"pg_restore (PostgreSQL) 19devel":                     19,
+		"pg_dump (PostgreSQL) 9.6.24":                         9,
+		"pg_dump: command not found":                          0,
+	} {
+		if got := majorOf(line, "(PostgreSQL) "); got != want {
+			t.Errorf("majorOf(%q) = %d, want %d", line, got, want)
+		}
+	}
+}
+
+// Asked of the binary itself, a fake standing in for it: what it prints is
+// read, and one that fails to answer is a version not known.
+func TestTheClientIsAskedItsVersion(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake client is a shell script")
+	}
+	dir := t.TempDir()
+	fake := func(name, body string) string {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body+"\n"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	if got := toolMajor(context.Background(), fake("pg_dump", "echo 'pg_dump (PostgreSQL) 18.6'")); got != 18 {
+		t.Errorf("a pg_dump answering 18.6 read as %d", got)
+	}
+	if got := toolMajor(context.Background(), fake("broken", "exit 1")); got != 0 {
+		t.Errorf("a client that failed to answer read as %d, want 0", got)
 	}
 }
 
