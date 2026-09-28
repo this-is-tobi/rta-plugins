@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc/codes"
@@ -347,7 +349,7 @@ func snapshotReceipt(path string, size int64, took time.Duration,
 		view.Pair{Key: "restore with", Value: fmt.Sprintf(
 			"`etcdutl snapshot restore %s --data-dir <new data dir>`, using etcdutl from etcd %s "+
 				"or newer — the storage format this file is in",
-			path, src.restoreVersion(streamedVersion))},
+			shellWord(path), src.restoreVersion(streamedVersion))},
 		view.Pair{Key: "restore is offline", Value: "stop etcd, put that directory where the " +
 			"member's data directory was, start it. On every member, from this one file: the " +
 			"restore mints a new cluster ID, so members restored from different snapshots " +
@@ -356,6 +358,48 @@ func snapshotReceipt(path string, size int64, took time.Duration,
 			"snapshot out and takes nothing back in — there is no restore RPC in the v3 " +
 			"protocol — so an etcd.restore would be a name for something rta cannot do"},
 	)}
+}
+
+// shellWord is path as one word of a shell command, so the restore line
+// pastes as the command it reads as. Spliced in as it stood, a path with a
+// space in it was two arguments to etcdutl, and one with a $( in it ran
+// something on paste.
+//
+// The rule is the one rta quotes its own command lines by: bare when every
+// character is one no shell treats specially, in single quotes otherwise, a
+// single quote spliced in as '"'"'; and in $'...' when the path holds a
+// character a terminal does not draw as itself, each of its bytes spelled as
+// an octal escape, since the receipt is printed before it is pasted and the
+// renderer cleans what it prints. The SDK applies that rule only inside the
+// rta calls Surface.Call spells, and etcdutl is not one of them. Its test for
+// such a character is unicode.IsPrint here, which counts a few blanks — a
+// Hangul filler, a Braille blank — as drawn: a path holding one is quoted,
+// and carried as it is.
+func shellWord(path string) string {
+	switch {
+	case path != "" && strings.Trim(path, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_./:@%,") == "":
+		return path
+	case !utf8.ValidString(path) || strings.ContainsFunc(path, func(r rune) bool { return !unicode.IsPrint(r) }):
+		var b strings.Builder
+		b.WriteString("$'")
+		for i := 0; i < len(path); {
+			r, size := utf8.DecodeRuneInString(path[i:])
+			switch {
+			case r == '\\' || r == '\'':
+				b.WriteByte('\\')
+				b.WriteByte(path[i])
+			case (r == utf8.RuneError && size == 1) || !unicode.IsPrint(r):
+				for _, c := range []byte(path[i : i+size]) {
+					fmt.Fprintf(&b, `\%03o`, c)
+				}
+			default:
+				b.WriteString(path[i : i+size])
+			}
+			i += size
+		}
+		return b.String() + "'"
+	}
+	return "'" + strings.ReplaceAll(path, "'", `'"'"'`) + "'"
 }
 
 func snapshotExists(path string) *view.Error {
