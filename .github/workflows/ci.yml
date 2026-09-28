@@ -211,7 +211,7 @@ jobs:
         cache: false
 
     - name: Guards over every module
-      run: make fmt-check name-check replace-check docs-check
+      run: make fmt-check name-check replace-check version-check docs-check
 
   # Every target a release ships, compiled to /dev/null: what this checks is
   # that the build constraints resolve on every platform, not that the binary

@@ -189,7 +189,7 @@ TOOLS := $(CURDIR)/.tools
 GOLANGCI ?= $(TOOLS)/golangci-lint-$(GOLANGCI_VERSION)
 
 .PHONY: help setup tidy fmt fmt-check build install trust check lint cross \
-	name-check replace-check docs-check docs docs-drift bump-rta index release index-release \
+	name-check replace-check version-check docs-check docs docs-drift bump-rta index release index-release \
 	dev dev-off canary ci list clean \
 	$(CHECK_PLUGINS) $(LINT_PLUGINS) $(BUILD_PLUGINS) $(INSTALL_PLUGINS) $(TIDY_PLUGINS) \
 	$(DOWNLOAD_PLUGINS)
@@ -321,6 +321,24 @@ replace-check: name-check
 	if [ -n "$$bad" ]; then \
 		echo "a replace directive — the pin in go.mod is what CI and releases build against:"; \
 		echo "$$bad" | sed 's/^/  /'; echo "use 'make dev RTA_DIR=<rta checkout>' for an edit loop"; exit 1; \
+	fi
+
+# No plugin reaches 1.0.0 until the first stable release is decided on
+# purpose, across rta and its plugins at once. Pre-1.0, a breaking change
+# moves the minor: release-please-config.json says so with
+# bump-minor-pre-major, and without it the first `fix(s3)!` proposed s3
+# 1.0.0 in a release pull request. This holds both halves: the setting, and
+# the manifest a release pull request rewrites, so a version past 0.x fails
+# the guards before anybody can merge it, however it got there — a missing
+# setting, or a Release-As footer. Lift it here, in the change that decides
+# the stable release.
+version-check:
+	@grep -qE '"bump-minor-pre-major"[[:space:]]*:[[:space:]]*true' release-please-config.json || \
+		{ echo "release-please-config.json: bump-minor-pre-major must be true while every plugin is 0.x"; exit 1; }
+	@bad=$$(grep -oE '"[^"]+"[[:space:]]*:[[:space:]]*"[1-9][0-9]*\.[0-9]+\.[0-9]+[^"]*"' .release-please-manifest.json || true); \
+	if [ -n "$$bad" ]; then \
+		echo "a plugin past 0.x in .release-please-manifest.json, before a stable release was decided:"; \
+		echo "$$bad" | sed 's/^/  /'; exit 1; \
 	fi
 
 # Two things the source has to say about itself.
@@ -508,7 +526,7 @@ space := $(subst ,, )
 CI_BUILT = $(if $(filter-out $(PLUGIN_LIST),$(ALL_PLUGINS)),$(words $(PLUGIN_LIST)) of $(words $(ALL_PLUGINS)) modules \
 	($(subst $(space),$(comma)$(space),$(strip $(PLUGIN_LIST)))),every module)
 
-ci: fmt-check name-check replace-check docs-check check lint docs-drift cross ## Everything CI runs
+ci: fmt-check name-check replace-check version-check docs-check check lint docs-drift cross ## Everything CI runs
 	@printf "\nci: green — %s built, vetted, tested and cross-compiled.\n\n" "$(CI_BUILT)"
 
 ##@ Housekeeping
