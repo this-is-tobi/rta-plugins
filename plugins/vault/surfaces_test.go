@@ -38,6 +38,21 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			},
 		},
 		{
+			name:    "a CA file that cannot be used",
+			cli:     "--ca-file is a path on this machine, read by rta rather than by Vault",
+			other:   "`ca-file` is a path on this machine, read by rta rather than by Vault",
+			surface: plugin.SurfaceMCP,
+			say: func(sf plugin.Surface) string {
+				_, verr := connect(req(t, "vault.seal.status", map[string]any{
+					"address": "https://vault.internal:8200", "ca-file": filepath.Join(t.TempDir(), "absent.pem"),
+				}).WithSurface(sf))
+				if verr == nil {
+					t.Fatal("a ca-file that is not there was accepted")
+				}
+				return refusal(verr)
+			},
+		},
+		{
 			name:    "a name DNS does not know",
 			cli:     "no address for \"vault.internal\"\n`rta net dns vault.internal` shows what DNS returns",
 			other:   "`net_dns {\"name\":\"vault.internal\"}` shows what DNS returns",

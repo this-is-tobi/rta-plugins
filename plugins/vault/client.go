@@ -85,7 +85,7 @@ func connect(req plugin.Request) (*vaultapi.Client, *view.Error) {
 	if ca := req.String("ca-file"); ca != "" {
 		if err := cfg.ConfigureTLS(&vaultapi.TLSConfig{CACert: ca}); err != nil {
 			return nil, view.Errorf("vault.tls.ca.invalid", "%v", err).
-				WithHint("ca-file is a path on this machine, read by rta rather than by Vault")
+				WithHint(setting(req.Surface(), "ca-file") + " is a path on this machine, read by rta rather than by Vault")
 		}
 	}
 	client, err := vaultapi.NewClient(cfg)
