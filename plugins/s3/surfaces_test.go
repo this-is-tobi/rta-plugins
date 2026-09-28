@@ -58,6 +58,16 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			},
 		},
 		{
+			name:    "a name DNS does not know",
+			cli:     "no address for \"s3.internal\"\n`rta net dns s3.internal` shows what DNS returns",
+			other:   "`net_dns {\"name\":\"s3.internal\"}` shows what DNS returns",
+			surface: plugin.SurfaceMCP,
+			say: func(sf plugin.Surface) string {
+				return refusal(classify(&net.OpError{Op: "dial", Net: "tcp",
+					Err: &net.DNSError{Err: "no such host", Name: "s3.internal"}}, r(sf)))
+			},
+		},
+		{
 			name:    "a certificate nothing trusts",
 			cli:     "the CA that issued it belongs in --ca-file — a local MinIO's self-signed public.crt is its own CA",
 			other:   "the CA that issued it belongs in `ca-file` — a local MinIO's self-signed public.crt is its own CA",
