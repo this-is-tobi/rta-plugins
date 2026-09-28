@@ -2,11 +2,20 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
+	"io"
+	stdnet "net"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc/codes"
@@ -53,11 +62,8 @@ func TestConformance(t *testing.T) {
 // directory the suite watches, so a dry run that wrote it would be caught
 // where it landed.
 //
-// The closed port costs etcd.kv.get the suite's whole 30-second bound:
-// etcd's client retries an endpoint that refuses it until the call's
-// context ends, and dialTimeout does not cut that short. A snapshot's dry
-// run that stopped being dry would fail the same way, as etcd.timeout
-// rather than as a refused connection.
+// etcd.kv.get meets the closed port and is refused at once, as a port
+// nothing listens on; so would a snapshot's dry run that stopped being dry.
 func conformanceInputs(dir string) map[string]map[string]any {
 	const endpoint = "127.0.0.1:1"
 	return map[string]map[string]any{
@@ -282,6 +288,195 @@ func TestATimeoutPointsAtQuorumRatherThanTheNetwork(t *testing.T) {
 	}
 	if !strings.Contains(got.Hint, "quorum") {
 		t.Errorf("the hint does not mention quorum: %q", got.Hint)
+	}
+}
+
+// closedPort is an address nothing listens on: one the kernel handed out a
+// moment ago and took back.
+func closedPort(t *testing.T) string {
+	t.Helper()
+	l, err := stdnet.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := l.Addr().String()
+	_ = l.Close()
+	return addr
+}
+
+// listener serves each connection with serve, for as long as the test runs.
+func listener(t *testing.T, serve func(stdnet.Conn)) string {
+	t.Helper()
+	l, err := stdnet.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = l.Close() })
+	go func() {
+		for {
+			conn, err := l.Accept()
+			if err != nil {
+				return
+			}
+			go serve(conn)
+		}
+	}()
+	return l.Addr().String()
+}
+
+// connectRefusal connects with context.Background(), the context a CLI call
+// has — cancelled by nothing but a signal — so an unbounded wait shows up as
+// this test hanging rather than as a pass.
+func connectRefusal(t *testing.T, values map[string]any, within time.Duration) (*view.Error, time.Duration) {
+	t.Helper()
+	started := time.Now()
+	c, verr := connectWithin(context.Background(), req(t, "etcd.overview", values), within)
+	took := time.Since(started)
+	if verr == nil {
+		_ = c.Close()
+		t.Fatalf("connected to %v", values["endpoint"])
+	}
+	return verr, took
+}
+
+// A port nothing listens on is answered at once, as one: the client's own
+// connection keeps its reason to itself, and waiting it out to report a
+// timeout would name a cluster that answers nothing, not a port nobody is on.
+func TestAClosedPortIsRefusedAtOnceAndNamed(t *testing.T) {
+	endpoint := closedPort(t)
+	verr, took := connectRefusal(t, map[string]any{"endpoint": endpoint}, 10*time.Second)
+	if verr.Code != "etcd.conn.refused" || !strings.Contains(verr.Message, endpoint) {
+		t.Errorf("got %s %q, want etcd.conn.refused naming %s", verr.Code, verr.Message, endpoint)
+	}
+	if took > 5*time.Second {
+		t.Errorf("took %s to say nothing listens", took)
+	}
+}
+
+// With a username, the client asks for a token before it hands itself back,
+// and that request ends as a bare deadline when the connection never came up.
+// The endpoint is still what is named, and why.
+func TestAClosedPortWithCredentialsIsStillRefusedAsOne(t *testing.T) {
+	endpoint := closedPort(t)
+	verr, _ := connectRefusal(t, map[string]any{
+		"endpoint": endpoint, "username": "root", "password": "hunter2",
+	}, 300*time.Millisecond)
+	if verr.Code != "etcd.conn.refused" || !strings.Contains(verr.Message, endpoint) {
+		t.Errorf("got %s %q, want etcd.conn.refused naming %s", verr.Code, verr.Message, endpoint)
+	}
+}
+
+// Something that takes the connection and never speaks is the case the bound
+// exists for: nothing fails, so nothing but the bound ends the wait, and it
+// ends it as the plugin's timeout naming the endpoint.
+func TestAnEndpointThatNeverSpeaksIsATimeoutNamingIt(t *testing.T) {
+	endpoint := listener(t, func(conn stdnet.Conn) {
+		defer func() { _ = conn.Close() }()
+		_, _ = io.Copy(io.Discard, conn)
+	})
+	verr, took := connectRefusal(t, map[string]any{"endpoint": endpoint}, 300*time.Millisecond)
+	if verr.Code != "etcd.timeout" || !strings.Contains(verr.Message, endpoint) {
+		t.Errorf("got %s %q, want etcd.timeout naming %s", verr.Code, verr.Message, endpoint)
+	}
+	if took > 5*time.Second {
+		t.Errorf("a 300ms bound took %s", took)
+	}
+}
+
+// A port that takes the connection and drops it, attempt after attempt, is
+// something listening that does not speak etcd's client protocol — the peer
+// port, or TLS the client is not using — and is named as that at the
+// client's second attempt, not at the end of the bound as a firewall.
+func TestAPortThatHangsUpIsNamedAsTheWrongOne(t *testing.T) {
+	endpoint := listener(t, func(conn stdnet.Conn) { _ = conn.Close() })
+	verr, took := connectRefusal(t, map[string]any{"endpoint": endpoint}, 10*time.Second)
+	if verr.Code != "etcd.conn.protocol" || !strings.Contains(verr.Message, endpoint) {
+		t.Errorf("got %s %q, want etcd.conn.protocol naming %s", verr.Code, verr.Message, endpoint)
+	}
+	if !strings.Contains(verr.Hint, "2380") || !strings.Contains(verr.Hint, "--tls") {
+		t.Errorf("hint = %q, want the peer port and --tls named", verr.Hint)
+	}
+	if took > 5*time.Second {
+		t.Errorf("took %s to name a port that hangs up", took)
+	}
+}
+
+// TLS to a port serving plaintext is hung up on mid-handshake, which arrives
+// as the same error a port nobody is on gives; it is named as the handshake
+// it is, with what turns TLS on.
+func TestTLSToAPlaintextPortIsNamedAsTheHandshake(t *testing.T) {
+	endpoint := listener(t, func(conn stdnet.Conn) { _ = conn.Close() })
+	verr, _ := connectRefusal(t, map[string]any{"endpoint": endpoint, "tls": true}, 10*time.Second)
+	if verr.Code != "etcd.tls.failed" || !strings.Contains(verr.Message, endpoint) {
+		t.Errorf("got %s %q, want etcd.tls.failed naming %s", verr.Code, verr.Message, endpoint)
+	}
+	if !strings.Contains(verr.Hint, "an https:// endpoint, --tls, --ca-file and --cert-file each turn it on") {
+		t.Errorf("hint = %q, want every setting that turns TLS on named", verr.Hint)
+	}
+}
+
+// A certificate nothing here trusts fails the client's handshake over and
+// over, silently, and was a wait that never ended. It is named as what it is,
+// at once.
+func TestAnUntrustedCertificateIsNamedRatherThanWaitedOn(t *testing.T) {
+	srv := httptest.NewTLSServer(http.NotFoundHandler())
+	t.Cleanup(srv.Close)
+	endpoint := srv.Listener.Addr().String()
+	verr, took := connectRefusal(t, map[string]any{"endpoint": endpoint, "tls": true}, 10*time.Second)
+	if verr.Code != "etcd.tls.untrusted" || !strings.Contains(verr.Message, endpoint) {
+		t.Errorf("got %s %q, want etcd.tls.untrusted naming %s", verr.Code, verr.Message, endpoint)
+	}
+	if took > 5*time.Second {
+		t.Errorf("took %s to name the certificate", took)
+	}
+}
+
+// macOS verifies against the system's trust store itself and reports an
+// untrusted chain as a bare error, never as x509.UnknownAuthorityError: that
+// is still a certificate nothing here trusts, while a name or a date that
+// fails is a different refusal, and neither is a port serving plaintext.
+func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
+	r := req(t, "etcd.overview", map[string]any{"endpoint": "etcd-0.internal:2379"})
+	for _, tc := range []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"Go's own verifier", x509.UnknownAuthorityError{}, "etcd.tls.untrusted"},
+		{"the platform's verifier", errors.New(`x509: "etcd-0" certificate is not trusted`), "etcd.tls.untrusted"},
+		{"a name it is not for", x509.HostnameError{Certificate: &x509.Certificate{}, Host: "etcd-0.internal"}, "etcd.tls.rejected"},
+		{"a date it is not valid on", x509.CertificateInvalidError{Cert: &x509.Certificate{}, Reason: x509.Expired}, "etcd.tls.rejected"},
+		// Go's verifier types each reason of its own, and no CA cures one.
+		{"a signature algorithm it refuses", x509.InsecureAlgorithmError(x509.SHA1WithRSA), "etcd.tls.rejected"},
+		{"a critical extension it does not handle", x509.UnhandledCriticalExtension{}, "etcd.tls.rejected"},
+	} {
+		err := handshakeError{&tls.CertificateVerificationError{Err: tc.err}}
+		if got := classify(err, r); got.Code != tc.want {
+			t.Errorf("%s: classified %s, want %s", tc.name, got.Code, tc.want)
+		}
+	}
+}
+
+// A dial that found no way to the host reached nothing that could refuse it,
+// and is not a port nobody is on; one the host refused still is.
+func TestAHostNoRouteReachesIsNotAPortNobodyIsOn(t *testing.T) {
+	r := req(t, "etcd.overview", map[string]any{"endpoint": "10.0.0.9:2379"})
+	dial := func(errno syscall.Errno) error {
+		return &stdnet.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", errno)}
+	}
+	for errno, want := range map[syscall.Errno]string{
+		syscall.ENETUNREACH:  "etcd.unreachable",
+		syscall.EHOSTUNREACH: "etcd.unreachable",
+		syscall.EHOSTDOWN:    "etcd.unreachable",
+		syscall.ECONNREFUSED: "etcd.conn.refused",
+	} {
+		got := classify(dial(errno), r)
+		if got.Code != want || !strings.Contains(got.Message, "10.0.0.9:2379") {
+			t.Errorf("%v: %s %q, want %s naming the endpoint", errno, got.Code, got.Message, want)
+		}
+		if want == "etcd.unreachable" && !strings.Contains(got.Message, errno.Error()) {
+			t.Errorf("%v: %q does not say why", errno, got.Message)
+		}
 	}
 }
 

@@ -6,12 +6,17 @@ import (
 	"crypto/x509"
 	"errors"
 	stdnet "net"
+	"net/url"
 	"os"
+	"slices"
 	"strings"
+	"syscall"
 	"time"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/status"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -58,34 +63,235 @@ func connFields() []plugin.Field {
 	}
 }
 
-// dialTimeout bounds the connect itself. etcd's client will otherwise retry a
-// dead endpoint for as long as the context allows, which turns "the cluster is
-// down" into a call that hangs rather than one that answers.
+// dialTimeout bounds the wait for the client's connection to come up, and
+// nothing after it.
+//
+// Setting clientv3.Config.DialTimeout to it does not do that on its own.
+// etcd's client dials without blocking — grpc.NewClient, which never waits
+// for the connection — so DialTimeout bounds only the token New fetches when
+// a username is set. Every call after that waits for a connection for as long
+// as its context lasts, WaitForReady being etcd's default, and the CLI's
+// context ends only at a signal: pointed at a port nothing listens on, a call
+// hung until interrupted. awaitConnection is what applies the bound. It holds
+// the connection to it rather than the call, so a kv.tree walk over a large
+// keyspace, or a snapshot of one, runs for as long as it takes once the
+// connection is up.
 const dialTimeout = 10 * time.Second
 
 func connect(ctx context.Context, req plugin.Request) (*clientv3.Client, *view.Error) {
+	return connectWithin(ctx, req, dialTimeout)
+}
+
+// connectWithin is connect with the bound given, so a test can reach the end
+// of the wait without sitting out the real one.
+func connectWithin(ctx context.Context, req plugin.Request, within time.Duration) (*clientv3.Client, *view.Error) {
 	cfg := clientv3.Config{
 		Endpoints:   []string{req.String("endpoint")},
-		DialTimeout: dialTimeout,
+		DialTimeout: within,
 		Username:    req.String("username"),
 		Password:    req.String("password"),
 		Context:     ctx,
 	}
 
+	var tlsCfg *tls.Config
 	if req.Bool("tls") || req.String("ca-file") != "" || req.String("cert-file") != "" {
-		tlsCfg, verr := tlsConfig(req)
-		if verr != nil {
+		var verr *view.Error
+		if tlsCfg, verr = tlsConfig(req); verr != nil {
 			return nil, verr
 		}
 		cfg.TLS = tlsCfg
 	}
+	to := dialTarget(req.String("endpoint"), tlsCfg)
 
 	client, err := clientv3.New(cfg)
 	if err != nil {
+		// With a username, New fetches a token before it returns, and a
+		// connection that never came up ends that as a bare deadline — so
+		// the endpoint is asked why, as awaitConnection asks it. The bound
+		// is spent by then, so the asking gets settle rather than the whole
+		// of it over again: given within, a host that drops every packet
+		// was answered at twice the bound, and as a cluster that lost
+		// quorum, which is a connection that came up and a token that did
+		// not.
+		if errors.Is(err, context.DeadlineExceeded) && ctx.Err() == nil {
+			dctx, cancel := context.WithTimeout(ctx, settle)
+			defer cancel()
+			switch why := to.dial(dctx); {
+			case why != nil && dctx.Err() == nil:
+				return nil, classify(why, req)
+			case why != nil:
+				return nil, noConnection(req)
+			}
+		}
 		return nil, classify(err, req)
+	}
+	if verr := awaitConnection(ctx, client, req, to, within); verr != nil {
+		_ = client.Close()
+		return nil, verr
 	}
 	return client, nil
 }
+
+// awaitConnection waits, for within at most, for the client's connection to
+// come up, and says why it did not.
+//
+// A connection that fails leaves the client retrying it, and the reason —
+// nothing listening, a name DNS does not know, a certificate nothing here
+// trusts — never reaches the caller: the call waiting on it ends in a deadline
+// and nothing else, which classify can only read as a cluster that answers
+// nothing. So the first time the connection fails, the endpoint is dialled
+// once more by hand, with the same TLS, and a failure there is the answer,
+// given at once rather than at the end of the wait.
+//
+// A dial that gets through says something listens there, and nothing more: a
+// member that was restarting when the client first tried gets that far. So
+// the client is given until its next attempt, settle, to come up anyway, and
+// a connection still down then — to a port that answers every dial — is a
+// listener that does not speak etcd's client protocol over it: the peer port,
+// or TLS on one side only. That is the answer, a few seconds in, rather than
+// the whole bound's worth later.
+//
+// Failure is read once, not counted: gRPC holds a failed connection at
+// TRANSIENT_FAILURE until it is READY, through every retry between.
+func awaitConnection(ctx context.Context, c *clientv3.Client, req plugin.Request, to target, within time.Duration) *view.Error {
+	wctx, cancel := context.WithTimeout(ctx, within)
+	defer cancel()
+	conn := c.ActiveConnection()
+	conn.Connect()
+	s := until(wctx, conn, connectivity.Ready, connectivity.TransientFailure)
+	if s == connectivity.TransientFailure {
+		why := to.dial(wctx)
+		switch {
+		case why != nil && wctx.Err() == nil:
+			return classify(why, req)
+		case why == nil && to.reachable:
+			sctx, scancel := context.WithTimeout(wctx, settle)
+			s = until(sctx, conn, connectivity.Ready)
+			scancel()
+			if s != connectivity.Ready && wctx.Err() == nil {
+				return wrongPort(req, to)
+			}
+		default:
+			s = until(wctx, conn, connectivity.Ready)
+		}
+	}
+	if s == connectivity.Ready {
+		return nil
+	}
+	if errors.Is(ctx.Err(), context.Canceled) {
+		return classify(ctx.Err(), req)
+	}
+	return noConnection(req)
+}
+
+// noConnection is the bound run out with no connection up.
+func noConnection(req plugin.Request) *view.Error {
+	return view.Errorf("etcd.timeout", "%s did not answer in time", req.String("endpoint")).
+		WithHint("no connection came up: a firewall that drops rather than refuses looks exactly " +
+			"like this, and so does a listener that takes the connection and never speaks")
+}
+
+// settle is how long a connection that failed, to a port that answered the
+// dial, is given to come up anyway: past gRPC's first reconnect, a second
+// after the failure give or take a fifth.
+const settle = 3 * time.Second
+
+// until waits for conn to be in one of states, and returns the state it is in
+// when it is, or when ctx ends first.
+func until(ctx context.Context, conn *grpc.ClientConn, states ...connectivity.State) connectivity.State {
+	for {
+		s := conn.GetState()
+		if slices.Contains(states, s) || !conn.WaitForStateChange(ctx, s) {
+			return s
+		}
+	}
+}
+
+// wrongPort is a listener that takes the connection and does not speak etcd's
+// client protocol over it.
+func wrongPort(req plugin.Request, to target) *view.Error {
+	refusal := view.Errorf("etcd.conn.protocol", "%s takes a connection and answers nothing etcd's client "+
+		"understands", req.String("endpoint"))
+	if to.tls != nil {
+		return refusal.WithHint("etcd listens on 2379 for clients and 2380 for peers, and the peer port " +
+			"will not answer this — nor will a client port serving TLS to a certificate it does not accept")
+	}
+	return refusal.WithHint("etcd listens on 2379 for clients and 2380 for peers, and the peer port will " +
+		"not answer this — nor will a client port serving TLS, to a client without " +
+		setting(req.Surface(), "tls") + " on")
+}
+
+// target is where etcd's client dials an endpoint, and with what TLS.
+type target struct {
+	addr string
+	// tls is nil for a plaintext connection.
+	tls *tls.Config
+	// reachable is false for a form dial does not reach: a unix socket, or
+	// a scheme etcd's client has and this does not know.
+	reachable bool
+}
+
+// dialTarget reads endpoint as etcd's client reads it: a bare host:port,
+// using TLS when the client was given it, or one behind http://, which drops
+// it, or https://, which requires it.
+func dialTarget(endpoint string, tlsCfg *tls.Config) target {
+	if strings.HasPrefix(endpoint, "unix:") || strings.HasPrefix(endpoint, "unixs:") {
+		return target{}
+	}
+	scheme, _, ok := strings.Cut(endpoint, "://")
+	if !ok {
+		return target{addr: endpoint, tls: tlsCfg, reachable: true}
+	}
+	u, err := url.Parse(endpoint)
+	switch {
+	case err != nil:
+		return target{}
+	case scheme == "http":
+		return target{addr: u.Host, reachable: true}
+	case scheme == "https":
+		if tlsCfg == nil {
+			tlsCfg = &tls.Config{MinVersion: tls.VersionTLS12}
+		}
+		return target{addr: u.Host, tls: tlsCfg, reachable: true}
+	}
+	return target{}
+}
+
+// dial reaches the target as etcd's client does — TCP, then TLS when the
+// client would use it — and returns what stopped it, or nil when nothing did,
+// or when the target is not one it reaches. It is the diagnosis
+// awaitConnection runs once the client's own connection has failed, and no
+// call ever runs over it.
+func (to target) dial(ctx context.Context) error {
+	if !to.reachable {
+		return nil
+	}
+	raw, err := (&stdnet.Dialer{}).DialContext(ctx, "tcp", to.addr)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = raw.Close() }()
+	if to.tls == nil {
+		return nil
+	}
+	cfg := to.tls.Clone()
+	if cfg.ServerName == "" {
+		cfg.ServerName = hostOnly(to.addr)
+	}
+	if err := tls.Client(raw, cfg).HandshakeContext(ctx); err != nil {
+		return handshakeError{err}
+	}
+	return nil
+}
+
+// handshakeError is a TLS handshake that failed after the connection was
+// made, marked so that classify never reads it as a port nobody is on: a
+// reset or a hang-up inside a handshake arrives as the same *net.OpError a
+// refused dial does.
+type handshakeError struct{ err error }
+
+func (e handshakeError) Error() string { return e.err.Error() }
+func (e handshakeError) Unwrap() error { return e.err }
 
 func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 	sf := req.Surface()
@@ -180,18 +386,91 @@ func classify(err error, req plugin.Request) *view.Error {
 		return view.Errorf("etcd.host.unknown", "no address for %q", hostOnly(where)).
 			WithHint(dnsHint(sf, hostOnly(where)))
 	}
+	// The handshake before the port: a connection that was made and then
+	// failed its handshake is something listening, and a reset or a hang-up
+	// inside the handshake arrives as the same *net.OpError a refused dial
+	// does. The certificate is the most specific of the three.
+	if untrusted(err) {
+		return view.Errorf("etcd.tls.untrusted", "%s presented a certificate nothing here trusts", where).
+			WithHint("etcd clusters usually have their own CA — pass it with " + setting(sf, "ca-file"))
+	}
+	var verifyErr *tls.CertificateVerificationError
+	if errors.As(err, &verifyErr) {
+		return view.Errorf("etcd.tls.rejected", "%s presented a certificate that does not verify: %v", where, verifyErr.Err).
+			WithHint("a certificate is checked for the host in " + setting(sf, "endpoint") +
+				", its dates and the use it was issued for, as well as for who issued it")
+	}
+	var hsErr handshakeError
+	if errors.As(err, &hsErr) {
+		return view.Errorf("etcd.tls.failed", "TLS with %s failed: %v", where, hsErr.err).
+			WithHint("a client port serving plaintext hangs up on TLS: TLS is for a cluster whose client " +
+				"URLs are https://, and an https:// endpoint, " + setting(sf, "tls") + ", " + setting(sf, "ca-file") +
+				" and " + setting(sf, "cert-file") + " each turn it on")
+	}
+	// Short of the host, before the port: a dial that found no way there
+	// reached nothing that could refuse it, and read as refused, a cluster on
+	// a network this machine is not on — behind a VPN that is down, at an
+	// address of another network's — was "nothing is listening" about a port
+	// no packet reached. Windows numbers its socket errors otherwise, and
+	// there this falls through to the refusal below, as it always did.
 	var netErr *stdnet.OpError
+	if errors.As(err, &netErr) && unroutable(err) {
+		return view.Errorf("etcd.unreachable", "%s cannot be reached from this machine: %v", where, netErr.Err).
+			WithHint("no route leads there from here — a VPN or tunnel the cluster sits behind that is down " +
+				"looks exactly like this, and so does " + setting(sf, "endpoint") + " naming an address on " +
+				"a network this machine is not on")
+	}
 	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
 		return view.Errorf("etcd.conn.refused", "nothing is listening on %s", where).
 			WithHint("etcd listens on 2379 for clients and 2380 for peers — the peer port will not answer this")
 	}
-	var authErr x509.UnknownAuthorityError
-	if errors.As(err, &authErr) {
-		return view.Errorf("etcd.tls.untrusted", "%s presented a certificate nothing here trusts", where).
-			WithHint("etcd clusters usually have their own CA — pass it with " + setting(sf, "ca-file"))
-	}
 	return view.Errorf("etcd.conn.failed", "could not reach %s: %v", where, err).
 		WithHint(explainHint(sf, "etcd.overview"))
+}
+
+// untrusted reports whether err is a certificate that nothing here vouches
+// for. Go's own verifier says so as an x509.UnknownAuthorityError, and it is
+// the one that runs whenever ca-file is set. Without one, on macOS, the
+// system's trust store is consulted through the platform's verifier, and an
+// untrusted chain comes back from it as a bare error inside the handshake's
+// *tls.CertificateVerificationError — as does a self-signed certificate
+// valid for longer than Apple's policy allows, "not standards compliant" —
+// so a verification failure the platform answers untyped is read as one too.
+// Read the typed way alone, a cluster with its own CA reached from a Mac was
+// told everything but the CA.
+//
+// Untyped, and not merely not UnknownAuthorityError: Go's verifier types
+// every failure it names — a host the certificate is not for, a date or a
+// use it is not valid for, a signature algorithm it will not accept, a
+// critical extension it does not handle — and each of those is a reason of
+// its own, which no CA in ca-file would cure. Read as untrusted, a SHA-1
+// certificate was answered "nothing here trusts" with the CA to name, and the
+// reason itself, which etcd.tls.rejected quotes, went unsaid.
+func untrusted(err error) bool {
+	var authErr x509.UnknownAuthorityError
+	if errors.As(err, &authErr) {
+		return true
+	}
+	var verifyErr *tls.CertificateVerificationError
+	if !errors.As(err, &verifyErr) {
+		return false
+	}
+	for _, reason := range []any{new(x509.HostnameError), new(x509.CertificateInvalidError),
+		new(x509.InsecureAlgorithmError), new(x509.UnhandledCriticalExtension),
+		new(x509.ConstraintViolationError)} {
+		if errors.As(verifyErr.Err, reason) {
+			return false
+		}
+	}
+	return true
+}
+
+// unroutable reports whether err is a dial that found no way to the host: no
+// route to it, a network this machine has no way onto, a host its own network
+// reports down.
+func unroutable(err error) bool {
+	return errors.Is(err, syscall.ENETUNREACH) || errors.Is(err, syscall.EHOSTUNREACH) ||
+		errors.Is(err, syscall.EHOSTDOWN)
 }
 
 func hostOnly(endpoint string) string {
