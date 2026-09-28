@@ -70,7 +70,9 @@ func connFields() []plugin.Field {
 		// The CA true verifies against. Without it a server whose
 		// certificate a private CA issued — an operator's own root, a
 		// cluster's issuer — could be reached only by skip-verify, which
-		// encrypts and checks nothing.
+		// encrypts and checks nothing. Not the way to the certificate a server
+		// generates for itself, which names no host for true to verify it as;
+		// classify's mariadb.tls.name says so.
 		//
 		// Local for the reason every ca-file in these plugins is: it names a
 		// file on this machine that rta then reads, and a path a caller could
@@ -293,6 +295,18 @@ func classify(err error, req plugin.Request) *view.Error {
 			WithHint(settingTo(req.Surface(), "tls", "false") + " if that is expected on this network")
 	}
 
+	// A certificate for another name than the one dialled, or for none.
+	// "could not reach" misnamed it — the server answered — and ca-file
+	// cannot cure it: Go checks the name before it builds a chain, so this
+	// says nothing about the CA either way. What the reader needs is the
+	// names the certificate does carry. The one MariaDB generates for itself
+	// carries none, only a CN, which no verifier reads, so true refuses it
+	// whatever ca-file holds. Ahead of untrusted for that reason: its hint
+	// sends the reader to ca-file, a detour that would only end here.
+	if cert, ok := misnamed(err); ok {
+		return nameRefusal(where, cert, req)
+	}
+
 	// The CA named as where it belongs, and as what to use instead of
 	// skip-verify: that is the mode a reader reaches for next, and it
 	// connects by checking nothing. Only true verifies, so only true gets
@@ -335,6 +349,58 @@ func classify(err error, req plugin.Request) *view.Error {
 		WithHint(explainHint(req.Surface(), "mariadb.overview"))
 }
 
+// misnamed is the certificate err refused for its name — or refused for
+// anything, the chain included, while naming no host at all, since true
+// would refuse that one by name the moment its chain was trusted.
+//
+// The leaf comes from the handshake's *tls.CertificateVerificationError,
+// which carries what the server presented whichever verifier ran: Go's own
+// when ca-file is set, and on macOS the platform's otherwise.
+func misnamed(err error) (*x509.Certificate, bool) {
+	var nameErr x509.HostnameError
+	if errors.As(err, &nameErr) {
+		return nameErr.Certificate, true
+	}
+	var verifyErr *tls.CertificateVerificationError
+	if !errors.As(err, &verifyErr) || len(verifyErr.UnverifiedCertificates) == 0 {
+		return nil, false
+	}
+	leaf := verifyErr.UnverifiedCertificates[0]
+	return leaf, len(leaf.DNSNames) == 0 && len(leaf.IPAddresses) == 0
+}
+
+// nameRefusal is mariadb.tls.name for cert, presented at where for a host it
+// does not name.
+//
+// The names are the subject alternative names, DNS and address, since those
+// are all a verifier reads. Four at most: a certificate for a fleet can
+// carry dozens, and the reader needs to see that the one dialled is not
+// among them, not the whole list.
+func nameRefusal(where string, cert *x509.Certificate, req plugin.Request) *view.Error {
+	host, sf := req.String("host"), req.Surface()
+	var names []string
+	if cert != nil {
+		names = append(names, cert.DNSNames...)
+		for _, ip := range cert.IPAddresses {
+			names = append(names, ip.String())
+		}
+	}
+	if len(names) == 0 {
+		return view.Errorf("mariadb.tls.name", "%s presented a certificate that names no host, %s or any other",
+			where, host).
+			WithHint("a certificate with no subject alternative names, as the one MariaDB generates for itself " +
+				"is, verifies as no host at all — " + settingTo(sf, "tls", "true") + " reaches the server once " +
+				"its certificate is reissued with " + host + " among them")
+	}
+	if len(names) > 4 {
+		names = append(names[:4:4], fmt.Sprintf("%d more", len(names)-4))
+	}
+	return view.Errorf("mariadb.tls.name", "%s presented a certificate for %s, not %s",
+		where, strings.Join(names, ", "), host).
+		WithHint(setting(sf, "host") + " is the name the certificate is checked against — reach the " +
+			"server by one it carries, or have it reissued with " + host + " among its subject alternative names")
+}
+
 // untrusted reports whether err is a certificate that nothing here vouches
 // for. Go's own verifier says so as an x509.UnknownAuthorityError, and it is
 // the one that runs whenever ca-file is set. Without one, on macOS, the
@@ -348,7 +414,8 @@ func classify(err error, req plugin.Request) *view.Error {
 // every failure it names — a host the certificate is not for, a date or a
 // use it is not valid for, a signature algorithm it will not accept, a
 // critical extension it does not handle — and each of those is a reason of
-// its own, which no CA in ca-file would cure. mariadb.conn.failed quotes it.
+// its own, which no CA in ca-file would cure: the host is mariadb.tls.name,
+// and mariadb.conn.failed quotes the rest.
 // The same reading as pg's, etcd's and keycloak's.
 func untrusted(err error) bool {
 	var authErr x509.UnknownAuthorityError
