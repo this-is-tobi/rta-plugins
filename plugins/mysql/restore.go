@@ -98,6 +98,11 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr := checkDumpFile(req.Surface(), path); verr != nil {
 		return nil, verr
 	}
+	// The dump's reason: the dry run connects to nothing, and refuses the CA
+	// the real run would.
+	if _, verr := tlsConfig(req); verr != nil {
+		return nil, verr
+	}
 	tool, err := lookupTool(restoreTools)
 	if err != nil {
 		return nil, view.Errorf("mysql.restore.missing", "no %s on $PATH",

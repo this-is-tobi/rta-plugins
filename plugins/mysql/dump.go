@@ -128,6 +128,12 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	if err != nil {
 		return nil, view.Errorf("mysql.dump.path", "resolving %s: %v", req.Surface().InputName("out"), err)
 	}
+	// Here and not only in connect, so the dry run, which connects to
+	// nothing, refuses the CA the real run would, rather than describing a
+	// child with an --ssl-ca that was never going to be read.
+	if _, verr := tlsConfig(req); verr != nil {
+		return nil, verr
+	}
 
 	tool, err := lookupTool(dumpTools)
 	if err != nil {
@@ -303,11 +309,19 @@ func dumpArgs(req plugin.Request) []string {
 // (VERIFY_IDENTITY, the driver's own behaviour for true), "skip-verify"
 // encrypts without verifying (REQUIRED), "preferred" is the client default
 // and passes nothing.
+//
+// ca-file goes with true as --ssl-ca, the CA the child verifies against, so
+// the dump verifies the server the pre-flight connection did. It is only
+// ever beside true: tlsConfig refuses it beside the two modes that never
+// verify, before any child is described.
 func tlsArgs(req plugin.Request) []string {
 	switch req.String("tls") {
 	case "false":
 		return []string{"--ssl-mode=DISABLED"}
 	case "true":
+		if ca := caFile(req); ca != "" {
+			return []string{"--ssl-mode=VERIFY_IDENTITY", "--ssl-ca=" + ca}
+		}
 		return []string{"--ssl-mode=VERIFY_IDENTITY"}
 	case "skip-verify":
 		return []string{"--ssl-mode=REQUIRED"}
@@ -433,6 +447,10 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 // default is at least as protected, a stricter config there still wins, and
 // false is what a tunnel forces for the forward alone, which a line that
 // spelled it would carry to a restore with no tunnel. Never the password.
+//
+// ca-file travels beside true, the one mode that reads it. Left off, the
+// line would verify against whatever the machine it is pasted on trusts, and
+// refuse the server this dump verified against its own CA.
 func restoreCommand(req plugin.Request, path string) string {
 	args := []plugin.Arg{
 		{Name: "file", Value: path, Positional: true},
@@ -443,6 +461,9 @@ func restoreCommand(req plugin.Request, path string) string {
 	}
 	if mode := req.String("tls"); mode == "true" || mode == "skip-verify" {
 		args = append(args, plugin.Arg{Name: "tls", Value: mode})
+		if ca := caFile(req); mode == "true" && ca != "" {
+			args = append(args, plugin.Arg{Name: "ca-file", Value: ca})
+		}
 	}
 	return req.Surface().Call("mysql.restore", args...)
 }
