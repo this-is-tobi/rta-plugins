@@ -39,7 +39,7 @@ func overviewCapability() plugin.Capability {
 }
 
 func overviewView(ctx context.Context, c *clientv3.Client, req plugin.Request) (view.View, error) {
-	endpoint := req.String("endpoint")
+	endpoint := endpointOf(req)
 	st, err := c.Status(ctx, endpoint)
 	if err != nil {
 		return nil, classify(err, req)

@@ -165,7 +165,7 @@ func runSnapshot(ctx context.Context, req plugin.Request) (view.View, error) {
 
 	if req.DryRun {
 		return view.Text{Body: "would write a snapshot of " +
-			req.String("endpoint") + " to " + path}, nil
+			endpointOf(req) + " to " + path}, nil
 	}
 
 	return withClient(ctx, req, func(ctx context.Context, c *clientv3.Client) (view.View, error) {
@@ -198,7 +198,7 @@ type source struct {
 }
 
 func describeSource(ctx context.Context, c *clientv3.Client, req plugin.Request) (source, *view.Error) {
-	endpoint := req.String("endpoint")
+	endpoint := endpointOf(req)
 	st, err := c.Status(ctx, endpoint)
 	if err != nil {
 		return source{}, classifySnapshot(err, req)
@@ -488,7 +488,7 @@ func classifySnapshot(err error, req plugin.Request) *view.Error {
 	}
 	if st, ok := status.FromError(err); ok && st.Code() == codes.PermissionDenied {
 		return view.Errorf("etcd.snapshot.denied",
-			"%s refused the snapshot: %s", req.String("endpoint"), st.Message()).
+			"%s refused the snapshot: %s", endpointOf(req), st.Message()).
 			WithHint("etcd's maintenance calls are root-only — a role with permissions on a " +
 				"key range does not reach them, however wide that range is. Authenticate as a " +
 				"member of the root role")

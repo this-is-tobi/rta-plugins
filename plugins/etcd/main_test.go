@@ -493,3 +493,26 @@ func TestClassifyReturnsAlreadyClassifiedErrorsUnchanged(t *testing.T) {
 		t.Errorf("a classified error was re-wrapped as %q", got.Code)
 	}
 }
+
+// The client port is what a bare host means, as the input's help says: etcd's
+// client has none of its own, and dials a bare host as it stands.
+func TestAnEndpointWithNoPortIsTheClientPort(t *testing.T) {
+	for given, want := range map[string]string{
+		"127.0.0.1:2379":               "127.0.0.1:2379",
+		"127.0.0.1":                    "127.0.0.1:2379",
+		"etcd-0.internal":              "etcd-0.internal:2379",
+		"::1":                          "[::1]:2379",
+		"[::1]":                        "[::1]:2379",
+		"[::1]:2380":                   "[::1]:2380",
+		"https://etcd-0.internal":      "https://etcd-0.internal:2379",
+		"http://etcd-0.internal:4001/": "http://etcd-0.internal:4001/",
+		"https://[::1]/":               "https://[::1]:2379/",
+		"unix:///run/etcd.sock":        "unix:///run/etcd.sock",
+		"unix:etcd.sock":               "unix:etcd.sock",
+		"[::1":                         "[::1",
+	} {
+		if got := endpointOf(req(t, "etcd.overview", map[string]any{"endpoint": given})); got != want {
+			t.Errorf("%q became %q, want %q", given, got, want)
+		}
+	}
+}
