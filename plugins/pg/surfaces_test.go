@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	"net"
 	"strings"
@@ -52,6 +53,15 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(errors.New("server does not support SSL"),
 					reqFor(t, "pg.status", nil).WithSurface(sf)))
+			},
+		},
+		{
+			name:    "a certificate nothing here trusts",
+			cli:     "it belongs in --sslrootcert — and check --sslmode is require or stricter",
+			other:   "it belongs in `sslrootcert` — and check `sslmode` is require or stricter",
+			surface: plugin.SurfaceMCP,
+			say: func(sf plugin.Surface) string {
+				return refusal(classify(x509.UnknownAuthorityError{}, reqFor(t, "pg.status", nil).WithSurface(sf)))
 			},
 		},
 		{

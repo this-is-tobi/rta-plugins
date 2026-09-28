@@ -244,9 +244,9 @@ func classify(err error, req plugin.Request) *view.Error {
 	var certErr x509.UnknownAuthorityError
 	if errors.As(err, &certErr) {
 		return view.Errorf("pg.tls.untrusted", "%s presented a certificate nothing here trusts", where).
-			WithHint("a tunnelled PostgreSQL commonly has its own operator- or cluster-generated CA; " +
-				"pass it with sslrootcert — and check " + setting(sf, "sslmode") + " is require or " +
-				"stricter, since prefer never verifies it")
+			WithHint("a tunnelled PostgreSQL commonly has its own operator- or cluster-generated CA, and " +
+				"it belongs in " + setting(sf, "sslrootcert") + " — and check " + setting(sf, "sslmode") +
+				" is require or stricter, since prefer never verifies it")
 	}
 	return view.Errorf("pg.conn.failed", "could not connect to %s: %v", where, err).
 		WithHint(explainHint(sf, "pg.status"))
