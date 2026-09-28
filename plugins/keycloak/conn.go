@@ -318,10 +318,14 @@ func (s *session) classifyTransport(err error) *view.Error {
 		return view.Errorf("keycloak.timeout", "%s did not answer in time", s.base).
 			WithHint("a firewall that drops rather than refuses looks exactly like this")
 	}
+	// The CA named as where it belongs, not as something to pass: over MCP
+	// ca-file is the operator's setting, Local, and an agent told to pass it
+	// has no such argument to give and would read this refusal again.
 	var certErr x509.UnknownAuthorityError
 	if errors.As(err, &certErr) {
 		return view.Errorf("keycloak.tls.untrusted", "%s presented a certificate nothing here trusts", s.base).
-			WithHint("a Keycloak behind an internal CA wants that CA passed with ca-file, not verification turned off")
+			WithHint("a Keycloak behind an internal CA wants that CA in " + setting(s.req.Surface(), "ca-file") +
+				" rather than verification turned off — a self-signed certificate is its own CA")
 	}
 	return view.Errorf("keycloak.conn.failed", "could not reach %s: %v", s.base, err).
 		WithHint(explainHint(s.req.Surface(), "keycloak.overview"))
