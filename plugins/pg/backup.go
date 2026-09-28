@@ -612,6 +612,17 @@ func contentsOf(req plugin.Request) string {
 // connection flags are spelled out so the line works on a machine whose rta
 // config does not already point at this server.
 //
+// **So is the transport's protection, when the dump had any.** sslmode
+// travels when it is stricter than prefer, and sslrootcert beside it, since
+// require and stricter are the modes that read it (pgx gives require a CA's
+// verification when one is named). Left out, the line connected however the
+// config where it was pasted said, prefer on a machine with none: a dump
+// taken over verify-full printed a restore that sent the password to a
+// server nothing had verified. A looser sslmode is left out on purpose — the
+// default is at least as protected, a stricter config there still wins, and
+// disable is what a tunnel forces for the forward alone, which a line that
+// spelled it would carry to a restore with no tunnel. Never the password.
+//
 // Spelled by the request's surface, like every call this plugin names: the
 // command line at a terminal, with the path quoted when a shell would split
 // it, and the capability with its boxes filled in the TUI.
@@ -623,10 +634,26 @@ func restoreCommand(req plugin.Request, path string) string {
 		{Name: "user", Value: req.String("user")},
 		{Name: "database", Value: req.String("database")},
 	}
+	if mode := req.String("sslmode"); verifiesOrRequires(mode) {
+		args = append(args, plugin.Arg{Name: "sslmode", Value: mode})
+		if ca := req.String("sslrootcert"); ca != "" {
+			args = append(args, plugin.Arg{Name: "sslrootcert", Value: ca})
+		}
+	}
 	if n := req.Int("jobs"); n > 1 {
 		args = append(args, plugin.Arg{Name: "jobs", Value: n})
 	}
 	return req.Surface().Call("pg.restore", args...)
+}
+
+// verifiesOrRequires reports whether sslmode insists on TLS: require and the
+// two that verify, the modes stricter than the prefer every call defaults to.
+func verifiesOrRequires(sslmode string) bool {
+	switch sslmode {
+	case "require", "verify-ca", "verify-full":
+		return true
+	}
+	return false
 }
 
 func backupSuffix(f string) string {
