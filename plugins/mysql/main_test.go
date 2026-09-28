@@ -327,6 +327,7 @@ func TestConnectionFailuresAreClassifiedByNumber(t *testing.T) {
 		{1142, "mysql.denied"},
 		{1130, "mysql.host.denied"},
 		{1290, "mysql.readonly"},
+		{3159, "mysql.tls.required"},
 	}
 	r := req(t, "mysql.status", map[string]any{"host": "db.internal", "database": "app"})
 	for _, c := range cases {
