@@ -228,6 +228,34 @@ func TestTheReceiptNamesTheOfflineRestoreAndWhyThereIsNoCapability(t *testing.T)
 	}
 }
 
+// The restore line is a command somebody pastes, so the path in it is one
+// shell word whatever it holds: a space split it into two arguments to
+// etcdutl, and a $( ran something on paste.
+func TestTheRestoreLinePastesAsTheCommandItReadsAs(t *testing.T) {
+	src := source{endpoint: "e:2379", member: "abc", revision: 7, version: "3.6.6", leader: true}
+	for _, tc := range []struct{ path, want string }{
+		{"/backups/etcd.snap", "`etcdutl snapshot restore /backups/etcd.snap --data-dir"},
+		{"/backups/my etcd.snap", "`etcdutl snapshot restore '/backups/my etcd.snap' --data-dir"},
+		{"/backups/$(id).snap", "`etcdutl snapshot restore '/backups/$(id).snap' --data-dir"},
+		{"/backups/it's.snap", "`etcdutl snapshot restore '/backups/it'\"'\"'s.snap' --data-dir"},
+		{"<snap>", "`etcdutl snapshot restore '<snap>' --data-dir"},
+		// A tab, which the receipt would print as blank space, spelled as the
+		// escape the shell turns back into it.
+		{"/backups/a" + string(rune(0x09)) + "b.snap", "`etcdutl snapshot restore $'/backups/a\\011b.snap' --data-dir"},
+	} {
+		kv := snapshotReceipt(tc.path, 1, time.Millisecond, src, "3.6.0", "sha256 abc")
+		var line string
+		for _, p := range kv.Pairs {
+			if p.Key == "restore with" {
+				line = p.Value
+			}
+		}
+		if !strings.Contains(line, tc.want) {
+			t.Errorf("restore line for %q = %q, want %q in it", tc.path, line, tc.want)
+		}
+	}
+}
+
 // A member with no leader is mid-election or outside quorum, and its revision
 // is whatever it last managed to apply. A backup taken from one is still worth
 // having and is not worth mistaking for current.
