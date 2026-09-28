@@ -7,11 +7,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
+	"github.com/this-is-tobi/rta/pkg/sdk/sdktest"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
@@ -81,6 +84,45 @@ func reqAt(t *testing.T, f *fakeQdrant, capID string, values map[string]any) plu
 	t.Helper()
 	values["endpoint"] = f.endpoint()
 	return req(t, capID, values)
+}
+
+// sdktest is the definition of "a correct plugin", and qdrant gets no
+// exemption from it — the spelling rule among the others, which holds what
+// every capability declares to the SDK's speller.
+//
+// Every read here is NoPreview, so the suite runs none of them. What it
+// drives is the three writes, under --dry-run, and each names a collection
+// no default supplies: without one the suite fails rather than report a
+// pass for a capability it never ran.
+func TestConformance(t *testing.T) {
+	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs))
+}
+
+// conformanceInputs points every write at a port nothing listens on, so none
+// of them reaches an instance. qdrant.points.scroll has no dry run of its
+// own — it changes nothing, and reads under --dry-run as it does without —
+// so left at the default endpoint it would read points out of whatever
+// Qdrant the machine running the tests has. A dump's or a restore's dry run
+// that stopped being dry fails as a refused connection.
+//
+// The dump's file and the restore's fixture are inside dir, the directory
+// the suite watches: a dry run that wrote the one or touched the other is
+// caught where it happened. The fixture has bytes in it, because the
+// restore looks at the file before its dry run says anything, and refuses
+// one that is not there or is empty.
+func conformanceInputs(dir string) map[string]map[string]any {
+	conn := func(m map[string]any) map[string]any {
+		m["endpoint"] = "127.0.0.1:1"
+		m["collection"] = "conformance"
+		return m
+	}
+	fixture := filepath.Join(dir, "conformance.snapshot")
+	_ = os.WriteFile(fixture, []byte("conformance"), 0o600)
+	return map[string]map[string]any{
+		"qdrant.points.scroll": conn(map[string]any{}),
+		"qdrant.dump":          conn(map[string]any{"out": filepath.Join(dir, "qdrant.snapshot")}),
+		"qdrant.restore":       conn(map[string]any{"file": fixture}),
+	}
 }
 
 // Every shared connection input must be Local. These fields together name
