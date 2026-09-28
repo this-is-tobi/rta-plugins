@@ -1,0 +1,2 @@
++ 		"no CA": {"ERROR 2026 (HY000): SSL connection error: CA certificate is required if ssl-mode is " +
++ 			"VERIFY_CA or VERIFY_IDENTITY", "mysql.tls.ca.required"},

@@ -7,3 +7,5 @@
 + var restoreTools = []string{"mysql"}
 - 				"Install the MySQL client tools — `brew install mysql` or " +
 + 				"Install the MySQL client tools — `brew install mysql-client` or " +
++ 	case strings.Contains(stderr, "CA certificate is required"):
++ 		return noCA(req.Surface(), msg("CA certificate is required"))
