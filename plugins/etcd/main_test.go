@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
+	"github.com/this-is-tobi/rta/pkg/sdk/sdktest"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
@@ -27,6 +29,41 @@ func req(t *testing.T, capID string, values map[string]any) plugin.Request {
 	}
 	t.Fatalf("no capability %q", capID)
 	return plugin.Request{}
+}
+
+// sdktest is the definition of "a correct plugin", and etcd gets no
+// exemption from it — the spelling rule among the others, which holds what
+// every capability declares to the SDK's speller.
+//
+// Every read here is NoPreview, so the suite runs none of them. What it
+// drives is the two writes, under --dry-run. etcd.kv.get takes a key no
+// default supplies, and without one the suite fails rather than report a
+// pass for a capability it never ran. etcd.snapshot has no default for its
+// file, and without one its dry run stops at the refusal asking for it,
+// short of the description the rule is there to reach.
+func TestConformance(t *testing.T) {
+	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs))
+}
+
+// conformanceInputs points both writes at a port nothing listens on, so
+// neither reaches a cluster. etcd.kv.get has no dry run of its own — it
+// changes nothing, and reads under --dry-run as it does without — so left
+// at its default endpoint it would read a key out of whatever etcd the
+// machine running the tests has. The snapshot's file is inside dir, the
+// directory the suite watches, so a dry run that wrote it would be caught
+// where it landed.
+//
+// The closed port costs etcd.kv.get the suite's whole 30-second bound:
+// etcd's client retries an endpoint that refuses it until the call's
+// context ends, and dialTimeout does not cut that short. A snapshot's dry
+// run that stopped being dry would fail the same way, as etcd.timeout
+// rather than as a refused connection.
+func conformanceInputs(dir string) map[string]map[string]any {
+	const endpoint = "127.0.0.1:1"
+	return map[string]map[string]any{
+		"etcd.kv.get":   {"endpoint": endpoint, "key": "/conformance"},
+		"etcd.snapshot": {"endpoint": endpoint, "out": filepath.Join(dir, "etcd.snap")},
+	}
 }
 
 // Every shared connection input must be Local. These fields together name
