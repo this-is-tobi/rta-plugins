@@ -117,8 +117,16 @@ func collectionListCapability() plugin.Capability {
 			"index answers searches from what it has, so the gap between those two columns is " +
 			"how incomplete the answers currently are.\n\n" +
 			"Names and counts only, never a point.",
+		// Not `return collectionTable(ctx, req)`, which reads the same and
+		// is not: the *view.Error comes back inside Run's error interface,
+		// where a nil pointer is a non-nil error, and every listing that
+		// worked reached the host as a failure with no code and no message.
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
-			return collectionTable(ctx, req)
+			table, verr := collectionTable(ctx, req)
+			if verr != nil {
+				return nil, verr
+			}
+			return table, nil
 		},
 	})
 }
