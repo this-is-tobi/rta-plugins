@@ -56,6 +56,7 @@ func TestDumpArgsCarryTheDecidedFlags(t *testing.T) {
 	})), " ")
 	for _, want := range []string{
 		"--single-transaction",                 // the consistency the receipt claims
+		"--protocol=TCP",                       // the server the pre-flight checked, not the socket
 		"--routines", "--events", "--triggers", // round-tripping, not the upstream default
 	} {
 		if !strings.Contains(args, want) {
