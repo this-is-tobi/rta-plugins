@@ -178,7 +178,7 @@ func newRequest(ctx context.Context, req plugin.Request, method, path string,
 	httpReq, err := http.NewRequestWithContext(ctx, method, base+path, body)
 	if err != nil {
 		return nil, view.Errorf("qdrant.endpoint.invalid", "%v", err).
-			WithHint("endpoint is host[:port] with no scheme — set " + setting(req.Surface(), "tls") + " separately")
+			WithHint("endpoint is host[:port] with no scheme — set " + req.Surface().SettingName("tls") + " separately")
 	}
 	httpReq.Header.Set("Accept", "application/json")
 	if key := req.String("api-key"); key != "" {
@@ -201,7 +201,7 @@ func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 	pem, err := os.ReadFile(ca)
 	if err != nil {
 		return nil, view.Errorf("qdrant.tls.ca.unreadable", "%v", err).
-			WithHint(setting(sf, "ca-file") + " is a path on this machine, read by rta rather than by the server")
+			WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by the server")
 	}
 	pool := x509.NewCertPool()
 	// What the file has to hold, rather than a guess at what it held instead.
@@ -212,7 +212,7 @@ func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 	// certificate in it does, a private key or a DER-encoded certificate.
 	if !pool.AppendCertsFromPEM(pem) {
 		return nil, view.Errorf("qdrant.tls.ca.invalid", "%s holds no PEM certificate", ca).
-			WithHint(setting(sf, "ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
+			WithHint(sf.SettingName("ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
 				"server's own — and a private key or a DER-encoded certificate is not one")
 	}
 	// MinVersion is Go's own client default already; stated so the config says what it accepts, as plugins/keycloak's does.
@@ -250,7 +250,7 @@ func classifyStatus(code int, body []byte, req plugin.Request) *view.Error {
 			WithHint("a Qdrant loading a collection from disk answers this until it is ready")
 	}
 	return view.Errorf("qdrant.request.failed", "%s returned %d: %s", where, code, detail).
-		WithHint(explainHint(req.Surface(), "qdrant.overview"))
+		WithHint(req.Surface().SettingsHint("qdrant.overview"))
 }
 
 // qdrantErrorText digs the message out of Qdrant's error envelope, falling
@@ -298,7 +298,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	var dnsErr *stdnet.DNSError
 	if errors.As(err, &dnsErr) {
 		return view.Errorf("qdrant.host.unknown", "no address for %q", hostOnly(where)).
-			WithHint(dnsHint(req.Surface(), hostOnly(where)))
+			WithHint(req.Surface().DNSHint(hostOnly(where)))
 	}
 	var netErr *stdnet.OpError
 	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
@@ -318,55 +318,12 @@ func classify(err error, req plugin.Request) *view.Error {
 	var certErr x509.UnknownAuthorityError
 	if errors.As(err, &certErr) {
 		return view.Errorf("qdrant.tls.untrusted", "%s presented a certificate nothing here trusts", where).
-			WithHint("the CA that issued it belongs in " + setting(req.Surface(), "ca-file") +
+			WithHint("the CA that issued it belongs in " + req.Surface().SettingName("ca-file") +
 				" — a self-signed certificate is its own CA; turning TLS off is no way round it, " +
 				"as the server refuses plain HTTP")
 	}
 	return view.Errorf("qdrant.conn.failed", "could not reach %s: %v", where, err).
-		WithHint(explainHint(req.Surface(), "qdrant.overview"))
-}
-
-// setting names connection input name in a message the way its reader
-// changes it: the flag on the CLI, the box in a TUI form. Not the argument
-// over MCP, as plugin.Surface.InputName would: every connection input is
-// Local, so the tool's schema hides it and the bridge drops one given, and an
-// agent told to set the "tls" argument would pass one that is thrown away and
-// read the same refusal again. It is named there as the declaration names
-// it, `tls` — a setting of the operator's, which the agent can report and
-// cannot change.
-func setting(sf plugin.Surface, name string) string {
-	if sf == plugin.SurfaceMCP {
-		return "`" + name + "`"
-	}
-	return sf.InputName(name)
-}
-
-// given names input name set to value, as the reader would give it: "--out
-// ./docs.snapshot" on the CLI, and elsewhere the input the surface names,
-// with the value beside it.
-func given(sf plugin.Surface, name, value string) string {
-	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
-		return sf.InputName(name) + " set to " + value
-	}
-	return sf.InputName(name) + " " + value
-}
-
-// explainHint sends the reader to the page listing every input and where each
-// one can come from. That page is `rta explain`, a terminal's command with no
-// capability behind it, and what it answers here is where the connection
-// inputs come from — the operator's to set — so over MCP it is the operator
-// who is asked to read it.
-func explainHint(sf plugin.Surface, id string) string {
-	if sf == plugin.SurfaceMCP {
-		return plugin.AskOperator("explain "+id) + ", which lists every input and where each one can come from"
-	}
-	return "`rta explain " + id + "` lists every input and where each one can come from"
-}
-
-// dnsHint is the call that shows what DNS returns for host, spelled for the
-// surface that will make it.
-func dnsHint(sf plugin.Surface, host string) string {
-	return "`" + sf.Call("net.dns", plugin.Arg{Name: "name", Value: host, Positional: true}) + "` shows what DNS returns"
+		WithHint(req.Surface().SettingsHint("qdrant.overview"))
 }
 
 func hostOnly(endpoint string) string {
