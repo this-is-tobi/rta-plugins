@@ -249,13 +249,3 @@ func suggestContexts(ctx context.Context, _ plugin.Request) []string {
 func pickContext(sf plugin.Surface) string {
 	return "`" + sf.Call("kube.context.set", plugin.Arg{Name: "name", Value: "<name>", Positional: true}) + "` picks one"
 }
-
-// given names input name set to value, as the reader would give it: "--grant
-// kube.pod.list" on the CLI, and elsewhere the input the surface names, with
-// the value beside it.
-func given(sf plugin.Surface, name, value string) string {
-	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
-		return sf.InputName(name) + " set to " + value
-	}
-	return sf.InputName(name) + " " + value
-}
