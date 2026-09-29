@@ -76,6 +76,10 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr := checkRestoreFlags(req, format); verr != nil {
 		return nil, verr
 	}
+	// runFullDump's reason: the dry run connects to nothing.
+	if verr := checkRootCert(req); verr != nil {
+		return nil, verr
+	}
 	tool, verr := lookupRestoreTool(format)
 	if verr != nil {
 		return nil, verr
