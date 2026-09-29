@@ -172,10 +172,32 @@ func dsn(req plugin.Request) string {
 	// a connection that would never have used it, and given system it turns
 	// disable into verify-full. disable is what a tunnel forces, beside
 	// whatever the config names for connecting directly.
-	if ca := req.String("sslrootcert"); ca != "" && req.String("sslmode") != "disable" {
+	if ca := rootCert(req); ca != "" && req.String("sslmode") != "disable" {
 		parts = append(parts, "sslrootcert="+quote(ca))
 	}
 	return strings.Join(parts, " ")
+}
+
+// rootCert is sslrootcert with a leading ~ resolved and made absolute, or ""
+// when it names nothing. One resolution for the three places the path goes —
+// the driver's connection string, the child's PGSSLROOTCERT, and the restore
+// line a dump's receipt prints — so they cannot name different files, and a
+// line pasted in another directory still names this one. Passed through as
+// typed, as it once was, ~/ca.pem reached pgx and libpq alike as a path under
+// a directory named ~, and a CA sitting in the operator's home was answered
+// "no such file or directory".
+//
+// system is left as it is: libpq's word for this machine's trust store, not
+// a file, which made absolute would become one named system here.
+func rootCert(req plugin.Request) string {
+	ca := req.String("sslrootcert")
+	if ca == "" || ca == "system" {
+		return ca
+	}
+	if abs, err := expandHome(ca); err == nil {
+		return abs
+	}
+	return plugin.ExpandHome(ca)
 }
 
 // checkRootCert refuses sslrootcert beside an sslmode that does not name
@@ -374,7 +396,7 @@ func classify(err error, req plugin.Request) *view.Error {
 			return refused.WithHint("no CA in this machine's trust store, which " + settingTo(sf, "sslrootcert", "system") +
 				" names, issued it — a server with a CA of its own wants that CA's file in " + setting(sf, "sslrootcert"))
 		default:
-			return refused.WithHint(ca + ", which " + setting(sf, "sslrootcert") + " names, does not hold " +
+			return refused.WithHint(rootCert(req) + ", which " + setting(sf, "sslrootcert") + " names, does not hold " +
 				"the CA that issued it — a self-signed certificate is its own CA")
 		}
 	}
