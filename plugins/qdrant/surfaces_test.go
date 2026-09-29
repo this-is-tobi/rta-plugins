@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/x509"
 	"errors"
 	"net/http"
@@ -44,7 +45,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			name:    "an endpoint written as a URL",
 			cli:     "endpoint is host[:port] with no scheme — set --tls separately",
-			other:   "endpoint is host[:port] with no scheme — set `tls` separately",
+			other:   "endpoint is host[:port] with no scheme — set the operator's `tls` setting separately",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				_, verr := newRequest(t.Context(), req(t, "qdrant.overview", map[string]any{
@@ -59,7 +60,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			name:    "a certificate nothing here trusts",
 			cli:     "the CA that issued it belongs in --ca-file — a self-signed certificate is its own CA",
-			other:   "the CA that issued it belongs in `ca-file` — a self-signed certificate is its own CA",
+			other:   "the CA that issued it belongs in the operator's `ca-file` setting — a self-signed certificate is its own CA",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(x509.UnknownAuthorityError{}, req(t, "qdrant.overview", nil).WithSurface(sf)))
@@ -67,8 +68,8 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "anything else",
-			cli:     "`rta explain qdrant.overview` lists every input and where each one can come from",
-			other:   "ask the operator to run `rta explain qdrant.overview`, which lists every input",
+			cli:     "`rta explain qdrant.overview` lists every input and which of the command line, the rta config, a profile and the environment can set it",
+			other:   "ask the operator to run `rta explain qdrant.overview`, which lists every setting and which of the rta config",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(errors.New("handshake went sideways"), req(t, "qdrant.overview", nil).WithSurface(sf)))
@@ -86,7 +87,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			name:    "a CA file that cannot be read",
 			cli:     "--ca-file is a path on this machine",
-			other:   "`ca-file` is a path on this machine",
+			other:   "the operator's `ca-file` setting is a path on this machine",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return caRefusal(sf, filepath.Join(t.TempDir(), "absent.pem"))
@@ -98,7 +99,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			// untrusted-certificate hint above sends the reader to name.
 			name:    "a CA file with no PEM certificate in it",
 			cli:     "--ca-file wants a PEM certificate — the CA's, or a self-signed server's own",
-			other:   "`ca-file` wants a PEM certificate — the CA's, or a self-signed server's own",
+			other:   "the operator's `ca-file` setting wants a PEM certificate — the CA's, or a self-signed server's own",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				der := filepath.Join(t.TempDir(), "server.der")
@@ -106,6 +107,24 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 					t.Fatal(err)
 				}
 				return caRefusal(sf, der)
+			},
+		},
+		{
+			// The file offered is named after the collection, which is the
+			// server's to name: on a command line it is one quoted word, and a
+			// name holding a command substitution runs nothing when pasted.
+			name:    "a dump with nowhere to go",
+			cli:     "--out './docs $(id).snapshot' — a collection is a file",
+			other:   `the out box set to "./docs $(id).snapshot" — a collection is a file`,
+			surface: plugin.SurfaceTUI,
+			say: func(sf plugin.Surface) string {
+				_, err := runDump(context.Background(), req(t, "qdrant.dump",
+					map[string]any{"collection": "docs $(id)"}).WithSurface(sf))
+				var verr *view.Error
+				if !errors.As(err, &verr) {
+					t.Fatalf("err = %v, want a refusal", err)
+				}
+				return refusal(verr)
 			},
 		},
 		{

@@ -112,7 +112,7 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	out := strings.TrimSpace(req.String("out"))
 	if out == "" {
 		return nil, view.Errorf("qdrant.dump.nooutput", "say where the snapshot should be written").
-			WithHint(given(req.Surface(), "out", "./"+collection+".snapshot") + " — a collection is a file, not " +
+			WithHint(req.Surface().SettingTo("out", "./"+collection+".snapshot") + " — a collection is a file, not " +
 				"something to read in a terminal")
 	}
 	path, err := expandHome(out)
