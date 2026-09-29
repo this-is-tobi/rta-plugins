@@ -183,6 +183,8 @@
 - 				"actually has")
 + 				"says what it really is. For a MariaDB server, the mariadb plugin drives " +
 + 				"mariadb-dump with the flags that client actually has")
+- // words for it: the MySQL client gives EINPROGRESS, the state of its own
++ // words for it: the MariaDB client gives EINPROGRESS, the state of its own
 + // noCA answers the client refusing tls=true for want of a CA. true is
 + // VERIFY_IDENTITY to the child, and the MySQL client, unlike the driver, never
 + // reads the machine's own trust store: with no --ssl-ca it will not connect at

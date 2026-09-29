@@ -75,9 +75,15 @@
 + 	if !strings.Contains(text.Body, "mysqldump") || !strings.Contains(text.Body, path) {
 - 		"tool skew": {"mysqldump: unknown variable 'ssl-verify-server-cert'", "mysql.dump.toolskew"},
 + 		"tool skew": {"mysqldump: unknown variable 'ssl-mode=DISABLED'", "mysql.dump.toolskew"},
-- 		"timed out": {fmt.Sprintf("mysqldump: Got error: 2003: Can't connect to server on 'db.internal:3306' "+
+- 		"refused, numbered": {fmt.Sprintf("mysqldump: Got error: 2003: Can't connect to server on 'db.internal:3306' "+
 + 		"no CA": {"mysqldump: Got error: 2026: SSL connection error: CA certificate is required if ssl-mode is " +
 + 			"VERIFY_CA or VERIFY_IDENTITY when trying to connect", "mysql.tls.ca.required"},
++ 		"refused, numbered": {fmt.Sprintf("mysqldump: Got error: 2003: Can't connect to MySQL server on 'db.internal:3306' "+
+- 		"no route": {fmt.Sprintf("mysqldump: Got error: 2003: Can't connect to server on 'db.internal:3306' "+
++ 		"no route": {fmt.Sprintf("mysqldump: Got error: 2003: Can't connect to MySQL server on 'db.internal:3306' "+
+- 		"in progress": {fmt.Sprintf("mysqldump: Got error: 2003: Can't connect to server on 'db.internal:3306' "+
++ 		"in progress": {fmt.Sprintf("mysqldump: Got error: 2003: Can't connect to MySQL server on 'db.internal:3306' "+
+- 		"timed out": {fmt.Sprintf("mysqldump: Got error: 2003: Can't connect to server on 'db.internal:3306' "+
 + 		"timed out": {fmt.Sprintf("mysqldump: Got error: 2003: Can't connect to MySQL server on 'db.internal:3306' "+
 - func capabilityByID(t *testing.T, id string) plugin.Capability {
 - 	t.Helper()

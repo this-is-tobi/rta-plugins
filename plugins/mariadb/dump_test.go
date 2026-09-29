@@ -320,6 +320,12 @@ func TestClassifyDumpNamesTheFailure(t *testing.T) {
 		"bad host":  {"mariadb-dump: Got error: 2005: Unknown MySQL server host 'db.internal'", "mariadb.host.unknown"},
 		"tool skew": {"mysqldump: unknown variable 'ssl-verify-server-cert'", "mariadb.dump.toolskew"},
 		"atstraws":  {"mariadb-dump: something nobody anticipated", "mariadb.dump.failed"},
+		"refused, numbered": {fmt.Sprintf("mariadb-dump: Got error: 2003: Can't connect to server on 'db.internal:3306' "+
+			"(%d) when trying to connect", int(syscall.ECONNREFUSED)), "mariadb.conn.refused"},
+		"no route": {fmt.Sprintf("mariadb-dump: Got error: 2003: Can't connect to server on 'db.internal:3306' "+
+			"(%d) when trying to connect", int(syscall.EHOSTUNREACH)), "mariadb.conn.unreachable"},
+		"in progress": {fmt.Sprintf("mariadb-dump: Got error: 2003: Can't connect to server on 'db.internal:3306' "+
+			"(%d) when trying to connect", int(syscall.EINPROGRESS)), "mariadb.conn.refused"},
 		"timed out": {fmt.Sprintf("mariadb-dump: Got error: 2003: Can't connect to server on 'db.internal:3306' "+
 			"(%d) when trying to connect", int(syscall.ETIMEDOUT)), "mariadb.conn.timeout"},
 	} {
