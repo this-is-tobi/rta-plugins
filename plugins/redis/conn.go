@@ -143,10 +143,14 @@ func connect(ctx context.Context, req plugin.Request) (*client, *view.Error) {
 	return c, nil
 }
 
+// tlsConfig is the TLS the three certificate paths describe, each with a
+// leading ~ resolved as every other path a plugin reads is. Opened as typed,
+// ~/ca.pem was a path under a directory named ~, and a CA sitting in the
+// operator's home was answered as no such file.
 func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 	sf := req.Surface()
 	cfg := &tls.Config{MinVersion: tls.VersionTLS12}
-	if ca := req.String("ca-file"); ca != "" {
+	if ca := plugin.ExpandHome(req.String("ca-file")); ca != "" {
 		pem, err := os.ReadFile(ca)
 		if err != nil {
 			return nil, view.Errorf("redis.tls.ca.unreadable", "%v", err).
@@ -168,7 +172,7 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 		}
 		cfg.RootCAs = pool
 	}
-	cert, key := req.String("cert-file"), req.String("key-file")
+	cert, key := plugin.ExpandHome(req.String("cert-file")), plugin.ExpandHome(req.String("key-file"))
 	switch {
 	case cert != "" && key == "":
 		return nil, view.Errorf("redis.tls.key.missing", "%s given without %s", setting(sf, "cert-file"), setting(sf, "key-file")).
