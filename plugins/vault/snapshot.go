@@ -113,7 +113,7 @@ func runSnapshot(ctx context.Context, req plugin.Request) (view.View, error) {
 
 	if req.DryRun {
 		return view.Text{Body: "would write a raft snapshot of " +
-			req.String("address") + " to " + path}, nil
+			reached(req) + " to " + path}, nil
 	}
 
 	return withClient(req, func(client *vaultapi.Client) (view.View, error) {
@@ -163,7 +163,7 @@ func runSnapshot(ctx context.Context, req plugin.Request) (view.View, error) {
 			{Key: "wrote", Value: path},
 			{Key: "size", Value: format.Bytes(size)},
 			{Key: "took", Value: time.Since(started).Round(time.Millisecond).String()},
-			{Key: "from", Value: req.String("address")},
+			{Key: "from", Value: reached(req)},
 			// The property that makes this artifact different from an export,
 			// said where somebody is looking at the file they just made.
 			{Key: "at rest", Value: "sealed by the barrier — restoring needs the same unseal " +
@@ -196,10 +196,22 @@ func runSnapshot(ctx context.Context, req plugin.Request) (view.View, error) {
 // rta's own restore rather than the vault CLI's, as pg's receipt names
 // pg.restore: the path quoted for a shell, and the file's checks and the
 // confirmation a destructive call asks for ahead of the storage going.
+//
+// **And the profile the snapshot came through, whenever there was one**,
+// since the token it used may be the profile's and no other layer holds it.
+// The address beside it only when the host opened no forward
+// (Request.Tunnel): through one, the address was 127.0.0.1 and a port that
+// closed when the snapshot did, and a restore line naming it named a port
+// nothing listens on — the profile is what reaches the same Vault again.
+// Reached directly, the address stays, since it may be one the caller typed
+// over the profile's, which the profile alone would not reach.
 func restoreCommand(req plugin.Request, path string) string {
-	args := []plugin.Arg{
-		{Name: "file", Value: path, Positional: true},
-		{Name: "address", Value: req.String("address")},
+	args := []plugin.Arg{{Name: "file", Value: path, Positional: true}}
+	if profile := req.Profile(); profile != "" {
+		args = append(args, plugin.Arg{Name: "profile", Value: profile})
+	}
+	if req.Tunnel() == plugin.TunnelNone {
+		args = append(args, plugin.Arg{Name: "address", Value: req.String("address")})
 	}
 	for _, name := range []string{"namespace", "ca-file"} {
 		if v := req.String(name); v != "" {
