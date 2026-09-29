@@ -2,15 +2,20 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"errors"
 	stdnet "net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -445,6 +450,88 @@ func TestANameDNSCannotResolveIsNotReadAsNothingListening(t *testing.T) {
 	verr := classify(err, req(t, "qdrant.overview", map[string]any{"endpoint": "qdrant.internal:6333"}))
 	if verr.Code != "qdrant.host.unknown" {
 		t.Errorf("code = %s, want qdrant.host.unknown: %s", verr.Code, verr.Message)
+	}
+}
+
+// A failed dial is read by the operating system's error it carries, not by the
+// *net.OpError every failed dial is: a host no route reaches is not a port
+// nobody is on, a reset reached no port that refused it, and a dial that
+// timed out is a timeout. Text that lost its errno is read by its words.
+func TestADialIsReadByTheErrorItCarries(t *testing.T) {
+	r := req(t, "qdrant.overview", map[string]any{"endpoint": "10.0.0.9:6333"})
+	wrap := func(err error) error { return &url.Error{Op: "Get", URL: "http://10.0.0.9:6333/", Err: err} }
+	dial := func(errno syscall.Errno) error {
+		return wrap(&stdnet.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", errno)})
+	}
+	for _, tc := range []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"a refused port", dial(syscall.ECONNREFUSED), "qdrant.conn.refused"},
+		{"no route to the host", dial(syscall.EHOSTUNREACH), "qdrant.conn.unreachable"},
+		{"a network this machine is not on", dial(syscall.ENETUNREACH), "qdrant.conn.unreachable"},
+		{"a connection reset", wrap(&stdnet.OpError{Op: "read", Net: "tcp",
+			Err: os.NewSyscallError("read", syscall.ECONNRESET)}), "qdrant.conn.failed"},
+		{"a dial that timed out", wrap(&stdnet.OpError{Op: "dial", Net: "tcp", Err: timeoutError{}}), "qdrant.timeout"},
+		{"a refusal flattened into text", wrap(errors.New("dial tcp 10.0.0.9:6333: connect: " +
+			syscall.ECONNREFUSED.Error())), "qdrant.conn.refused"},
+	} {
+		got := classify(tc.err, r)
+		if got.Code != tc.want {
+			t.Errorf("%s: classified %s %q, want %s", tc.name, got.Code, got.Message, tc.want)
+		}
+		if got.Code == "qdrant.conn.unreachable" && !strings.Contains(got.Message, "10.0.0.9:6333") {
+			t.Errorf("%s: %q does not name the endpoint", tc.name, got.Message)
+		}
+	}
+}
+
+// timeoutError is a net.Error that timed out, as a dial's deadline reports.
+type timeoutError struct{}
+
+func (timeoutError) Error() string   { return "i/o timeout" }
+func (timeoutError) Timeout() bool   { return true }
+func (timeoutError) Temporary() bool { return true }
+
+// macOS verifies against the system's trust store itself when no ca-file is
+// set and reports a chain it cannot anchor as a bare error: that is still a
+// certificate nothing here trusts, and the answer is the CA. Every other
+// verdict it gives untyped is its own reason and is quoted in its words: a
+// revoked certificate answered with the CA file to name was answered with the
+// way around the revocation check. Elsewhere an untyped verdict is never a
+// question of trust, and none is a server that could not be reached.
+func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
+	r := req(t, "qdrant.overview", map[string]any{"endpoint": "qdrant.internal:6333"})
+	open, closing := string(rune(0x201c)), string(rune(0x201d))
+	onMac := "qdrant.tls.rejected"
+	if runtime.GOOS == "darwin" {
+		onMac = "qdrant.tls.untrusted"
+	}
+	for _, tc := range []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"Go's own verifier", x509.UnknownAuthorityError{}, "qdrant.tls.untrusted"},
+		{"the system's verifier, a chain it cannot anchor",
+			errors.New("x509: " + open + "qdrant" + closing + " certificate is not trusted"), onMac},
+		{"the system's verifier, a revoked certificate",
+			errors.New("x509: " + open + "qdrant" + closing + " certificate is revoked"), "qdrant.tls.rejected"},
+		{"a name it is not for", x509.HostnameError{Certificate: &x509.Certificate{}, Host: "qdrant.internal"},
+			"qdrant.tls.rejected"},
+		{"a date it is not valid on", x509.CertificateInvalidError{Cert: &x509.Certificate{}, Reason: x509.Expired},
+			"qdrant.tls.rejected"},
+	} {
+		err := &url.Error{Op: "Get", URL: "https://qdrant.internal:6333/",
+			Err: &tls.CertificateVerificationError{Err: tc.err}}
+		got := classify(err, r)
+		if got.Code != tc.want {
+			t.Errorf("%s: classified %s, want %s", tc.name, got.Code, tc.want)
+		}
+		if got.Code == "qdrant.tls.rejected" && !strings.Contains(got.Message, tc.err.Error()) {
+			t.Errorf("%s: %q does not quote the verdict", tc.name, got.Message)
+		}
 	}
 }
 

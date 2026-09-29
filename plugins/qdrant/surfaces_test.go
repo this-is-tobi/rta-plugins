@@ -59,8 +59,8 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "a certificate nothing here trusts",
-			cli:     "the CA that issued it belongs in --ca-file — a self-signed certificate is its own CA",
-			other:   "the CA that issued it belongs in the operator's `ca-file` setting — a self-signed certificate is its own CA",
+			cli:     "the CA that issued it belongs in --ca-file (a self-signed certificate is its own CA)",
+			other:   "the CA that issued it belongs in the operator's `ca-file` setting (a self-signed certificate is its own CA)",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(x509.UnknownAuthorityError{}, req(t, "qdrant.overview", nil).WithSurface(sf)))
