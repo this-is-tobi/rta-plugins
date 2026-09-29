@@ -194,7 +194,8 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 // argument, on the receipt of the backup it was meant to bring back.
 //
 // **So is the way the dump reached it, when that was protected**: tls when it
-// was on, and ca-file when one was named, which turns TLS on by itself. Left
+// was on, and ca-file and tls-server-name when named, each of which turns
+// TLS on by itself — the name being what the certificate was checked for. Left
 // out, the line connected however the config where it was pasted said, plain
 // HTTP on a machine with none: a dump taken over HTTPS printed a restore
 // that sent the api-key, and the snapshot behind it, over plain HTTP. Off is
@@ -226,6 +227,9 @@ func restoreCommand(req plugin.Request, collection, path string) string {
 	}
 	if ca := req.String("ca-file"); ca != "" {
 		args = append(args, plugin.Arg{Name: "ca-file", Value: ca})
+	}
+	if name := serverName(req); name != "" {
+		args = append(args, plugin.Arg{Name: "tls-server-name", Value: name})
 	}
 	return req.Surface().Call("qdrant.restore", args...)
 }

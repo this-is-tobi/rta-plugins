@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -54,6 +55,14 @@ func connFields() []plugin.Field {
 		// because its contents are sensitive.
 		{Name: "ca-file", Type: plugin.String, Default: "", Config: "ca-file",
 			Local: true, Help: "PEM bundle to verify the server against, beyond the host's own trust store"},
+		// The name the certificate is checked for when it is not the host
+		// dialled — above all through a kube: or ssh: forward, whose end is
+		// 127.0.0.1 whatever the instance is called, and which a service's
+		// certificate names only by luck. Checked as strictly as the host would
+		// have been: it moves the check, never loosens it. Local for the reason
+		// tls is: what a certificate has to prove is the operator's to say.
+		{Name: "tls-server-name", Type: plugin.String, Default: "", Config: "tls-server-name",
+			Local: true, Help: "name to check the server's certificate for, in place of the endpoint's host"},
 	}
 }
 
@@ -169,8 +178,10 @@ func newRequest(ctx context.Context, req plugin.Request, method, path string,
 	base := "http://"
 	// ca-file only means anything over TLS, so setting it turns TLS on the
 	// same way etcd's own ca-file does — the alternative is a value that
-	// silently does nothing until --tls is also typed.
-	if req.Bool("tls") || req.String("ca-file") != "" {
+	// silently does nothing until --tls is also typed. tls-server-name, for
+	// the same reason: through a forward the host turns tls off, and a name
+	// given in the profile beside it was a plain-HTTP call to a TLS port.
+	if req.Bool("tls") || req.String("ca-file") != "" || serverName(req) != "" {
 		base = "https://"
 	}
 	base += req.String("endpoint")
@@ -196,10 +207,20 @@ func newRequest(ctx context.Context, req plugin.Request, method, path string,
 // The path with a leading ~ resolved, as every other path a plugin reads
 // is. Opened as typed, ~/ca.pem was a path under a directory named ~, and a
 // CA sitting in the operator's home was answered as no such file.
+//
+// And unless tls-server-name names what the certificate is checked for in
+// place of the endpoint's host: the handshake's ServerName, and the SNI it
+// sends.
 func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 	ca := plugin.ExpandHome(req.String("ca-file"))
-	if ca == "" {
+	if ca == "" && serverName(req) == "" {
 		return http.DefaultClient, nil
+	}
+	// MinVersion is Go's own client default already; stated so the config
+	// says what it accepts, as plugins/keycloak's does.
+	cfg := &tls.Config{MinVersion: tls.VersionTLS12, ServerName: serverName(req)}
+	if ca == "" {
+		return &http.Client{Transport: &http.Transport{TLSClientConfig: cfg}}, nil
 	}
 	sf := req.Surface()
 	pem, err := os.ReadFile(ca)
@@ -219,9 +240,13 @@ func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 			WithHint(sf.SettingName("ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
 				"server's own — and a private key or a DER-encoded certificate is not one")
 	}
-	// MinVersion is Go's own client default already; stated so the config says what it accepts, as plugins/keycloak's does.
-	return &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}}}, nil
+	cfg.RootCAs = pool
+	return &http.Client{Transport: &http.Transport{TLSClientConfig: cfg}}, nil
 }
+
+// serverName is the name the certificate is checked for in place of the
+// endpoint's host, or "" for the host.
+func serverName(req plugin.Request) string { return strings.TrimSpace(req.String("tls-server-name")) }
 
 // maxResponseBytes bounds one response. Points carry payloads and vectors, and
 // a scroll over a collection of documents is genuinely large — this is a
@@ -353,14 +378,63 @@ func classify(err error, req plugin.Request) *view.Error {
 	// Every other verdict is its own reason, quoted in the verifier's words —
 	// the system's, for one macOS gives untyped — and never "could not reach":
 	// the server was reached, and answered with a certificate.
+	//
+	// A certificate that is not for the end of a forward the host opened is
+	// no fault of the instance's, and not one the endpoint can fix: through a
+	// forward the host fills the endpoint with 127.0.0.1 and a port of its
+	// own, which a service's certificate names only by luck. So the refusal
+	// names the forward and the name the certificate is for, and sends the
+	// reader to tls-server-name, which checks that name in 127.0.0.1's place
+	// — never to anything that checks less. Only when tls-server-name is not
+	// set: a name given and not matched is the certificate's to explain.
+	var hostErr x509.HostnameError
+	if errors.As(err, &hostErr) && req.Tunnel() != plugin.TunnelNone && serverName(req) == "" {
+		return forwardName(req, hostErr)
+	}
 	var verifyErr *tls.CertificateVerificationError
 	if errors.As(err, &verifyErr) {
+		checked := "the host in " + sf.SettingName("endpoint")
+		if serverName(req) != "" {
+			checked = "the name in " + sf.SettingName("tls-server-name")
+		}
 		return view.Errorf("qdrant.tls.rejected", "%s presented a certificate that does not verify: %v", where, verifyErr.Err).
-			WithHint("a certificate is checked for the host in " + sf.SettingName("endpoint") +
+			WithHint("a certificate is checked for " + checked +
 				", its dates and the use it was issued for, as well as for who issued it")
 	}
 	return view.Errorf("qdrant.conn.failed", "could not reach %s: %v", where, err).
 		WithHint(sf.SettingsHint("qdrant.overview"))
+}
+
+// forwardName is the refusal for a certificate checked for the end of a
+// forward the host opened — 127.0.0.1 — and not for the name the instance
+// answers as, which the certificate names instead.
+func forwardName(req plugin.Request, hostErr x509.HostnameError) *view.Error {
+	return view.Errorf("qdrant.tls.forward", "the certificate behind profile %s's %s: forward is for %s, not for %s, "+
+		"where the forward ends", req.Profile(), req.Tunnel(), certNames(hostErr.Certificate), hostErr.Host).
+		WithHint("a forward always ends at 127.0.0.1, so the certificate is checked for the name the instance " +
+			"answers as instead: " + req.Surface().SettingName("tls-server-name") + ", which the profile can " +
+			"hold beside its forward, names it — one the certificate is for — and it is checked as strictly " +
+			"as the host it replaces")
+}
+
+// certNames lists the names a certificate is for, the ones a check reads:
+// its DNS names and its IP addresses, never the subject's common name, which
+// Go's verifier ignores.
+func certNames(cert *x509.Certificate) string {
+	if cert == nil {
+		return "another name"
+	}
+	names := slices.Clone(cert.DNSNames)
+	for _, ip := range cert.IPAddresses {
+		names = append(names, ip.String())
+	}
+	switch {
+	case len(names) == 0:
+		return "no name a check reads"
+	case len(names) > 3:
+		return strings.Join(names[:3], ", ") + fmt.Sprintf(" and %d more", len(names)-3)
+	}
+	return strings.Join(names, ", ")
 }
 
 // reached names the instance this call reached the way its reader reaches it

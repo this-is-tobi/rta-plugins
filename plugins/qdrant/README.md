@@ -18,14 +18,15 @@ Qdrant: collections, their configuration and index health
 
 Under `plugins: qdrant:` in rta's configuration, or in a profile's `set:`. An installed plugin's section is pinned to the artifact — `plugins: qdrant@<digest>:` — and `rta doctor` prints the exact line. The caller always wins, so a configured value is a default, never a lock.
 
-| Key         | Read by                                                                                                                                 | Help                                                                       |
-|-------------|-----------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------|
-| ca-file     | qdrant.collection.list, qdrant.collection.show, qdrant.dump, qdrant.overview, qdrant.points.count, qdrant.points.scroll, qdrant.restore | PEM bundle to verify the server against, beyond the host's own trust store |
-| collection  | qdrant.collection.show, qdrant.dump, qdrant.points.count, qdrant.points.scroll, qdrant.restore                                          | collection to describe                                                     |
-| count.exact | qdrant.points.count                                                                                                                     | scan for an exact count rather than taking the estimate                    |
-| endpoint    | qdrant.collection.list, qdrant.collection.show, qdrant.dump, qdrant.overview, qdrant.points.count, qdrant.points.scroll, qdrant.restore | Qdrant REST endpoint, host\[:port\]                                        |
-| limit       | qdrant.points.scroll                                                                                                                    | how many points to return                                                  |
-| tls         | qdrant.collection.list, qdrant.collection.show, qdrant.dump, qdrant.overview, qdrant.points.count, qdrant.points.scroll, qdrant.restore | use HTTPS (a local Qdrant ordinarily does not)                             |
+| Key             | Read by                                                                                                                                 | Help                                                                        |
+|-----------------|-----------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
+| ca-file         | qdrant.collection.list, qdrant.collection.show, qdrant.dump, qdrant.overview, qdrant.points.count, qdrant.points.scroll, qdrant.restore | PEM bundle to verify the server against, beyond the host's own trust store  |
+| collection      | qdrant.collection.show, qdrant.dump, qdrant.points.count, qdrant.points.scroll, qdrant.restore                                          | collection to describe                                                      |
+| count.exact     | qdrant.points.count                                                                                                                     | scan for an exact count rather than taking the estimate                     |
+| endpoint        | qdrant.collection.list, qdrant.collection.show, qdrant.dump, qdrant.overview, qdrant.points.count, qdrant.points.scroll, qdrant.restore | Qdrant REST endpoint, host\[:port\]                                         |
+| limit           | qdrant.points.scroll                                                                                                                    | how many points to return                                                   |
+| tls             | qdrant.collection.list, qdrant.collection.show, qdrant.dump, qdrant.overview, qdrant.points.count, qdrant.points.scroll, qdrant.restore | use HTTPS (a local Qdrant ordinarily does not)                              |
+| tls-server-name | qdrant.collection.list, qdrant.collection.show, qdrant.dump, qdrant.overview, qdrant.points.count, qdrant.points.scroll, qdrant.restore | name to check the server's certificate for, in place of the endpoint's host |
 
 ## qdrant.collection.list
 
@@ -35,20 +36,21 @@ Indexed against total is the number worth watching: a collection still building 
 
 Names and counts only, never a point.
 
-| Field          | Value                                                                                                                                                                                                 |
-|----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id             | qdrant.collection.list                                                                                                                                                                                |
-| summary        | Every collection, with its size and index status                                                                                                                                                      |
-| safety         | read                                                                                                                                                                                                  |
-| idempotent     | true                                                                                                                                                                                                  |
-| cli            | rta qdrant collection list \[--endpoint \<string>\] \[--tls \<bool>\] \[--api-key \<secret>\] \[--ca-file \<string>\]                                                                                 |
-| mcp-tool       | qdrant_collection_list                                                                                                                                                                                |
-| profiles       | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow qdrant --profile \<name>\`                                                                  |
-| input:endpoint | string, default 127.0.0.1:6333, local (never offered to MCP callers), from config plugins.qdrant.endpoint, filled by a profile's tunnel (the forward's address) — Qdrant REST endpoint, host\[:port\] |
-| input:tls      | bool, default false, local (never offered to MCP callers), from config plugins.qdrant.tls, filled by a profile's tunnel (the forward's tls) — use HTTPS (a local Qdrant ordinarily does not)          |
-| input:api-key  | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                   |
-| input:ca-file  | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                               |
-| dashboard      | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.collection.list\`, or + on it in the TUI, puts it there, re-run every few seconds                             |
+| Field                 | Value                                                                                                                                                                                                 |
+|-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                    | qdrant.collection.list                                                                                                                                                                                |
+| summary               | Every collection, with its size and index status                                                                                                                                                      |
+| safety                | read                                                                                                                                                                                                  |
+| idempotent            | true                                                                                                                                                                                                  |
+| cli                   | rta qdrant collection list \[--endpoint \<string>\] \[--tls \<bool>\] \[--api-key \<secret>\] \[--ca-file \<string>\] \[--tls-server-name \<string>\]                                                 |
+| mcp-tool              | qdrant_collection_list                                                                                                                                                                                |
+| profiles              | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow qdrant --profile \<name>\`                                                                  |
+| input:endpoint        | string, default 127.0.0.1:6333, local (never offered to MCP callers), from config plugins.qdrant.endpoint, filled by a profile's tunnel (the forward's address) — Qdrant REST endpoint, host\[:port\] |
+| input:tls             | bool, default false, local (never offered to MCP callers), from config plugins.qdrant.tls, filled by a profile's tunnel (the forward's tls) — use HTTPS (a local Qdrant ordinarily does not)          |
+| input:api-key         | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                   |
+| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                               |
+| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                      |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.collection.list\`, or + on it in the TUI, puts it there, re-run every few seconds                             |
 
 ## qdrant.collection.show
 
@@ -58,21 +60,22 @@ The dimension and the distance metric are the two that make a collection incompa
 
 Configuration only, never a point — this describes the shape of the data and returns none of it.
 
-| Field            | Value                                                                                                                                                                                                 |
-|------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id               | qdrant.collection.show                                                                                                                                                                                |
-| summary          | How one collection is configured, and whether its index is built                                                                                                                                      |
-| safety           | read                                                                                                                                                                                                  |
-| idempotent       | true                                                                                                                                                                                                  |
-| cli              | rta qdrant collection show \[--collection \<string>\] \[--endpoint \<string>\] \[--tls \<bool>\] \[--api-key \<secret>\] \[--ca-file \<string>\]                                                      |
-| mcp-tool         | qdrant_collection_show                                                                                                                                                                                |
-| profiles         | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow qdrant --profile \<name>\`                                                                  |
-| input:collection | string, required, completes, from config plugins.qdrant.collection — collection to describe                                                                                                           |
-| input:endpoint   | string, default 127.0.0.1:6333, local (never offered to MCP callers), from config plugins.qdrant.endpoint, filled by a profile's tunnel (the forward's address) — Qdrant REST endpoint, host\[:port\] |
-| input:tls        | bool, default false, local (never offered to MCP callers), from config plugins.qdrant.tls, filled by a profile's tunnel (the forward's tls) — use HTTPS (a local Qdrant ordinarily does not)          |
-| input:api-key    | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                   |
-| input:ca-file    | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                               |
-| dashboard        | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.collection.show\`, or + on it in the TUI, puts it there, re-run every few seconds                             |
+| Field                 | Value                                                                                                                                                                                                 |
+|-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                    | qdrant.collection.show                                                                                                                                                                                |
+| summary               | How one collection is configured, and whether its index is built                                                                                                                                      |
+| safety                | read                                                                                                                                                                                                  |
+| idempotent            | true                                                                                                                                                                                                  |
+| cli                   | rta qdrant collection show \[--collection \<string>\] \[--endpoint \<string>\] \[--tls \<bool>\] \[--api-key \<secret>\] \[--ca-file \<string>\] \[--tls-server-name \<string>\]                      |
+| mcp-tool              | qdrant_collection_show                                                                                                                                                                                |
+| profiles              | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow qdrant --profile \<name>\`                                                                  |
+| input:collection      | string, required, completes, from config plugins.qdrant.collection — collection to describe                                                                                                           |
+| input:endpoint        | string, default 127.0.0.1:6333, local (never offered to MCP callers), from config plugins.qdrant.endpoint, filled by a profile's tunnel (the forward's address) — Qdrant REST endpoint, host\[:port\] |
+| input:tls             | bool, default false, local (never offered to MCP callers), from config plugins.qdrant.tls, filled by a profile's tunnel (the forward's tls) — use HTTPS (a local Qdrant ordinarily does not)          |
+| input:api-key         | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                   |
+| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                               |
+| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                      |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.collection.show\`, or + on it in the TUI, puts it there, re-run every few seconds                             |
 
 ## qdrant.dump
 
@@ -82,22 +85,23 @@ Uses Qdrant's own snapshot API rather than scrolling points out: the snapshot is
 
 Created with O_EXCL at 0600, so an existing file is never written over; a failed run takes its half-written file with it. The receipt says the file is unencrypted, names the restore command, and reports what the collection held when the snapshot was taken.
 
-| Field            | Value                                                                                                                                                                                                 |
-|------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id               | qdrant.dump                                                                                                                                                                                           |
-| summary          | Back up one collection to a snapshot file, for a person at a terminal                                                                                                                                 |
-| safety           | write                                                                                                                                                                                                 |
-| idempotent       | false                                                                                                                                                                                                 |
-| cli              | rta qdrant dump \[--collection \<string>\] \[--out \<path>\] \[--endpoint \<string>\] \[--tls \<bool>\] \[--api-key \<secret>\] \[--ca-file \<string>\]                                               |
-| mcp-tool         | none — for the person at the terminal, never an agent                                                                                                                                                 |
-| profiles         | --profile \<name> runs this against a configured connection                                                                                                                                           |
-| input:collection | string, required, completes, from config plugins.qdrant.collection — collection to dump                                                                                                               |
-| input:out        | path, local (never offered to MCP callers) — file to write; refused if it already exists                                                                                                              |
-| input:endpoint   | string, default 127.0.0.1:6333, local (never offered to MCP callers), from config plugins.qdrant.endpoint, filled by a profile's tunnel (the forward's address) — Qdrant REST endpoint, host\[:port\] |
-| input:tls        | bool, default false, local (never offered to MCP callers), from config plugins.qdrant.tls, filled by a profile's tunnel (the forward's tls) — use HTTPS (a local Qdrant ordinarily does not)          |
-| input:api-key    | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                   |
-| input:ca-file    | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                               |
-| dashboard        | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                          |
+| Field                 | Value                                                                                                                                                                                                 |
+|-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                    | qdrant.dump                                                                                                                                                                                           |
+| summary               | Back up one collection to a snapshot file, for a person at a terminal                                                                                                                                 |
+| safety                | write                                                                                                                                                                                                 |
+| idempotent            | false                                                                                                                                                                                                 |
+| cli                   | rta qdrant dump \[--collection \<string>\] \[--out \<path>\] \[--endpoint \<string>\] \[--tls \<bool>\] \[--api-key \<secret>\] \[--ca-file \<string>\] \[--tls-server-name \<string>\]               |
+| mcp-tool              | none — for the person at the terminal, never an agent                                                                                                                                                 |
+| profiles              | --profile \<name> runs this against a configured connection                                                                                                                                           |
+| input:collection      | string, required, completes, from config plugins.qdrant.collection — collection to dump                                                                                                               |
+| input:out             | path, local (never offered to MCP callers) — file to write; refused if it already exists                                                                                                              |
+| input:endpoint        | string, default 127.0.0.1:6333, local (never offered to MCP callers), from config plugins.qdrant.endpoint, filled by a profile's tunnel (the forward's address) — Qdrant REST endpoint, host\[:port\] |
+| input:tls             | bool, default false, local (never offered to MCP callers), from config plugins.qdrant.tls, filled by a profile's tunnel (the forward's tls) — use HTTPS (a local Qdrant ordinarily does not)          |
+| input:api-key         | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                   |
+| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                               |
+| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                      |
+| dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                          |
 
 ## qdrant.overview
 
@@ -107,21 +111,22 @@ The status column is the one to read. A collection in `yellow` is serving search
 
 Describes collections and returns no point. Reading points is qdrant.points.scroll, and it is a write.
 
-| Field          | Value                                                                                                                                                                                                 |
-|----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id             | qdrant.overview                                                                                                                                                                                       |
-| summary        | What this instance is and what it holds                                                                                                                                                               |
-| safety         | read                                                                                                                                                                                                  |
-| idempotent     | true                                                                                                                                                                                                  |
-| cli            | rta qdrant overview \[--endpoint \<string>\] \[--tls \<bool>\] \[--api-key \<secret>\] \[--ca-file \<string>\] \[--detail\]                                                                           |
-| mcp-tool       | qdrant_overview                                                                                                                                                                                       |
-| profiles       | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow qdrant --profile \<name>\`                                                                  |
-| input:endpoint | string, default 127.0.0.1:6333, local (never offered to MCP callers), from config plugins.qdrant.endpoint, filled by a profile's tunnel (the forward's address) — Qdrant REST endpoint, host\[:port\] |
-| input:tls      | bool, default false, local (never offered to MCP callers), from config plugins.qdrant.tls, filled by a profile's tunnel (the forward's tls) — use HTTPS (a local Qdrant ordinarily does not)          |
-| input:api-key  | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                   |
-| input:ca-file  | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                               |
-| dashboard      | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.overview\`, or + on it in the TUI, puts it there, re-run every few seconds                                    |
-| input:detail   | bool, default false — return the full detailed view instead of the compact summary                                                                                                                    |
+| Field                 | Value                                                                                                                                                                                                 |
+|-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                    | qdrant.overview                                                                                                                                                                                       |
+| summary               | What this instance is and what it holds                                                                                                                                                               |
+| safety                | read                                                                                                                                                                                                  |
+| idempotent            | true                                                                                                                                                                                                  |
+| cli                   | rta qdrant overview \[--endpoint \<string>\] \[--tls \<bool>\] \[--api-key \<secret>\] \[--ca-file \<string>\] \[--tls-server-name \<string>\] \[--detail\]                                           |
+| mcp-tool              | qdrant_overview                                                                                                                                                                                       |
+| profiles              | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow qdrant --profile \<name>\`                                                                  |
+| input:endpoint        | string, default 127.0.0.1:6333, local (never offered to MCP callers), from config plugins.qdrant.endpoint, filled by a profile's tunnel (the forward's address) — Qdrant REST endpoint, host\[:port\] |
+| input:tls             | bool, default false, local (never offered to MCP callers), from config plugins.qdrant.tls, filled by a profile's tunnel (the forward's tls) — use HTTPS (a local Qdrant ordinarily does not)          |
+| input:api-key         | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                   |
+| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                               |
+| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                      |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.overview\`, or + on it in the TUI, puts it there, re-run every few seconds                                    |
+| input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                                    |
 
 ## qdrant.points.count
 
@@ -131,22 +136,23 @@ Exact costs a scan on a large collection, and that is the trade being made rathe
 
 A number, never a point. This is the read tier — it says how much is there and nothing about what it is.
 
-| Field            | Value                                                                                                                                                                                                 |
-|------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id               | qdrant.points.count                                                                                                                                                                                   |
-| summary          | How many points a collection holds, exactly                                                                                                                                                           |
-| safety           | read                                                                                                                                                                                                  |
-| idempotent       | true                                                                                                                                                                                                  |
-| cli              | rta qdrant points count \[--collection \<string>\] \[--exact \<bool>\] \[--endpoint \<string>\] \[--tls \<bool>\] \[--api-key \<secret>\] \[--ca-file \<string>\]                                     |
-| mcp-tool         | qdrant_points_count                                                                                                                                                                                   |
-| profiles         | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow qdrant --profile \<name>\`                                                                  |
-| input:collection | string, required, completes, from config plugins.qdrant.collection — collection to count                                                                                                              |
-| input:exact      | bool, default true, from config plugins.qdrant.count.exact — scan for an exact count rather than taking the estimate                                                                                  |
-| input:endpoint   | string, default 127.0.0.1:6333, local (never offered to MCP callers), from config plugins.qdrant.endpoint, filled by a profile's tunnel (the forward's address) — Qdrant REST endpoint, host\[:port\] |
-| input:tls        | bool, default false, local (never offered to MCP callers), from config plugins.qdrant.tls, filled by a profile's tunnel (the forward's tls) — use HTTPS (a local Qdrant ordinarily does not)          |
-| input:api-key    | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                   |
-| input:ca-file    | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                               |
-| dashboard        | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.points.count\`, or + on it in the TUI, puts it there, re-run every few seconds                                |
+| Field                 | Value                                                                                                                                                                                                 |
+|-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                    | qdrant.points.count                                                                                                                                                                                   |
+| summary               | How many points a collection holds, exactly                                                                                                                                                           |
+| safety                | read                                                                                                                                                                                                  |
+| idempotent            | true                                                                                                                                                                                                  |
+| cli                   | rta qdrant points count \[--collection \<string>\] \[--exact \<bool>\] \[--endpoint \<string>\] \[--tls \<bool>\] \[--api-key \<secret>\] \[--ca-file \<string>\] \[--tls-server-name \<string>\]     |
+| mcp-tool              | qdrant_points_count                                                                                                                                                                                   |
+| profiles              | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow qdrant --profile \<name>\`                                                                  |
+| input:collection      | string, required, completes, from config plugins.qdrant.collection — collection to count                                                                                                              |
+| input:exact           | bool, default true, from config plugins.qdrant.count.exact — scan for an exact count rather than taking the estimate                                                                                  |
+| input:endpoint        | string, default 127.0.0.1:6333, local (never offered to MCP callers), from config plugins.qdrant.endpoint, filled by a profile's tunnel (the forward's address) — Qdrant REST endpoint, host\[:port\] |
+| input:tls             | bool, default false, local (never offered to MCP callers), from config plugins.qdrant.tls, filled by a profile's tunnel (the forward's tls) — use HTTPS (a local Qdrant ordinarily does not)          |
+| input:api-key         | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                   |
+| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                               |
+| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                      |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.points.count\`, or + on it in the TUI, puts it there, re-run every few seconds                                |
 
 ## qdrant.points.scroll
 
@@ -160,25 +166,26 @@ It also needs a grant naming it, which is available because this names one colle
 
 The read tier — qdrant.collection.show and qdrant.points.count — describes a collection and counts it, which is usually the question and costs none of this.
 
-| Field                | Value                                                                                                                                                                                                          |
-|----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id                   | qdrant.points.scroll                                                                                                                                                                                           |
-| summary              | Read points out of a collection                                                                                                                                                                                |
-| safety               | write                                                                                                                                                                                                          |
-| idempotent           | true                                                                                                                                                                                                           |
-| cli                  | rta qdrant points scroll \[--collection \<string>\] \[--limit \<int>\] \[--offset \<string>\] \[--vectors \<bool>\] \[--endpoint \<string>\] \[--tls \<bool>\] \[--api-key \<secret>\] \[--ca-file \<string>\] |
-| mcp-tool             | qdrant_points_scroll                                                                                                                                                                                           |
-| grant required (mcp) | yes — a person must run \`rta grant allow qdrant.points.scroll\`, optionally naming one collection                                                                                                             |
-| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow qdrant --profile \<name>\`                                                                           |
-| input:collection     | string, required, completes, from config plugins.qdrant.collection — collection to read from                                                                                                                   |
-| input:limit          | int, default 10, a value from 1 to 1000, from config plugins.qdrant.limit — how many points to return                                                                                                          |
-| input:offset         | string, default  — continue from the id the last page ended at                                                                                                                                                 |
-| input:vectors        | bool, default false — include the raw vectors — a second decision, see the description                                                                                                                         |
-| input:endpoint       | string, default 127.0.0.1:6333, local (never offered to MCP callers), from config plugins.qdrant.endpoint, filled by a profile's tunnel (the forward's address) — Qdrant REST endpoint, host\[:port\]          |
-| input:tls            | bool, default false, local (never offered to MCP callers), from config plugins.qdrant.tls, filled by a profile's tunnel (the forward's tls) — use HTTPS (a local Qdrant ordinarily does not)                   |
-| input:api-key        | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                            |
-| input:ca-file        | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                        |
-| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                   |
+| Field                 | Value                                                                                                                                                                                                                                          |
+|-----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                    | qdrant.points.scroll                                                                                                                                                                                                                           |
+| summary               | Read points out of a collection                                                                                                                                                                                                                |
+| safety                | write                                                                                                                                                                                                                                          |
+| idempotent            | true                                                                                                                                                                                                                                           |
+| cli                   | rta qdrant points scroll \[--collection \<string>\] \[--limit \<int>\] \[--offset \<string>\] \[--vectors \<bool>\] \[--endpoint \<string>\] \[--tls \<bool>\] \[--api-key \<secret>\] \[--ca-file \<string>\] \[--tls-server-name \<string>\] |
+| mcp-tool              | qdrant_points_scroll                                                                                                                                                                                                                           |
+| grant required (mcp)  | yes — a person must run \`rta grant allow qdrant.points.scroll\`, optionally naming one collection                                                                                                                                             |
+| profiles              | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow qdrant --profile \<name>\`                                                                                                           |
+| input:collection      | string, required, completes, from config plugins.qdrant.collection — collection to read from                                                                                                                                                   |
+| input:limit           | int, default 10, a value from 1 to 1000, from config plugins.qdrant.limit — how many points to return                                                                                                                                          |
+| input:offset          | string, default  — continue from the id the last page ended at                                                                                                                                                                                 |
+| input:vectors         | bool, default false — include the raw vectors — a second decision, see the description                                                                                                                                                         |
+| input:endpoint        | string, default 127.0.0.1:6333, local (never offered to MCP callers), from config plugins.qdrant.endpoint, filled by a profile's tunnel (the forward's address) — Qdrant REST endpoint, host\[:port\]                                          |
+| input:tls             | bool, default false, local (never offered to MCP callers), from config plugins.qdrant.tls, filled by a profile's tunnel (the forward's tls) — use HTTPS (a local Qdrant ordinarily does not)                                                   |
+| input:api-key         | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                                                            |
+| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                        |
+| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                                                               |
+| dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                                                   |
 
 ## qdrant.restore
 
@@ -188,20 +195,21 @@ The other half of qdrant.dump — the file back into a collection. **Refuses MCP
 
 Recovery is the server's own: the snapshot carries the collection's config and indexes, and priority=snapshot makes the file the authority — without it a distributed deployment prefers what its replicas already hold, which is a restore that reports success and restores nothing. The receipt reports what the collection holds afterwards, read back rather than assumed.
 
-| Field            | Value                                                                                                                                                                                                 |
-|------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id               | qdrant.restore                                                                                                                                                                                        |
-| summary          | Restore a qdrant.dump snapshot into a collection, for a person at a terminal                                                                                                                          |
-| safety           | destructive                                                                                                                                                                                           |
-| idempotent       | false                                                                                                                                                                                                 |
-| cli              | rta qdrant restore \<file> \[--collection \<string>\] \[--replace \<bool>\] \[--endpoint \<string>\] \[--tls \<bool>\] \[--api-key \<secret>\] \[--ca-file \<string>\]                                |
-| mcp-tool         | none — for the person at the terminal, never an agent                                                                                                                                                 |
-| profiles         | --profile \<name> runs this against a configured connection                                                                                                                                           |
-| input:collection | string, required, completes, from config plugins.qdrant.collection — collection to restore into (created if missing)                                                                                  |
-| input:file       | path, required, local (never offered to MCP callers) — the snapshot to restore — what qdrant.dump wrote                                                                                               |
-| input:replace    | bool — hand a collection that already holds points over to the snapshot                                                                                                                               |
-| input:endpoint   | string, default 127.0.0.1:6333, local (never offered to MCP callers), from config plugins.qdrant.endpoint, filled by a profile's tunnel (the forward's address) — Qdrant REST endpoint, host\[:port\] |
-| input:tls        | bool, default false, local (never offered to MCP callers), from config plugins.qdrant.tls, filled by a profile's tunnel (the forward's tls) — use HTTPS (a local Qdrant ordinarily does not)          |
-| input:api-key    | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                   |
-| input:ca-file    | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                               |
-| dashboard        | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                          |
+| Field                 | Value                                                                                                                                                                                                  |
+|-----------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                    | qdrant.restore                                                                                                                                                                                         |
+| summary               | Restore a qdrant.dump snapshot into a collection, for a person at a terminal                                                                                                                           |
+| safety                | destructive                                                                                                                                                                                            |
+| idempotent            | false                                                                                                                                                                                                  |
+| cli                   | rta qdrant restore \<file> \[--collection \<string>\] \[--replace \<bool>\] \[--endpoint \<string>\] \[--tls \<bool>\] \[--api-key \<secret>\] \[--ca-file \<string>\] \[--tls-server-name \<string>\] |
+| mcp-tool              | none — for the person at the terminal, never an agent                                                                                                                                                  |
+| profiles              | --profile \<name> runs this against a configured connection                                                                                                                                            |
+| input:collection      | string, required, completes, from config plugins.qdrant.collection — collection to restore into (created if missing)                                                                                   |
+| input:file            | path, required, local (never offered to MCP callers) — the snapshot to restore — what qdrant.dump wrote                                                                                                |
+| input:replace         | bool — hand a collection that already holds points over to the snapshot                                                                                                                                |
+| input:endpoint        | string, default 127.0.0.1:6333, local (never offered to MCP callers), from config plugins.qdrant.endpoint, filled by a profile's tunnel (the forward's address) — Qdrant REST endpoint, host\[:port\]  |
+| input:tls             | bool, default false, local (never offered to MCP callers), from config plugins.qdrant.tls, filled by a profile's tunnel (the forward's tls) — use HTTPS (a local Qdrant ordinarily does not)           |
+| input:api-key         | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                    |
+| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                |
+| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                       |
+| dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                           |
