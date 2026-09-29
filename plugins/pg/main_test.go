@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"testing"
@@ -172,6 +173,48 @@ func TestSSLRootCertIsRefusedBesideAModeThatDoesNotVerify(t *testing.T) {
 		}
 		if got := checkRootCert(req(t, map[string]any{"sslmode": mode})); got != nil {
 			t.Errorf("sslmode %s with no CA: refused as %s", mode, got.Code)
+		}
+	}
+}
+
+// system is this machine's whole trust store, taken beside verify-full alone:
+// libpq refuses it beside anything weaker, and pgx turns the weaker mode into
+// verify-full unasked. disable stands, as beside a file, since a tunnel
+// forces it; TestDisableLeavesTheCAOutOfTheConnection covers what follows.
+func TestTheSystemStoreIsTakenBesideVerifyFullAlone(t *testing.T) {
+	for _, mode := range []string{"prefer", "require", "verify-ca"} {
+		got := checkRootCert(req(t, map[string]any{"sslmode": mode, "sslrootcert": "system"}))
+		if got == nil || got.Code != "pg.tls.ca.system" || !strings.Contains(got.Message, "--sslmode verify-full") {
+			t.Errorf("sslmode %s beside the system store: %v, want pg.tls.ca.system naming verify-full", mode, got)
+		}
+	}
+	if got := checkRootCert(req(t, map[string]any{"sslmode": "verify-full", "sslrootcert": "system"})); got != nil {
+		t.Errorf("verify-full beside the system store: refused as %s", got.Code)
+	}
+	got := classify(x509.UnknownAuthorityError{},
+		req(t, map[string]any{"sslmode": "verify-full", "sslrootcert": "system"}))
+	if !strings.Contains(got.Hint, "no CA in this machine's trust store") {
+		t.Errorf("an untrusted certificate beside the system store: %q, want it named as the store", got.Hint)
+	}
+}
+
+// disable reads no CA, and is what a tunnel forces beside whatever the config
+// names for direct connections, so the CA stays out of the connection: pgx
+// reads a named file before it looks at the mode, and turns disable into
+// verify-full beside system, and libpq refuses system beside disable.
+func TestDisableLeavesTheCAOutOfTheConnection(t *testing.T) {
+	for _, ca := range []string{"system", "/nonexistent/ca.pem"} {
+		values := map[string]any{"sslmode": "disable", "sslrootcert": ca}
+		if got := checkRootCert(req(t, values)); got != nil {
+			t.Errorf("%s beside disable: refused as %s", ca, got.Code)
+		}
+		if got := dsn(req(t, values)); strings.Contains(got, "sslrootcert") {
+			t.Errorf("%s beside disable reached the driver: %s", ca, got)
+		}
+		if env := childEnv(reqFor(t, "pg.dump", values)); slices.ContainsFunc(env, func(kv string) bool {
+			return strings.HasPrefix(kv, "PGSSLROOTCERT=")
+		}) {
+			t.Errorf("%s beside disable reached the child: %v", ca, env)
 		}
 	}
 }

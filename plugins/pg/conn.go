@@ -111,9 +111,9 @@ func connFields() []plugin.Field {
 		// leaving it silently inert.
 		{Name: "sslrootcert", Type: plugin.String, Default: "", Config: "sslrootcert",
 			Local: true, TLSAdjacent: true,
-			Help: "CA bundle to verify the server against — read by verify-ca and verify-full, " +
-				"refused beside prefer and require, and overridden along with sslmode " +
-				"under a kube:/ssh: tunnel"},
+			Help: "CA bundle to verify the server against, or system for this machine's own store — " +
+				"read by verify-ca and verify-full (system by verify-full alone), refused beside prefer " +
+				"and require, and overridden along with sslmode under a kube:/ssh: tunnel"},
 	}
 }
 
@@ -165,7 +165,12 @@ func dsn(req plugin.Request) string {
 	if pw := req.String("password"); pw != "" {
 		parts = append(parts, "password="+quote(pw))
 	}
-	if ca := req.String("sslrootcert"); ca != "" {
+	// Left out under disable, which reads no CA: given one there, pgx reads
+	// the file before it looks at the mode, so one that was not there failed
+	// a connection that would never have used it, and given system it turns
+	// disable into verify-full. disable is what a tunnel forces, beside
+	// whatever the config names for connecting directly.
+	if ca := req.String("sslrootcert"); ca != "" && req.String("sslmode") != "disable" {
 		parts = append(parts, "sslrootcert="+quote(ca))
 	}
 	return strings.Join(parts, " ")
@@ -196,11 +201,29 @@ func dsn(req plugin.Request) string {
 // the same check with its name on it, and it fails closed without a CA.
 // Which is also plugins/mysql's rule: a CA beside a mode that does not
 // itself verify is refused, never taken as a reason for the mode to change.
+//
+// system, libpq's word for this machine's own trust store rather than a
+// file, is taken beside verify-full alone, as libpq takes it. Every public
+// CA in that store issues certificates to anyone for a name they control, so
+// a check that skips the name accepts all of them; libpq refuses the pair
+// outright, and pgx turns any mode beside it into verify-full unasked.
+// Between a child that refused and a connection that changed mode, the
+// refusal is the one both can keep. disable stands beside it as beside a
+// file, since a tunnel forces disable whatever the config names for direct
+// connections, and dsn leaves the CA out of a connection that reads none.
 func checkRootCert(req plugin.Request) *view.Error {
-	if req.String("sslrootcert") == "" {
+	ca := req.String("sslrootcert")
+	if ca == "" {
 		return nil
 	}
 	sf := req.Surface()
+	if mode := req.String("sslmode"); ca == "system" && mode != "verify-full" && mode != "disable" {
+		return view.Errorf("pg.tls.ca.system", "%s trusts every CA this machine does, and is taken beside %s alone",
+			settingTo(sf, "sslrootcert", "system"), settingTo(sf, "sslmode", "verify-full")).
+			WithHint("a certificate from any of them is had for any name its holder controls, so only the " +
+				"mode that checks the name makes it mean anything. A CA of the server's own belongs in " +
+				setting(sf, "sslrootcert") + " as a file, which verify-ca reads too")
+	}
 	switch mode := req.String("sslmode"); mode {
 	case "prefer":
 		return view.Errorf("pg.tls.ca.unused", "%s names a CA, and %s never verifies against one",
@@ -324,12 +347,17 @@ func classify(err error, req plugin.Request) *view.Error {
 	// require, is refused beside sslrootcert now.
 	if untrusted(err) {
 		refused := view.Errorf("pg.tls.untrusted", "%s presented a certificate nothing here trusts", where)
-		if ca := req.String("sslrootcert"); ca != "" {
+		switch ca := req.String("sslrootcert"); ca {
+		case "":
+			return refused.WithHint("a tunnelled PostgreSQL commonly has its own operator- or cluster-generated CA, " +
+				"and it belongs in " + setting(sf, "sslrootcert") + " — a self-signed certificate is its own CA")
+		case "system":
+			return refused.WithHint("no CA in this machine's trust store, which " + settingTo(sf, "sslrootcert", "system") +
+				" names, issued it — a server with a CA of its own wants that CA's file in " + setting(sf, "sslrootcert"))
+		default:
 			return refused.WithHint(ca + ", which " + setting(sf, "sslrootcert") + " names, does not hold " +
 				"the CA that issued it — a self-signed certificate is its own CA")
 		}
-		return refused.WithHint("a tunnelled PostgreSQL commonly has its own operator- or cluster-generated CA, " +
-			"and it belongs in " + setting(sf, "sslrootcert") + " — a self-signed certificate is its own CA")
 	}
 	return view.Errorf("pg.conn.failed", "could not connect to %s: %v", where, err).
 		WithHint(explainHint(sf, "pg.status"))
