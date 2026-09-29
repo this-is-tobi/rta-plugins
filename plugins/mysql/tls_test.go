@@ -15,6 +15,7 @@ import (
 	stdnet "net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -353,28 +354,88 @@ func TestACAFileIsRefusedBesideAModeThatNeverVerifies(t *testing.T) {
 	}
 }
 
+// verify-ca checks the chain against ca-file and not the name: the one
+// verified way to the certificate a server generates for itself, which names
+// no host for true to check, and which only skip-verify reached before, by
+// checking nothing. The chain still counts: a CA that did not issue the
+// certificate is refused as untrusted, the file named.
+func TestVerifyCAChecksTheChainAndNotTheName(t *testing.T) {
+	ca := newPrivateCA(t)
+	caFile := writeFile(t, "ca.pem", ca.pem)
+	generated := ca.certFor(t, "MySQL_Server_Auto_Generated_Server_Certificate", nil)
+	for name, cert := range map[string]tls.Certificate{
+		"no name":      generated,
+		"another name": ca.certFor(t, "db.internal", nil, "db.internal"),
+	} {
+		db, verr := connect(context.Background(), req(t, "mysql.status", map[string]any{
+			"host": "127.0.0.1", "port": tlsServer(t, cert), "tls": "verify-ca", "ca-file": caFile,
+		}))
+		if verr != nil {
+			t.Errorf("%s: the chain verified and the connection was refused: %s: %s", name, verr.Code, verr.Message)
+			continue
+		}
+		_ = db.Close()
+	}
+	other := writeFile(t, "other-ca.pem", newPrivateCA(t).pem)
+	_, verr := connect(context.Background(), req(t, "mysql.status", map[string]any{
+		"host": "127.0.0.1", "port": tlsServer(t, generated), "tls": "verify-ca", "ca-file": other,
+	}))
+	if verr == nil || verr.Code != "mysql.tls.untrusted" || !strings.Contains(verr.Hint, other) {
+		t.Errorf("a CA that did not issue it: %v, want mysql.tls.untrusted naming %s", verr, other)
+	}
+}
+
+// verify-ca with no ca-file is refused rather than checked against this
+// machine's own store, where a chain that ends at any public CA and a name
+// nobody checks would pass for any server. Before anything dials, and before
+// a dry run describes a child that could not be told what to verify against.
+func TestVerifyCAWithoutACAIsRefused(t *testing.T) {
+	_, verr := connect(context.Background(), req(t, "mysql.status", map[string]any{
+		"host": "127.0.0.1", "port": 1, "tls": "verify-ca",
+	}))
+	if verr == nil || verr.Code != "mysql.tls.ca.missing" || !strings.Contains(verr.Hint, "--ca-file names it") {
+		t.Fatalf("err = %v, want mysql.tls.ca.missing naming --ca-file", verr)
+	}
+	dry := func(id string, values map[string]any) plugin.Request {
+		values["database"], values["tls"] = "app", "verify-ca"
+		return plugin.NewRequest(plugin.Resolve(capabilityByID(t, id), plugin.Inputs{Caller: values}), true, false)
+	}
+	dump := dry("mysql.dump", map[string]any{"out": filepath.Join(t.TempDir(), "app.sql")})
+	restore := dry("mysql.restore", map[string]any{"file": writeFile(t, "app.sql", []byte("select 1;\n"))})
+	for name, run := range map[string]func() error{
+		"dump":    func() error { _, err := runDump(context.Background(), dump); return err },
+		"restore": func() error { _, err := runRestore(context.Background(), restore); return err },
+	} {
+		var verr *view.Error
+		if err := run(); !errors.As(err, &verr) || verr.Code != "mysql.tls.ca.missing" {
+			t.Errorf("%s dry run: err = %v, want mysql.tls.ca.missing", name, err)
+		}
+	}
+}
+
 // The dump and the restore verify the server against the CA the pre-flight
 // connection did: the child is handed it as --ssl-ca, resolved as this
 // process resolved it, and the restore line a dump's receipt prints carries
 // it beside true, so the line does not refuse the server the dump verified.
 func TestTheCAGoesWhereverTheConnectionDoes(t *testing.T) {
 	home, _ := os.UserHomeDir()
-	values := map[string]any{"host": "db.internal", "database": "app", "tls": "true", "ca-file": "~/ca.pem"}
 	want := filepath.Join(home, "ca.pem")
-	verifying := strings.Join(tlsArgs(req(t, "mysql.dump", map[string]any{"tls": "true"})), " ")
-	for name, args := range map[string][]string{
-		"dump":    dumpArgs(req(t, "mysql.dump", values)),
-		"restore": restoreArgs(req(t, "mysql.restore", values)),
-	} {
-		if !strings.Contains(strings.Join(args, " "), verifying+" --ssl-ca="+want) {
-			t.Errorf("%s: argv = %q, want --ssl-ca=%s beside %s", name, args, want, verifying)
+	for _, mode := range []string{"true", "verify-ca"} {
+		values := map[string]any{"host": "db.internal", "database": "app", "tls": mode, "ca-file": "~/ca.pem"}
+		for name, args := range map[string][]string{
+			"dump":    dumpArgs(req(t, "mysql.dump", values)),
+			"restore": restoreArgs(req(t, "mysql.restore", values)),
+		} {
+			if !slices.Contains(args, "--ssl-ca="+want) {
+				t.Errorf("tls %s, %s: argv = %q, want --ssl-ca=%s", mode, name, args, want)
+			}
+		}
+		line := restoreCommand(req(t, "mysql.dump", values), "/backups/app.sql")
+		if !strings.Contains(line, "--tls "+mode+" --ca-file "+want) {
+			t.Errorf("restore line = %q, want --ca-file %s beside --tls %s", line, want, mode)
 		}
 	}
-	line := restoreCommand(req(t, "mysql.dump", values), "/backups/app.sql")
-	if !strings.Contains(line, "--tls true --ca-file "+want) {
-		t.Errorf("restore line = %q, want --ca-file %s beside --tls true", line, want)
-	}
-	values["ca-file"] = ""
+	values := map[string]any{"host": "db.internal", "database": "app", "tls": "true", "ca-file": ""}
 	if line := restoreCommand(req(t, "mysql.dump", values), "/backups/app.sql"); strings.Contains(line, "--ca-file") {
 		t.Errorf("restore line = %q names a CA nobody gave", line)
 	}

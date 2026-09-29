@@ -313,14 +313,15 @@ func dumpArgs(req plugin.Request) []string {
 // tlsArgs maps the plugin's tls input — go-sql-driver's vocabulary, shared
 // with every in-process capability here — onto mysqldump/mysql's --ssl-mode.
 // The mapping is by *meaning*: "true" verifies the server is who it claims
-// (VERIFY_IDENTITY, the driver's own behaviour for true), "skip-verify"
+// (VERIFY_IDENTITY, the driver's own behaviour for true), "verify-ca" its
+// chain alone (VERIFY_CA, which is where the name came from), "skip-verify"
 // encrypts without verifying (REQUIRED), "preferred" is the client default
 // and passes nothing.
 //
-// ca-file goes with true as --ssl-ca, the CA the child verifies against, so
-// the dump verifies the server the pre-flight connection did. It is only
-// ever beside true: tlsConfig refuses it beside the two modes that never
-// verify, before any child is described.
+// ca-file goes with true and verify-ca as --ssl-ca, the CA the child verifies
+// against, so the dump verifies the server the pre-flight connection did. It
+// is only ever beside those two: tlsConfig refuses it beside the two modes
+// that never verify, and verify-ca without it, before any child is described.
 func tlsArgs(req plugin.Request) []string {
 	switch req.String("tls") {
 	case "false":
@@ -330,6 +331,8 @@ func tlsArgs(req plugin.Request) []string {
 			return []string{"--ssl-mode=VERIFY_IDENTITY", "--ssl-ca=" + ca}
 		}
 		return []string{"--ssl-mode=VERIFY_IDENTITY"}
+	case "verify-ca":
+		return []string{"--ssl-mode=VERIFY_CA", "--ssl-ca=" + caFile(req)}
 	case "skip-verify":
 		return []string{"--ssl-mode=REQUIRED"}
 	}
@@ -461,19 +464,19 @@ func noCA(sf plugin.Surface, line string) *view.Error {
 // restoreCommand names the other half. A backup capability that does not say
 // how to restore is the shape of every backup that turned out not to be one.
 //
-// **tls travels when the dump insisted on it** — true, which verifies, and
-// skip-verify, which at least never falls back to plaintext. Left out, the
-// line connected however the config where it was pasted said, preferred on a
-// machine with none: a dump taken over a verified connection printed a
-// restore that sent the password to a server nothing had verified, or in the
-// clear to one that offered no TLS. A looser tls stays off the line — the
-// default is at least as protected, a stricter config there still wins, and
-// false is what a tunnel forces for the forward alone, which a line that
+// **tls travels when the dump insisted on it** — true and verify-ca, which
+// verify, and skip-verify, which at least never falls back to plaintext. Left
+// out, the line connected however the config where it was pasted said,
+// preferred on a machine with none: a dump taken over a verified connection
+// printed a restore that sent the password to a server nothing had verified,
+// or in the clear to one that offered no TLS. A looser tls stays off the line —
+// the default is at least as protected, a stricter config there still wins,
+// and false is what a tunnel forces for the forward alone, which a line that
 // spelled it would carry to a restore with no tunnel. Never the password.
 //
-// ca-file travels beside true, the one mode that reads it. Left off, the
-// line would verify against whatever the machine it is pasted on trusts, and
-// refuse the server this dump verified against its own CA.
+// ca-file travels beside true and verify-ca, the modes that read it. Left
+// off, the line would verify against whatever the machine it is pasted on
+// trusts, and refuse the server this dump verified against its own CA.
 func restoreCommand(req plugin.Request, path string) string {
 	args := []plugin.Arg{
 		{Name: "file", Value: path, Positional: true},
@@ -482,9 +485,9 @@ func restoreCommand(req plugin.Request, path string) string {
 		{Name: "user", Value: req.String("user")},
 		{Name: "database", Value: req.String("database")},
 	}
-	if mode := req.String("tls"); mode == "true" || mode == "skip-verify" {
+	if mode := req.String("tls"); mode == "true" || mode == "verify-ca" || mode == "skip-verify" {
 		args = append(args, plugin.Arg{Name: "tls", Value: mode})
-		if ca := caFile(req); mode == "true" && ca != "" {
+		if ca := caFile(req); mode != "skip-verify" && ca != "" {
 			args = append(args, plugin.Arg{Name: "ca-file", Value: ca})
 		}
 	}

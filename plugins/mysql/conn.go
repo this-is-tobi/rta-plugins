@@ -63,17 +63,26 @@ func connFields() []plugin.Field {
 		// `preferred` is the default for the reason pg defaults to `prefer`:
 		// it uses TLS when the server offers it and does not fail against the
 		// local container somebody is trying this against first.
+		//
+		// verify-ca is pg's verify-ca and MySQL's own VERIFY_CA: the chain
+		// checked against ca-file, and not the name. It is the one verified
+		// way to the certificate a server generates for itself, which names no
+		// host for true to check, so without it that server could be reached
+		// only by skip-verify, which checks nothing at all. The go-sql-driver
+		// has no word for it; tlsConfig builds it, and refuses it without a
+		// ca-file to check against.
 		{Name: "tls", Type: plugin.String, Default: "preferred", Config: "tls",
 			Local:    true,
 			Endpoint: plugin.EndpointTLS,
-			Options:  []string{"false", "preferred", "true", "skip-verify"},
-			Help:     "TLS negotiation mode"},
-		// The CA true verifies against. Without it a server whose
-		// certificate a private CA issued — an operator's own root, a
+			Options:  []string{"false", "preferred", "true", "skip-verify", "verify-ca"},
+			Help:     "TLS negotiation mode — verify-ca checks the chain against ca-file and not the name"},
+		// The CA true and verify-ca verify against. Without it a server
+		// whose certificate a private CA issued — an operator's own root, a
 		// cluster's issuer — could be reached only by skip-verify, which
-		// encrypts and checks nothing. Not the way to the certificate a server
-		// generates for itself, which names no host for true to verify it as;
-		// classify's mysql.tls.name says so.
+		// encrypts and checks nothing. For a certificate a server generated
+		// for itself, the CA it was generated with, or the certificate when
+		// it is self-signed, and verify-ca: such a certificate names no host
+		// for true to verify it as, which classify's mysql.tls.name says.
 		//
 		// Local for the reason every ca-file in these plugins is: it names a
 		// file on this machine that rta then reads, and a path a caller could
@@ -81,13 +90,13 @@ func connFields() []plugin.Field {
 		// certificate is the public half, the one handed out so anyone can
 		// verify what it signed.
 		//
-		// **Read by true alone, and never a reason for tls to change.**
-		// preferred and skip-verify negotiate TLS and verify nothing, so a CA
-		// named beside either would read as a verified connection and be
-		// none; tlsConfig refuses the pair rather than elevate the mode on
-		// the operator's behalf, which would be a second, unwritten way tls
-		// gets its value. false is left to stand: it negotiates nothing a CA
-		// could verify, and it is what a tunnel forces.
+		// **Read by true and verify-ca alone, and never a reason for tls to
+		// change.** preferred and skip-verify negotiate TLS and verify
+		// nothing, so a CA named beside either would read as a verified
+		// connection and be none; tlsConfig refuses the pair rather than
+		// elevate the mode on the operator's behalf, which would be a second,
+		// unwritten way tls gets its value. false is left to stand: it
+		// negotiates nothing a CA could verify, and it is what a tunnel forces.
 		//
 		// TLSAdjacent for that last fact — see pg's sslrootcert, the other
 		// input beside a mode a tunnel turns off. The host then refuses a
@@ -95,7 +104,7 @@ func connFields() []plugin.Field {
 		// inert.
 		{Name: "ca-file", Type: plugin.String, Default: "", Config: "ca-file",
 			Local: true, TLSAdjacent: true,
-			Help: "PEM bundle to verify the server against — read when tls is true, and " +
+			Help: "PEM bundle to verify the server against — read when tls is true or verify-ca, and " +
 				"overridden along with tls under a kube:/ssh: tunnel"},
 		{Name: "password", Type: plugin.Secret, Local: true, EnvFallback: true,
 			Help: "password for the user"},
@@ -122,7 +131,9 @@ func driverConfig(req plugin.Request) (*mysql.Config, *view.Error) {
 	c.TLSConfig = req.String("tls")
 	// Nil, and the driver builds the tls.Config TLSConfig spells, unless
 	// ca-file names a CA. Set, it outranks TLSConfig, and the driver still
-	// takes the name to verify from the address, as it does for true.
+	// takes the name to verify from the address, as it does for true. Always
+	// set for verify-ca, a word the driver would refuse as a config name it
+	// does not know: tlsConfig refuses verify-ca with no CA before this.
 	tlsCfg, verr := tlsConfig(req)
 	if verr != nil {
 		return nil, verr
@@ -156,6 +167,13 @@ func connect(ctx context.Context, req plugin.Request) (*sql.DB, *view.Error) {
 	if verr != nil {
 		return nil, verr
 	}
+	return open(ctx, req, cfg)
+}
+
+// open is connect for a configuration already built, for a caller that has
+// something to add to it before it dials: a record of the certificate a
+// verify-ca connection verified, for one.
+func open(ctx context.Context, req plugin.Request, cfg *mysql.Config) (*sql.DB, *view.Error) {
 	connector, err := mysql.NewConnector(cfg)
 	if err != nil {
 		return nil, view.Errorf("mysql.conn.invalid", "%v", err).
@@ -182,21 +200,33 @@ func connect(ctx context.Context, req plugin.Request) (*sql.DB, *view.Error) {
 //
 // Refused before anything dials, and before a dump or a restore's dry run
 // describes a child that would be refused the same way: a file that cannot
-// be read or holds no certificate, and a CA named beside a mode that would
-// never read it.
+// be read or holds no certificate, a CA named beside a mode that would never
+// read it, and verify-ca with none named.
+//
+// verify-ca with no ca-file is refused rather than checked against this
+// machine's own store. Every public CA in it issues certificates to anyone
+// for a name they control, so a chain that ends there and a name nobody
+// checks accept all of them — a check that could pass for any server at all.
 func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
-	path := caFile(req)
+	path, sf, mode := caFile(req), req.Surface(), req.String("tls")
 	if path == "" {
+		if mode == "verify-ca" {
+			return nil, view.Errorf("mysql.tls.ca.missing", "%s checks the server's chain against the CA %s names, "+
+				"and it names none", settingTo(sf, "tls", mode), setting(sf, "ca-file")).
+				WithHint(setting(sf, "ca-file") + " names it: the CA that issued the server's certificate, or the " +
+					"certificate itself when it is self-signed. " + settingTo(sf, "tls", "true") +
+					" checks against this machine's own CAs instead, the server's name included")
+		}
 		return nil, nil
 	}
-	sf := req.Surface()
-	switch mode := req.String("tls"); mode {
+	switch mode {
 	case "false":
 		return nil, nil
 	case "preferred", "skip-verify":
 		return nil, view.Errorf("mysql.tls.ca.unused", "%s names a CA, and %s never verifies against one",
 			setting(sf, "ca-file"), settingTo(sf, "tls", mode)).
-			WithHint(settingTo(sf, "tls", "true") + " verifies the server against it")
+			WithHint(settingTo(sf, "tls", "true") + " verifies the server against it, its name included, and " +
+				settingTo(sf, "tls", "verify-ca") + " its chain alone")
 	}
 	pem, err := os.ReadFile(path)
 	if err != nil {
@@ -216,7 +246,37 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 			WithHint(setting(sf, "ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
 				"server's own — and a private key or a DER-encoded certificate is not one")
 	}
-	return &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}, nil
+	cfg := &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}
+	if mode == "verify-ca" {
+		// Go's verifier checks the name whenever it verifies, so it is
+		// turned off and the chain checked here instead, as pgx builds its
+		// own verify-ca. Nothing else goes unchecked: a chain that does not
+		// end at ca-file's CA fails the handshake, as an
+		// x509.UnknownAuthorityError that classify names as untrusted.
+		// VerifyConnection rather than VerifyPeerCertificate, because it runs
+		// on a resumed session too, which the other would let through.
+		cfg.InsecureSkipVerify = true
+		cfg.VerifyConnection = verifyChain(pool)
+	}
+	return cfg, nil
+}
+
+// verifyChain checks that the certificate a server presented chains to a CA
+// in roots — through the intermediates it sent beside it — for serving TLS,
+// and when, and nothing about the name it is for.
+func verifyChain(roots *x509.CertPool) func(tls.ConnectionState) error {
+	return func(cs tls.ConnectionState) error {
+		certs := cs.PeerCertificates
+		if len(certs) == 0 {
+			return errors.New("the server presented no certificate")
+		}
+		opts := x509.VerifyOptions{Roots: roots, Intermediates: x509.NewCertPool()}
+		for _, cert := range certs[1:] {
+			opts.Intermediates.AddCert(cert)
+		}
+		_, err := certs[0].Verify(opts)
+		return err
+	}
 }
 
 // caFile is ca-file with a leading ~ resolved and made absolute, or "" when
@@ -318,9 +378,10 @@ func classify(err error, req plugin.Request) *view.Error {
 
 	// The CA named as where it belongs, and as what to use instead of
 	// skip-verify: that is the mode a reader reaches for next, and it
-	// connects by checking nothing. Only true verifies, so only true gets
-	// here. Over MCP ca-file is the operator's setting, Local, and an agent
-	// told to pass it has no such argument to give.
+	// connects by checking nothing. Only true and verify-ca verify, so only
+	// they get here, and verify-ca never without a ca-file. Over MCP ca-file
+	// is the operator's setting, Local, and an agent told to pass it has no
+	// such argument to give.
 	if untrusted(err) {
 		refused := view.Errorf("mysql.tls.untrusted", "%s presented a certificate nothing here trusts", where)
 		if ca := caFile(req); ca != "" {
@@ -398,8 +459,9 @@ func nameRefusal(where string, cert *x509.Certificate, req plugin.Request) *view
 		return view.Errorf("mysql.tls.name", "%s presented a certificate that names no host, %s or any other",
 			where, host).
 			WithHint("a certificate with no subject alternative names, as the one MySQL generates for itself " +
-				"is, verifies as no host at all — " + settingTo(sf, "tls", "true") + " reaches the server once " +
-				"its certificate is reissued with " + host + " among them")
+				"is, verifies as no host at all — " + settingTo(sf, "tls", "verify-ca") + " checks it against the " +
+				"CA in " + setting(sf, "ca-file") + " without a name, and " + settingTo(sf, "tls", "true") +
+				" reaches the server once its certificate is reissued with " + host + " among them")
 	}
 	if len(names) > 4 {
 		names = append(names[:4:4], fmt.Sprintf("%d more", len(names)-4))
