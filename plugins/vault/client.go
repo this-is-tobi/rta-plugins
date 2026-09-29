@@ -85,7 +85,7 @@ func connect(req plugin.Request) (*vaultapi.Client, *view.Error) {
 	if ca := req.String("ca-file"); ca != "" {
 		if err := cfg.ConfigureTLS(&vaultapi.TLSConfig{CACert: ca}); err != nil {
 			return nil, view.Errorf("vault.tls.ca.invalid", "%v", err).
-				WithHint(setting(req.Surface(), "ca-file") + " is a path on this machine, read by rta rather than by Vault")
+				WithHint(req.Surface().SettingName("ca-file") + " is a path on this machine, read by rta rather than by Vault")
 		}
 	}
 	client, err := vaultapi.NewClient(cfg)
@@ -138,7 +138,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	if errors.As(err, &dnsErr) {
 		host := hostOf(addr)
 		return view.Errorf("vault.host.unknown", "no address for %q", host).
-			WithHint(dnsHint(sf, host))
+			WithHint(sf.DNSHint(host))
 	}
 	var netErr *net.OpError
 	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
@@ -155,10 +155,10 @@ func classify(err error, req plugin.Request) *view.Error {
 		return view.Errorf("vault.tls.untrusted", "%s presented a certificate rta does not trust", addr).
 			WithHint("this is a real TLS trust failure, not something to work around here — a Vault " +
 				"behind a tunnel commonly has its own operator- or cluster-generated CA, and it belongs " +
-				"in " + setting(sf, "ca-file") + " rather than verification turned off")
+				"in " + sf.SettingName("ca-file") + " rather than verification turned off")
 	}
 	return view.Errorf("vault.conn.failed", "could not reach %s: %v", addr, err).
-		WithHint(explainHint(sf, "vault.seal.status"))
+		WithHint(sf.SettingsHint("vault.seal.status"))
 }
 
 // dataHint says how data carries a secret's fields: on the CLI a flag repeated
@@ -168,49 +168,6 @@ func dataHint(sf plugin.Surface) string {
 		return "each value in " + sf.InputName("data") + " is one key=value pair, one per field"
 	}
 	return "each " + sf.InputName("data") + " is one key=value pair, repeated for more than one"
-}
-
-// setting names connection input name in a message the way its reader
-// changes it: the flag on the CLI, the box in a TUI form. Not the argument
-// over MCP, as plugin.Surface.InputName would: every connection input is
-// Local, so the tool's schema hides it and the bridge drops one given, and an
-// agent told to check the "address" argument would pass one that is thrown
-// away and read the same refusal again. It is named there as the declaration
-// names it, `address` — a setting of the operator's, which the agent can
-// report and cannot change.
-func setting(sf plugin.Surface, name string) string {
-	if sf == plugin.SurfaceMCP {
-		return "`" + name + "`"
-	}
-	return sf.InputName(name)
-}
-
-// given names input name set to value, as the reader would give it: "--out
-// ./vault.snap" on the CLI, and elsewhere the input the surface names, with
-// the value beside it.
-func given(sf plugin.Surface, name, value string) string {
-	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
-		return sf.InputName(name) + " set to " + value
-	}
-	return sf.InputName(name) + " " + value
-}
-
-// explainHint sends the reader to the page listing every input and where each
-// can come from. That page is `rta explain`, a terminal's command with no
-// capability behind it, and what it answers here is where the connection
-// inputs come from — the operator's to set — so over MCP it is the operator
-// who is asked to read it.
-func explainHint(sf plugin.Surface, id string) string {
-	if sf == plugin.SurfaceMCP {
-		return plugin.AskOperator("explain "+id) + ", which lists every input and where each can come from"
-	}
-	return "`rta explain " + id + "` lists every input and where each can come from"
-}
-
-// dnsHint is the call that shows what DNS returns for host, spelled for the
-// surface that will make it.
-func dnsHint(sf plugin.Surface, host string) string {
-	return "`" + sf.Call("net.dns", plugin.Arg{Name: "name", Value: host, Positional: true}) + "` shows what DNS returns"
 }
 
 // hostOf is the name in address, the one DNS was asked for: address is a

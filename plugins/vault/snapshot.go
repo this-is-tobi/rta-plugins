@@ -97,7 +97,7 @@ func runSnapshot(ctx context.Context, req plugin.Request) (view.View, error) {
 	out := strings.TrimSpace(req.String("out"))
 	if out == "" {
 		return nil, view.Errorf("vault.snapshot.nooutput", "say where the snapshot should be written").
-			WithHint(given(req.Surface(), "out", "./vault.snap") + " — a whole Vault is a file, not something " +
+			WithHint(req.Surface().SettingTo("out", "./vault.snap") + " — a whole Vault is a file, not something " +
 				"to read in a terminal")
 	}
 	path, err := expandHome(out)
