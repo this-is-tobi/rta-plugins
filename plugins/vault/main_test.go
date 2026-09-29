@@ -24,7 +24,7 @@ import (
 // vault.wrap.set really minted a live single-use token and printed it, and
 // vault.transit.encrypt really used the key.
 func TestConformance(t *testing.T) {
-	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs))
+	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."))
 }
 
 // conformanceInputs points every mutating capability at an address nothing is

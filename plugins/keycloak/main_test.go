@@ -28,7 +28,7 @@ import (
 // suite's dry-run rule has nothing to drive; what it checks is the
 // declaration: ids, inputs, redaction, verbs.
 func TestConformance(t *testing.T) {
-	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs))
+	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."))
 }
 
 // conformanceInputs points every capability at an address nothing is

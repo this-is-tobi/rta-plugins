@@ -32,7 +32,7 @@ import (
 // careful about.
 func TestConformance(t *testing.T) {
 	withFixtureKubectl(t, `{"contexts":[],"clusters":[],"users":[]}`)
-	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs))
+	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."))
 }
 
 func conformanceInputs(string) map[string]map[string]any {

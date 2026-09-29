@@ -46,7 +46,7 @@ func TestPluginIsValid(t *testing.T) {
 func TestConformance(t *testing.T) {
 	sdktest.Check(t, Plugin(), sdktest.WithInputs(func(string) map[string]map[string]any {
 		return map[string]map[string]any{"redis.key.get": {"key": "absent"}}
-	}))
+	}), sdktest.WithSource("."))
 }
 
 // The three certificate paths resolve a leading ~ as every other path a
