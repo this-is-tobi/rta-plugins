@@ -102,10 +102,13 @@ func TestTLSModesMapByMeaning(t *testing.T) {
 		"false":       "--ssl-mode=DISABLED",
 		"true":        "--ssl-mode=VERIFY_IDENTITY",
 		"skip-verify": "--ssl-mode=REQUIRED",
+		"verify-ca":   "--ssl-mode=VERIFY_CA --ssl-ca=/etc/mysql/ca.pem",
 	} {
-		args := strings.Join(dumpArgs(req(t, "mysql.dump", map[string]any{
-			"database": "app", "tls": tls,
-		})), " ")
+		values := map[string]any{"database": "app", "tls": tls}
+		if tls == "verify-ca" {
+			values["ca-file"] = "/etc/mysql/ca.pem"
+		}
+		args := strings.Join(dumpArgs(req(t, "mysql.dump", values)), " ")
 		if !strings.Contains(args, want) {
 			t.Errorf("tls=%s: missing %q in %q", tls, want, args)
 		}
