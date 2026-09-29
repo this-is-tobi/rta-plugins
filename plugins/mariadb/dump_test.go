@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -281,6 +283,8 @@ func TestClassifyDumpNamesTheFailure(t *testing.T) {
 		"bad host":  {"mariadb-dump: Got error: 2005: Unknown MySQL server host 'db.internal'", "mariadb.host.unknown"},
 		"tool skew": {"mysqldump: unknown variable 'ssl-verify-server-cert'", "mariadb.dump.toolskew"},
 		"atstraws":  {"mariadb-dump: something nobody anticipated", "mariadb.dump.failed"},
+		"timed out": {fmt.Sprintf("mariadb-dump: Got error: 2003: Can't connect to server on 'db.internal:3306' "+
+			"(%d) when trying to connect", int(syscall.ETIMEDOUT)), "mariadb.conn.timeout"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			verr := classifyDump(boom, tc.stderr, r)

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/this-is-tobi/rta/pkg/format"
@@ -353,6 +354,13 @@ func dumpArgs(req plugin.Request) []string {
 		// a local mariadbd, where the one checked was a container's port — so
 		// the receipt would describe a server this file never came from.
 		"--protocol=TCP",
+		// No --connect-timeout, unlike the restore's client: mariadb-dump has
+		// none, and refuses one as an unknown variable. What bounds its
+		// connect is the operating system's own connect timeout, a minute or
+		// more, and what keeps that rare is the pre-flight describeSource
+		// makes a moment before, under connectTimeout: only a server gone in
+		// between waits it out. A caller who stops waiting ends the child
+		// with the call, and a connect that ran out is named as a timeout.
 		"--user=" + req.String("user"),
 		// One snapshot for everything transactional; describeSource counts
 		// what falls outside it for the receipt.
@@ -508,8 +516,7 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 	case strings.Contains(stderr, "Fingerprint validation"):
 		return pinRefusal(req.Surface(), msg("Fingerprint validation"))
 	case strings.Contains(stderr, "Can't connect"):
-		return view.Errorf("mariadb.conn.refused", "%s", msg("Can't connect")).
-			WithHint(reachHint(req.Surface()))
+		return unreached(req.Surface(), msg("Can't connect"))
 	case strings.Contains(stderr, "unknown variable") || strings.Contains(stderr, "unknown option"):
 		// The version-skew failure, and here it is the likelier one: this
 		// plugin passes MariaDB's --ssl family, so a *MySQL* client wearing
@@ -526,6 +533,22 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 	}
 	return view.Errorf("mariadb.dump.failed", "%s", msg("error:", "Error:")).
 		WithHint("`" + filepath.Base(dumpTools[0]) + "` reported this; rta passed it through unchanged")
+}
+
+// unreached answers a child that could not connect, from the client's own
+// line for it: a connect that ran out of time, its bound or the operating
+// system's, is not a port nobody is on, and rta's own connection reached the
+// server a moment before, so what is in question is what changed in between.
+// The client ends the line with the errno in parentheses, ETIMEDOUT's number
+// on this platform for a timeout. Windows numbers its socket errors
+// otherwise, and there a timeout reads as refused, as it always did.
+func unreached(sf plugin.Surface, line string) *view.Error {
+	if strings.Contains(line, fmt.Sprintf("(%d)", int(syscall.ETIMEDOUT))) {
+		return view.Errorf("mariadb.conn.timeout", "%s", line).
+			WithHint("rta's own connection reached the server a moment before — a failover, a port-forward " +
+				"that exited, or a firewall that began dropping rather than refusing looks exactly like this")
+	}
+	return view.Errorf("mariadb.conn.refused", "%s", line).WithHint(reachHint(sf))
 }
 
 // restoreCommand names the other half. A backup capability that does not say
