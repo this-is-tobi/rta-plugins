@@ -500,14 +500,26 @@ func noCA(sf plugin.Surface, line string) *view.Error {
 // ca-file travels beside true and verify-ca, the modes that read it. Left
 // off, the line would verify against whatever the machine it is pasted on
 // trusts, and refuse the server this dump verified against its own CA.
+//
+// **The profile the dump came through, whenever there was one, and the
+// address only when the dump reached it directly.** Through a kube: or ssh:
+// profile the host and port the dump was handed were the local end of a
+// forward that closed when the dump did, and the line named 127.0.0.1 and a
+// port nothing listens on any more — the profile is what opens the forward
+// again. Named beside a direct address too, since the credentials may be the
+// profile's and no other layer holds them; and the address beside it then,
+// since it may be one the caller typed over the profile's (Request.Profile).
 func restoreCommand(req plugin.Request, path string) string {
-	args := []plugin.Arg{
-		{Name: "file", Value: path, Positional: true},
-		{Name: "host", Value: req.String("host")},
-		{Name: "port", Value: req.Int("port")},
-		{Name: "user", Value: req.String("user")},
-		{Name: "database", Value: req.String("database")},
+	args := []plugin.Arg{{Name: "file", Value: path, Positional: true}}
+	if profile := req.Profile(); profile != "" {
+		args = append(args, plugin.Arg{Name: "profile", Value: profile})
 	}
+	if req.Tunnel() == plugin.TunnelNone {
+		args = append(args, plugin.Arg{Name: "host", Value: req.String("host")},
+			plugin.Arg{Name: "port", Value: req.Int("port")})
+	}
+	args = append(args, plugin.Arg{Name: "user", Value: req.String("user")},
+		plugin.Arg{Name: "database", Value: req.String("database")})
 	if mode := req.String("tls"); mode == "true" || mode == "verify-ca" || mode == "skip-verify" {
 		args = append(args, plugin.Arg{Name: "tls", Value: mode})
 		if ca := caFile(req); mode != "skip-verify" && ca != "" {

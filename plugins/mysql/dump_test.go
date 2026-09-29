@@ -123,6 +123,43 @@ func TestTLSModesMapByMeaning(t *testing.T) {
 	}
 }
 
+// The restore line reaches the server again by the profile the dump came
+// through, and by the address only when the dump reached it directly. A dump
+// through a kube: forward was handed the forward's local end, and the line
+// named 127.0.0.1 and a port nothing listens on once the dump was over.
+func TestTheRestoreLineReachesTheServerAgainByItsProfile(t *testing.T) {
+	values := func() map[string]any {
+		return map[string]any{"database": "app", "user": "app", "host": "127.0.0.1", "port": 53306}
+	}
+	for _, tc := range []struct {
+		name          string
+		req           plugin.Request
+		want, without []string
+	}{
+		{"no profile", req(t, "mysql.dump", values()),
+			[]string{"--host 127.0.0.1 --port 53306 --user app --database app"}, []string{"--profile"}},
+		{"a profile reached directly", req(t, "mysql.dump", values()).WithProfile("prod", plugin.TunnelNone),
+			[]string{"--profile prod --host 127.0.0.1 --port 53306 --user app --database app"}, nil},
+		{"a profile through a kube: forward", req(t, "mysql.dump", values()).WithProfile("prod", plugin.TunnelKube),
+			[]string{"rta mysql restore /backups/app.sql --profile prod --user app --database app"},
+			[]string{"--host", "--port", "127.0.0.1", "53306"}},
+		{"a profile through an ssh: tunnel", req(t, "mysql.dump", values()).WithProfile("prod", plugin.TunnelSSH),
+			[]string{"--profile prod --user app"}, []string{"--host", "--port"}},
+	} {
+		got := restoreCommand(tc.req, "/backups/app.sql")
+		for _, want := range tc.want {
+			if !strings.Contains(got, want) {
+				t.Errorf("%s: restore = %q, want %q in it", tc.name, got, want)
+			}
+		}
+		for _, not := range tc.without {
+			if strings.Contains(got, not) {
+				t.Errorf("%s: restore = %q names %q", tc.name, got, not)
+			}
+		}
+	}
+}
+
 // The restore connects as protected as the dump did. A dump over tls=true
 // printed a line with no tls, which ran at preferred on a machine whose
 // config said nothing: the password went to a server nothing had verified.
