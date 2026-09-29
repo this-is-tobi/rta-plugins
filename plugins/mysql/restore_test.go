@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"syscall"
@@ -111,6 +112,36 @@ func TestTheRestoreChildConnectsWithinThePluginsBound(t *testing.T) {
 	}
 	if args := strings.Join(dumpArgs(req(t, "mysql.dump", values)), " "); strings.Contains(args, "connect-timeout") {
 		t.Errorf("dump argv = %q, which the dump tool refuses as an unknown variable", args)
+	}
+}
+
+// An IPv6 server is named bracketed where the restore names it: joined with a
+// bare colon, ::1 read ::1:3306, which no reader could split into an address
+// and a port.
+func TestTheRestoreNamesAnIPv6ServerBracketed(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the stand-in client is a shell script")
+	}
+	dir := t.TempDir()
+	for _, tool := range restoreTools {
+		if err := os.WriteFile(filepath.Join(dir, tool), []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", dir)
+	fixture := filepath.Join(dir, "app.sql")
+	if err := os.WriteFile(fixture, []byte("select 1;\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r := plugin.NewRequest(plugin.Resolve(capabilityByID(t, "mysql.restore"), plugin.Inputs{Caller: map[string]any{
+		"host": "::1", "port": 3306, "database": "app", "file": fixture,
+	}}), true, false)
+	v, err := runRestore(context.Background(), r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body := v.(view.Text).Body; !strings.Contains(body, "app on [::1]:3306") {
+		t.Errorf("dry run = %q, want the server named [::1]:3306", body)
 	}
 }
 

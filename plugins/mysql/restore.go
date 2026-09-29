@@ -114,9 +114,8 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 
 	args := restoreArgs(req)
 	if req.DryRun {
-		return view.Text{Body: fmt.Sprintf("would run %s %s\nfeeding it %s, restoring into %s on %s:%d",
-			filepath.Base(tool), strings.Join(args, " "), path,
-			database, req.String("host"), req.Int("port"))}, nil
+		return view.Text{Body: fmt.Sprintf("would run %s %s\nfeeding it %s, restoring into %s on %s",
+			filepath.Base(tool), strings.Join(args, " "), path, database, address(req))}, nil
 	}
 
 	// Ask the server what it is before writing into it — the dump's
@@ -134,8 +133,7 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 
 	return view.KeyValue{Pairs: []view.Pair{
 		{Key: "restored", Value: path},
-		{Key: "into", Value: fmt.Sprintf("%s on %s:%d",
-			database, req.String("host"), req.Int("port"))},
+		{Key: "into", Value: database + " on " + address(req)},
 		{Key: "took", Value: time.Since(started).Round(time.Millisecond).String()},
 		// pg's restore can promise a rollback; this one cannot, and saying so
 		// here is what keeps the difference from being discovered during an
@@ -229,8 +227,7 @@ func checkTarget(ctx context.Context, req plugin.Request, database string) *view
 	}
 	if ro != 0 {
 		return view.Errorf("mysql.restore.readonly",
-			"%s:%d is read-only, and a read-only server cannot be written",
-			req.String("host"), req.Int("port")).
+			"%s is read-only, and a read-only server cannot be written", address(req)).
 			WithHint("usually a replica — restore on the primary, which the replica then " +
 				"replays; that is the only path that keeps the two the same database")
 	}
