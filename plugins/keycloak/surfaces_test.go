@@ -139,8 +139,8 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name: "a certificate nothing here trusts",
-			cli:  "a Keycloak behind an internal CA wants that CA in --ca-file rather than verification turned off",
-			mcp:  "a Keycloak behind an internal CA wants that CA in the operator's `ca-file` setting rather than verification turned off",
+			cli:  "a Keycloak behind an internal CA wants that CA rather than verification turned off: the CA that issued it belongs in --ca-file",
+			mcp:  "a Keycloak behind an internal CA wants that CA rather than verification turned off: the CA that issued it belongs in the operator's `ca-file` setting",
 			say: func(sf plugin.Surface) string {
 				s := &session{req: req(t, "keycloak.overview", nil).WithSurface(sf), base: "https://sso.internal"}
 				verr := s.classifyTransport(x509.UnknownAuthorityError{})
