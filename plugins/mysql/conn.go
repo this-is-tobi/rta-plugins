@@ -111,6 +111,11 @@ func connFields() []plugin.Field {
 	}
 }
 
+// connectTimeout bounds a connection's coming up, the handshake and the login
+// with it: the pre-flight's ping here, and the restore child's
+// --connect-timeout, in the seconds the client counts in.
+const connectTimeout = 10 * time.Second
+
 // driverConfig is go-sql-driver's configuration for the resolved inputs.
 //
 // Handed to the driver as a mysql.Config, through mysql.NewConnector, and
@@ -186,7 +191,7 @@ func open(ctx context.Context, req plugin.Request, cfg *mysql.Config) (*sql.DB, 
 	db.SetMaxOpenConns(1)
 	db.SetConnMaxLifetime(time.Minute)
 
-	pingCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	pingCtx, cancel := context.WithTimeout(ctx, connectTimeout)
 	defer cancel()
 	if err := db.PingContext(pingCtx); err != nil {
 		_ = db.Close()
