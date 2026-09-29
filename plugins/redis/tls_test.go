@@ -190,6 +190,54 @@ func TestACAFileThatDidNotIssueTheCertificateIsNamed(t *testing.T) {
 	}
 }
 
+// Through a kube: or ssh: forward connect dials 127.0.0.1, and TLS checks the
+// certificate against that. The forward turns tls off, and ca-file turns it
+// back on, so a profile naming a CA beside a coordinate failed on every call
+// as "could not reach" a server that had answered. It is the forward's doing,
+// said as that with what does get through; a certificate that names the
+// address still passes, as it always did, and a name refused on a direct
+// connection keeps the verifier's words.
+func TestANameCheckedThroughAForwardIsNamedAsTheForwards(t *testing.T) {
+	ca := newTestCA(t)
+	caFile := writeFile(t, "ca.pem", ca.pem)
+	values := func(addr string) map[string]any { return map[string]any{"address": addr, "ca-file": caFile} }
+	service := tlsServer(t, ca.serverCert(t, "cache.internal", "cache.prod.svc"))
+
+	_, verr := connect(context.Background(), req(t, "redis.overview", values(service)).WithProfile("prod", plugin.TunnelKube))
+	if verr == nil || verr.Code != "redis.tls.forward" {
+		t.Fatalf("err = %v, want redis.tls.forward", verr)
+	}
+	for _, want := range []string{"a certificate for cache.internal, cache.prod.svc; the TLS --ca-file turns on",
+		"checked it against 127.0.0.1, the local end of the kube: forward profile prod opened"} {
+		if !strings.Contains(verr.Message, want) {
+			t.Errorf("message = %q, want %q in it", verr.Message, want)
+		}
+	}
+	for _, want := range []string{"without --ca-file and --cert-file, which turn TLS on though the forward turns it off",
+		"inside the API server's TLS", "a certificate that names 127.0.0.1 too"} {
+		if !strings.Contains(verr.Hint, want) {
+			t.Errorf("hint = %q, want %q in it", verr.Hint, want)
+		}
+	}
+	// --tls=false given by the caller opens no forward, and the call goes to
+	// the config's address instead: the hint never offers it.
+	if strings.Contains(verr.Hint, "--tls") {
+		t.Errorf("hint = %q offers a tls value, which given by the caller skips the forward", verr.Hint)
+	}
+
+	_, verr = connect(context.Background(), req(t, "redis.overview", values(service)).WithProfile("prod", plugin.TunnelNone))
+	if verr == nil || verr.Code != "redis.conn.failed" || !strings.Contains(verr.Message, "127.0.0.1") {
+		t.Errorf("a name refused on a direct connection: %v, want the verifier's words", verr)
+	}
+
+	probes := tlsServer(t, ca.serverCert(t, "cache.internal", "127.0.0.1"))
+	c, verr := connect(context.Background(), req(t, "redis.overview", values(probes)).WithProfile("prod", plugin.TunnelKube))
+	if verr != nil {
+		t.Fatalf("a certificate naming the forward's address, through the forward: %s: %s", verr.Code, verr.Message)
+	}
+	c.Close()
+}
+
 // A failed dial is read by the operating system's own error, never by the
 // *net.OpError around it, which every broken socket call is: a server behind
 // a VPN that was down, and one that reset the connection, were each "nothing
