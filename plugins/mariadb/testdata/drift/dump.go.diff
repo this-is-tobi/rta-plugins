@@ -193,7 +193,7 @@
 + func noCA(sf plugin.Surface, line string) *view.Error {
 + 	return view.Errorf("mysql.tls.ca.required", "%s", line).
 + 		WithHint("the MySQL client verifies only against a CA it is given, never the store this machine " +
-+ 			"trusted the server through — " + setting(sf, "ca-file") + " names one: the CA that issued " +
++ 			"trusted the server through — " + sf.SettingName("ca-file") + " names one: the CA that issued " +
 + 			"the server's certificate, or the machine's CA bundle")
 + }
 + 
