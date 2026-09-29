@@ -2,13 +2,17 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"net"
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/minio/minio-go/v7"
@@ -113,6 +117,10 @@ func TestAMissingObjectPointsAtAListingTheCLITakes(t *testing.T) {
 // S3's error shapes.
 func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
 	r := req(t, "s3.overview", map[string]any{"endpoint": "s3.internal:9000"})
+	dial := func(errno syscall.Errno) error {
+		return &url.Error{Op: "Get", URL: "http://x",
+			Err: &net.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", errno)}}
+	}
 	cases := []struct {
 		name string
 		err  error
@@ -127,6 +135,16 @@ func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
 		{"bucket exists", minio.ErrorResponse{Code: minio.BucketAlreadyExists, BucketName: "b"}, "s3.bucket.exists"},
 		{"other s3 error", minio.ErrorResponse{Code: "SomeOtherCode", Message: "m"}, "s3.request.failed"},
 		{"refused", &net.OpError{Op: "dial", Err: errors.New("connection refused")}, "s3.conn.refused"},
+		// A dial is read by the operating system's error it carries, never by
+		// the *net.OpError every failed dial is: a reset refused nothing, and
+		// a host no route reaches was sent to check a port.
+		{"refused by errno", dial(syscall.ECONNREFUSED), "s3.conn.refused"},
+		{"no route", dial(syscall.EHOSTUNREACH), "s3.conn.unreachable"},
+		{"no network", dial(syscall.ENETUNREACH), "s3.conn.unreachable"},
+		{"reset", &url.Error{Op: "Get", URL: "http://x", Err: &net.OpError{Op: "read", Net: "tcp",
+			Err: os.NewSyscallError("read", syscall.ECONNRESET)}}, "s3.conn.failed"},
+		{"a dial that timed out", &url.Error{Op: "Get", URL: "http://x",
+			Err: &net.OpError{Op: "dial", Net: "tcp", Err: timeoutError{}}}, "s3.conn.timeout"},
 		{"unknown host", &net.DNSError{Err: "no such host", Name: "s3.internal"}, "s3.host.unknown"},
 		{"timed out", &url.Error{Op: "Get", URL: "http://x", Err: timeoutError{}}, "s3.conn.timeout"},
 		// The listing iterator hands a bare context error back, unwrapped by
@@ -148,6 +166,45 @@ func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
 				t.Error("no message")
 			}
 		})
+	}
+}
+
+// macOS verifies against the system's trust store itself when no ca-file is
+// set and reports a chain it cannot anchor as a bare error: that is still a
+// certificate nothing here trusts, and the answer is the CA. Every other
+// verdict it gives untyped is its own reason and is quoted in its words: a
+// revoked certificate answered with the CA file to name was answered with the
+// way around the revocation check. Elsewhere an untyped verdict is never a
+// question of trust, and none is a server that could not be reached.
+func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
+	r := req(t, "s3.overview", map[string]any{"endpoint": "s3.internal:9000"})
+	open, closing := string(rune(0x201c)), string(rune(0x201d))
+	onMac := "s3.tls.rejected"
+	if runtime.GOOS == "darwin" {
+		onMac = "s3.tls.untrusted"
+	}
+	for _, tc := range []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"Go's own verifier", x509.UnknownAuthorityError{}, "s3.tls.untrusted"},
+		{"the system's verifier, a chain it cannot anchor",
+			errors.New("x509: " + open + "minio" + closing + " certificate is not trusted"), onMac},
+		{"the system's verifier, a revoked certificate",
+			errors.New("x509: " + open + "minio" + closing + " certificate is revoked"), "s3.tls.rejected"},
+		{"a name it is not for", x509.HostnameError{Certificate: &x509.Certificate{}, Host: "s3.internal"},
+			"s3.tls.rejected"},
+	} {
+		err := &url.Error{Op: "Get", URL: "https://s3.internal:9000/",
+			Err: &tls.CertificateVerificationError{Err: tc.err}}
+		got := classify(err, r)
+		if got.Code != tc.want {
+			t.Errorf("%s: classified %s, want %s", tc.name, got.Code, tc.want)
+		}
+		if got.Code == "s3.tls.rejected" && !strings.Contains(got.Message, tc.err.Error()) {
+			t.Errorf("%s: %q does not quote the verdict", tc.name, got.Message)
+		}
 	}
 }
 
