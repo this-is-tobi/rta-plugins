@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/go-sql-driver/mysql"
@@ -384,5 +385,46 @@ func TestANameDNSCannotResolveIsNotReadAsNothingListening(t *testing.T) {
 	verr := classify(err, req(t, "mariadb.overview", map[string]any{"host": "db.internal"}))
 	if verr.Code != "mariadb.host.unknown" {
 		t.Errorf("code = %s, want mariadb.host.unknown: %s", verr.Code, verr.Message)
+	}
+}
+
+// A failed dial is read by the operating system's own error, never by the
+// *net.OpError around it, which every failed dial is: a server behind a VPN
+// that was down, a dial that timed out and a handshake the server reset were
+// each "nothing is listening". Text a driver flattened is read by the words
+// the error had, and a name nothing resolved stays that, whatever the
+// resolver's own failed exchange with its server said.
+func TestADialIsReadByItsOwnErrorNotByTheWrapper(t *testing.T) {
+	r := req(t, "mariadb.overview", map[string]any{"host": "db.internal"})
+	dial := func(errno syscall.Errno) error {
+		return &stdnet.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", errno)}
+	}
+	for _, tc := range []struct {
+		name string
+		err  error
+		code string
+	}{
+		{"refused", dial(syscall.ECONNREFUSED), "mariadb.conn.refused"},
+		{"no route to the host", dial(syscall.EHOSTUNREACH), "mariadb.conn.unreachable"},
+		{"no way onto the network", dial(syscall.ENETUNREACH), "mariadb.conn.unreachable"},
+		{"the system's connect timeout", dial(syscall.ETIMEDOUT), "mariadb.conn.timeout"},
+		{"a handshake the server reset", &stdnet.OpError{Op: "read", Net: "tcp",
+			Err: os.NewSyscallError("read", syscall.ECONNRESET)}, "mariadb.conn.failed"},
+		{"a refusal flattened to text", errors.New("dial tcp 10.0.0.9:3306: connect: connection refused"),
+			"mariadb.conn.refused"},
+		{"no route flattened to text", errors.New("dial tcp 10.0.0.9:3306: connect: no route to host"),
+			"mariadb.conn.unreachable"},
+		{"a name whose DNS server refused the resolver", &stdnet.OpError{Op: "dial", Net: "tcp",
+			Err: &stdnet.DNSError{Err: "dial udp 10.0.0.53:53: connect: connection refused", Name: "db.internal"}},
+			"mariadb.host.unknown"},
+	} {
+		got := classify(tc.err, r)
+		if got.Code != tc.code {
+			t.Errorf("%s: %s %q, want %s", tc.name, got.Code, got.Message, tc.code)
+		}
+		if tc.code == "mariadb.conn.unreachable" && !strings.Contains(got.Message, "no route") &&
+			!strings.Contains(got.Message, "unreachable") {
+			t.Errorf("%s: %q does not say why", tc.name, got.Message)
+		}
 	}
 }

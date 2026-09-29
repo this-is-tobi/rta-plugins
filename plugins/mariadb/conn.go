@@ -387,15 +387,26 @@ func classify(err error, req plugin.Request) *view.Error {
 	// they get here, and verify-ca never without a ca-file. Over MCP ca-file
 	// is the operator's setting, Local, and an agent told to pass it has no
 	// such argument to give.
-	if untrusted(err) {
+	//
+	// **Only a certificate plugin.CertUntrusted reads as an unknown issuer's,
+	// never every one the handshake refused.** With no ca-file, macOS asks
+	// its own verifier, which gives most of its verdicts untyped, and each
+	// was read here as untrusted: a revoked certificate was answered with the
+	// CA to name, and naming one replaces the system's checks, revocation
+	// among them, with Go's verifier and that CA alone — the operator who
+	// followed the hint reached the server the check had caught. A verdict
+	// CertUntrusted does not read keeps the system's words, in
+	// mariadb.conn.failed, and the hint that sends somebody to name a CA says
+	// what naming one costs (CAHint).
+	if plugin.CertUntrusted(err) {
 		refused := view.Errorf("mariadb.tls.untrusted", "%s presented a certificate nothing here trusts", where)
 		if ca := caFile(req); ca != "" {
 			return refused.WithHint(ca + ", which " + setting(req.Surface(), "ca-file") + " names, does " +
 				"not hold the CA that issued it — a self-signed certificate is its own CA")
 		}
-		return refused.WithHint("a server with a CA of its own wants that CA in " +
-			setting(req.Surface(), "ca-file") + " rather than " + settingTo(req.Surface(), "tls", "skip-verify") +
-			", which turns verification off — a self-signed certificate is its own CA")
+		return refused.WithHint("a server with a CA of its own wants that CA named rather than " +
+			settingTo(req.Surface(), "tls", "skip-verify") + ", which turns verification off — " +
+			req.Surface().CAHint("ca-file"))
 	}
 
 	// The name first: a dial that could not resolve its host fails with a
@@ -406,12 +417,28 @@ func classify(err error, req plugin.Request) *view.Error {
 		return view.Errorf("mariadb.host.unknown", "no address for %q", req.String("host")).
 			WithHint(dnsHint(req.Surface(), req.String("host")))
 	}
+	// A dial that found no way to the host, and one the host refused, by the
+	// operating system's own error, as plugin.DialUnroutable and DialRefused
+	// read it, and never by the *net.OpError around it, which every failed
+	// dial is: read that way, a server behind a VPN that was down, a dial
+	// that timed out and a handshake the server reset were each "nothing is
+	// listening", about a port that may have been fine.
 	var netErr *stdnet.OpError
-	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
+	if plugin.DialUnroutable(err) {
+		why := err
+		if errors.As(err, &netErr) {
+			why = netErr.Err
+		}
+		return view.Errorf("mariadb.conn.unreachable", "%s cannot be reached from this machine: %v", where, why).
+			WithHint("no route leads there from here — a VPN or tunnel the server sits behind that is down " +
+				"looks exactly like this, and so does " + setting(req.Surface(), "host") + " naming an address " +
+				"on a network this machine is not on")
+	}
+	if plugin.DialRefused(err) {
 		return view.Errorf("mariadb.conn.refused", "nothing is listening on %s", where).
 			WithHint(reachHint(req.Surface()))
 	}
-	if errors.Is(err, context.DeadlineExceeded) {
+	if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout()) {
 		return view.Errorf("mariadb.conn.timeout", "%s did not answer in time", where).
 			WithHint("a firewall that drops rather than refuses looks exactly like this")
 	}
@@ -475,41 +502,6 @@ func nameRefusal(where string, cert *x509.Certificate, req plugin.Request) *view
 		where, strings.Join(names, ", "), host).
 		WithHint(setting(sf, "host") + " is the name the certificate is checked against — reach the " +
 			"server by one it carries, or have it reissued with " + host + " among its subject alternative names")
-}
-
-// untrusted reports whether err is a certificate that nothing here vouches
-// for. Go's own verifier says so as an x509.UnknownAuthorityError, and it is
-// the one that runs whenever ca-file is set. Without one, on macOS, the
-// system's trust store is consulted through the platform's verifier, and an
-// untrusted chain comes back from it as a bare error inside the handshake's
-// *tls.CertificateVerificationError — as does a self-signed certificate
-// valid for longer than Apple's policy allows — so a verification failure
-// the platform answers untyped is read as one too.
-//
-// Untyped, and not merely not UnknownAuthorityError: Go's verifier types
-// every failure it names — a host the certificate is not for, a date or a
-// use it is not valid for, a signature algorithm it will not accept, a
-// critical extension it does not handle — and each of those is a reason of
-// its own, which no CA in ca-file would cure: the host is mariadb.tls.name,
-// and mariadb.conn.failed quotes the rest.
-// The same reading as pg's, etcd's and keycloak's.
-func untrusted(err error) bool {
-	var authErr x509.UnknownAuthorityError
-	if errors.As(err, &authErr) {
-		return true
-	}
-	var verifyErr *tls.CertificateVerificationError
-	if !errors.As(err, &verifyErr) {
-		return false
-	}
-	for _, reason := range []any{new(x509.HostnameError), new(x509.CertificateInvalidError),
-		new(x509.InsecureAlgorithmError), new(x509.UnhandledCriticalExtension),
-		new(x509.ConstraintViolationError)} {
-		if errors.As(verifyErr.Err, reason) {
-			return false
-		}
-	}
-	return true
 }
 
 // setting names connection input name in a message the way its reader
