@@ -251,6 +251,17 @@ func restoreArgs(req plugin.Request, format dumpFormat, path string) []string {
 	return append(args, path)
 }
 
+// createdbCommand is the command, as a code span, that makes the database a
+// restore found missing, on the server the restore reached and as the role it
+// connected as. It once named the host alone, and createdb fills the rest from
+// its own defaults, port 5432 and the operating system's user: against a
+// server on any other port, a port-forward's included, the hint made the
+// database somewhere else, or nowhere, and the restore went on missing it.
+func createdbCommand(req plugin.Request) string {
+	return "`createdb --host=" + req.String("host") + " --port=" + strconv.Itoa(req.Int("port")) +
+		" --username=" + req.String("user") + " " + req.String("database") + "`"
+}
+
 // checkTarget asks the server what it is before anything writes into it, on
 // one connection: a standby is refused because it cannot be written, and a
 // database already holding relations is refused unless --clean names the
@@ -271,9 +282,8 @@ func checkTarget(ctx context.Context, req plugin.Request, format dumpFormat) (so
 		if verr.Code == "pg.database.missing" {
 			return source{}, view.Errorf("pg.restore.nodatabase", "%s", verr.Message).
 				WithHint("rta does not create databases on its own — a typo'd name becoming " +
-					"a new database is worse than this refusal. `createdb --host=" +
-					req.String("host") + " " + req.String("database") +
-					"` makes it, then restore again")
+					"a new database is worse than this refusal. " + createdbCommand(req) +
+					" makes it, then restore again")
 		}
 		return source{}, verr
 	}
@@ -482,8 +492,7 @@ func classifyRestore(err error, stderr string, req plugin.Request, format dumpFo
 	case strings.Contains(stderr, "database") && strings.Contains(stderr, "does not exist"):
 		return view.Errorf("pg.restore.nodatabase", "%s", msg("does not exist")).
 			WithHint("rta does not create databases on its own — a typo'd name becoming a new " +
-				"database is worse than this refusal. `createdb --host=" + req.String("host") +
-				" " + req.String("database") + "` makes it, then restore again")
+				"database is worse than this refusal. " + createdbCommand(req) + " makes it, then restore again")
 	case strings.Contains(stderr, "role") &&
 		(strings.Contains(stderr, "does not exist") || strings.Contains(stderr, "must be member of")):
 		hint := "the dump sets ownership to the roles that existed at dump time — recreate " +
