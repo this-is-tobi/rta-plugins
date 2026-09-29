@@ -82,6 +82,12 @@ func runFullDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	if err != nil {
 		return nil, view.Errorf("pg.dump.path", "resolving %s: %v", req.Surface().InputName("out"), err)
 	}
+	// Here and not only in connect, so the dry run, which connects to
+	// nothing, refuses the pair the real run would, rather than describing a
+	// child that would carry it.
+	if verr := checkRootCert(req); verr != nil {
+		return nil, verr
+	}
 
 	tool, err := lookupDumpTool()
 	if err != nil {
@@ -701,9 +707,9 @@ func contentsOf(req plugin.Request) string {
 // config does not already point at this server.
 //
 // **So is the transport's protection, when the dump had any.** sslmode
-// travels when it is stricter than prefer, and sslrootcert beside it, since
-// require and stricter are the modes that read it (pgx gives require a CA's
-// verification when one is named). Left out, the line connected however the
+// travels when it is stricter than prefer, and sslrootcert beside it, which
+// only verify-ca and verify-full can carry — checkRootCert refuses it beside
+// require before any dump runs. Left out, the line connected however the
 // config where it was pasted said, prefer on a machine with none: a dump
 // taken over verify-full printed a restore that sent the password to a
 // server nothing had verified. A looser sslmode is left out on purpose — the

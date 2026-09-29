@@ -320,8 +320,13 @@ func TestTheRestoreConnectsAsProtectedAsTheDump(t *testing.T) {
 			want:   []string{"--sslmode require"},
 		},
 		{
+			name:   "a dump that checked the chain alone",
+			values: map[string]any{"sslmode": "verify-ca", "sslrootcert": "/etc/pg/ca.pem"},
+			want:   []string{"--sslmode verify-ca", "--sslrootcert /etc/pg/ca.pem"},
+		},
+		{
 			name:    "the default",
-			values:  map[string]any{"sslrootcert": "/etc/pg/ca.pem"},
+			values:  map[string]any{},
 			without: []string{"--sslmode", "--sslrootcert"},
 		},
 		{

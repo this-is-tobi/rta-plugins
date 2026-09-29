@@ -16,6 +16,7 @@ import (
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/sdk/sdktest"
+	"github.com/this-is-tobi/rta/pkg/view"
 )
 
 // sdktest is the definition of "a correct plugin" and pg gets no exemption
@@ -147,6 +148,75 @@ func TestAHostNoRouteReachesIsNotAPortNobodyIsOn(t *testing.T) {
 		if want == "pg.conn.unreachable" && !strings.Contains(got.Message, errno.Error()) {
 			t.Errorf("%v: %q does not say why", errno, got.Message)
 		}
+	}
+}
+
+// A CA beside a mode that does not verify by its own name is refused, never
+// applied: prefer never reads it in pgx, and in libpq it falls back to
+// plaintext when the certificate does not verify; require verifies only for
+// as long as the file is named. disable stands, since a tunnel forces it, and
+// the two verify modes are what read it.
+func TestSSLRootCertIsRefusedBesideAModeThatDoesNotVerify(t *testing.T) {
+	for mode, want := range map[string]string{
+		"prefer": "pg.tls.ca.unused", "require": "pg.tls.ca.implied",
+		"disable": "", "verify-ca": "", "verify-full": "",
+	} {
+		got := checkRootCert(req(t, map[string]any{"sslmode": mode, "sslrootcert": "/etc/rta/pg-ca.crt"}))
+		switch {
+		case want == "" && got != nil:
+			t.Errorf("sslmode %s: refused a CA it reads or never negotiates for: %s", mode, got.Code)
+		case want != "" && (got == nil || got.Code != want):
+			t.Errorf("sslmode %s: %v, want %s", mode, got, want)
+		case want != "" && !strings.Contains(got.Hint, "--sslmode verify-"):
+			t.Errorf("sslmode %s: the hint %q names no mode that verifies against it", mode, got.Hint)
+		}
+		if got := checkRootCert(req(t, map[string]any{"sslmode": mode})); got != nil {
+			t.Errorf("sslmode %s with no CA: refused as %s", mode, got.Code)
+		}
+	}
+}
+
+// Refused before anything dials, and before a dry run describes a child that
+// would carry the pair. Nothing listens on port 1, so a refusal that came from
+// a dial would name the port rather than the CA.
+func TestTheUnverifiedCAIsRefusedBeforeAnythingRuns(t *testing.T) {
+	values := func(extra map[string]any) map[string]any {
+		extra["host"], extra["port"] = "127.0.0.1", 1
+		extra["sslmode"], extra["sslrootcert"] = "prefer", "/etc/rta/pg-ca.crt"
+		return extra
+	}
+	if _, verr := connect(context.Background(), req(t, values(map[string]any{}))); verr == nil ||
+		verr.Code != "pg.tls.ca.unused" {
+		t.Errorf("connect: %v, want pg.tls.ca.unused", verr)
+	}
+	dir := t.TempDir()
+	fixture := filepath.Join(dir, "app.sql")
+	if err := os.WriteFile(fixture, []byte("select 1;\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for id, extra := range map[string]map[string]any{
+		"pg.dump":    {"out": filepath.Join(dir, "out.sql")},
+		"pg.restore": {"file": fixture},
+	} {
+		run := runFullDump
+		if id == "pg.restore" {
+			run = runRestore
+		}
+		_, err := run(context.Background(), dryRunReqFor(t, id, values(extra)))
+		var verr *view.Error
+		if !errors.As(err, &verr) || verr.Code != "pg.tls.ca.unused" {
+			t.Errorf("%s dry run: %v, want pg.tls.ca.unused", id, err)
+		}
+	}
+}
+
+// With the CA named, the certificate nothing here trusts is one that CA did
+// not issue, and the hint says so of the file rather than asking for it.
+func TestAnUntrustedCertificateNamesTheCAThatDidNotIssueIt(t *testing.T) {
+	got := classify(x509.UnknownAuthorityError{},
+		req(t, map[string]any{"sslmode": "verify-full", "sslrootcert": "/etc/rta/pg-ca.crt"}))
+	if got.Code != "pg.tls.untrusted" || !strings.Contains(got.Hint, "/etc/rta/pg-ca.crt, which --sslrootcert names") {
+		t.Errorf("%s: %q, want the hint to name the CA file that did not vouch for it", got.Code, got.Hint)
 	}
 }
 

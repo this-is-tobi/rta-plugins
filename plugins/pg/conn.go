@@ -93,27 +93,26 @@ func connFields() []plugin.Field {
 		// of a key pair, the half a CA hands out for wide distribution so
 		// anyone can verify what it signed.
 		//
-		// **Does not itself change sslmode.** sslmode's own default,
-		// prefer, tells pgx to skip verification regardless of what this
-		// names — see its Help. An operator may want the CA filled in
-		// before deciding how strict to be about it, and elevating sslmode
-		// as a side effect of a different field would be a second,
-		// undocumented way its value changes — worth documenting loudly
-		// instead of working around silently.
+		// **Read by verify-ca and verify-full alone, and never a reason for
+		// sslmode to change.** checkRootCert refuses it beside the two modes
+		// below them rather than elevate either on the operator's behalf,
+		// which would be a second, unwritten way sslmode gets its value — the
+		// rule plugins/mysql's ca-file keeps beside its own tls. disable is
+		// left to stand: it negotiates nothing a CA could verify, and it is
+		// what a tunnel forces.
 		//
-		// TLSAdjacent for the harder half of the same fact: under a tunnel,
-		// sslmode is not merely left at prefer, it is forced to disable —
-		// EndpointTLS's own unconditional rule — and disable never attempts
-		// TLS at all, so a CA named here goes unread whatever sslmode says.
-		// Unlike plugins/etcd's ca-file, nothing in connect() below turns TLS
-		// back on when this is set: sslmode is a tier, not a bool, and
-		// picking one on the operator's behalf is exactly the elevation the
-		// comment above already declines to do. checkSet reads this flag to
-		// refuse the combination instead of leaving it silently inert.
+		// TLSAdjacent for that last fact: under a tunnel, sslmode is forced
+		// to disable — EndpointTLS's own unconditional rule — and disable
+		// never attempts TLS at all, so a CA named here goes unread whatever
+		// sslmode said. Unlike plugins/etcd's ca-file, nothing in connect()
+		// below turns TLS back on when this is set: sslmode is a tier, not a
+		// bool, and picking one is exactly the elevation declined above.
+		// checkSet reads this flag to refuse the combination instead of
+		// leaving it silently inert.
 		{Name: "sslrootcert", Type: plugin.String, Default: "", Config: "sslrootcert",
 			Local: true, TLSAdjacent: true,
-			Help: "CA bundle to verify the server against — has no effect " +
-				"unless sslmode is require or stricter, and is overridden along with sslmode " +
+			Help: "CA bundle to verify the server against — read by verify-ca and verify-full, " +
+				"refused beside prefer and require, and overridden along with sslmode " +
 				"under a kube:/ssh: tunnel"},
 	}
 }
@@ -170,6 +169,52 @@ func dsn(req plugin.Request) string {
 		parts = append(parts, "sslrootcert="+quote(ca))
 	}
 	return strings.Join(parts, " ")
+}
+
+// checkRootCert refuses sslrootcert beside an sslmode that does not name
+// verification: prefer and require. Refused before anything dials, and
+// before a dump or a restore's dry run describes a child that would carry
+// the pair — the same place plugins/mysql refuses ca-file beside a tls that
+// never verifies.
+//
+// **Refused rather than applied, because neither mode can be made to mean
+// verified.** prefer never verifies in pgx, whatever CA it is given, so the
+// connection this plugin makes was TLS that nothing checked. libpq, which
+// pg_dump, psql and pg_restore run on, does verify under prefer when a root
+// certificate is there — and prefer then retries in plaintext when TLS
+// fails, a certificate that did not verify included. Measured against a
+// server whose certificate the named CA did not issue: psql connected, over
+// no TLS at all. Applied as libpq applies it, the CA would read as a
+// verified connection and turn an impostor into a cleartext session.
+//
+// require verifies, in both, and that is the trouble: libpq keeps require
+// with a root certificate as verify-ca only for compatibility, and its own
+// documentation asks nobody to rely on it. The verification lives in the
+// presence of a file, not in the mode — drop the file, or have a config
+// layer empty it, and require stops verifying without a word, while the
+// config and a dump's restore line still say what they said. verify-ca is
+// the same check with its name on it, and it fails closed without a CA.
+// Which is also plugins/mysql's rule: a CA beside a mode that does not
+// itself verify is refused, never taken as a reason for the mode to change.
+func checkRootCert(req plugin.Request) *view.Error {
+	if req.String("sslrootcert") == "" {
+		return nil
+	}
+	sf := req.Surface()
+	switch mode := req.String("sslmode"); mode {
+	case "prefer":
+		return view.Errorf("pg.tls.ca.unused", "%s names a CA, and %s never verifies against one",
+			setting(sf, "sslrootcert"), settingTo(sf, "sslmode", mode)).
+			WithHint(settingTo(sf, "sslmode", "verify-full") + " verifies the server against it, its name " +
+				"included, and " + settingTo(sf, "sslmode", "verify-ca") + " its chain alone")
+	case "require":
+		return view.Errorf("pg.tls.ca.implied", "%s names a CA, and %s verifies against one only because it is there",
+			setting(sf, "sslrootcert"), settingTo(sf, "sslmode", mode)).
+			WithHint(settingTo(sf, "sslmode", "verify-ca") + " is that same check under its own name, which does " +
+				"not stop the day the CA is dropped, and " + settingTo(sf, "sslmode", "verify-full") +
+				" checks the server's name as well")
+	}
+	return nil
 }
 
 // classify turns a driver error into something an operator can act on.
@@ -273,11 +318,18 @@ func classify(err error, req plugin.Request) *view.Error {
 		return view.Errorf("pg.tls.unsupported", "%s does not offer TLS", where).
 			WithHint(settingTo(sf, "sslmode", "disable") + " if that is expected on this network")
 	}
+	// Only verify-ca and verify-full get here: prefer and require without a
+	// CA verify nothing, and checkRootCert refuses either beside one. So the
+	// hint names the CA, and never a mode — the one it once pointed at,
+	// require, is refused beside sslrootcert now.
 	if untrusted(err) {
-		return view.Errorf("pg.tls.untrusted", "%s presented a certificate nothing here trusts", where).
-			WithHint("a tunnelled PostgreSQL commonly has its own operator- or cluster-generated CA, and " +
-				"it belongs in " + setting(sf, "sslrootcert") + " — and check " + setting(sf, "sslmode") +
-				" is require or stricter, since prefer never verifies it")
+		refused := view.Errorf("pg.tls.untrusted", "%s presented a certificate nothing here trusts", where)
+		if ca := req.String("sslrootcert"); ca != "" {
+			return refused.WithHint(ca + ", which " + setting(sf, "sslrootcert") + " names, does not hold " +
+				"the CA that issued it — a self-signed certificate is its own CA")
+		}
+		return refused.WithHint("a tunnelled PostgreSQL commonly has its own operator- or cluster-generated CA, " +
+			"and it belongs in " + setting(sf, "sslrootcert") + " — a self-signed certificate is its own CA")
 	}
 	return view.Errorf("pg.conn.failed", "could not connect to %s: %v", where, err).
 		WithHint(explainHint(sf, "pg.status"))
@@ -411,6 +463,9 @@ func loopback(host string) bool {
 
 // connect opens a connection, mapping any failure through classify.
 func connect(ctx context.Context, req plugin.Request) (*pgx.Conn, *view.Error) {
+	if verr := checkRootCert(req); verr != nil {
+		return nil, verr
+	}
 	conn, err := pgx.Connect(ctx, dsn(req))
 	if err != nil {
 		return nil, classify(err, req)
