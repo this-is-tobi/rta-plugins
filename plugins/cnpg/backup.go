@@ -475,7 +475,7 @@ func methodRefusal(sf plugin.Surface, c cluster, asked string) *view.Error {
 			"`kubectl cnpg backup`'s to take")
 	}
 	return verr.WithHint("this cluster configures " + strings.Join(have, " and ") +
-		" — pass " + given(sf, "method", have[0]))
+		" — pass " + sf.InputTo("method", have[0]))
 }
 
 // buildBackupRequest assembles the document, and validates every value that
@@ -528,7 +528,7 @@ func buildBackupRequest(req plugin.Request, c cluster, s selection) ([]byte, bac
 		if method != "volumeSnapshot" {
 			return nil, b, view.Errorf("cnpg.backup.online.unavailable",
 				"online only means something for a volumeSnapshot backup").
-				WithHint("pass " + given(req.Surface(), "method", "volumeSnapshot") + " with it, or leave online out and " +
+				WithHint("pass " + req.Surface().InputTo("method", "volumeSnapshot") + " with it, or leave online out and " +
 					"let the cluster's own `.spec.backup.volumeSnapshot.online` decide")
 		}
 		v := online == "true"
@@ -646,14 +646,4 @@ func destinationOf(c cluster) string {
 		return "wherever this cluster's `.spec.backup` sends it"
 	}
 	return "—"
-}
-
-// given names input name set to value, as the reader would give it: a
-// command line's `--method volumeSnapshot` on the CLI, and elsewhere the input
-// the surface names, with the value beside it.
-func given(sf plugin.Surface, name, value string) string {
-	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
-		return sf.InputName(name) + " set to " + value
-	}
-	return "`" + sf.InputName(name) + " " + value + "`"
 }
