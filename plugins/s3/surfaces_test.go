@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/x509"
 	"errors"
 	"net"
@@ -41,7 +42,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			name:    "a CA file that cannot be read",
 			cli:     "--ca-file is a path on this machine",
-			other:   "`ca-file` is a path on this machine",
+			other:   "the operator's `ca-file` setting is a path on this machine",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return caRefusal(sf, filepath.Join(t.TempDir(), "absent.pem"))
@@ -53,7 +54,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			// untrusted-certificate hint sends the reader to name.
 			name:    "a CA file with no PEM certificate in it",
 			cli:     "--ca-file wants a PEM certificate — the CA's, or a self-signed server's own",
-			other:   "`ca-file` wants a PEM certificate — the CA's, or a self-signed server's own",
+			other:   "the operator's `ca-file` setting wants a PEM certificate — the CA's, or a self-signed server's own",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				der := filepath.Join(t.TempDir(), "public.der")
@@ -75,7 +76,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			name:    "credentials the server rejected",
 			cli:     "or check --access-key",
-			other:   "or check `access-key`",
+			other:   "or check the operator's `access-key` setting",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(minio.ErrorResponse{Code: minio.InvalidAccessKeyID}, r(sf)))
@@ -84,7 +85,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			name:    "nothing listening",
 			cli:     "is the server up, and is --endpoint right?",
-			other:   "is the server up, and is `endpoint` right?",
+			other:   "is the server up, and is the operator's `endpoint` setting right?",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(&net.OpError{Op: "dial", Err: errors.New("connection refused")}, r(sf)))
@@ -103,7 +104,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			name:    "a certificate nothing trusts",
 			cli:     "the CA that issued it belongs in --ca-file — a local MinIO's self-signed public.crt is its own CA",
-			other:   "the CA that issued it belongs in `ca-file` — a local MinIO's self-signed public.crt is its own CA",
+			other:   "the CA that issued it belongs in the operator's `ca-file` setting — a local MinIO's self-signed public.crt is its own CA",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(x509.UnknownAuthorityError{}, r(sf)))
@@ -111,8 +112,8 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "anything else",
-			cli:     "`rta explain s3.overview` lists every input and where each one can come from",
-			other:   "ask the operator to run `rta explain s3.overview`, which lists every input",
+			cli:     "`rta explain s3.overview` lists every input and which of the command line, the rta config, a profile and the environment can set it",
+			other:   "ask the operator to run `rta explain s3.overview`, which lists every setting and which of the rta config",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(errors.New("handshake went sideways"), r(sf)))
@@ -157,6 +158,23 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			surface: plugin.SurfaceTUI,
 			say: func(sf plugin.Surface) string {
 				_, _, verr := planUpload(sf, filepath.Join(t.TempDir(), "nope"), 10)
+				return refusal(verr)
+			},
+		},
+		{
+			// The directory offered is named after the bucket as it was typed,
+			// and on a command line it is one word whatever that holds.
+			name:    "a download with nowhere to go",
+			cli:     "--out './shop $(id)-backup' — a bucket is a directory of files",
+			other:   `the out box set to "./shop $(id)-backup" — a bucket is a directory of files`,
+			surface: plugin.SurfaceTUI,
+			say: func(sf plugin.Surface) string {
+				_, err := runBucketDownload(context.Background(), req(t, "s3.bucket.download",
+					map[string]any{"bucket": "shop $(id)"}).WithSurface(sf))
+				var verr *view.Error
+				if !errors.As(err, &verr) {
+					t.Fatalf("err = %v, want a refusal", err)
+				}
 				return refusal(verr)
 			},
 		},

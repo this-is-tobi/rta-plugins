@@ -96,7 +96,7 @@ func connect(req plugin.Request) (*minio.Client, *view.Error) {
 	client, err := minio.New(endpoint, opts)
 	if err != nil {
 		return nil, view.Errorf("s3.conn.invalid", "%s: %v", endpoint, err).
-			WithHint("endpoint is host[:port] with no scheme — set " + setting(req.Surface(), "tls") + " separately")
+			WithHint("endpoint is host[:port] with no scheme — set " + req.Surface().SettingName("tls") + " separately")
 	}
 	return client, nil
 }
@@ -111,7 +111,7 @@ func caTransport(sf plugin.Surface, ca string) (*http.Transport, *view.Error) {
 	pem, err := os.ReadFile(ca)
 	if err != nil {
 		return nil, view.Errorf("s3.tls.ca.unreadable", "%v", err).
-			WithHint(setting(sf, "ca-file") + " is a path on this machine, read by rta rather than by the server")
+			WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by the server")
 	}
 	pool := x509.NewCertPool()
 	// What the file has to hold, rather than a guess at what it held instead.
@@ -122,7 +122,7 @@ func caTransport(sf plugin.Surface, ca string) (*http.Transport, *view.Error) {
 	// certificate in it does, a private key or a DER-encoded certificate.
 	if !pool.AppendCertsFromPEM(pem) {
 		return nil, view.Errorf("s3.tls.ca.invalid", "%s holds no PEM certificate", ca).
-			WithHint(setting(sf, "ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
+			WithHint(sf.SettingName("ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
 				"server's own such as a local MinIO's public.crt — and a private key or a DER-encoded " +
 				"certificate is not one")
 	}
@@ -180,13 +180,13 @@ func classify(err error, req plugin.Request) *view.Error {
 				WithHint("the credentials are valid but not authorized for this — check the bucket policy or IAM")
 		case minio.InvalidAccessKeyID, minio.SignatureDoesNotMatch:
 			return view.Errorf("s3.auth.failed", "%s rejected the credentials", where).
-				WithHint("set $" + plugin.LocalEnvVar("s3.overview", "secret-key") + ", or check " + setting(sf, "access-key"))
+				WithHint("set $" + plugin.LocalEnvVar("s3.overview", "secret-key") + ", or check " + sf.SettingName("access-key"))
 		case minio.BucketAlreadyExists, minio.BucketAlreadyOwnedByYou:
 			return view.Errorf("s3.bucket.exists", "%q already exists", errResp.BucketName).
 				WithHint(sf.CapabilityName("s3.bucket.list") + " shows who owns what this plugin can see")
 		}
 		return view.Errorf("s3.request.failed", "%s: %s", errResp.Code, errResp.Message).
-			WithHint(explainHint(sf, "s3.overview"))
+			WithHint(sf.SettingsHint("s3.overview"))
 	}
 
 	// The name first: a dial that could not resolve its host fails with a
@@ -195,12 +195,12 @@ func classify(err error, req plugin.Request) *view.Error {
 	var dnsErr *stdnet.DNSError
 	if errors.As(err, &dnsErr) {
 		return view.Errorf("s3.host.unknown", "no address for %q", hostOnly(where)).
-			WithHint(dnsHint(sf, hostOnly(where)))
+			WithHint(sf.DNSHint(hostOnly(where)))
 	}
 	var netErr *stdnet.OpError
 	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
 		return view.Errorf("s3.conn.refused", "nothing is listening on %s", where).
-			WithHint("is the server up, and is " + setting(sf, "endpoint") + " right?")
+			WithHint("is the server up, and is " + sf.SettingName("endpoint") + " right?")
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
@@ -215,12 +215,12 @@ func classify(err error, req plugin.Request) *view.Error {
 	var certErr x509.UnknownAuthorityError
 	if errors.As(err, &certErr) {
 		return view.Errorf("s3.tls.untrusted", "%s presented a certificate nothing here trusts", where).
-			WithHint("the CA that issued it belongs in " + setting(sf, "ca-file") + " — a local MinIO's " +
+			WithHint("the CA that issued it belongs in " + sf.SettingName("ca-file") + " — a local MinIO's " +
 				"self-signed public.crt is its own CA; turning TLS off is no way round it, as the server " +
 				"refuses plain HTTP")
 	}
 	return view.Errorf("s3.conn.failed", "could not reach %s: %v", where, err).
-		WithHint(explainHint(sf, "s3.overview"))
+		WithHint(sf.SettingsHint("s3.overview"))
 }
 
 // ctxErr is what a ListObjectsIter walk needs checked once it stops,
@@ -237,49 +237,6 @@ func ctxErr(ctx context.Context, req plugin.Request) *view.Error {
 		return classify(err, req)
 	}
 	return nil
-}
-
-// setting names connection input name in a message the way its reader
-// changes it: the flag on the CLI, the box in a TUI form. Not the argument
-// over MCP, as plugin.Surface.InputName would: every connection input is
-// Local, so the tool's schema hides it and the bridge drops one given, and an
-// agent told to check the "endpoint" argument would pass one that is thrown
-// away and read the same refusal again. It is named there as the declaration
-// names it, `endpoint` — a setting of the operator's, which the agent can
-// report and cannot change.
-func setting(sf plugin.Surface, name string) string {
-	if sf == plugin.SurfaceMCP {
-		return "`" + name + "`"
-	}
-	return sf.InputName(name)
-}
-
-// given names input name set to value, as the reader would give it: "--out
-// ./shop-backup" on the CLI, and elsewhere the input the surface names, with
-// the value beside it.
-func given(sf plugin.Surface, name, value string) string {
-	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
-		return sf.InputName(name) + " set to " + value
-	}
-	return sf.InputName(name) + " " + value
-}
-
-// explainHint sends the reader to the page listing every input and where each
-// one can come from. That page is `rta explain`, a terminal's command with no
-// capability behind it, and what it answers here is where the connection
-// inputs come from — the operator's to set — so over MCP it is the operator
-// who is asked to read it.
-func explainHint(sf plugin.Surface, id string) string {
-	if sf == plugin.SurfaceMCP {
-		return plugin.AskOperator("explain "+id) + ", which lists every input and where each one can come from"
-	}
-	return "`rta explain " + id + "` lists every input and where each one can come from"
-}
-
-// dnsHint is the call that shows what DNS returns for host, spelled for the
-// surface that will make it.
-func dnsHint(sf plugin.Surface, host string) string {
-	return "`" + sf.Call("net.dns", plugin.Arg{Name: "name", Value: host, Positional: true}) + "` shows what DNS returns"
 }
 
 // rmCall is the removal that clears the destination a copy or a move found
