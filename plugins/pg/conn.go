@@ -97,9 +97,11 @@ func connFields() []plugin.Field {
 		// sslmode to change.** checkRootCert refuses it beside the two modes
 		// below them rather than elevate either on the operator's behalf,
 		// which would be a second, unwritten way sslmode gets its value — the
-		// rule plugins/mysql's ca-file keeps beside its own tls. disable is
-		// left to stand: it negotiates nothing a CA could verify, and it is
-		// what a tunnel forces.
+		// rule plugins/mysql's ca-file keeps beside its own tls. verify-ca
+		// needs one as a file: named nowhere, pgx checks the chain against
+		// this machine's own store instead, which checkRootCert refuses as it
+		// refuses system beside verify-ca. disable is left to stand: it
+		// negotiates nothing a CA could verify, and it is what a tunnel forces.
 		//
 		// TLSAdjacent for that last fact: under a tunnel, sslmode is forced
 		// to disable — EndpointTLS's own unconditional rule — and disable
@@ -112,7 +114,7 @@ func connFields() []plugin.Field {
 		{Name: "sslrootcert", Type: plugin.String, Default: "", Config: "sslrootcert",
 			Local: true, TLSAdjacent: true,
 			Help: "CA bundle to verify the server against, or system for this machine's own store — " +
-				"read by verify-ca and verify-full (system by verify-full alone), refused beside prefer " +
+				"needed by verify-ca and read by verify-full (system by verify-full alone), refused beside prefer " +
 				"and require, and overridden along with sslmode under a kube:/ssh: tunnel"},
 	}
 }
@@ -211,9 +213,26 @@ func dsn(req plugin.Request) string {
 // refusal is the one both can keep. disable stands beside it as beside a
 // file, since a tunnel forces disable whatever the config names for direct
 // connections, and dsn leaves the CA out of a connection that reads none.
+//
+// verify-ca with no file named is refused too, for system's reason: pgx then
+// checks the chain against this machine's own store and reads no name, and a
+// server whose certificate a CA in that store issued for another name
+// connected, measured. plugins/mysql refuses its own verify-ca without a
+// ca-file for the same reason. libpq never falls back to the store — it
+// reads ~/.postgresql/root.crt or refuses — and pgx reads that file too when
+// it is there, which made verify-ca's CA one nobody named: it is named here,
+// as every other file this plugin reads is.
 func checkRootCert(req plugin.Request) *view.Error {
 	ca := req.String("sslrootcert")
 	if ca == "" {
+		if mode := req.String("sslmode"); mode == "verify-ca" {
+			sf := req.Surface()
+			return view.Errorf("pg.tls.ca.missing", "%s checks the server's chain against the CA %s names, "+
+				"and it names none", settingTo(sf, "sslmode", mode), setting(sf, "sslrootcert")).
+				WithHint(setting(sf, "sslrootcert") + " names it: the CA that issued the server's certificate, or " +
+					"the certificate itself when it is self-signed. " + settingTo(sf, "sslmode", "verify-full") +
+					" checks against this machine's own CAs instead, the server's name included")
+		}
 		return nil
 	}
 	sf := req.Surface()
@@ -342,9 +361,9 @@ func classify(err error, req plugin.Request) *view.Error {
 			WithHint(settingTo(sf, "sslmode", "disable") + " if that is expected on this network")
 	}
 	// Only verify-ca and verify-full get here: prefer and require without a
-	// CA verify nothing, and checkRootCert refuses either beside one. So the
-	// hint names the CA, and never a mode — the one it once pointed at,
-	// require, is refused beside sslrootcert now.
+	// CA verify nothing, and checkRootCert refuses either beside one, and
+	// verify-ca without one. So the hint names the CA, and never a mode —
+	// the one it once pointed at, require, is refused beside sslrootcert now.
 	if untrusted(err) {
 		refused := view.Errorf("pg.tls.untrusted", "%s presented a certificate nothing here trusts", where)
 		switch ca := req.String("sslrootcert"); ca {
