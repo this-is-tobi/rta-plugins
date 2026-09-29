@@ -2,11 +2,13 @@ package main
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 
 	vaultapi "github.com/hashicorp/vault/api"
@@ -54,6 +56,14 @@ func connFields() []plugin.Field {
 		// change what rta is willing to trust.
 		{Name: "ca-file", Type: plugin.String, Default: "", Config: "ca-file",
 			Local: true, Help: "PEM bundle to verify the server against, beyond the host's own trust store"},
+		// The name the certificate is checked for when it is not the host in
+		// address — above all through a kube: or ssh: forward, whose end is
+		// 127.0.0.1 whatever the Vault is called, and which its certificate
+		// names only by luck. Checked as strictly as the host would have been:
+		// it moves the check, never loosens it. Local for the reason address
+		// is: what a certificate has to prove is the operator's to say.
+		{Name: "tls-server-name", Type: plugin.String, Default: "", Config: "tls-server-name",
+			Local: true, Help: "name to check the server's certificate for, in place of the address's host"},
 	}
 }
 
@@ -84,8 +94,17 @@ func connect(req plugin.Request) (*vaultapi.Client, *view.Error) {
 	// The path with a leading ~ resolved, as every other path a plugin reads
 	// is. Opened as typed, ~/ca.pem was a path under a directory named ~, and
 	// a CA sitting in the operator's home was answered as no such file.
-	if ca := plugin.ExpandHome(req.String("ca-file")); ca != "" {
-		if err := cfg.ConfigureTLS(&vaultapi.TLSConfig{CACert: ca}); err != nil {
+	//
+	// tls-server-name is the handshake's ServerName and the SNI it sends, in
+	// place of the address's host. Refused over plain HTTP rather than
+	// ignored: a name given is an operator expecting a certificate to be
+	// checked, and the call would have gone in the clear with nothing said.
+	name := serverName(req)
+	if name != "" && !strings.HasPrefix(strings.ToLower(req.String("address")), "https://") {
+		return nil, plaintextServerName(req)
+	}
+	if ca := plugin.ExpandHome(req.String("ca-file")); ca != "" || name != "" {
+		if err := cfg.ConfigureTLS(&vaultapi.TLSConfig{CACert: ca, TLSServerName: name}); err != nil {
 			return nil, view.Errorf("vault.tls.ca.invalid", "%v", err).
 				WithHint(req.Surface().SettingName("ca-file") + " is a path on this machine, read by rta rather than by Vault")
 		}
@@ -99,6 +118,27 @@ func connect(req plugin.Request) (*vaultapi.Client, *view.Error) {
 		client.SetNamespace(ns)
 	}
 	return client, nil
+}
+
+// serverName is the name the certificate is checked for in place of the
+// address's host, or "" for the host.
+func serverName(req plugin.Request) string { return strings.TrimSpace(req.String("tls-server-name")) }
+
+// plaintextServerName is the refusal for a certificate's name given to a
+// call that would check no certificate: an address that is not https://.
+// Through a forward that is the host's doing — it fills address with
+// http:// unless the connection says its far end speaks TLS — so the way out
+// is named there, not in an address the forward fills.
+func plaintextServerName(req plugin.Request) *view.Error {
+	sf := req.Surface()
+	refusal := view.Errorf("vault.tls.plaintext", "%s names a certificate to check, and this call would "+
+		"reach the Vault over plain HTTP (%s)", sf.SettingName("tls-server-name"), reached(req))
+	if req.Tunnel() != plugin.TunnelNone {
+		return refusal.WithHint("a forward carries plain http:// unless the profile's connection says its far end " +
+			"speaks TLS, as Vault's own listener does: tunnelTLS: true on that connection")
+	}
+	return refusal.WithHint("an https:// address is what makes the call TLS, and " + sf.SettingName("tls-server-name") +
+		" the name its certificate is checked for")
 }
 
 // classify turns a client error into something an operator can act on — the
@@ -118,6 +158,14 @@ func classify(err error, req plugin.Request) *view.Error {
 			return view.Errorf("vault.notfound", "nothing at that path on %s", addr).
 				WithHint("check the path and the mount — a KV v2 mount is not always named \"secret\"")
 		case 400:
+			// Go's own answer, from the listener rather than from Vault, to a
+			// plain-HTTP request on a TLS port: the forward a profile opens
+			// carries http:// unless its connection says otherwise, and Vault's
+			// listener has no plaintext to fall back to. Read as Vault refusing,
+			// it named nothing the operator could change.
+			if strings.Contains(joinErrors(respErr), "Client sent an HTTP request to an HTTPS server") {
+				return tlsExpected(req)
+			}
 			return view.Errorf("vault.badrequest", "%s rejected the request: %s", addr, joinErrors(respErr)).
 				WithHint("this is Vault refusing, not rta")
 		case 412:
@@ -186,14 +234,76 @@ func classify(err error, req plugin.Request) *view.Error {
 	// Every other verdict is its own reason, quoted in the verifier's words —
 	// the system's, for one macOS gives untyped — and never "could not reach":
 	// the server was reached, and answered with a certificate.
+	//
+	// A certificate that is not for the end of a forward the host opened is
+	// no fault of the Vault's, and not one the address can fix: through a
+	// forward the host fills the address with 127.0.0.1 and a port of its
+	// own, which a Vault's certificate names only by luck. So the refusal
+	// names the forward and the name the certificate is for, and sends the
+	// reader to tls-server-name, which checks that name in 127.0.0.1's place
+	// — never to anything that checks less. Only when tls-server-name is not
+	// set: a name given and not matched is the certificate's to explain.
+	var hostErr x509.HostnameError
+	if errors.As(err, &hostErr) && req.Tunnel() != plugin.TunnelNone && serverName(req) == "" {
+		return forwardName(req, hostErr)
+	}
 	var verifyErr *tls.CertificateVerificationError
 	if errors.As(err, &verifyErr) {
+		checked := "the host in " + sf.SettingName("address")
+		if serverName(req) != "" {
+			checked = "the name in " + sf.SettingName("tls-server-name")
+		}
 		return view.Errorf("vault.tls.rejected", "%s presented a certificate that does not verify: %v", addr, verifyErr.Err).
-			WithHint("a certificate is checked for the host in " + sf.SettingName("address") +
+			WithHint("a certificate is checked for " + checked +
 				", its dates and the use it was issued for, as well as for who issued it")
 	}
 	return view.Errorf("vault.conn.failed", "could not reach %s: %v", addr, err).
 		WithHint(sf.SettingsHint("vault.seal.status"))
+}
+
+// tlsExpected is the refusal for a plain-HTTP call to a port that speaks
+// only TLS, which Vault's listener does.
+func tlsExpected(req plugin.Request) *view.Error {
+	refusal := view.Errorf("vault.tls.expected", "this call spoke plain HTTP to a Vault that speaks only HTTPS (%s)",
+		reached(req))
+	if req.Tunnel() != plugin.TunnelNone {
+		return refusal.WithHint("a forward carries plain http:// unless the profile's connection says its far end " +
+			"speaks TLS, as Vault's own listener does: tunnelTLS: true on that connection")
+	}
+	return refusal.WithHint("an https:// address is what makes the call TLS: " + req.Surface().SettingName("address") +
+		" names the scheme")
+}
+
+// forwardName is the refusal for a certificate checked for the end of a
+// forward the host opened — 127.0.0.1 — and not for the name the Vault
+// answers as, which the certificate names instead.
+func forwardName(req plugin.Request, hostErr x509.HostnameError) *view.Error {
+	return view.Errorf("vault.tls.forward", "the certificate behind profile %s's %s: forward is for %s, not for %s, "+
+		"where the forward ends", req.Profile(), req.Tunnel(), certNames(hostErr.Certificate), hostErr.Host).
+		WithHint("a forward always ends at 127.0.0.1, so the certificate is checked for the name the Vault " +
+			"answers as instead: " + req.Surface().SettingName("tls-server-name") + ", which the profile can " +
+			"hold beside its forward, names it — one the certificate is for — and it is checked as strictly " +
+			"as the host it replaces")
+}
+
+// certNames lists the names a certificate is for, the ones a check reads:
+// its DNS names and its IP addresses, never the subject's common name, which
+// Go's verifier ignores.
+func certNames(cert *x509.Certificate) string {
+	if cert == nil {
+		return "another name"
+	}
+	names := slices.Clone(cert.DNSNames)
+	for _, ip := range cert.IPAddresses {
+		names = append(names, ip.String())
+	}
+	switch {
+	case len(names) == 0:
+		return "no name a check reads"
+	case len(names) > 3:
+		return strings.Join(names[:3], ", ") + fmt.Sprintf(" and %d more", len(names)-3)
+	}
+	return strings.Join(names, ", ")
 }
 
 // dataHint says how data carries a secret's fields: on the CLI a flag repeated
