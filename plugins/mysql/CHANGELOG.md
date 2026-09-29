@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.3.19...plugins/mysql/v0.4.0) (2026-09-29)
+
+
+### Features
+
+* **mysql:** a server behind a private CA is verified against ca-file, rather than not at all ([ed5536e](https://github.com/this-is-tobi/rta-plugins/commit/ed5536e45426ef5fcb3a1a6345a6eae39587bef3))
+* **mysql:** tls verify-ca checks the server's chain against ca-file and not its name ([8e518e1](https://github.com/this-is-tobi/rta-plugins/commit/8e518e1a6d92583714663297184361e81df14605))
+
+
+### Bug Fixes
+
+* **mysql:** a certificate for another host, or for none, is named as that, not as out of reach ([40d6da8](https://github.com/this-is-tobi/rta-plugins/commit/40d6da8716d7f4ea741609ab4356b355768abae8))
+* **mysql:** a dump or restore over tls true with no CA names ca-file as what the client needs ([dd9f8a4](https://github.com/this-is-tobi/rta-plugins/commit/dd9f8a4e56d22ebb1ba0e2f20f520f00e61c18a2))
+* **mysql:** a dump or restore reaches the server its pre-flight checked, over TCP, not a socket ([c0a28df](https://github.com/this-is-tobi/rta-plugins/commit/c0a28dfc0293cb4e8f6c670359be6fa552701506))
+* **mysql:** a restore names an IPv6 server [::1]:3306, not ::1:3306 ([36c9a1e](https://github.com/this-is-tobi/rta-plugins/commit/36c9a1e4b6bbde25b03c3791fe793cb66f0d037f))
+* **mysql:** a server that insists on TLS, or offers none, is named as that, not as a failed query ([a8ab306](https://github.com/this-is-tobi/rta-plugins/commit/a8ab3064472188b0a3535c4c5d9a2f5bc6bdd7be))
+* **mysql:** an IPv6 host is dialled as the address it is, not looked up as a name ([7357bb8](https://github.com/this-is-tobi/rta-plugins/commit/7357bb8bb2df8bbf44e4d1498d84177fd783e147))
+* **mysql:** rejected credentials name where the password is read from, never a variable to set ([efea969](https://github.com/this-is-tobi/rta-plugins/commit/efea96962f65ceca901dca803eaf578f109c3eab))
+* **mysql:** the restore's client connects within the plugin's bound, and a timeout is named ([c738ae8](https://github.com/this-is-tobi/rta-plugins/commit/c738ae84ca12c53987a2bd0e909c90944b89e1bd))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.32.0 ([c9b5ed6](https://github.com/this-is-tobi/rta-plugins/commit/c9b5ed66ef7bf7b825878b8d7307ade9963cc294))
+
 ## [0.3.19](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.3.18...plugins/mysql/v0.3.19) (2026-09-28)
 
 
