@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.3.19...plugins/pg/v0.4.0) (2026-09-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* **pg:** sslmode verify-ca with no sslrootcert is refused. Name the server's CA in sslrootcert, ~/.postgresql/root.crt when that is where it is, or set sslmode to verify-full to check against this machine's own CAs.
+* **pg:** sslrootcert system beside sslmode prefer, require or verify-ca is refused. Set sslmode to verify-full, or name the server's CA as a file.
+* **pg:** sslrootcert beside sslmode prefer or require is refused. Set sslmode to verify-ca, which is what require did with a CA, or to verify-full to check the server's name as well.
+
+### Bug Fixes
+
+* **pg:** a certificate macOS does not trust is answered with the CA, not "could not connect" ([5f5ebcc](https://github.com/this-is-tobi/rta-plugins/commit/5f5ebcc743edd305a87fa36bf90b3b6da8e11242))
+* **pg:** a dump written by a pg_dump newer than its server says where it restores, and the fix ([96daad6](https://github.com/this-is-tobi/rta-plugins/commit/96daad648fddda3bcb5937b64b8c79b872fe04e0))
+* **pg:** a restore into a server older than what wrote it is named as the skew, with the fix ([ae4fd53](https://github.com/this-is-tobi/rta-plugins/commit/ae4fd53b8b6edd79918110462414edff25090fb4))
+* **pg:** a restore's missing database is created on the server it reached, port and role named ([3126901](https://github.com/this-is-tobi/rta-plugins/commit/3126901d62207664d036d09e4f7b2a992309d7c7))
+* **pg:** an IPv6 server is named [::1]:5432 in messages and receipts, not ::1:5432 ([4e90cb5](https://github.com/this-is-tobi/rta-plugins/commit/4e90cb5b600eaeca369d9d7b89db6bed425cdfc0))
+* **pg:** an sslrootcert that cannot be read or holds no certificate is named as that ([2ea70b4](https://github.com/this-is-tobi/rta-plugins/commit/2ea70b4f453548e3baa44e889b74ce6630586e3d))
+* **pg:** pg_dump, psql and pg_restore connect within the plugin's bound, and its end is named ([6e97576](https://github.com/this-is-tobi/rta-plugins/commit/6e975769475dad7bbb0d2fde32454ab4f12b9c82))
+* **pg:** rejected credentials name where the password is read from, never a variable to set ([b25a4b7](https://github.com/this-is-tobi/rta-plugins/commit/b25a4b7fdabc9ca769a3c22996b9362b1a5fe774))
+* **pg:** sslrootcert beside prefer or require is refused, not left inert or implied ([4b94e4d](https://github.com/this-is-tobi/rta-plugins/commit/4b94e4dfe088d96b1ef19e347eb34115d477bf48))
+* **pg:** sslrootcert resolves a leading ~ and is made absolute, as the other paths are ([abe43d7](https://github.com/this-is-tobi/rta-plugins/commit/abe43d72b1fc0d219f7ce329349d70ebd9e53779))
+* **pg:** sslrootcert system is taken beside verify-full alone, as libpq takes it ([8585293](https://github.com/this-is-tobi/rta-plugins/commit/858529374e55878d1387bf33add5e1beedd04c11))
+* **pg:** the connect is bounded, and a host no route reaches is not a port nothing listens on ([79adf2a](https://github.com/this-is-tobi/rta-plugins/commit/79adf2a46d57e31d17fa244e2a9833d832cbcedf))
+* **pg:** verify-ca without sslrootcert is refused, not checked against the system store ([2e1ce15](https://github.com/this-is-tobi/rta-plugins/commit/2e1ce1584678470e9148647913307d663d55c4db))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.32.0 ([c9b5ed6](https://github.com/this-is-tobi/rta-plugins/commit/c9b5ed66ef7bf7b825878b8d7307ade9963cc294))
+
 ## [0.3.19](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.3.18...plugins/pg/v0.3.19) (2026-09-28)
 
 

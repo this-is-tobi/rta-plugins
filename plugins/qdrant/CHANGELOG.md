@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.20](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.19...plugins/qdrant/v0.3.20) (2026-09-29)
+
+
+### Dependencies
+
+* every plugin builds against rta v0.32.0 ([c9b5ed6](https://github.com/this-is-tobi/rta-plugins/commit/c9b5ed66ef7bf7b825878b8d7307ade9963cc294))
+
 ## [0.3.19](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.18...plugins/qdrant/v0.3.19) (2026-09-28)
 
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.20](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.3.19...plugins/etcd/v0.3.20) (2026-09-29)
+
+
+### Bug Fixes
+
+* **etcd:** a CA or password the cluster wants is named as the operator's setting, never passed ([0dba66e](https://github.com/this-is-tobi/rta-plugins/commit/0dba66e9fe1a267a438433913aac2c314a1631e0))
+* **etcd:** a ca-file with no PEM certificate says what it must hold, not what it might have been ([7cef8be](https://github.com/this-is-tobi/rta-plugins/commit/7cef8bea564dff04ce350b7a6c4b52aa8bca31a6))
+* **etcd:** a name DNS cannot resolve is named alone, and never reported as a port nothing hears ([f0dc982](https://github.com/this-is-tobi/rta-plugins/commit/f0dc98240a8c2cd92c76f31a91db915fcfd416bf))
+* **etcd:** an endpoint that names no port is dialled on etcd's client port, as its help says ([189bc3e](https://github.com/this-is-tobi/rta-plugins/commit/189bc3ec9fa62df33367b74f6887c34c4d3d3c21))
+* **etcd:** ca-file, cert-file and key-file resolve a leading ~, as the other paths do ([c5897eb](https://github.com/this-is-tobi/rta-plugins/commit/c5897ebbfaabbd0ea7b8e5d3602e283f4c6da5ee))
+* **etcd:** the connect is bounded, and a connection that fails is answered with why it failed ([28ebe02](https://github.com/this-is-tobi/rta-plugins/commit/28ebe02cd9daccb8eb0853ca87f96d8805c4fa1e))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.32.0 ([c9b5ed6](https://github.com/this-is-tobi/rta-plugins/commit/c9b5ed66ef7bf7b825878b8d7307ade9963cc294))
+
 ## [0.3.19](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.3.18...plugins/etcd/v0.3.19) (2026-09-28)
 
 

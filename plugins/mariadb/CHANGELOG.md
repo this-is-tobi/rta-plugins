@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.3.19...plugins/mariadb/v0.4.0) (2026-09-29)
+
+
+### Features
+
+* **mariadb:** a server behind a private CA is verified against ca-file, rather than not at all ([840f2a7](https://github.com/this-is-tobi/rta-plugins/commit/840f2a75cef182729810e0f5213793462e1014f5))
+* **mariadb:** tls verify-ca checks the server's chain against ca-file and not its name ([494cc7f](https://github.com/this-is-tobi/rta-plugins/commit/494cc7f7193d72ac0622462e7dcba1e7e3fa08a2))
+
+
+### Bug Fixes
+
+* **mariadb:** a certificate for another host, or for none, is named as that, not as out of reach ([4b7d503](https://github.com/this-is-tobi/rta-plugins/commit/4b7d5032ae7776bbbd4065a264c154bdea82f2fc))
+* **mariadb:** a dump or restore reaches the server its pre-flight checked, over TCP, not a socket ([e1558cd](https://github.com/this-is-tobi/rta-plugins/commit/e1558cd25d645686f8ce1fbfe5ad53880695e2d8))
+* **mariadb:** a restore names an IPv6 server [::1]:3306, not ::1:3306 ([9be16fa](https://github.com/this-is-tobi/rta-plugins/commit/9be16fa185fae46f179cf33cbbbc1dd69f8b62c2))
+* **mariadb:** a server that insists on TLS, or offers none, is named as that, not as a failed query ([7ecb862](https://github.com/this-is-tobi/rta-plugins/commit/7ecb8625fedb0d3d31e0f41b53feb9046cd335aa))
+* **mariadb:** an IPv6 host is dialled as the address it is, not looked up as a name ([13d530f](https://github.com/this-is-tobi/rta-plugins/commit/13d530f347705b057527bad6bab202db1ef7b17a))
+* **mariadb:** rejected credentials name where the password is read from, never a variable to set ([2b0fde9](https://github.com/this-is-tobi/rta-plugins/commit/2b0fde96dd5a31e336805c58c486a4b96391c9b7))
+* **mariadb:** the restore's client connects within the plugin's bound, and a timeout is named ([fe30b3b](https://github.com/this-is-tobi/rta-plugins/commit/fe30b3be9bfbb91d1599309f44c7400b8684d6c7))
+* **mariadb:** the server this plugin talks to is called MariaDB, not the other fork's name ([1944a2e](https://github.com/this-is-tobi/rta-plugins/commit/1944a2ef3b12c10f5f65024890a373778b71a1a4))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.32.0 ([c9b5ed6](https://github.com/this-is-tobi/rta-plugins/commit/c9b5ed66ef7bf7b825878b8d7307ade9963cc294))
+
 ## [0.3.19](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.3.18...plugins/mariadb/v0.3.19) (2026-09-28)
 
 

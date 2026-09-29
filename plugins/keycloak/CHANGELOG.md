@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.1.13](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.1.12...plugins/keycloak/v0.1.13) (2026-09-29)
+
+
+### Bug Fixes
+
+* **keycloak:** a ca-file that cannot be used says what it must hold, named as its reader sets it ([8ac268e](https://github.com/this-is-tobi/rta-plugins/commit/8ac268ed06c6bd8d30ca9d5a7fa9c13ad8f7b0f3))
+* **keycloak:** a certificate macOS does not trust is answered with the CA, not "could not reach" ([f66feed](https://github.com/this-is-tobi/rta-plugins/commit/f66feed10b555f74842993d0f6c143ceb9bc1309))
+* **keycloak:** a server no route reaches is named as unreachable, not as a port nothing hears ([1afd0fe](https://github.com/this-is-tobi/rta-plugins/commit/1afd0fea768097621cf861329c31d6079b6e19cb))
+* **keycloak:** an untrusted certificate names ca-file as the operator's setting, never as passed ([e25e992](https://github.com/this-is-tobi/rta-plugins/commit/e25e99271222341c2cc87600800d0ef148ba0c91))
+* **keycloak:** ca-file resolves a leading ~, as the other paths do ([aecfc99](https://github.com/this-is-tobi/rta-plugins/commit/aecfc99669998f5fa8cbe58f13f5f41dbad68769))
+* **keycloak:** the token and connection refusals name each setting as their reader changes it ([062f2f4](https://github.com/this-is-tobi/rta-plugins/commit/062f2f428c7e9fa3d212a16b8bb53ba1ccf62abf))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.32.0 ([c9b5ed6](https://github.com/this-is-tobi/rta-plugins/commit/c9b5ed66ef7bf7b825878b8d7307ade9963cc294))
+
 ## [0.1.12](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.1.11...plugins/keycloak/v0.1.12) (2026-09-28)
 
 

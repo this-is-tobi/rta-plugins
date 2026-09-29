@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.21](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.20...plugins/redis/v0.1.21) (2026-09-29)
+
+
+### Bug Fixes
+
+* **redis:** a replication peer at an IPv6 address is named [::1]:6380, not ::1:6380 ([86f9e47](https://github.com/this-is-tobi/rta-plugins/commit/86f9e477d3dacdbe2847f94e5476ab7b4f94c820))
+* **redis:** ca-file, cert-file and key-file resolve a leading ~, as the other paths do ([d72e5c8](https://github.com/this-is-tobi/rta-plugins/commit/d72e5c84d20d3496a22f769e1cd090847ec3ac1a))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.32.0 ([c9b5ed6](https://github.com/this-is-tobi/rta-plugins/commit/c9b5ed66ef7bf7b825878b8d7307ade9963cc294))
+
 ## [0.1.20](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.19...plugins/redis/v0.1.20) (2026-09-28)
 
 
