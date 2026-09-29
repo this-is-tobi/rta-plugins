@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	stdnet "net"
 	"net/http"
@@ -529,6 +530,31 @@ func TestUserAttributesAreNeverRendered(t *testing.T) {
 			t.Errorf("%s rendered user attributes", tc.cap)
 		}
 	}
+}
+
+// ca-file resolves a leading ~ as every other path a plugin reads does.
+// Opened as typed, ~/ca.pem was a path under a directory named ~, and a CA
+// sitting in the operator's home was answered as no such file. The server's
+// own certificate is its CA here, so a request that verifies proves the file
+// was the one read.
+func TestTheCAFileResolvesTheHomeDirectory(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer srv.Close()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	block := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: srv.Certificate().Raw})
+	if err := os.WriteFile(filepath.Join(home, "ca.pem"), block, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	client, verr := httpClient(req(t, "keycloak.overview", map[string]any{"ca-file": "~/ca.pem"}))
+	if verr != nil {
+		t.Fatalf("a ca-file under ~ was refused: %s: %s", verr.Code, verr.Message)
+	}
+	resp, err := client.Get(srv.URL)
+	if err != nil {
+		t.Fatalf("the CA under ~ did not verify its own server: %v", err)
+	}
+	_ = resp.Body.Close()
 }
 
 // macOS verifies against the system's trust store itself and reports an
