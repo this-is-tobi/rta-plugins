@@ -227,8 +227,12 @@ func (s *session) call(ctx context.Context, method, u string, body io.Reader, co
 // httpClient is http.DefaultClient unless ca-file names a CA to trust
 // beyond this machine's own store — read fresh on every call like every
 // other input, because nothing here outlives a run.
+//
+// The path with a leading ~ resolved, as every other path a plugin reads
+// is. Opened as typed, ~/ca.pem was a path under a directory named ~, and a
+// CA sitting in the operator's home was answered as no such file.
 func httpClient(req plugin.Request) (*http.Client, *view.Error) {
-	ca := req.String("ca-file")
+	ca := plugin.ExpandHome(req.String("ca-file"))
 	if ca == "" {
 		return http.DefaultClient, nil
 	}
