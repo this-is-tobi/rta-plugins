@@ -3,9 +3,12 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -97,6 +100,20 @@ func TestRestoreArgsCarryTheDecidedFlags(t *testing.T) {
 	}
 }
 
+// The pre-flight proves the server was there a moment ago, and nothing about
+// the child's own connection a moment later: the restore's client is bound as
+// the pre-flight was, in its seconds. mysqldump has no such flag, and refuses
+// one, so the dump's argv carries none.
+func TestTheRestoreChildConnectsWithinThePluginsBound(t *testing.T) {
+	values := map[string]any{"database": "app"}
+	if args := restoreArgs(req(t, "mysql.restore", values)); !slices.Contains(args, "--connect-timeout=10") {
+		t.Errorf("restore argv = %q, want --connect-timeout=10", args)
+	}
+	if args := strings.Join(dumpArgs(req(t, "mysql.dump", values)), " "); strings.Contains(args, "connect-timeout") {
+		t.Errorf("dump argv = %q, which the dump tool refuses as an unknown variable", args)
+	}
+}
+
 func TestClassifyRestoreNamesTheFailure(t *testing.T) {
 	r := req(t, "mysql.restore", map[string]any{"database": "app"})
 	boom := errors.New("exit status 1")
@@ -112,6 +129,8 @@ func TestClassifyRestoreNamesTheFailure(t *testing.T) {
 		"anything":  {"something nobody anticipated", "mysql.restore.failed"},
 		"no CA": {"ERROR 2026 (HY000): SSL connection error: CA certificate is required if ssl-mode is " +
 			"VERIFY_CA or VERIFY_IDENTITY", "mysql.tls.ca.required"},
+		"timed out": {fmt.Sprintf("ERROR 2003 (HY000): Can't connect to MySQL server on 'db.internal:3306' (%d)",
+			int(syscall.ETIMEDOUT)), "mysql.conn.timeout"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			verr := classifyRestore(boom, tc.stderr, r)

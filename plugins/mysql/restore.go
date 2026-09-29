@@ -185,6 +185,14 @@ func restoreArgs(req plugin.Request) []string {
 		// The file being restored is the operator's own artifact, but closing
 		// the primitive costs nothing and a hostile dump is not unthinkable.
 		"--local-infile=0",
+		// The bound the pre-flight connection had, given to the child in the
+		// client's seconds. The pre-flight proves the server was there a
+		// moment ago, and nothing about the child's own connection a moment
+		// later: a server gone in between — a failover, a port-forward that
+		// exited, a firewall that began dropping — left the client waiting
+		// on the operating system's connect timeout, a minute or more, with
+		// nothing on the terminal to say why.
+		"--connect-timeout=" + strconv.Itoa(int(connectTimeout/time.Second)),
 		// Non-interactive output; and note what is absent: --force, the flag
 		// that would count errors quietly to the end and call the survivor a
 		// restore. Without it the client stops at the first error, which is
@@ -296,8 +304,7 @@ func classifyRestore(err error, stderr string, req plugin.Request) *view.Error {
 	case strings.Contains(stderr, "CA certificate is required"):
 		return noCA(req.Surface(), msg("CA certificate is required"))
 	case strings.Contains(stderr, "Can't connect"):
-		return view.Errorf("mysql.conn.refused", "%s", msg("Can't connect")).
-			WithHint(reachHint(req.Surface()))
+		return unreached(req.Surface(), msg("Can't connect"))
 	case strings.Contains(stderr, "at line"):
 		// The client names the statement that failed and its line in the
 		// file — the one detail worth surfacing verbatim, because it is where

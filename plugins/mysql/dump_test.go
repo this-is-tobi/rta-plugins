@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -254,6 +256,8 @@ func TestClassifyDumpNamesTheFailure(t *testing.T) {
 		"atstraws":  {"mysqldump: something nobody anticipated", "mysql.dump.failed"},
 		"no CA": {"mysqldump: Got error: 2026: SSL connection error: CA certificate is required if ssl-mode is " +
 			"VERIFY_CA or VERIFY_IDENTITY when trying to connect", "mysql.tls.ca.required"},
+		"timed out": {fmt.Sprintf("mysqldump: Got error: 2003: Can't connect to MySQL server on 'db.internal:3306' "+
+			"(%d) when trying to connect", int(syscall.ETIMEDOUT)), "mysql.conn.timeout"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			verr := classifyDump(boom, tc.stderr, r)
