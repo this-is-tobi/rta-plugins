@@ -171,7 +171,7 @@ func rulesFor(sf plugin.Surface, capabilityIDs []string) ([]policyRule, *view.Er
 	if len(capabilityIDs) == 0 {
 		return nil, view.Errorf("kube.serviceaccount.norules",
 			"name at least one grant for the identity").
-			WithHint(given(sf, "grant", "kube.pod.list") + " (or logs, rollout…), repeatable — " +
+			WithHint(sf.InputTo("grant", []string{"kube.pod.list"}) + " (or logs, rollout…), repeatable — " +
 				strings.Join(provisionableNames(), ", "))
 	}
 	seen := map[string]bool{}
