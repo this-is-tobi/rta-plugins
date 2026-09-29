@@ -76,8 +76,8 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name: "a certificate nothing here trusts",
-			cli:  "the CA that issued it belongs in --ca-file",
-			mcp:  "the CA that issued it belongs in `ca-file`",
+			cli:  "the CA that issued it belongs in --ca-file (a self-signed certificate is its own CA)",
+			mcp:  "the CA that issued it belongs in the operator's `ca-file` setting (a self-signed",
 			refuse: func(sf plugin.Surface) *view.Error {
 				return classify(x509.UnknownAuthorityError{}, "10.0.0.1:6379", sf)
 			},

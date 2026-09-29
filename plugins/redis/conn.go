@@ -113,7 +113,7 @@ func connect(ctx context.Context, req plugin.Request) (*client, *view.Error) {
 		conn, err = dialer.DialContext(ctx, "tcp", addr)
 	}
 	if err != nil {
-		return nil, classify(err, addr, req.Surface())
+		return nil, classifyDial(err, addr, req)
 	}
 	c := &client{conn: conn, r: bufio.NewReader(conn), w: bufio.NewWriter(conn), addr: addr, sf: req.Surface()}
 
@@ -367,24 +367,49 @@ func classify(err error, addr string, sf plugin.Surface) *view.Error {
 		return view.Errorf("redis.server.error", "%s: %s", addr, srv.msg)
 	}
 
+	// A dial that found no way to the host, and one the host refused, by the
+	// operating system's own error, as plugin.DialUnroutable and DialRefused
+	// read it, and never by the *net.OpError around it, which every failed
+	// dial and every broken read is: read that way, a server behind a VPN
+	// that was down, and one that reset the connection mid-command, were each
+	// "nothing is listening", about a port that may have been fine. The name
+	// before either, since a dial that could not resolve its host is a
+	// *net.OpError too.
 	var netErr *stdnet.OpError
+	var dnsErr *stdnet.DNSError
 	switch {
 	case errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout()):
 		return view.Errorf("redis.timeout", "%s did not answer in time", addr).
 			WithHint("a server blocked on a long command, or a firewall that drops rather than refuses, looks exactly like this")
-	case errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused"):
-		var dnsErr *stdnet.DNSError
-		if errors.As(err, &dnsErr) {
-			return view.Errorf("redis.host.unknown", "no address for %q", hostOnly(addr)).
-				WithHint(dnsHint(sf, hostOnly(addr)))
+	case errors.As(err, &dnsErr):
+		return view.Errorf("redis.host.unknown", "no address for %q", hostOnly(addr)).
+			WithHint(dnsHint(sf, hostOnly(addr)))
+	case plugin.DialUnroutable(err):
+		why := err
+		if errors.As(err, &netErr) {
+			why = netErr.Err
 		}
+		return view.Errorf("redis.conn.unreachable", "%s cannot be reached from this machine: %v", addr, why).
+			WithHint("no route leads there from here — a VPN or tunnel the server sits behind that is down " +
+				"looks exactly like this, and so does " + setting(sf, "address") + " naming an address on a " +
+				"network this machine is not on")
+	case plugin.DialRefused(err):
 		return view.Errorf("redis.conn.refused", "nothing is listening on %s", addr).
 			WithHint("redis listens on 6379 by default; a server bound to localhost only answers from its own host")
 	}
-	var authErr x509.UnknownAuthorityError
-	if errors.As(err, &authErr) {
+	// **Only a certificate plugin.CertUntrusted reads as an unknown issuer's,**
+	// Go's x509.UnknownAuthorityError among them, and on macOS, where the
+	// system's verifier answers whenever no ca-file is named, the one untyped
+	// verdict known to mean the same. Every other verdict of the system's is
+	// a reason of its own, a revoked certificate among them, and keeps its
+	// words in redis.conn.failed: a CA file is no cure for one but a way
+	// round it, since naming one replaces the system's checks with Go's
+	// verifier and that CA alone, which is what the hint says (CAHint). A
+	// ca-file already named that did not issue the certificate is said to be
+	// that, by classifyDial, which has the request to name it.
+	if plugin.CertUntrusted(err) {
 		return view.Errorf("redis.tls.untrusted", "%s presented a certificate nothing here trusts", addr).
-			WithHint("the CA that issued it belongs in " + setting(sf, "ca-file"))
+			WithHint(sf.CAHint("ca-file"))
 	}
 	if errors.Is(err, io.EOF) {
 		return view.Errorf("redis.conn.closed", "%s closed the connection", addr).
@@ -392,6 +417,20 @@ func classify(err error, addr string, sf plugin.Surface) *view.Error {
 	}
 	return view.Errorf("redis.conn.failed", "could not reach %s: %v", addr, err).
 		WithHint(explainHint(sf, "redis.overview"))
+}
+
+// classifyDial is classify for the dial and its handshake: the one step that
+// can fail on the server's certificate, and the one with the request to hand,
+// so the one that can say a ca-file named is not the CA that issued it —
+// rather than send the reader to name the CA in the setting that already
+// names one.
+func classifyDial(err error, addr string, req plugin.Request) *view.Error {
+	if ca := plugin.ExpandHome(req.String("ca-file")); ca != "" && plugin.CertUntrusted(err) {
+		return view.Errorf("redis.tls.untrusted", "%s presented a certificate nothing here trusts", addr).
+			WithHint(ca + ", which " + setting(req.Surface(), "ca-file") + " names, does not hold the CA that " +
+				"issued it — a self-signed certificate is its own CA")
+	}
+	return classify(err, addr, req.Surface())
 }
 
 func hostOnly(addr string) string {
