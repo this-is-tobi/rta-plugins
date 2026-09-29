@@ -293,11 +293,15 @@ type handshakeError struct{ err error }
 func (e handshakeError) Error() string { return e.err.Error() }
 func (e handshakeError) Unwrap() error { return e.err }
 
+// tlsConfig is the TLS the three certificate paths describe, each with a
+// leading ~ resolved as every other path a plugin reads is. Opened as typed,
+// ~/ca.pem was a path under a directory named ~, and a CA sitting in the
+// operator's home was answered as no such file.
 func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 	sf := req.Surface()
 	cfg := &tls.Config{MinVersion: tls.VersionTLS12}
 
-	if ca := req.String("ca-file"); ca != "" {
+	if ca := plugin.ExpandHome(req.String("ca-file")); ca != "" {
 		pem, err := os.ReadFile(ca)
 		if err != nil {
 			return nil, view.Errorf("etcd.tls.ca.unreadable", "%v", err).
@@ -320,7 +324,7 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 		cfg.RootCAs = pool
 	}
 
-	cert, key := req.String("cert-file"), req.String("key-file")
+	cert, key := plugin.ExpandHome(req.String("cert-file")), plugin.ExpandHome(req.String("key-file"))
 	// Half of an mTLS pair is not a working configuration and not a partial
 	// one — it is a connection that fails at handshake with an error naming
 	// neither file. Refusing here says which half is missing.
