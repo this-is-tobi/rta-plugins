@@ -504,6 +504,24 @@ func withPort(hostport string) string {
 	return stdnet.JoinHostPort(host, clientPort)
 }
 
+// reached names the member this call reached the way its reader reaches it
+// again once the call is over: the endpoint, beside the profile that filled
+// the rest of the connection when there was one — and the profile alone when
+// the host reached the member through a forward it opened on that profile. A
+// forward's end is 127.0.0.1 and a port that closed with the call, and a
+// receipt naming it named a member nothing answers as any more.
+func reached(req plugin.Request) string {
+	endpoint := endpointOf(req)
+	switch profile := req.Profile(); {
+	case profile == "":
+		return endpoint
+	case req.Tunnel() == plugin.TunnelNone:
+		return endpoint + " (profile " + profile + ")"
+	default:
+		return "profile " + profile + ", through its " + string(req.Tunnel()) + ": forward"
+	}
+}
+
 func hostOnly(endpoint string) string {
 	// An http:// or https:// endpoint is one etcd's client takes as readily
 	// as a bare host:port, and split as host:port whole it is not one: a name
