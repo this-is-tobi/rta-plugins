@@ -449,6 +449,40 @@ func TestOnlineWithoutAVolumeSnapshotIsRefusedBeforeTheAPIServerHasTo(t *testing
 	}
 }
 
+// The method a refusal sends its reader to is given as the reader's surface
+// gives it: a flag and its value at a terminal, the argument set to the JSON
+// an agent sends, and the box set to what is typed in it.
+func TestAMethodHintGivesTheMethodTheWayItsSurfaceDoes(t *testing.T) {
+	snapshotsOnly := aCluster("shop", "prod", func(c map[string]any) {
+		backup := c["spec"].(map[string]any)["backup"].(map[string]any)
+		delete(backup, "barmanObjectStore")
+		backup["volumeSnapshot"] = map[string]any{}
+	})
+	for _, tc := range []struct {
+		sf                   plugin.Surface
+		unconfigured, online string
+	}{
+		{plugin.SurfaceCLI, "pass --method volumeSnapshot", "pass --method volumeSnapshot with it"},
+		{plugin.SurfaceMCP, `pass the "method" argument set to "volumeSnapshot"`,
+			`pass the "method" argument set to "volumeSnapshot" with it`},
+		{plugin.SurfaceTUI, "pass the method box set to volumeSnapshot",
+			"pass the method box set to volumeSnapshot with it"},
+	} {
+		recordingKubectl(t, mustJSON(t, snapshotsOnly))
+		_, err := runBackupRequest(context.Background(),
+			req(map[string]any{"cluster": "shop", "namespace": "prod"}).WithSurface(tc.sf))
+		if hint := asViewError(t, err).Hint; !strings.Contains(hint, tc.unconfigured) {
+			t.Errorf("%s: the hint is %q, want %q in it", tc.sf, hint, tc.unconfigured)
+		}
+		recordingKubectl(t, mustJSON(t, aCluster("shop", "prod")))
+		_, err = runBackupRequest(context.Background(),
+			req(map[string]any{"cluster": "shop", "namespace": "prod", "online": "true"}).WithSurface(tc.sf))
+		if hint := asViewError(t, err).Hint; !strings.Contains(hint, tc.online) {
+			t.Errorf("%s: the hint is %q, want %q in it", tc.sf, hint, tc.online)
+		}
+	}
+}
+
 // An unstated method is barmanObjectStore, CloudNativePG's own fixed default,
 // and not a preference read off the cluster.
 //
