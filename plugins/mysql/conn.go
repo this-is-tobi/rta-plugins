@@ -182,7 +182,7 @@ func open(ctx context.Context, req plugin.Request, cfg *mysql.Config) (*sql.DB, 
 	connector, err := mysql.NewConnector(cfg)
 	if err != nil {
 		return nil, view.Errorf("mysql.conn.invalid", "%v", err).
-			WithHint(explainHint(req.Surface(), "mysql.overview"))
+			WithHint(req.Surface().SettingsHint("mysql.overview"))
 	}
 	db := sql.OpenDB(connector)
 	// One connection, because a capability here runs one query and exits. A
@@ -217,9 +217,9 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 	if path == "" {
 		if mode == "verify-ca" {
 			return nil, view.Errorf("mysql.tls.ca.missing", "%s checks the server's chain against the CA %s names, "+
-				"and it names none", settingTo(sf, "tls", mode), setting(sf, "ca-file")).
-				WithHint(setting(sf, "ca-file") + " names it: the CA that issued the server's certificate, or the " +
-					"certificate itself when it is self-signed. " + settingTo(sf, "tls", "true") +
+				"and it names none", sf.SettingTo("tls", mode), sf.SettingName("ca-file")).
+				WithHint(sf.SettingName("ca-file") + " names it: the CA that issued the server's certificate, or the " +
+					"certificate itself when it is self-signed. " + sf.SettingTo("tls", "true") +
 					" checks against this machine's own CAs instead, the server's name included")
 		}
 		return nil, nil
@@ -229,14 +229,14 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 		return nil, nil
 	case "preferred", "skip-verify":
 		return nil, view.Errorf("mysql.tls.ca.unused", "%s names a CA, and %s never verifies against one",
-			setting(sf, "ca-file"), settingTo(sf, "tls", mode)).
-			WithHint(settingTo(sf, "tls", "true") + " verifies the server against it, its name included, and " +
-				settingTo(sf, "tls", "verify-ca") + " its chain alone")
+			sf.SettingName("ca-file"), sf.SettingTo("tls", mode)).
+			WithHint(sf.SettingTo("tls", "true") + " verifies the server against it, its name included, and " +
+				sf.SettingTo("tls", "verify-ca") + " its chain alone")
 	}
 	pem, err := os.ReadFile(path)
 	if err != nil {
 		return nil, view.Errorf("mysql.tls.ca.unreadable", "%v", err).
-			WithHint(setting(sf, "ca-file") + " names a file on this machine, read by rta rather than " +
+			WithHint(sf.SettingName("ca-file") + " names a file on this machine, read by rta rather than " +
 				"by the server, holding the CA's certificate in PEM")
 	}
 	// What the file has to hold, rather than a guess at what it held
@@ -248,7 +248,7 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 	pool := x509.NewCertPool()
 	if !pool.AppendCertsFromPEM(pem) {
 		return nil, view.Errorf("mysql.tls.ca.invalid", "%s holds no PEM certificate", path).
-			WithHint(setting(sf, "ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
+			WithHint(sf.SettingName("ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
 				"server's own — and a private key or a DER-encoded certificate is not one")
 	}
 	cfg := &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}
@@ -327,7 +327,7 @@ func classify(err error, req plugin.Request) *view.Error {
 			// the bridge drops a Local input given.
 			return view.Errorf("mysql.auth.failed", "%s rejected user %q", where, req.String("user")).
 				WithHint("the password is read from $" + plugin.LocalEnvVar("mysql.overview", "password") + " or " +
-					setting(req.Surface(), "password") + " — check it, and " + setting(req.Surface(), "user"))
+					req.Surface().SettingName("password") + " — check it, and " + req.Surface().SettingName("user"))
 		case 1044: // ER_DBACCESS_DENIED_ERROR
 			return view.Errorf("mysql.database.denied", "%q may not use database %q",
 				req.String("user"), req.String("database")).
@@ -354,11 +354,11 @@ func classify(err error, req plugin.Request) *view.Error {
 			// forces, so this is where a server started with
 			// require_secure_transport meets one.
 			return view.Errorf("mysql.tls.required", "%s accepts connections over TLS only", where).
-				WithHint(settingTo(req.Surface(), "tls", "true") + " connects over it, with " +
-					setting(req.Surface(), "ca-file") + " naming the CA if the server's certificate is from one of its own")
+				WithHint(req.Surface().SettingTo("tls", "true") + " connects over it, with " +
+					req.Surface().SettingName("ca-file") + " naming the CA if the server's certificate is from one of its own")
 		}
 		return view.Errorf("mysql.query.failed", "%d: %s", myErr.Number, myErr.Message).
-			WithHint(explainHint(req.Surface(), "mysql.overview"))
+			WithHint(req.Surface().SettingsHint("mysql.overview"))
 	}
 
 	// true or skip-verify against a server that offers no TLS. The driver's
@@ -366,7 +366,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	// was not: it answered, without the TLS that was asked for.
 	if errors.Is(err, mysql.ErrNoTLS) {
 		return view.Errorf("mysql.tls.unsupported", "%s does not offer TLS", where).
-			WithHint(settingTo(req.Surface(), "tls", "false") + " if that is expected on this network")
+			WithHint(req.Surface().SettingTo("tls", "false") + " if that is expected on this network")
 	}
 
 	// A certificate for another name than the one dialled, or for none.
@@ -401,11 +401,11 @@ func classify(err error, req plugin.Request) *view.Error {
 	if plugin.CertUntrusted(err) {
 		refused := view.Errorf("mysql.tls.untrusted", "%s presented a certificate nothing here trusts", where)
 		if ca := caFile(req); ca != "" {
-			return refused.WithHint(ca + ", which " + setting(req.Surface(), "ca-file") + " names, does " +
+			return refused.WithHint(ca + ", which " + req.Surface().SettingName("ca-file") + " names, does " +
 				"not hold the CA that issued it — a self-signed certificate is its own CA")
 		}
 		return refused.WithHint("a server with a CA of its own wants that CA named rather than " +
-			settingTo(req.Surface(), "tls", "skip-verify") + ", which turns verification off — " +
+			req.Surface().SettingTo("tls", "skip-verify") + ", which turns verification off — " +
 			req.Surface().CAHint("ca-file"))
 	}
 
@@ -415,7 +415,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	var dnsErr *stdnet.DNSError
 	if errors.As(err, &dnsErr) {
 		return view.Errorf("mysql.host.unknown", "no address for %q", req.String("host")).
-			WithHint(dnsHint(req.Surface(), req.String("host")))
+			WithHint(req.Surface().DNSHint(req.String("host")))
 	}
 	// A dial that found no way to the host, and one the host refused, by the
 	// operating system's own error, as plugin.DialUnroutable and DialRefused
@@ -431,7 +431,7 @@ func classify(err error, req plugin.Request) *view.Error {
 		}
 		return view.Errorf("mysql.conn.unreachable", "%s cannot be reached from this machine: %v", where, why).
 			WithHint("no route leads there from here — a VPN or tunnel the server sits behind that is down " +
-				"looks exactly like this, and so does " + setting(req.Surface(), "host") + " naming an address " +
+				"looks exactly like this, and so does " + req.Surface().SettingName("host") + " naming an address " +
 				"on a network this machine is not on")
 	}
 	if plugin.DialRefused(err) {
@@ -448,7 +448,7 @@ func classify(err error, req plugin.Request) *view.Error {
 			WithHint("a firewall that drops rather than refuses looks exactly like this")
 	}
 	return view.Errorf("mysql.conn.failed", "could not reach %s: %v", where, err).
-		WithHint(explainHint(req.Surface(), "mysql.overview"))
+		WithHint(req.Surface().SettingsHint("mysql.overview"))
 }
 
 // misnamed is the certificate err refused for its name — or refused for
@@ -491,8 +491,8 @@ func nameRefusal(where string, cert *x509.Certificate, req plugin.Request) *view
 		return view.Errorf("mysql.tls.name", "%s presented a certificate that names no host, %s or any other",
 			where, host).
 			WithHint("a certificate with no subject alternative names, as the one MySQL generates for itself " +
-				"is, verifies as no host at all — " + settingTo(sf, "tls", "verify-ca") + " checks it against the " +
-				"CA in " + setting(sf, "ca-file") + " without a name, and " + settingTo(sf, "tls", "true") +
+				"is, verifies as no host at all — " + sf.SettingTo("tls", "verify-ca") + " checks it against the " +
+				"CA in " + sf.SettingName("ca-file") + " without a name, and " + sf.SettingTo("tls", "true") +
 				" reaches the server once its certificate is reissued with " + host + " among them")
 	}
 	if len(names) > 4 {
@@ -500,68 +500,12 @@ func nameRefusal(where string, cert *x509.Certificate, req plugin.Request) *view
 	}
 	return view.Errorf("mysql.tls.name", "%s presented a certificate for %s, not %s",
 		where, strings.Join(names, ", "), host).
-		WithHint(setting(sf, "host") + " is the name the certificate is checked against — reach the " +
+		WithHint(sf.SettingName("host") + " is the name the certificate is checked against — reach the " +
 			"server by one it carries, or have it reissued with " + host + " among its subject alternative names")
-}
-
-// setting names connection input name in a message the way its reader
-// changes it: the flag on the CLI, the box in a TUI form. Not the argument
-// over MCP, as plugin.Surface.InputName would: every connection input is
-// Local, so the tool's schema hides it and the bridge drops one given, and an
-// agent told to check the "user" argument would pass one that is thrown
-// away and read the same refusal again. It is named there as the declaration
-// names it, `user` — a setting of the operator's, which the agent can
-// report and cannot change.
-func setting(sf plugin.Surface, name string) string {
-	if sf == plugin.SurfaceMCP {
-		return "`" + name + "`"
-	}
-	return sf.InputName(name)
-}
-
-// settingTo is setting with the value to give it: "--tls true" on the CLI,
-// as a command line takes it, and elsewhere the setting with the value
-// beside it.
-func settingTo(sf plugin.Surface, name, value string) string {
-	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
-		return setting(sf, name) + " set to " + value
-	}
-	return sf.InputName(name) + " " + value
-}
-
-// explainHint sends the reader to the page listing every input and where each
-// one can come from. That page is `rta explain`, a terminal's command with no
-// capability behind it, and what it answers here is where the connection
-// inputs come from — the operator's to set — so over MCP it is the operator
-// who is asked to read it.
-func explainHint(sf plugin.Surface, id string) string {
-	if sf == plugin.SurfaceMCP {
-		return plugin.AskOperator("explain "+id) + ", which lists every input and where each one can come from"
-	}
-	return "`rta explain " + id + "` lists every input and where each one can come from"
-}
-
-// dnsHint is the call that shows what DNS returns for host, spelled for the
-// surface that will make it.
-func dnsHint(sf plugin.Surface, host string) string {
-	return "`" + sf.Call("net.dns", plugin.Arg{Name: "name", Value: host, Positional: true}) + "` shows what DNS returns"
 }
 
 // reachHint asks whether the server is up and its address right, naming the
 // two connection inputs the address is made of the way the reader sets them.
 func reachHint(sf plugin.Surface) string {
-	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
-		return "is the server up, and are " + setting(sf, "host") + " and " + setting(sf, "port") + " right?"
-	}
-	return "is the server up, and is " + sf.InputName("host") + "/" + sf.InputName("port") + " right?"
-}
-
-// given names input name set to value, as the reader would give it: "--out
-// ./shop.sql" on the CLI, and elsewhere the input the surface names, with the
-// value beside it.
-func given(sf plugin.Surface, name, value string) string {
-	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
-		return sf.InputName(name) + " set to " + value
-	}
-	return sf.InputName(name) + " " + value
+	return "is the server up, and are " + sf.SettingName("host", "port") + " right?"
 }

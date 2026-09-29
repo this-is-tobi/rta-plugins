@@ -116,13 +116,13 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	database := req.String("database")
 	if database == "" {
 		return nil, view.Errorf("mysql.dump.nodatabase", "say which database to dump").
-			WithHint(given(req.Surface(), "database", "<name>") + " — " +
+			WithHint(req.Surface().SettingTo("database", "<name>") + " — " +
 				req.Surface().CapabilityName("mysql.database.list") + " shows what is there")
 	}
 	out := strings.TrimSpace(req.String("out"))
 	if out == "" {
 		return nil, view.Errorf("mysql.dump.nooutput", "say where the dump should be written").
-			WithHint(given(req.Surface(), "out", "./"+database+".sql") + " — a whole database is a file, not something " +
+			WithHint(req.Surface().SettingTo("out", "./"+database+".sql") + " — a whole database is a file, not something " +
 				"to read in a terminal")
 	}
 	path, err := expandHome(out)
@@ -427,13 +427,13 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 				"wall, which `mysqldump --no-tablespaces` already avoids. Check SHOW GRANTS")
 	case strings.Contains(stderr, "Access denied"):
 		return view.Errorf("mysql.auth.failed", "%s", msg("Access denied")).
-			WithHint("set $" + plugin.LocalEnvVar("mysql.dump", "password") + ", or check " + setting(req.Surface(), "user"))
+			WithHint("set $" + plugin.LocalEnvVar("mysql.dump", "password") + ", or check " + req.Surface().SettingName("user"))
 	case strings.Contains(stderr, "Unknown database"):
 		return view.Errorf("mysql.database.notfound", "%s", msg("Unknown database")).
 			WithHint(req.Surface().CapabilityName("mysql.database.list") + " shows what is there")
 	case strings.Contains(stderr, "Unknown MySQL server host"):
 		return view.Errorf("mysql.host.unknown", "%s", msg("Unknown MySQL server host")).
-			WithHint(dnsHint(req.Surface(), req.String("host")))
+			WithHint(req.Surface().DNSHint(req.String("host")))
 	case strings.Contains(stderr, "CA certificate is required"):
 		return noCA(req.Surface(), msg("CA certificate is required"))
 	case strings.Contains(stderr, "Can't connect"):
@@ -480,7 +480,7 @@ func unreached(sf plugin.Surface, line string) *view.Error {
 func noCA(sf plugin.Surface, line string) *view.Error {
 	return view.Errorf("mysql.tls.ca.required", "%s", line).
 		WithHint("the MySQL client verifies only against a CA it is given, never the store this machine " +
-			"trusted the server through — " + setting(sf, "ca-file") + " names one: the CA that issued " +
+			"trusted the server through — " + sf.SettingName("ca-file") + " names one: the CA that issued " +
 			"the server's certificate, or the machine's CA bundle")
 }
 
