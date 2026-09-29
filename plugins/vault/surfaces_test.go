@@ -40,7 +40,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			name:    "a CA file that cannot be used",
 			cli:     "--ca-file is a path on this machine, read by rta rather than by Vault",
-			other:   "`ca-file` is a path on this machine, read by rta rather than by Vault",
+			other:   "the operator's `ca-file` setting is a path on this machine, read by rta rather than by Vault",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				_, verr := connect(req(t, "vault.seal.status", map[string]any{
@@ -64,7 +64,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			name:    "a certificate nothing here trusts",
 			cli:     "it belongs in --ca-file rather than verification turned off",
-			other:   "it belongs in `ca-file` rather than verification turned off",
+			other:   "it belongs in the operator's `ca-file` setting rather than verification turned off",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(x509.UnknownAuthorityError{}, r(sf)))
@@ -72,8 +72,8 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "anything else",
-			cli:     "`rta explain vault.seal.status` lists every input and where each can come from",
-			other:   "ask the operator to run `rta explain vault.seal.status`, which lists every input",
+			cli:     "`rta explain vault.seal.status` lists every input and which of the command line, the rta config, a profile and the environment can set it",
+			other:   "ask the operator to run `rta explain vault.seal.status`, which lists every setting and which of the rta config",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(errors.New("handshake went sideways"), r(sf)))
