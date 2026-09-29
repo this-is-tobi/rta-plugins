@@ -87,7 +87,10 @@ func connect(req plugin.Request) (*minio.Client, *view.Error) {
 		Secure: req.Bool("tls") || req.String("ca-file") != "",
 		Region: req.String("region"),
 	}
-	if ca := req.String("ca-file"); ca != "" {
+	// The path with a leading ~ resolved, as every other path a plugin reads
+	// is. Opened as typed, ~/ca.pem was a path under a directory named ~, and
+	// a CA sitting in the operator's home was answered as no such file.
+	if ca := plugin.ExpandHome(req.String("ca-file")); ca != "" {
 		transport, verr := caTransport(req.Surface(), ca)
 		if verr != nil {
 			return nil, verr

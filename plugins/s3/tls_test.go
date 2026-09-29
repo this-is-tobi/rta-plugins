@@ -94,3 +94,27 @@ func TestCAFileRejectsAPathWithNoCertificate(t *testing.T) {
 		t.Errorf("code = %s, want s3.tls.ca.invalid", verr.Code)
 	}
 }
+
+// ca-file resolves a leading ~ as every other path a plugin reads does.
+// Opened as typed, ~/ca.pem was a path under a directory named ~, and a CA
+// sitting in the operator's home was answered as no such file. The server's
+// own certificate is its CA here, so a call that gets past the handshake
+// proves the file was the one read.
+func TestTheCAFileResolvesTheHomeDirectory(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer srv.Close()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	block := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: srv.Certificate().Raw})
+	if err := os.WriteFile(filepath.Join(home, "ca.pem"), block, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := runOverview(context.Background(), req(t, "s3.overview", map[string]any{
+		"endpoint": strings.TrimPrefix(srv.URL, "https://"), "ca-file": "~/ca.pem",
+	}))
+	if verr, ok := err.(*view.Error); !ok || strings.HasPrefix(verr.Code, "s3.tls.") {
+		t.Fatalf("a ca-file under ~ did not verify its own server: %v", err)
+	}
+}
