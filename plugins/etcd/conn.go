@@ -10,7 +10,6 @@ import (
 	"os"
 	"slices"
 	"strings"
-	"syscall"
 	"time"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -411,11 +410,15 @@ func classify(err error, req plugin.Request) *view.Error {
 	//
 	// The CA is named as where it belongs, not as something to pass: over MCP
 	// ca-file is the operator's setting, and an agent told to pass it has no
-	// such argument to give.
-	if untrusted(err) {
+	// such argument to give. Only for a verdict that means an issuer nothing
+	// here vouches for (plugin.CertUntrusted): macOS answers a revoked
+	// certificate untyped too, and read as untrusted it was answered with the
+	// CA file to name — which runs Go's verifier in the system's place, with
+	// no revocation check, and connects. Every other verdict is quoted below
+	// in the system's own words.
+	if plugin.CertUntrusted(err) {
 		return view.Errorf("etcd.tls.untrusted", "%s presented a certificate nothing here trusts", where).
-			WithHint("etcd clusters usually have their own CA, and it belongs in " + sf.SettingName("ca-file") +
-				" — a self-signed certificate is its own CA")
+			WithHint("etcd clusters usually have their own CA: " + sf.CAHint("ca-file"))
 	}
 	var verifyErr *tls.CertificateVerificationError
 	if errors.As(err, &verifyErr) {
@@ -434,66 +437,29 @@ func classify(err error, req plugin.Request) *view.Error {
 	// reached nothing that could refuse it, and read as refused, a cluster on
 	// a network this machine is not on — behind a VPN that is down, at an
 	// address of another network's — was "nothing is listening" about a port
-	// no packet reached. Windows numbers its socket errors otherwise, and
-	// there this falls through to the refusal below, as it always did.
-	var netErr *stdnet.OpError
-	if errors.As(err, &netErr) && unroutable(err) {
-		return view.Errorf("etcd.unreachable", "%s cannot be reached from this machine: %v", where, netErr.Err).
+	// no packet reached.
+	//
+	// Each read by the operating system's own error (plugin.DialUnroutable,
+	// plugin.DialRefused), never by the *net.OpError around it, which every
+	// failed dial is: read that way, a dial that timed out or was reset was
+	// "nothing is listening" too.
+	if plugin.DialUnroutable(err) {
+		reason := err
+		var netErr *stdnet.OpError
+		if errors.As(err, &netErr) {
+			reason = netErr.Err
+		}
+		return view.Errorf("etcd.unreachable", "%s cannot be reached from this machine: %v", where, reason).
 			WithHint("no route leads there from here — a VPN or tunnel the cluster sits behind that is down " +
 				"looks exactly like this, and so does " + sf.SettingName("endpoint") + " naming an address on " +
 				"a network this machine is not on")
 	}
-	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
+	if plugin.DialRefused(err) {
 		return view.Errorf("etcd.conn.refused", "nothing is listening on %s", where).
 			WithHint("etcd listens on 2379 for clients and 2380 for peers — the peer port will not answer this")
 	}
 	return view.Errorf("etcd.conn.failed", "could not reach %s: %v", where, err).
 		WithHint(sf.SettingsHint("etcd.overview"))
-}
-
-// untrusted reports whether err is a certificate that nothing here vouches
-// for. Go's own verifier says so as an x509.UnknownAuthorityError, and it is
-// the one that runs whenever ca-file is set. Without one, on macOS, the
-// system's trust store is consulted through the platform's verifier, and an
-// untrusted chain comes back from it as a bare error inside the handshake's
-// *tls.CertificateVerificationError — as does a self-signed certificate
-// valid for longer than Apple's policy allows, "not standards compliant" —
-// so a verification failure the platform answers untyped is read as one too.
-// Read the typed way alone, a cluster with its own CA reached from a Mac was
-// told everything but the CA.
-//
-// Untyped, and not merely not UnknownAuthorityError: Go's verifier types
-// every failure it names — a host the certificate is not for, a date or a
-// use it is not valid for, a signature algorithm it will not accept, a
-// critical extension it does not handle — and each of those is a reason of
-// its own, which no CA in ca-file would cure. Read as untrusted, a SHA-1
-// certificate was answered "nothing here trusts" with the CA to name, and the
-// reason itself, which etcd.tls.rejected quotes, went unsaid.
-func untrusted(err error) bool {
-	var authErr x509.UnknownAuthorityError
-	if errors.As(err, &authErr) {
-		return true
-	}
-	var verifyErr *tls.CertificateVerificationError
-	if !errors.As(err, &verifyErr) {
-		return false
-	}
-	for _, reason := range []any{new(x509.HostnameError), new(x509.CertificateInvalidError),
-		new(x509.InsecureAlgorithmError), new(x509.UnhandledCriticalExtension),
-		new(x509.ConstraintViolationError)} {
-		if errors.As(verifyErr.Err, reason) {
-			return false
-		}
-	}
-	return true
-}
-
-// unroutable reports whether err is a dial that found no way to the host: no
-// route to it, a network this machine has no way onto, a host its own network
-// reports down.
-func unroutable(err error) bool {
-	return errors.Is(err, syscall.ENETUNREACH) || errors.Is(err, syscall.EHOSTUNREACH) ||
-		errors.Is(err, syscall.EHOSTDOWN)
 }
 
 // clientPort is the port etcd serves its clients on.

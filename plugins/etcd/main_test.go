@@ -17,6 +17,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"syscall"
@@ -480,19 +481,37 @@ func TestAnUntrustedCertificateIsNamedRatherThanWaitedOn(t *testing.T) {
 	}
 }
 
-// macOS verifies against the system's trust store itself and reports an
-// untrusted chain as a bare error, never as x509.UnknownAuthorityError: that
-// is still a certificate nothing here trusts, while a name or a date that
-// fails is a different refusal, and neither is a port serving plaintext.
+// macOS verifies against the system's trust store itself and reports a chain
+// it cannot anchor as a bare error, never as x509.UnknownAuthorityError: that
+// is still a certificate nothing here trusts. Every other verdict it gives
+// untyped is its own reason and is quoted in its words: a revoked certificate
+// answered with the CA file to name was answered with the way around the
+// revocation check. Elsewhere an untyped verdict is never a question of
+// trust. A name or a date that fails is a refusal of its own too, and none is
+// a port serving plaintext.
 func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
 	r := req(t, "etcd.overview", map[string]any{"endpoint": "etcd-0.internal:2379"})
+	open, closing := string(rune(0x201c)), string(rune(0x201d))
+	onMac := "etcd.tls.rejected"
+	if runtime.GOOS == "darwin" {
+		onMac = "etcd.tls.untrusted"
+	}
 	for _, tc := range []struct {
 		name string
 		err  error
 		want string
 	}{
 		{"Go's own verifier", x509.UnknownAuthorityError{}, "etcd.tls.untrusted"},
-		{"the platform's verifier", errors.New(`x509: "etcd-0" certificate is not trusted`), "etcd.tls.untrusted"},
+		{"no roots to read", x509.SystemRootsError{}, "etcd.tls.untrusted"},
+		{"the system's verifier, a chain it cannot anchor",
+			errors.New("x509: " + open + "etcd-0" + closing + " certificate is not trusted"), onMac},
+		{"the system's verifier, a revoked certificate",
+			errors.New("x509: " + open + "etcd-0" + closing + " certificate is revoked"), "etcd.tls.rejected"},
+		{"the system's verifier, a name that ends like the untrusted verdict",
+			errors.New("x509: " + open + "a" + closing + " certificate is not trusted" + closing +
+				" certificate is revoked"), "etcd.tls.rejected"},
+		{"the system's verifier, a policy it holds the certificate to",
+			errors.New("x509: " + open + "etcd-0" + closing + " certificate is not standards compliant"), "etcd.tls.rejected"},
 		{"a name it is not for", x509.HostnameError{Certificate: &x509.Certificate{}, Host: "etcd-0.internal"}, "etcd.tls.rejected"},
 		{"a date it is not valid on", x509.CertificateInvalidError{Cert: &x509.Certificate{}, Reason: x509.Expired}, "etcd.tls.rejected"},
 		// Go's verifier types each reason of its own, and no CA cures one.
@@ -500,9 +519,23 @@ func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
 		{"a critical extension it does not handle", x509.UnhandledCriticalExtension{}, "etcd.tls.rejected"},
 	} {
 		err := handshakeError{&tls.CertificateVerificationError{Err: tc.err}}
-		if got := classify(err, r); got.Code != tc.want {
+		got := classify(err, r)
+		if got.Code != tc.want {
 			t.Errorf("%s: classified %s, want %s", tc.name, got.Code, tc.want)
 		}
+		if got.Code == "etcd.tls.rejected" && !strings.Contains(got.Message, tc.err.Error()) {
+			t.Errorf("%s: %q does not quote the verdict", tc.name, got.Message)
+		}
+	}
+}
+
+// The hint for a certificate nothing here trusts says what naming a CA file
+// costs, since the cure is the one that runs another check.
+func TestAnUntrustedCertificateSaysWhatACAFileReplaces(t *testing.T) {
+	got := classify(x509.UnknownAuthorityError{}, req(t, "etcd.overview", nil))
+	if !strings.Contains(got.Hint, "--ca-file (a self-signed certificate is its own CA)") ||
+		!strings.Contains(got.Hint, "a CA file replaces the system's") {
+		t.Errorf("hint = %q, want the CA file named and what it replaces", got.Hint)
 	}
 }
 
@@ -525,6 +558,37 @@ func TestAHostNoRouteReachesIsNotAPortNobodyIsOn(t *testing.T) {
 		}
 		if want == "etcd.unreachable" && !strings.Contains(got.Message, errno.Error()) {
 			t.Errorf("%v: %q does not say why", errno, got.Message)
+		}
+	}
+}
+
+// A failed dial is read by the operating system's error it carries, not by the
+// *net.OpError every failed dial is: one that timed out or was reset reached
+// no port that refused it. A driver's flattened text is read by the words the
+// errno has on this machine, and a name that did not resolve stays that,
+// whatever its resolver's own failed exchange said.
+func TestADialIsReadByTheErrorItCarries(t *testing.T) {
+	r := req(t, "etcd.overview", map[string]any{"endpoint": "10.0.0.9:2379"})
+	dial := func(errno syscall.Errno) error {
+		return &stdnet.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", errno)}
+	}
+	for _, tc := range []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"a dial that timed out", dial(syscall.ETIMEDOUT), "etcd.conn.failed"},
+		{"a connection reset", dial(syscall.ECONNRESET), "etcd.conn.failed"},
+		{"a refusal flattened into text", errors.New(`connection error: desc = "transport: Error while dialing: ` +
+			`dial tcp 10.0.0.9:2379: connect: ` + syscall.ECONNREFUSED.Error() + `"`), "etcd.conn.refused"},
+		{"no route flattened into text", errors.New("dial tcp 10.0.0.9:2379: connect: " +
+			syscall.EHOSTUNREACH.Error()), "etcd.unreachable"},
+		{"a name whose resolver refused", &stdnet.OpError{Op: "dial", Net: "tcp", Err: &stdnet.DNSError{
+			Err: "dial udp 10.0.0.53:53: connect: " + syscall.ECONNREFUSED.Error(), Name: "etcd-0.internal"}},
+			"etcd.host.unknown"},
+	} {
+		if got := classify(tc.err, r); got.Code != tc.want {
+			t.Errorf("%s: classified %s %q, want %s", tc.name, got.Code, got.Message, tc.want)
 		}
 	}
 }
