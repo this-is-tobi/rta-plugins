@@ -89,8 +89,8 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "a certificate nothing here trusts",
-			cli:     "etcd clusters usually have their own CA, and it belongs in --ca-file",
-			other:   "etcd clusters usually have their own CA, and it belongs in the operator's `ca-file` setting",
+			cli:     "etcd clusters usually have their own CA: the CA that issued it belongs in --ca-file",
+			other:   "etcd clusters usually have their own CA: the CA that issued it belongs in the operator's `ca-file` setting",
 			surface: plugin.SurfaceMCP,
 			refuse: func(sf plugin.Surface) *view.Error {
 				return classify(x509.UnknownAuthorityError{}, req(t, "etcd.overview", nil).WithSurface(sf))
