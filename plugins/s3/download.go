@@ -127,7 +127,7 @@ func runBucketDownload(ctx context.Context, req plugin.Request) (view.View, erro
 	out := strings.TrimSpace(req.String("out"))
 	if out == "" {
 		return nil, view.Errorf("s3.download.nooutput", "say where the objects should be written").
-			WithHint(given(req.Surface(), "out", "./"+req.String("bucket")+"-backup") + " — a bucket is a " +
+			WithHint(req.Surface().SettingTo("out", "./"+req.String("bucket")+"-backup") + " — a bucket is a " +
 				"directory of files, not something to read in a terminal")
 	}
 	root, err := filepath.Abs(plugin.ExpandHome(out))
