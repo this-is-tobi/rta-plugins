@@ -426,8 +426,11 @@ func classify(err error, addr string, sf plugin.Surface) *view.Error {
 // names one.
 func classifyDial(err error, addr string, req plugin.Request) *view.Error {
 	var nameErr x509.HostnameError
-	if req.Tunnel() != plugin.TunnelNone && errors.As(err, &nameErr) {
-		return forwardRefusal(addr, nameErr.Certificate, req)
+	if errors.As(err, &nameErr) {
+		if req.Tunnel() != plugin.TunnelNone {
+			return forwardRefusal(addr, nameErr.Certificate, req)
+		}
+		return nameRefusal(addr, nameErr.Certificate, req.Surface())
 	}
 	if ca := plugin.ExpandHome(req.String("ca-file")); ca != "" && plugin.CertUntrusted(err) {
 		return view.Errorf("redis.tls.untrusted", "%s presented a certificate nothing here trusts", addr).
@@ -435,6 +438,50 @@ func classifyDial(err error, addr string, req plugin.Request) *view.Error {
 				"issued it — a self-signed certificate is its own CA")
 	}
 	return classify(err, addr, req.Surface())
+}
+
+// nameRefusal is redis.tls.name: the certificate cert, presented at addr,
+// refused for a host it does not name.
+//
+// The server answered, and "could not reach" misnamed it, with the page of
+// every input for a hint. What the reader needs is the names the
+// certificate does carry, since the host in address is the one it is
+// checked against, and a ca-file cures nothing here: Go checks the name
+// before it builds a chain, so this says nothing about the CA either way.
+// No mode here checks the chain alone, so the ways on are the address and
+// the certificate.
+func nameRefusal(addr string, cert *x509.Certificate, sf plugin.Surface) *view.Error {
+	host := hostOnly(addr)
+	names := certNames(cert)
+	if len(names) == 0 {
+		return view.Errorf("redis.tls.name", "%s presented a certificate that names no host, %s or any other",
+			addr, host).
+			WithHint("a certificate with no subject alternative names verifies as no host at all — it reaches " +
+				"the server once it is reissued with " + host + " among them")
+	}
+	return view.Errorf("redis.tls.name", "%s presented a certificate for %s, not %s",
+		addr, strings.Join(names, ", "), host).
+		WithHint(sf.SettingName("address") + " is the name the certificate is checked against — reach the " +
+			"server by one it carries, or have it reissued with " + host + " among its subject alternative names")
+}
+
+// certNames is the names cert is for, as a refusal lists them: its subject
+// alternative names, DNS and address, since those are all a verifier
+// reads. Four at most: a certificate for a fleet can carry dozens, and the
+// reader needs to see the one checked is not among them, not the whole
+// list.
+func certNames(cert *x509.Certificate) []string {
+	if cert == nil {
+		return nil
+	}
+	names := append([]string(nil), cert.DNSNames...)
+	for _, ip := range cert.IPAddresses {
+		names = append(names, ip.String())
+	}
+	if len(names) > 4 {
+		names = append(names[:4:4], fmt.Sprintf("%d more", len(names)-4))
+	}
+	return names
 }
 
 // forwardRefusal is redis.tls.forward: the certificate cert, presented at
@@ -455,18 +502,8 @@ func classifyDial(err error, addr string, req plugin.Request) *view.Error {
 func forwardRefusal(addr string, cert *x509.Certificate, req plugin.Request) *view.Error {
 	sf := req.Surface()
 	names := "no host"
-	if cert != nil {
-		var sans []string
-		sans = append(sans, cert.DNSNames...)
-		for _, ip := range cert.IPAddresses {
-			sans = append(sans, ip.String())
-		}
-		if len(sans) > 4 {
-			sans = append(sans[:4:4], fmt.Sprintf("%d more", len(sans)-4))
-		}
-		if len(sans) > 0 {
-			names = strings.Join(sans, ", ")
-		}
+	if sans := certNames(cert); len(sans) > 0 {
+		names = strings.Join(sans, ", ")
 	}
 	// Which input turned TLS on, since the forward had turned it off.
 	on := sf.SettingTo("tls", true)
