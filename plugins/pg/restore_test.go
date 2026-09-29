@@ -254,6 +254,36 @@ func TestRestoreFailuresAreClassified(t *testing.T) {
 	}
 }
 
+// Through a kube: forward the address a restore reached was the forward's
+// local end, closed once the restore was over, and createdb has no profile to
+// open one again: the hint names the server by its profile, and names no
+// port nothing listens on.
+func TestTheCreatedbHintNamesNoAddressAForwardLent(t *testing.T) {
+	const missing = `connection to server failed: FATAL:  database "prod" does not exist`
+	values := map[string]any{"database": "prod", "host": "127.0.0.1", "port": 54321, "user": "app"}
+	for _, tc := range []struct {
+		name          string
+		req           plugin.Request
+		want, without string
+	}{
+		{"no profile", reqFor(t, "pg.restore", values),
+			"`createdb --host=127.0.0.1 --port=54321 --username=app prod` makes it", ""},
+		{"a profile reached directly", reqFor(t, "pg.restore", values).WithProfile("prod", plugin.TunnelNone),
+			"`createdb --host=127.0.0.1 --port=54321 --username=app prod` makes it", ""},
+		{"a profile through a kube: forward", reqFor(t, "pg.restore", values).WithProfile("prod", plugin.TunnelKube),
+			"`createdb --username=app prod` makes it, run against the server profile prod reaches — the " +
+				"kube: forward this restore went through closed when it did", "54321"},
+	} {
+		verr := classifyRestore(errors.New("exit status 2"), missing, tc.req, formatPlain, versions{})
+		if verr.Code != "pg.restore.nodatabase" || !strings.Contains(verr.Hint, tc.want) {
+			t.Errorf("%s: %s %q, want pg.restore.nodatabase with %q", tc.name, verr.Code, verr.Hint, tc.want)
+		}
+		if tc.without != "" && strings.Contains(verr.Hint, tc.without) {
+			t.Errorf("%s: hint = %q names %q", tc.name, verr.Hint, tc.without)
+		}
+	}
+}
+
 // An interrupted single-transaction restore rolled back; an interrupted
 // parallel one may not have. The hint is the one thing the operator reads
 // next, so the two cases must not share it.

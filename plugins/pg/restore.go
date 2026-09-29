@@ -252,15 +252,27 @@ func restoreArgs(req plugin.Request, format dumpFormat, path string) []string {
 	return append(args, path)
 }
 
-// createdbCommand is the command, as a code span, that makes the database a
+// createdbHint is the command, as a code span, that makes the database a
 // restore found missing, on the server the restore reached and as the role it
-// connected as. It once named the host alone, and createdb fills the rest from
-// its own defaults, port 5432 and the operating system's user: against a
-// server on any other port, a port-forward's included, the hint made the
+// connected as, and what to do after it. It once named the host alone, and
+// createdb fills the rest from its own defaults, port 5432 and the operating
+// system's user: against a server on any other port, the hint made the
 // database somewhere else, or nowhere, and the restore went on missing it.
-func createdbCommand(req plugin.Request) string {
-	return "`createdb --host=" + req.String("host") + " --port=" + strconv.Itoa(req.Int("port")) +
-		" --username=" + req.String("user") + " " + req.String("database") + "`"
+//
+// **The address only when the restore reached it directly.** Through a kube:
+// or ssh: profile the host and port were the local end of a forward that
+// closed when the restore did, and createdb, which has no profile to open
+// one again, was sent to a port nothing listens on. The server is named by
+// the profile instead, which createdb has to reach by a way of its own.
+func createdbHint(req plugin.Request) string {
+	if req.Tunnel() == plugin.TunnelNone {
+		return "`createdb --host=" + req.String("host") + " --port=" + strconv.Itoa(req.Int("port")) +
+			" --username=" + req.String("user") + " " + req.String("database") + "` makes it, then restore again"
+	}
+	return "`createdb --username=" + req.String("user") + " " + req.String("database") + "` makes it, run " +
+		"against the server profile " + req.Profile() + " reaches — the " + string(req.Tunnel()) + ": forward " +
+		"this restore went through closed when it did, so createdb needs a way there of its own — then " +
+		"restore again"
 }
 
 // checkTarget asks the server what it is before anything writes into it, on
@@ -283,8 +295,7 @@ func checkTarget(ctx context.Context, req plugin.Request, format dumpFormat) (so
 		if verr.Code == "pg.database.missing" {
 			return source{}, view.Errorf("pg.restore.nodatabase", "%s", verr.Message).
 				WithHint("rta does not create databases on its own — a typo'd name becoming " +
-					"a new database is worse than this refusal. " + createdbCommand(req) +
-					" makes it, then restore again")
+					"a new database is worse than this refusal. " + createdbHint(req))
 		}
 		return source{}, verr
 	}
@@ -493,7 +504,7 @@ func classifyRestore(err error, stderr string, req plugin.Request, format dumpFo
 	case strings.Contains(stderr, "database") && strings.Contains(stderr, "does not exist"):
 		return view.Errorf("pg.restore.nodatabase", "%s", msg("does not exist")).
 			WithHint("rta does not create databases on its own — a typo'd name becoming a new " +
-				"database is worse than this refusal. " + createdbCommand(req) + " makes it, then restore again")
+				"database is worse than this refusal. " + createdbHint(req))
 	case strings.Contains(stderr, "role") &&
 		(strings.Contains(stderr, "does not exist") || strings.Contains(stderr, "must be member of")):
 		hint := "the dump sets ownership to the roles that existed at dump time — recreate " +
