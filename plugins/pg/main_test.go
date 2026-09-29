@@ -104,9 +104,6 @@ func TestDSNCarriesSSLRootCert(t *testing.T) {
 	}
 }
 
-// Unset, it is absent rather than empty — the same reason password is: an
-// empty sslrootcert is not "no CA named", it is libpq trying to read a file
-// called "" and failing in a way that names nothing.
 // pgx's own defaults fill passfile with $HOME/.pgpass and load a password
 // from it whenever the connection string names none — so omitting the key
 // does not mean "no passfile", it means "the operator's own". An operator who
@@ -399,6 +396,12 @@ func TestSSLRootCertIsResolvedWhereverItGoes(t *testing.T) {
 	}
 }
 
+// Unset, sslrootcert is left out of the connection string rather than sent
+// empty, because its two readers disagree about empty. pgx takes it as no CA
+// at all, overriding the ~/.postgresql/root.crt it otherwise defaults to;
+// libpq, which pg_dump, psql and pg_restore run on, takes it as unset and
+// reads that same file. Left out, both read the file when it is there, and
+// the connection checked before a dump trusts what the dump's child does.
 func TestAnEmptySSLRootCertIsOmitted(t *testing.T) {
 	if got := dsn(req(t, map[string]any{})); strings.Contains(got, "sslrootcert=") {
 		t.Errorf("an unset sslrootcert was sent as empty: %s", got)
