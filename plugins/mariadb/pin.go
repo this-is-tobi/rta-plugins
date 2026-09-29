@@ -111,6 +111,6 @@ func connectPinned(ctx context.Context, req plugin.Request) (*sql.DB, string, *v
 func pinRefusal(sf plugin.Surface, line string) *view.Error {
 	return view.Errorf("mariadb.tls.changed", "%s", line).
 		WithHint("the server presented another certificate than the one rta verified against " +
-			setting(sf, "ca-file") + " a moment before — reissued in between, or something else answering " +
+			sf.SettingName("ca-file") + " a moment before — reissued in between, or something else answering " +
 			"in its place. Run it again: the check before the child says which")
 }

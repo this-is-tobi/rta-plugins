@@ -144,13 +144,13 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	database := req.String("database")
 	if database == "" {
 		return nil, view.Errorf("mariadb.dump.nodatabase", "say which database to dump").
-			WithHint(given(req.Surface(), "database", "<name>") + " — " +
+			WithHint(req.Surface().SettingTo("database", "<name>") + " — " +
 				req.Surface().CapabilityName("mariadb.database.list") + " shows what is there")
 	}
 	out := strings.TrimSpace(req.String("out"))
 	if out == "" {
 		return nil, view.Errorf("mariadb.dump.nooutput", "say where the dump should be written").
-			WithHint(given(req.Surface(), "out", "./"+database+".sql") + " — a whole database is a file, not something " +
+			WithHint(req.Surface().SettingTo("out", "./"+database+".sql") + " — a whole database is a file, not something " +
 				"to read in a terminal")
 	}
 	path, err := expandHome(out)
@@ -506,13 +506,13 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 				"the user this dump connects as")
 	case strings.Contains(stderr, "Access denied"):
 		return view.Errorf("mariadb.auth.failed", "%s", msg("Access denied")).
-			WithHint("set $" + plugin.LocalEnvVar("mariadb.dump", "password") + ", or check " + setting(req.Surface(), "user"))
+			WithHint("set $" + plugin.LocalEnvVar("mariadb.dump", "password") + ", or check " + req.Surface().SettingName("user"))
 	case strings.Contains(stderr, "Unknown database"):
 		return view.Errorf("mariadb.database.notfound", "%s", msg("Unknown database")).
 			WithHint(req.Surface().CapabilityName("mariadb.database.list") + " shows what is there")
 	case strings.Contains(stderr, "Unknown MySQL server host"):
 		return view.Errorf("mariadb.host.unknown", "%s", msg("Unknown MySQL server host")).
-			WithHint(dnsHint(req.Surface(), req.String("host")))
+			WithHint(req.Surface().DNSHint(req.String("host")))
 	case strings.Contains(stderr, "Fingerprint validation"):
 		return pinRefusal(req.Surface(), msg("Fingerprint validation"))
 	case strings.Contains(stderr, "Can't connect"):
