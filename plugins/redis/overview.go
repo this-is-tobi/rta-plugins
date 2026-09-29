@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	stdnet "net"
 	"sort"
 	"strconv"
 	"strings"
@@ -226,6 +227,10 @@ func loadingText(in info) string {
 
 // replicationTable is the role and, on a primary, every replica's link; on a
 // replica, the primary it follows and whether the link is up.
+//
+// A peer is named as the address it is dialled at, an IPv6 literal
+// bracketed: joined with a bare colon, as it once was, a replica at ::1 read
+// ::1:6380, which no reader could split into an address and a port.
 func replicationTable(in info) view.Table {
 	t := view.Table{Columns: []view.Column{
 		{Name: "Role"},
@@ -243,7 +248,7 @@ func replicationTable(in info) view.Table {
 			lag = s + "s since last I/O"
 		}
 		t.Rows = append(t.Rows, []string{"replica",
-			in.get("master_host") + ":" + in.get("master_port"), link, in.get("slave_repl_offset"), lag})
+			stdnet.JoinHostPort(in.get("master_host"), in.get("master_port")), link, in.get("slave_repl_offset"), lag})
 	default:
 		n := int(in.int("connected_slaves"))
 		if n == 0 {
@@ -253,7 +258,7 @@ func replicationTable(in info) view.Table {
 			raw := in.get("slave" + strconv.Itoa(i))
 			f := fieldsOf(raw)
 			t.Rows = append(t.Rows, []string{"primary",
-				f["ip"] + ":" + f["port"], f["state"], f["offset"], f["lag"] + "s"})
+				stdnet.JoinHostPort(f["ip"], f["port"]), f["state"], f["offset"], f["lag"] + "s"})
 		}
 	}
 	t.Total = len(t.Rows)
