@@ -10,10 +10,12 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"math/big"
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"syscall"
@@ -152,6 +154,39 @@ func TestAHostNoRouteReachesIsNotAPortNobodyIsOn(t *testing.T) {
 		}
 		if want == "pg.conn.unreachable" && !strings.Contains(got.Message, errno.Error()) {
 			t.Errorf("%v: %q does not say why", errno, got.Message)
+		}
+	}
+}
+
+// A failed dial is read by the operating system's own error, never by the
+// *net.OpError around it, which every broken socket call is: a server that
+// reset the handshake was answered "nothing is listening". Text a driver
+// flattened is read by the words the error had, and a name nothing resolved
+// stays that, whatever the resolver's own failed exchange with its server said.
+func TestADialIsReadByItsOwnErrorNotByTheWrapper(t *testing.T) {
+	r := req(t, map[string]any{"host": "db.internal", "port": 5432})
+	dial := func(errno syscall.Errno) error {
+		return &net.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", errno)}
+	}
+	for _, tc := range []struct {
+		name string
+		err  error
+		code string
+	}{
+		{"a handshake the server reset", &net.OpError{Op: "read", Net: "tcp",
+			Err: os.NewSyscallError("read", syscall.ECONNRESET)}, "pg.conn.failed"},
+		{"a refusal flattened to text", errors.New("dial tcp 10.0.0.9:5432: connect: connection refused"),
+			"pg.conn.refused"},
+		{"no route flattened to text", errors.New("dial tcp 10.0.0.9:5432: connect: no route to host"),
+			"pg.conn.unreachable"},
+		{"one address with no route and one refused", errors.Join(dial(syscall.EHOSTUNREACH),
+			dial(syscall.ECONNREFUSED)), "pg.conn.refused"},
+		{"a name whose DNS server refused the resolver", &net.OpError{Op: "dial", Net: "tcp",
+			Err: &net.DNSError{Err: "dial udp 10.0.0.53:53: connect: connection refused", Name: "db.internal"}},
+			"pg.host.unknown"},
+	} {
+		if got := classify(tc.err, r); got.Code != tc.code {
+			t.Errorf("%s: %s %q, want %s", tc.name, got.Code, got.Message, tc.code)
 		}
 	}
 }
@@ -426,15 +461,6 @@ func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
 		{"timed out", context.DeadlineExceeded, "pg.conn.timeout"},
 		{"no TLS", errors.New("server does not support SSL"), "pg.tls.unsupported"},
 		{"untrusted CA", x509.UnknownAuthorityError{}, "pg.tls.untrusted"},
-		// macOS's own verifier, consulted for the system's trust store,
-		// reports an untrusted chain as a bare error; a name or a date that
-		// fails is not the CA's to fix.
-		{"untrusted CA, by the platform's verifier",
-			&tls.CertificateVerificationError{Err: errors.New(`x509: "db" certificate is not trusted`)}, "pg.tls.untrusted"},
-		{"a certificate for another name",
-			&tls.CertificateVerificationError{Err: x509.HostnameError{Certificate: &x509.Certificate{}, Host: "db"}}, "pg.conn.failed"},
-		{"a signature algorithm Go's verifier refuses",
-			&tls.CertificateVerificationError{Err: x509.InsecureAlgorithmError(x509.SHA1WithRSA)}, "pg.conn.failed"},
 		{"anything else", errors.New("something unexpected"), "pg.conn.failed"},
 	}
 	for _, tc := range cases {
@@ -448,6 +474,65 @@ func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
 			}
 			if verr.Message == "" {
 				t.Error("no message")
+			}
+		})
+	}
+}
+
+// A certificate is answered with the CA to name only when it is an unknown
+// issuer's. macOS's own verifier, asked whenever no sslrootcert is named,
+// gives most of its verdicts untyped, and every one was read as untrusted: a
+// revoked certificate was answered with the CA file that turns the system's
+// revocation check off. Such a verdict keeps the system's words, and the one
+// hint that does send the reader to a CA file says what naming one costs.
+func TestOnlyAnUnknownIssuerIsAnsweredWithTheCA(t *testing.T) {
+	r := req(t, map[string]any{"host": "db.internal", "port": 5432})
+	open, closing := string(rune(0x201c)), string(rune(0x201d))
+	verdict := func(words string) error {
+		return &tls.CertificateVerificationError{
+			Err: errors.New("x509: " + open + "db.internal" + closing + " " + words)}
+	}
+	// The system's words for a chain to no anchor it holds are read as
+	// untrusted where the system gave them, and are nobody's words elsewhere.
+	notTrusted := "pg.conn.failed"
+	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+		notTrusted = "pg.tls.untrusted"
+	}
+	for _, tc := range []struct {
+		name string
+		err  error
+		code string
+	}{
+		{"Go's verifier, an issuer in no pool", x509.UnknownAuthorityError{}, "pg.tls.untrusted"},
+		{"no pool to read at all", x509.SystemRootsError{}, "pg.tls.untrusted"},
+		{"the same, inside the driver's error", fmt.Errorf("tls error: %w",
+			&tls.CertificateVerificationError{Err: x509.UnknownAuthorityError{}}), "pg.tls.untrusted"},
+		{"macOS, a chain to no anchor it holds", verdict("certificate is not trusted"), notTrusted},
+		{"macOS, a revoked certificate", verdict("certificate is revoked"), "pg.conn.failed"},
+		{"macOS, a policy it will not pass", verdict("certificate is not standards compliant"), "pg.conn.failed"},
+		{"a revoked certificate named to look untrusted",
+			verdict("certificate is not trusted" + closing + " certificate is revoked"), "pg.conn.failed"},
+		{"a certificate for another name", &tls.CertificateVerificationError{
+			Err: x509.HostnameError{Certificate: &x509.Certificate{}, Host: "db"}}, "pg.conn.failed"},
+		{"a signature algorithm Go's verifier refuses", &tls.CertificateVerificationError{
+			Err: x509.InsecureAlgorithmError(x509.SHA1WithRSA)}, "pg.conn.failed"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			verr := classify(tc.err, r)
+			if verr.Code != tc.code {
+				t.Fatalf("code = %q, want %q", verr.Code, tc.code)
+			}
+			if tc.code != "pg.tls.untrusted" {
+				if !strings.Contains(verr.Message, tc.err.Error()) {
+					t.Errorf("message = %q, want the verifier's own words in it", verr.Message)
+				}
+				if strings.Contains(verr.Hint, "sslrootcert") {
+					t.Errorf("hint = %q sends the reader to a CA for a reason no CA cures", verr.Hint)
+				}
+				return
+			}
+			if !strings.Contains(verr.Hint, "--sslrootcert") || !strings.Contains(verr.Hint, "replaces the system's") {
+				t.Errorf("hint = %q, want the CA file named and what naming one replaces", verr.Hint)
 			}
 		})
 	}

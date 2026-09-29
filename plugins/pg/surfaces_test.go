@@ -68,8 +68,8 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "a certificate nothing here trusts",
-			cli:     "it belongs in --sslrootcert — a self-signed certificate is its own CA",
-			other:   "it belongs in `sslrootcert` — a self-signed certificate is its own CA",
+			cli:     "it belongs in --sslrootcert (a self-signed certificate is its own CA)",
+			other:   "it belongs in the operator's `sslrootcert` setting (a self-signed certificate is its own CA)",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(x509.UnknownAuthorityError{}, reqFor(t, "pg.status", nil).WithSurface(sf)))
