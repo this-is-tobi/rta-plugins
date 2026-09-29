@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -330,7 +331,7 @@ func classify(err error, req plugin.Request) *view.Error {
 		return already
 	}
 
-	where, sf := fmt.Sprintf("%s:%d", req.String("host"), req.Int("port")), req.Surface()
+	where, sf := address(req), req.Surface()
 
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
@@ -539,6 +540,15 @@ func explainHint(sf plugin.Surface, id string) string {
 // surface that will make it.
 func dnsHint(sf plugin.Surface, host string) string {
 	return "`" + sf.Call("net.dns", plugin.Arg{Name: "name", Value: host, Positional: true}) + "` shows what DNS returns"
+}
+
+// address is host and port as one address, an IPv6 literal bracketed, for
+// the messages and receipts that name the server by it. Joined with a bare
+// colon, as it once was, ::1 read ::1:5432, which no reader could split into
+// an address and a port. Display only: the driver and the children are
+// handed host and port apart.
+func address(req plugin.Request) string {
+	return net.JoinHostPort(req.String("host"), strconv.Itoa(req.Int("port")))
 }
 
 // loopback reports whether a host names this machine.

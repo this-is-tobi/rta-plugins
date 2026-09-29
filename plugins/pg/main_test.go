@@ -185,6 +185,23 @@ func TestSSLRootCertIsRefusedBesideAModeThatDoesNotVerify(t *testing.T) {
 	}
 }
 
+// An IPv6 host is bracketed wherever a message names the server by address:
+// joined with a bare colon, ::1 read ::1:5432, a port no reader could tell
+// from the address.
+func TestAnIPv6HostIsNamedBracketed(t *testing.T) {
+	values := map[string]any{"host": "::1", "port": 5432, "database": "app"}
+	said := map[string]string{
+		"a refused connection": classify(&net.OpError{Op: "dial", Net: "tcp",
+			Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)}, req(t, values)).Message,
+		"a schema dump's header": renderDDL(reqFor(t, "pg.schema.dump", values), "public", nil, dropped{}),
+	}
+	for what, text := range said {
+		if !strings.Contains(text, "[::1]:5432") || strings.Contains(text, "::1:5432") {
+			t.Errorf("%s: %q, want the server named [::1]:5432", what, text)
+		}
+	}
+}
+
 // testCA writes a self-signed CA certificate in PEM and returns its path.
 func testCA(t *testing.T) string {
 	t.Helper()
