@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	stdnet "net"
@@ -197,8 +198,27 @@ func classify(err error, req plugin.Request) *view.Error {
 		return view.Errorf("s3.host.unknown", "no address for %q", hostOnly(where)).
 			WithHint(sf.DNSHint(hostOnly(where)))
 	}
-	var netErr *stdnet.OpError
-	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
+	// Short of the host, before the port: a dial that found no way there
+	// reached nothing that could refuse it, and read as refused, an endpoint
+	// behind a VPN that is down, or at an address of another network's, was
+	// "nothing is listening" about a port no packet reached.
+	//
+	// Each read by the operating system's own error (plugin.DialUnroutable,
+	// plugin.DialRefused), never by the *net.OpError around it, which every
+	// failed dial is: read that way, a dial that was reset was "nothing is
+	// listening" too, and one that timed out never reached the timeout below.
+	if plugin.DialUnroutable(err) {
+		reason := err
+		var netErr *stdnet.OpError
+		if errors.As(err, &netErr) {
+			reason = netErr.Err
+		}
+		return view.Errorf("s3.conn.unreachable", "%s cannot be reached from this machine: %v", where, reason).
+			WithHint("no route leads there from here — a VPN or tunnel the server sits behind that is " +
+				"down looks exactly like this, and so does " + sf.SettingName("endpoint") + " naming " +
+				"an address on a network this machine is not on")
+	}
+	if plugin.DialRefused(err) {
 		return view.Errorf("s3.conn.refused", "nothing is listening on %s", where).
 			WithHint("is the server up, and is " + sf.SettingName("endpoint") + " right?")
 	}
@@ -212,12 +232,26 @@ func classify(err error, req plugin.Request) *view.Error {
 	// directory serves HTTPS alone — so turning tls off reaches nothing, and
 	// with ca-file set it does not even turn TLS off, since ca-file alone
 	// turns it on. The hint once offered it anyway, as the quick way round.
-	var certErr x509.UnknownAuthorityError
-	if errors.As(err, &certErr) {
+	//
+	// Asked of plugin.CertUntrusted rather than of the type Go's verifier
+	// alone gives: with no ca-file, macOS answers a private CA's chain
+	// untyped, and it was "could not reach". And only for a verdict that
+	// means an issuer nothing here vouches for — a revoked certificate is
+	// answered untyped too, and the CA file is no cure for it but a way
+	// around the check that caught it.
+	if plugin.CertUntrusted(err) {
 		return view.Errorf("s3.tls.untrusted", "%s presented a certificate nothing here trusts", where).
-			WithHint("the CA that issued it belongs in " + sf.SettingName("ca-file") + " — a local MinIO's " +
-				"self-signed public.crt is its own CA; turning TLS off is no way round it, as the server " +
-				"refuses plain HTTP")
+			WithHint(sf.CAHint("ca-file") + "; for a local MinIO that is its public.crt, and " +
+				"turning TLS off is no way round it, as the server refuses plain HTTP")
+	}
+	// Every other verdict is its own reason, quoted in the verifier's words —
+	// the system's, for one macOS gives untyped — and never "could not reach":
+	// the server was reached, and answered with a certificate.
+	var verifyErr *tls.CertificateVerificationError
+	if errors.As(err, &verifyErr) {
+		return view.Errorf("s3.tls.rejected", "%s presented a certificate that does not verify: %v", where, verifyErr.Err).
+			WithHint("a certificate is checked for the host in " + sf.SettingName("endpoint") +
+				", its dates and the use it was issued for, as well as for who issued it")
 	}
 	return view.Errorf("s3.conn.failed", "could not reach %s: %v", where, err).
 		WithHint(sf.SettingsHint("s3.overview"))
