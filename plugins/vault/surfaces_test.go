@@ -63,8 +63,8 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "a certificate nothing here trusts",
-			cli:     "it belongs in --ca-file rather than verification turned off",
-			other:   "it belongs in the operator's `ca-file` setting rather than verification turned off",
+			cli:     "wanted rather than verification turned off: the CA that issued it belongs in --ca-file",
+			other:   "wanted rather than verification turned off: the CA that issued it belongs in the operator's `ca-file` setting",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(x509.UnknownAuthorityError{}, r(sf)))

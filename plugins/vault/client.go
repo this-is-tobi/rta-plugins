@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -140,22 +139,55 @@ func classify(err error, req plugin.Request) *view.Error {
 		return view.Errorf("vault.host.unknown", "no address for %q", host).
 			WithHint(sf.DNSHint(host))
 	}
-	var netErr *net.OpError
-	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
+	// Short of the host, before the port: a dial that found no way there
+	// reached nothing that could refuse it, and read as refused, a Vault
+	// behind a VPN that is down, or at an address of another network's, was
+	// "nothing is listening" about a port no packet reached.
+	//
+	// Each read by the operating system's own error (plugin.DialUnroutable,
+	// plugin.DialRefused), never by the *net.OpError around it, which every
+	// failed dial is: read that way, a dial that was reset was "nothing is
+	// listening" too, and one that timed out never reached the timeout below.
+	if plugin.DialUnroutable(err) {
+		reason := err
+		var netErr *net.OpError
+		if errors.As(err, &netErr) {
+			reason = netErr.Err
+		}
+		return view.Errorf("vault.conn.unreachable", "%s cannot be reached from this machine: %v", addr, reason).
+			WithHint("no route leads there from here — a VPN or tunnel the server sits behind that is " +
+				"down looks exactly like this, and so does " + sf.SettingName("address") + " naming " +
+				"an address on a network this machine is not on")
+	}
+	if plugin.DialRefused(err) {
 		return view.Errorf("vault.conn.refused", "nothing is listening on %s", addr).
-			WithHint("is the server up, and is the address right?")
+			WithHint("is the server up, and is " + sf.SettingName("address") + " right?")
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
 		return view.Errorf("vault.conn.timeout", "%s did not answer in time", addr).
 			WithHint("a firewall that drops rather than refuses looks exactly like this")
 	}
-	var certErr x509.UnknownAuthorityError
-	if errors.As(err, &certErr) {
+	// Asked of plugin.CertUntrusted rather than of the type Go's verifier
+	// alone gives: with no ca-file, macOS answers a private CA's chain
+	// untyped, and it was "could not reach". And only for a verdict that
+	// means an issuer nothing here vouches for — a revoked certificate is
+	// answered untyped too, and the CA file is no cure for it but a way
+	// around the check that caught it.
+	if plugin.CertUntrusted(err) {
 		return view.Errorf("vault.tls.untrusted", "%s presented a certificate rta does not trust", addr).
 			WithHint("this is a real TLS trust failure, not something to work around here — a Vault " +
-				"behind a tunnel commonly has its own operator- or cluster-generated CA, and it belongs " +
-				"in " + sf.SettingName("ca-file") + " rather than verification turned off")
+				"behind a tunnel commonly has its own operator- or cluster-generated CA, wanted rather than " +
+				"verification turned off: " + sf.CAHint("ca-file"))
+	}
+	// Every other verdict is its own reason, quoted in the verifier's words —
+	// the system's, for one macOS gives untyped — and never "could not reach":
+	// the server was reached, and answered with a certificate.
+	var verifyErr *tls.CertificateVerificationError
+	if errors.As(err, &verifyErr) {
+		return view.Errorf("vault.tls.rejected", "%s presented a certificate that does not verify: %v", addr, verifyErr.Err).
+			WithHint("a certificate is checked for the host in " + sf.SettingName("address") +
+				", its dates and the use it was issued for, as well as for who issued it")
 	}
 	return view.Errorf("vault.conn.failed", "could not reach %s: %v", addr, err).
 		WithHint(sf.SettingsHint("vault.seal.status"))

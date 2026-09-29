@@ -1,13 +1,17 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 
 	vaultapi "github.com/hashicorp/vault/api"
@@ -80,6 +84,10 @@ func req(t *testing.T, capID string, values map[string]any) plugin.Request {
 // plugins/pg's classify holds itself to, against Vault's error shapes.
 func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
 	r := req(t, "vault.seal.status", map[string]any{"address": "https://vault.internal:8200"})
+	dial := func(errno syscall.Errno) error {
+		return &url.Error{Op: "Get", URL: "https://x",
+			Err: &net.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", errno)}}
+	}
 	cases := []struct {
 		name string
 		err  error
@@ -92,6 +100,19 @@ func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
 		{"server error", &vaultapi.ResponseError{StatusCode: 500, Errors: []string{"internal error"}}, "vault.request.failed"},
 		{"kv secret missing", vaultapi.ErrSecretNotFound, "vault.notfound"},
 		{"refused", &net.OpError{Op: "dial", Err: errors.New("connection refused")}, "vault.conn.refused"},
+		// A dial is read by the operating system's error it carries, never by
+		// the *net.OpError every failed dial is: a reset refused nothing, a
+		// dial that timed out is a timeout, and a host no route reaches was
+		// sent to check a port.
+		{"refused by errno", dial(syscall.ECONNREFUSED), "vault.conn.refused"},
+		{"no route", dial(syscall.EHOSTUNREACH), "vault.conn.unreachable"},
+		{"no network", dial(syscall.ENETUNREACH), "vault.conn.unreachable"},
+		{"reset", &url.Error{Op: "Get", URL: "https://x", Err: &net.OpError{Op: "read", Net: "tcp",
+			Err: os.NewSyscallError("read", syscall.ECONNRESET)}}, "vault.conn.failed"},
+		{"a dial that timed out", &url.Error{Op: "Get", URL: "https://x",
+			Err: &net.OpError{Op: "dial", Net: "tcp", Err: timeoutError{}}}, "vault.conn.timeout"},
+		{"a refusal flattened into text", errors.New("Get https://x: dial tcp 10.0.0.9:8200: connect: " +
+			syscall.ECONNREFUSED.Error()), "vault.conn.refused"},
 		{"unknown host", &net.DNSError{Err: "no such host", Name: "vault.internal"}, "vault.host.unknown"},
 		{"anything else", errors.New("something unexpected"), "vault.conn.failed"},
 	}
@@ -108,6 +129,52 @@ func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
 				t.Error("no message")
 			}
 		})
+	}
+}
+
+// timeoutError is a net.Error that timed out, as a dial's deadline reports.
+type timeoutError struct{}
+
+func (timeoutError) Error() string   { return "i/o timeout" }
+func (timeoutError) Timeout() bool   { return true }
+func (timeoutError) Temporary() bool { return true }
+
+// macOS verifies against the system's trust store itself when no ca-file is
+// set and reports a chain it cannot anchor as a bare error: that is still a
+// certificate nothing here trusts, and the answer is the CA. Every other
+// verdict it gives untyped is its own reason and is quoted in its words: a
+// revoked certificate answered with the CA file to name was answered with the
+// way around the revocation check. Elsewhere an untyped verdict is never a
+// question of trust, and none is a server that could not be reached.
+func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
+	r := req(t, "vault.seal.status", map[string]any{"address": "https://vault.internal:8200"})
+	open, closing := string(rune(0x201c)), string(rune(0x201d))
+	onMac := "vault.tls.rejected"
+	if runtime.GOOS == "darwin" {
+		onMac = "vault.tls.untrusted"
+	}
+	for _, tc := range []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"Go's own verifier", x509.UnknownAuthorityError{}, "vault.tls.untrusted"},
+		{"the system's verifier, a chain it cannot anchor",
+			errors.New("x509: " + open + "vault" + closing + " certificate is not trusted"), onMac},
+		{"the system's verifier, a revoked certificate",
+			errors.New("x509: " + open + "vault" + closing + " certificate is revoked"), "vault.tls.rejected"},
+		{"a name it is not for", x509.HostnameError{Certificate: &x509.Certificate{}, Host: "vault.internal"},
+			"vault.tls.rejected"},
+	} {
+		err := &url.Error{Op: "Get", URL: "https://vault.internal:8200/v1/sys/seal-status",
+			Err: &tls.CertificateVerificationError{Err: tc.err}}
+		got := classify(err, r)
+		if got.Code != tc.want {
+			t.Errorf("%s: classified %s, want %s", tc.name, got.Code, tc.want)
+		}
+		if got.Code == "vault.tls.rejected" && !strings.Contains(got.Message, tc.err.Error()) {
+			t.Errorf("%s: %q does not quote the verdict", tc.name, got.Message)
+		}
 	}
 }
 
