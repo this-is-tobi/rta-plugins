@@ -524,11 +524,13 @@ func childEnv(req plugin.Request) []string {
 	if mode := req.String("sslmode"); mode != "" {
 		env = append(env, "PGSSLMODE="+mode)
 	}
-	if ca := req.String("sslrootcert"); ca != "" {
+	if ca := req.String("sslrootcert"); ca != "" && req.String("sslmode") != "disable" {
 		// The same keyword dsn() writes into the in-process driver's
 		// connection string, carried the only way a subprocess reads it —
 		// pg_dump has no connection-string argument for a single value like
 		// this one, only PG* environment variables and its own -h/-p/-U/-d.
+		// Left out under disable for dsn()'s reason, and libpq's own: it
+		// refuses system beside disable outright.
 		env = append(env, "PGSSLROOTCERT="+ca)
 	}
 	if home := os.Getenv("HOME"); home != "" {
