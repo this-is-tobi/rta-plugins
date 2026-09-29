@@ -250,6 +250,59 @@ func TestTheRestoreConnectsAsProtectedAsTheDump(t *testing.T) {
 	}
 }
 
+// The restore line reaches the instance the dump came from again. Through a
+// profile it names the profile, whose credentials the dump may have used;
+// through a forward the host opened on it, the profile alone, since the
+// endpoint was the forward's end on 127.0.0.1 and nothing listens there once
+// the dump is over; and reached directly, the endpoint too, which may be one
+// typed over the profile's.
+func TestTheRestoreLineReachesTheSameInstanceAgain(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		profile string
+		tunnel  plugin.Tunnel
+		want    string
+	}{
+		{"no profile", "", plugin.TunnelNone,
+			"rta qdrant restore /backups/docs.snapshot --collection docs --endpoint qdrant.internal:6333"},
+		{"a profile reached directly", "prod", plugin.TunnelNone,
+			"rta qdrant restore /backups/docs.snapshot --collection docs --profile prod --endpoint qdrant.internal:6333"},
+		{"a profile through a forward", "prod", plugin.TunnelKube,
+			"rta qdrant restore /backups/docs.snapshot --collection docs --profile prod"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			endpoint := "qdrant.internal:6333"
+			if tc.tunnel != plugin.TunnelNone {
+				endpoint = "127.0.0.1:54321"
+			}
+			r := req(t, "qdrant.dump", map[string]any{"endpoint": endpoint}).WithProfile(tc.profile, tc.tunnel)
+			if got := restoreCommand(r, "docs", "/backups/docs.snapshot"); got != tc.want {
+				t.Errorf("restore = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// What a receipt says was reached is the instance the reader can reach again:
+// never the forward's end, which closed with the call.
+func TestAReceiptNamesTheProfileRatherThanAForwardsEnd(t *testing.T) {
+	for _, tc := range []struct {
+		name, profile, endpoint, want string
+		tunnel                        plugin.Tunnel
+	}{
+		{"no profile", "", "qdrant.internal:6333", "qdrant.internal:6333", plugin.TunnelNone},
+		{"a profile reached directly", "prod", "qdrant.internal:6333", "qdrant.internal:6333 (profile prod)",
+			plugin.TunnelNone},
+		{"a profile through a forward", "prod", "127.0.0.1:54321", "profile prod, through its kube: forward",
+			plugin.TunnelKube},
+	} {
+		r := req(t, "qdrant.dump", map[string]any{"endpoint": tc.endpoint}).WithProfile(tc.profile, tc.tunnel)
+		if got := reached(r); got != tc.want {
+			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
 // A failed transfer must remove its half-written file — a partial snapshot
 // is the one that gets restored six months later — and must still delete the
 // server-side copy, or every broken download also eats the server's disk.

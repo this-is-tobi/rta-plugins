@@ -129,7 +129,7 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	if req.DryRun {
 		return view.Text{Body: fmt.Sprintf(
 			"would ask %s to snapshot %q, stream it to %s, and delete the server-side copy",
-			req.String("endpoint"), collection, path)}, nil
+			reached(req), collection, path)}, nil
 	}
 
 	// **Ask the server what it holds before dumping it** — pg.dump's
@@ -201,11 +201,25 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 // not carried — it is the default, a config there that turns TLS on still
 // wins, and it is what a tunnel forces for the forward alone, which a line
 // that spelled it would carry to a restore with no tunnel. Never the api-key.
+//
+// **And the profile the dump came through, whenever there was one**, since
+// the credentials it used may be the profile's and no other layer holds
+// them. The endpoint beside it only when the host opened no forward
+// (Request.Tunnel): through one, the endpoint was 127.0.0.1 and a port that
+// closed when the dump did, and a restore line naming it named a port
+// nothing listens on — the profile is what reaches the same instance again.
+// Reached directly, the endpoint stays, since it may be one the caller typed
+// over the profile's, which the profile alone would not reach.
 func restoreCommand(req plugin.Request, collection, path string) string {
 	args := []plugin.Arg{
 		{Name: "file", Value: path, Positional: true},
 		{Name: "collection", Value: collection},
-		{Name: "endpoint", Value: req.String("endpoint")},
+	}
+	if profile := req.Profile(); profile != "" {
+		args = append(args, plugin.Arg{Name: "profile", Value: profile})
+	}
+	if req.Tunnel() == plugin.TunnelNone {
+		args = append(args, plugin.Arg{Name: "endpoint", Value: req.String("endpoint")})
 	}
 	if req.Bool("tls") {
 		args = append(args, plugin.Arg{Name: "tls", Value: true})
