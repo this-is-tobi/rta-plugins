@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -330,19 +329,27 @@ func (s *session) classifyTransport(err error) *view.Error {
 	// Short of the host, before the port: a dial that found no way there
 	// reached nothing that could refuse it, and read as refused, a Keycloak
 	// behind a VPN that is down, or at an address of another network's, was
-	// "nothing is listening" about a port no packet reached. Windows numbers
-	// its socket errors otherwise, and there this falls through to the
-	// refusal below, as it always did.
-	var netErr *stdnet.OpError
-	if errors.As(err, &netErr) && unroutable(err) {
-		return view.Errorf("keycloak.conn.unreachable", "%s cannot be reached from this machine: %v", s.base, netErr.Err).
+	// "nothing is listening" about a port no packet reached.
+	//
+	// Each read by the operating system's own error (plugin.DialUnroutable,
+	// plugin.DialRefused), never by the *net.OpError around it, which every
+	// failed dial is: read that way, a dial that was reset was "nothing is
+	// listening" too, and one that timed out never reached the timeout below.
+	sf := s.req.Surface()
+	if plugin.DialUnroutable(err) {
+		reason := err
+		var netErr *stdnet.OpError
+		if errors.As(err, &netErr) {
+			reason = netErr.Err
+		}
+		return view.Errorf("keycloak.conn.unreachable", "%s cannot be reached from this machine: %v", s.base, reason).
 			WithHint("no route leads there from here — a VPN or tunnel the server sits behind that is " +
-				"down looks exactly like this, and so does " + s.req.Surface().SettingName("url") + " naming " +
+				"down looks exactly like this, and so does " + sf.SettingName("url") + " naming " +
 				"an address on a network this machine is not on")
 	}
-	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
+	if plugin.DialRefused(err) {
 		return view.Errorf("keycloak.conn.refused", "nothing is listening on %s", s.base).
-			WithHint("is the server up, and is " + s.req.Surface().SettingName("url") + " right?")
+			WithHint("is the server up, and is " + sf.SettingName("url") + " right?")
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
@@ -351,60 +358,28 @@ func (s *session) classifyTransport(err error) *view.Error {
 	}
 	// The CA named as where it belongs, not as something to pass: over MCP
 	// ca-file is the operator's setting, Local, and an agent told to pass it
-	// has no such argument to give and would read this refusal again.
-	if untrusted(err) {
+	// has no such argument to give and would read this refusal again. Only for
+	// a verdict that means an issuer nothing here vouches for
+	// (plugin.CertUntrusted): macOS answers a revoked certificate untyped too,
+	// and read as untrusted it was answered with the CA file to name — which
+	// runs Go's verifier in the system's place, with no revocation check, and
+	// connects.
+	if plugin.CertUntrusted(err) {
 		return view.Errorf("keycloak.tls.untrusted", "%s presented a certificate nothing here trusts", s.base).
-			WithHint("a Keycloak behind an internal CA wants that CA in " + s.req.Surface().SettingName("ca-file") +
-				" rather than verification turned off — a self-signed certificate is its own CA")
+			WithHint("a Keycloak behind an internal CA wants that CA rather than verification turned off: " +
+				sf.CAHint("ca-file"))
+	}
+	// Every other verdict is its own reason, quoted in the verifier's words —
+	// the system's, for one macOS gives untyped — and never "could not reach":
+	// the server was reached, and answered with a certificate.
+	var verifyErr *tls.CertificateVerificationError
+	if errors.As(err, &verifyErr) {
+		return view.Errorf("keycloak.tls.rejected", "%s presented a certificate that does not verify: %v", s.base, verifyErr.Err).
+			WithHint("a certificate is checked for the host in " + sf.SettingName("url") +
+				", its dates and the use it was issued for, as well as for who issued it")
 	}
 	return view.Errorf("keycloak.conn.failed", "could not reach %s: %v", s.base, err).
-		WithHint(s.req.Surface().SettingsHint("keycloak.overview"))
-}
-
-// untrusted reports whether err is a certificate that nothing here vouches
-// for. Go's own verifier says so as an x509.UnknownAuthorityError, and it is
-// the one that runs whenever ca-file is set. Without one, on macOS, the
-// system's trust store is consulted through the platform's verifier, and an
-// untrusted chain comes back from it as a bare error inside the handshake's
-// *tls.CertificateVerificationError — as does a self-signed certificate
-// valid for longer than Apple's policy allows, "not standards compliant" —
-// so a verification failure the platform answers untyped is read as one too.
-// Read the typed way alone, a Keycloak behind its own CA reached from a Mac
-// was answered "could not reach", with the page of every input for a hint,
-// rather than with the CA to trust.
-//
-// Untyped, and not merely not UnknownAuthorityError: Go's verifier types
-// every failure it names — a host the certificate is not for, a date or a
-// use it is not valid for, a signature algorithm it will not accept, a
-// critical extension it does not handle — and each of those is a reason of
-// its own, which no CA in ca-file would cure. Read as untrusted, a SHA-1
-// certificate was answered "nothing here trusts" with the CA to name, and the
-// reason itself, which keycloak.conn.failed quotes, went unsaid.
-func untrusted(err error) bool {
-	var authErr x509.UnknownAuthorityError
-	if errors.As(err, &authErr) {
-		return true
-	}
-	var verifyErr *tls.CertificateVerificationError
-	if !errors.As(err, &verifyErr) {
-		return false
-	}
-	for _, reason := range []any{new(x509.HostnameError), new(x509.CertificateInvalidError),
-		new(x509.InsecureAlgorithmError), new(x509.UnhandledCriticalExtension),
-		new(x509.ConstraintViolationError)} {
-		if errors.As(verifyErr.Err, reason) {
-			return false
-		}
-	}
-	return true
-}
-
-// unroutable reports whether err is a dial that found no way to the host: no
-// route to it, a network this machine has no way onto, a host its own network
-// reports down.
-func unroutable(err error) bool {
-	return errors.Is(err, syscall.ENETUNREACH) || errors.Is(err, syscall.EHOSTUNREACH) ||
-		errors.Is(err, syscall.EHOSTDOWN)
+		WithHint(sf.SettingsHint("keycloak.overview"))
 }
 
 func (s *session) host() string {

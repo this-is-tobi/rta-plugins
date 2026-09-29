@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -557,32 +558,81 @@ func TestTheCAFileResolvesTheHomeDirectory(t *testing.T) {
 	_ = resp.Body.Close()
 }
 
-// macOS verifies against the system's trust store itself and reports an
-// untrusted chain as a bare error, never as x509.UnknownAuthorityError: that
-// is still a certificate nothing here trusts, and the answer is the CA, while
-// a name or a date that fails verification is not the CA's to fix.
+// macOS verifies against the system's trust store itself and reports a chain
+// it cannot anchor as a bare error, never as x509.UnknownAuthorityError: that
+// is still a certificate nothing here trusts, and the answer is the CA. Every
+// other verdict it gives untyped is its own reason and is quoted in its words:
+// a revoked certificate answered with the CA file to name was answered with
+// the way around the revocation check. Elsewhere an untyped verdict is never
+// a question of trust, and a name or a date that fails is not the CA's to fix
+// either — nor is any of them a server that could not be reached.
 func TestACertificateThePlatformDoesNotTrustIsNamedAsUntrusted(t *testing.T) {
 	s := &session{req: plugin.NewRequest(nil, false, false), base: "https://sso.internal"}
+	open, closing := string(rune(0x201c)), string(rune(0x201d))
+	onMac := "keycloak.tls.rejected"
+	if runtime.GOOS == "darwin" {
+		onMac = "keycloak.tls.untrusted"
+	}
 	for _, tc := range []struct {
 		name string
 		err  error
 		want string
 	}{
 		{"Go's own verifier", x509.UnknownAuthorityError{}, "keycloak.tls.untrusted"},
-		{"the platform's verifier", errors.New(`x509: "sso" certificate is not trusted`), "keycloak.tls.untrusted"},
-		{"a name it is not for", x509.HostnameError{Certificate: &x509.Certificate{}, Host: "sso.internal"}, "keycloak.conn.failed"},
-		{"a date it is not valid on", x509.CertificateInvalidError{Cert: &x509.Certificate{}, Reason: x509.Expired}, "keycloak.conn.failed"},
+		{"the system's verifier, a chain it cannot anchor",
+			errors.New("x509: " + open + "sso" + closing + " certificate is not trusted"), onMac},
+		{"the system's verifier, a revoked certificate",
+			errors.New("x509: " + open + "sso" + closing + " certificate is revoked"), "keycloak.tls.rejected"},
+		{"a name it is not for", x509.HostnameError{Certificate: &x509.Certificate{}, Host: "sso.internal"}, "keycloak.tls.rejected"},
+		{"a date it is not valid on", x509.CertificateInvalidError{Cert: &x509.Certificate{}, Reason: x509.Expired}, "keycloak.tls.rejected"},
 		// Go's verifier types each reason of its own, and no CA cures one.
-		{"a signature algorithm it refuses", x509.InsecureAlgorithmError(x509.SHA1WithRSA), "keycloak.conn.failed"},
-		{"a critical extension it does not handle", x509.UnhandledCriticalExtension{}, "keycloak.conn.failed"},
+		{"a signature algorithm it refuses", x509.InsecureAlgorithmError(x509.SHA1WithRSA), "keycloak.tls.rejected"},
+		{"a critical extension it does not handle", x509.UnhandledCriticalExtension{}, "keycloak.tls.rejected"},
 	} {
 		err := &url.Error{Op: "Post", URL: "https://sso.internal/realms/demo/protocol/openid-connect/token",
 			Err: &tls.CertificateVerificationError{Err: tc.err}}
-		if got := s.classifyTransport(err); got.Code != tc.want {
+		got := s.classifyTransport(err)
+		if got.Code != tc.want {
 			t.Errorf("%s: classified %s, want %s", tc.name, got.Code, tc.want)
+		}
+		if got.Code == "keycloak.tls.rejected" && !strings.Contains(got.Message, tc.err.Error()) {
+			t.Errorf("%s: %q does not quote the verdict", tc.name, got.Message)
 		}
 	}
 }
+
+// A failed dial is read by the operating system's error it carries, not by the
+// *net.OpError every failed dial is: one that was reset reached no port that
+// refused it, and one that timed out is a timeout. Text that lost its errno is
+// read by the errno's words.
+func TestADialIsReadByTheErrorItCarries(t *testing.T) {
+	s := &session{req: plugin.NewRequest(nil, false, false), base: "https://10.0.0.9"}
+	wrap := func(err error) error {
+		return &url.Error{Op: "Post", URL: "https://10.0.0.9/realms/demo/protocol/openid-connect/token", Err: err}
+	}
+	for _, tc := range []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"a connection reset", wrap(&stdnet.OpError{Op: "read", Net: "tcp",
+			Err: os.NewSyscallError("read", syscall.ECONNRESET)}), "keycloak.conn.failed"},
+		{"a dial that timed out", wrap(&stdnet.OpError{Op: "dial", Net: "tcp", Err: timeoutError{}}), "keycloak.timeout"},
+		{"a refusal flattened into text", wrap(errors.New("dial tcp 10.0.0.9:443: connect: " +
+			syscall.ECONNREFUSED.Error())), "keycloak.conn.refused"},
+	} {
+		if got := s.classifyTransport(tc.err); got.Code != tc.want {
+			t.Errorf("%s: classified %s %q, want %s", tc.name, got.Code, got.Message, tc.want)
+		}
+	}
+}
+
+// timeoutError is a net.Error that timed out, as a dial's deadline reports.
+type timeoutError struct{}
+
+func (timeoutError) Error() string   { return "i/o timeout" }
+func (timeoutError) Timeout() bool   { return true }
+func (timeoutError) Temporary() bool { return true }
 
 // A dial that found no route reached nothing that could refuse it, and is not
 // a port nobody is on; one the host refused still is.
