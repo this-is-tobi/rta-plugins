@@ -2,9 +2,15 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"errors"
+	"math/big"
 	"net"
 	"os"
 	"path/filepath"
@@ -12,6 +18,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -158,11 +165,12 @@ func TestAHostNoRouteReachesIsNotAPortNobodyIsOn(t *testing.T) {
 // as long as the file is named. disable stands, since a tunnel forces it, and
 // the two verify modes are what read it.
 func TestSSLRootCertIsRefusedBesideAModeThatDoesNotVerify(t *testing.T) {
+	ca := testCA(t)
 	for mode, want := range map[string]string{
 		"prefer": "pg.tls.ca.unused", "require": "pg.tls.ca.implied",
 		"disable": "", "verify-ca": "", "verify-full": "",
 	} {
-		got := checkRootCert(req(t, map[string]any{"sslmode": mode, "sslrootcert": "/etc/rta/pg-ca.crt"}))
+		got := checkRootCert(req(t, map[string]any{"sslmode": mode, "sslrootcert": ca}))
 		switch {
 		case want == "" && got != nil:
 			t.Errorf("sslmode %s: refused a CA it reads or never negotiates for: %s", mode, got.Code)
@@ -173,6 +181,55 @@ func TestSSLRootCertIsRefusedBesideAModeThatDoesNotVerify(t *testing.T) {
 		}
 		if got := checkRootCert(req(t, map[string]any{"sslmode": mode})); got != nil && mode != "verify-ca" {
 			t.Errorf("sslmode %s with no CA: refused as %s", mode, got.Code)
+		}
+	}
+}
+
+// testCA writes a self-signed CA certificate in PEM and returns its path.
+func testCA(t *testing.T) string {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "rta test CA"},
+		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour),
+		IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "ca.pem")
+	if err := os.WriteFile(path, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// A CA file the verify modes cannot use is refused as that, before anything
+// dials: left to pgx, it came back as a connection that failed, quoting the
+// whole connection string, from a failure that never reached the network.
+// Beside disable it is never read, as a tunnel forces disable.
+func TestACAFileThatCannotBeUsedIsNamedAsThat(t *testing.T) {
+	dir := t.TempDir()
+	key := filepath.Join(dir, "server.key")
+	if err := os.WriteFile(key, []byte("-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for path, want := range map[string]string{
+		filepath.Join(dir, "absent.pem"): "pg.tls.ca.unreadable",
+		key:                              "pg.tls.ca.invalid",
+	} {
+		values := map[string]any{"host": "127.0.0.1", "port": 1, "sslmode": "verify-full", "sslrootcert": path}
+		if _, got := connect(context.Background(), req(t, values)); got == nil || got.Code != want ||
+			!strings.Contains(got.Hint, "--sslrootcert") {
+			t.Errorf("%s: %v, want %s naming --sslrootcert", filepath.Base(path), got, want)
+		}
+		values["sslmode"] = "disable"
+		if got := checkRootCert(req(t, values)); got != nil {
+			t.Errorf("%s beside disable: refused as %s, though nothing reads it", filepath.Base(path), got.Code)
 		}
 	}
 }
