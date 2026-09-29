@@ -158,6 +158,10 @@ func TestClassifyRestoreNamesTheFailure(t *testing.T) {
 		"refused":   {"ERROR 2002 (HY000): Can't connect to server on '127.0.0.1'", "mariadb.conn.refused"},
 		"mid file":  {"ERROR 1064 (42000) at line 42: You have an error in your SQL syntax", "mariadb.restore.failed"},
 		"anything":  {"something nobody anticipated", "mariadb.restore.failed"},
+		"no route": {fmt.Sprintf("ERROR 2003 (HY000): Can't connect to server on 'db.internal:3306' (%d)",
+			int(syscall.EHOSTUNREACH)), "mariadb.conn.unreachable"},
+		"in progress": {fmt.Sprintf("ERROR 2003 (HY000): Can't connect to server on 'db.internal:3306' (%d)",
+			int(syscall.EINPROGRESS)), "mariadb.conn.refused"},
 		"timed out": {fmt.Sprintf("ERROR 2003 (HY000): Can't connect to server on 'db.internal:3306' (%d)",
 			int(syscall.ETIMEDOUT)), "mariadb.conn.timeout"},
 	} {
