@@ -192,8 +192,12 @@ func newRequest(ctx context.Context, req plugin.Request, method, path string,
 // that — read and parsed fresh on every call, the same as every other input
 // here, because this plugin keeps no client or connection across calls to
 // begin with (call is the only entry point, per-request end to end).
+//
+// The path with a leading ~ resolved, as every other path a plugin reads
+// is. Opened as typed, ~/ca.pem was a path under a directory named ~, and a
+// CA sitting in the operator's home was answered as no such file.
 func httpClient(req plugin.Request) (*http.Client, *view.Error) {
-	ca := req.String("ca-file")
+	ca := plugin.ExpandHome(req.String("ca-file"))
 	if ca == "" {
 		return http.DefaultClient, nil
 	}
