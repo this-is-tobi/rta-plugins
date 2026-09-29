@@ -196,7 +196,7 @@ func TestACAFileThatDidNotIssueTheCertificateIsNamed(t *testing.T) {
 // as "could not reach" a server that had answered. It is the forward's doing,
 // said as that with what does get through; a certificate that names the
 // address still passes, as it always did, and a name refused on a direct
-// connection keeps the verifier's words.
+// connection is the certificate's, not the forward's.
 func TestANameCheckedThroughAForwardIsNamedAsTheForwards(t *testing.T) {
 	ca := newTestCA(t)
 	caFile := writeFile(t, "ca.pem", ca.pem)
@@ -226,8 +226,8 @@ func TestANameCheckedThroughAForwardIsNamedAsTheForwards(t *testing.T) {
 	}
 
 	_, verr = connect(context.Background(), req(t, "redis.overview", values(service)).WithProfile("prod", plugin.TunnelNone))
-	if verr == nil || verr.Code != "redis.conn.failed" || !strings.Contains(verr.Message, "127.0.0.1") {
-		t.Errorf("a name refused on a direct connection: %v, want the verifier's words", verr)
+	if verr == nil || verr.Code != "redis.tls.name" {
+		t.Errorf("a name refused on a direct connection: %v, want redis.tls.name", verr)
 	}
 
 	probes := tlsServer(t, ca.serverCert(t, "cache.internal", "127.0.0.1"))
@@ -236,6 +236,41 @@ func TestANameCheckedThroughAForwardIsNamedAsTheForwards(t *testing.T) {
 		t.Fatalf("a certificate naming the forward's address, through the forward: %s: %s", verr.Code, verr.Message)
 	}
 	c.Close()
+}
+
+// A certificate for another name than the one dialled was "could not reach"
+// a server that had answered, with the page of every input for a hint. It is
+// named as what it is, with the names the certificate does carry and the
+// setting the name came from; one that names no host at all is said to be
+// that.
+func TestACertificateForAnotherNameIsNamedAsThat(t *testing.T) {
+	ca := newTestCA(t)
+	server := tlsServer(t, ca.serverCert(t, "cache.internal", "10.0.0.7"))
+	values := map[string]any{"address": server, "ca-file": writeFile(t, "ca.pem", ca.pem)}
+
+	_, verr := connect(context.Background(), req(t, "redis.overview", values))
+	if verr == nil || verr.Code != "redis.tls.name" {
+		t.Fatalf("err = %v, want redis.tls.name", verr)
+	}
+	if want := "presented a certificate for cache.internal, 10.0.0.7, not 127.0.0.1"; !strings.Contains(verr.Message, want) {
+		t.Errorf("message = %q, want %q in it", verr.Message, want)
+	}
+	if want := "--address is the name the certificate is checked against"; !strings.Contains(verr.Hint, want) {
+		t.Errorf("hint = %q, want %q in it", verr.Hint, want)
+	}
+	mcp := classifyDial(&tls.CertificateVerificationError{Err: x509.HostnameError{
+		Certificate: &x509.Certificate{DNSNames: []string{"cache.internal"}}, Host: "127.0.0.1"}},
+		"127.0.0.1:6379", req(t, "redis.overview", nil).WithSurface(plugin.SurfaceMCP))
+	if want := "the operator's `address` setting is the name"; !strings.Contains(mcp.Hint, want) {
+		t.Errorf("MCP hint = %q, want %q in it", mcp.Hint, want)
+	}
+
+	none := classifyDial(&tls.CertificateVerificationError{Err: x509.HostnameError{
+		Certificate: &x509.Certificate{}, Host: "127.0.0.1"}}, "127.0.0.1:6379", req(t, "redis.overview", nil))
+	if none.Code != "redis.tls.name" || !strings.Contains(none.Message, "names no host, 127.0.0.1 or any other") {
+		t.Errorf("a certificate with no names: %s %q, want redis.tls.name saying it names none", none.Code,
+			none.Message)
+	}
 }
 
 // A failed dial is read by the operating system's own error, never by the
