@@ -363,6 +363,24 @@ func classify(err error, req plugin.Request) *view.Error {
 		WithHint(sf.SettingsHint("qdrant.overview"))
 }
 
+// reached names the instance this call reached the way its reader reaches it
+// again once the call is over: the endpoint, beside the profile that filled
+// the rest of the connection when there was one — and the profile alone when
+// the host reached the instance through a forward it opened on that profile.
+// A forward's end is 127.0.0.1 and a port that closed with the call, and a
+// receipt naming it named an instance nothing answers as any more.
+func reached(req plugin.Request) string {
+	endpoint := req.String("endpoint")
+	switch profile := req.Profile(); {
+	case profile == "":
+		return endpoint
+	case req.Tunnel() == plugin.TunnelNone:
+		return endpoint + " (profile " + profile + ")"
+	default:
+		return "profile " + profile + ", through its " + string(req.Tunnel()) + ": forward"
+	}
+}
+
 func hostOnly(endpoint string) string {
 	host, _, err := stdnet.SplitHostPort(endpoint)
 	if err != nil {

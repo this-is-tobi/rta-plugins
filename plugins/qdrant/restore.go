@@ -100,7 +100,7 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 	if req.DryRun {
 		return view.Text{Body: fmt.Sprintf(
 			"would upload %s to %s, recovering collection %q from it (priority=snapshot)",
-			path, req.String("endpoint"), collection)}, nil
+			path, reached(req), collection)}, nil
 	}
 
 	// Ask the server what is there before writing into it — the dump's
@@ -117,7 +117,7 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 
 	return view.KeyValue{Pairs: []view.Pair{
 		{Key: "restored", Value: path},
-		{Key: "into", Value: fmt.Sprintf("collection %q on %s", collection, req.String("endpoint"))},
+		{Key: "into", Value: fmt.Sprintf("collection %q on %s", collection, reached(req))},
 		{Key: "took", Value: time.Since(started).Round(time.Millisecond).String()},
 		// Read back rather than assumed: the count is the server's own answer
 		// about what the collection now holds, which is the closest thing a
