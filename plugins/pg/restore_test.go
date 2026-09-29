@@ -221,13 +221,15 @@ func TestRestoreDryRunRunsNothingAndConnectsToNothing(t *testing.T) {
 // instructions. Matched on stderr text the way classifyDump matches — pinned
 // to C-locale tool output, best-effort on the server's own lines.
 func TestRestoreFailuresAreClassified(t *testing.T) {
-	r := reqFor(t, "pg.restore", map[string]any{"database": "prod", "host": "db.internal"})
+	r := reqFor(t, "pg.restore", map[string]any{"database": "prod", "host": "db.internal", "port": 6432, "user": "app"})
 	exit := errors.New("exit status 1")
 	for _, tc := range []struct {
 		stderr, code, hint string
 	}{
+		// On the server the restore reached, as the role it connected as:
+		// createdb's own defaults are port 5432 and the operating system's user.
 		{`connection to server failed: FATAL:  database "prod" does not exist`,
-			"pg.restore.nodatabase", "createdb"},
+			"pg.restore.nodatabase", "`createdb --host=db.internal --port=6432 --username=app prod`"},
 		{`pg_restore: error: could not execute query: ERROR:  role "app_owner" does not exist`,
 			"pg.restore.owner", "--no-owner"},
 		{`pg_restore: error: could not execute query: ERROR:  relation "t" already exists`,
