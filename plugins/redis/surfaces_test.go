@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/x509"
 	"errors"
+	"io"
 	stdnet "net"
 	"os"
 	"path/filepath"
@@ -25,7 +26,7 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			name: "a certificate without its key",
 			cli:  "--cert-file given without --key-file",
-			mcp:  "`cert-file` given without `key-file`",
+			mcp:  "the operator's `cert-file` setting given without the operator's `key-file` setting",
 			refuse: func(sf plugin.Surface) *view.Error {
 				r := req(t, "redis.overview", map[string]any{"cert-file": "/tmp/client.pem"})
 				_, verr := tlsConfig(r.WithSurface(sf))
@@ -39,7 +40,8 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 			// here.
 			name: "a CA file with no PEM certificate in it",
 			cli:  "--ca-file wants a PEM certificate — the CA's, or a self-signed server's own — and a private key, which belongs in --key-file,",
-			mcp:  "`ca-file` wants a PEM certificate — the CA's, or a self-signed server's own — and a private key, which belongs in `key-file`,",
+			mcp: "the operator's `ca-file` setting wants a PEM certificate — the CA's, or a self-signed server's own — " +
+				"and a private key, which belongs in the operator's `key-file` setting,",
 			refuse: func(sf plugin.Surface) *view.Error {
 				der := filepath.Join(t.TempDir(), "server.der")
 				if err := os.WriteFile(der, []byte{0x30, 0x03, 0x02, 0x01, 0x01}, 0o600); err != nil {
@@ -52,7 +54,7 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			name: "a key on another cluster node",
 			cli:  "this is a cluster and that key lives on another node — `rta redis cluster` lists them; point --address at the one named",
-			mcp:  "the `redis_cluster` tool lists them; point `address` at the one named",
+			mcp:  "the `redis_cluster` tool lists them; point the operator's `address` setting at the one named",
 			refuse: func(sf plugin.Surface) *view.Error {
 				return classify(&serverError{msg: "MOVED 3999 10.0.0.2:6379"}, "10.0.0.1:6379", sf)
 			},
@@ -69,7 +71,7 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			name: "a server that wants a password",
 			cli:  "the password belongs in $RTA_REDIS_PASSWORD or --password",
-			mcp:  "the password belongs in $RTA_REDIS_PASSWORD or `password`",
+			mcp:  "the password belongs in $RTA_REDIS_PASSWORD or the operator's `password` setting",
 			refuse: func(sf plugin.Surface) *view.Error {
 				return classify(&serverError{msg: "NOAUTH Authentication required."}, "10.0.0.1:6379", sf)
 			},
@@ -83,9 +85,21 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 			},
 		},
 		{
+			// The switch turned on, as a command line takes it, and to an
+			// agent the operator's setting with the value it needs.
+			name: "a TLS server that hung up on plaintext",
+			cli:  "a TLS server answers a plaintext client by hanging up — try --tls",
+			mcp:  "try the operator's `tls` set to true",
+			refuse: func(sf plugin.Surface) *view.Error {
+				return classify(io.EOF, "10.0.0.1:6379", sf)
+			},
+		},
+		{
 			name: "anything else",
-			cli:  "`rta explain redis.overview` lists every input and where each one can come from",
-			mcp:  "ask the operator to run `rta explain redis.overview`, which lists every input",
+			cli: "`rta explain redis.overview` lists every input and which of the command line, the rta config, " +
+				"a profile and the environment can set it",
+			mcp: "ask the operator to run `rta explain redis.overview`, which lists every setting and which of " +
+				"the rta config, a profile and the environment the operator can set it in",
 			refuse: func(sf plugin.Surface) *view.Error {
 				return classify(errors.New("handshake went sideways"), "10.0.0.1:6379", sf)
 			},
