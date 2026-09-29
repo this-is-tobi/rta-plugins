@@ -5,10 +5,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"fmt"
 	stdnet "net"
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/minio/minio-go/v7"
@@ -68,6 +70,14 @@ func connFields() []plugin.Field {
 		// its contents are sensitive.
 		{Name: "ca-file", Type: plugin.String, Default: "", Config: "ca-file",
 			Local: true, Help: "PEM bundle to verify the server against, beyond the host's own trust store"},
+		// The name the certificate is checked for when it is not the host
+		// dialled — above all through a kube: or ssh: forward, whose end is
+		// 127.0.0.1 whatever the server is called, and which a service's
+		// certificate names only by luck. Checked as strictly as the host would
+		// have been: it moves the check, never loosens it. Local for the reason
+		// tls is: what a certificate has to prove is the operator's to say.
+		{Name: "tls-server-name", Type: plugin.String, Default: "", Config: "tls-server-name",
+			Local: true, Help: "name to check the server's certificate for, in place of the endpoint's host"},
 	}
 }
 
@@ -83,15 +93,17 @@ func connect(req plugin.Request) (*minio.Client, *view.Error) {
 		Creds: credentials.NewStaticV4(access, secret, ""),
 		// ca-file only means anything over TLS, so setting it turns TLS on
 		// the same way etcd's own ca-file does — the alternative is a value
-		// that silently does nothing until --tls is also typed.
-		Secure: req.Bool("tls") || req.String("ca-file") != "",
+		// that silently does nothing until --tls is also typed. tls-server-name,
+		// for the same reason: through a forward the host turns tls off, and a
+		// name given in the profile beside it was a plain-HTTP call to a TLS port.
+		Secure: req.Bool("tls") || req.String("ca-file") != "" || serverName(req) != "",
 		Region: req.String("region"),
 	}
 	// The path with a leading ~ resolved, as every other path a plugin reads
 	// is. Opened as typed, ~/ca.pem was a path under a directory named ~, and
 	// a CA sitting in the operator's home was answered as no such file.
-	if ca := plugin.ExpandHome(req.String("ca-file")); ca != "" {
-		transport, verr := caTransport(req.Surface(), ca)
+	if ca := plugin.ExpandHome(req.String("ca-file")); ca != "" || serverName(req) != "" {
+		transport, verr := tlsTransport(req.Surface(), ca, serverName(req))
 		if verr != nil {
 			return nil, verr
 		}
@@ -105,13 +117,23 @@ func connect(req plugin.Request) (*minio.Client, *view.Error) {
 	return client, nil
 }
 
-// caTransport is minio-go's own default HTTPS transport (proxying, idle
+// tlsTransport is minio-go's own default HTTPS transport (proxying, idle
 // connection pooling, timeouts — the same one Secure:true would have built
 // anyway) with its trust replaced by ca-file's bundle rather than the host's
 // system trust store, the same full-replacement etcd's and vault's own
 // ca-file already give: an operator naming a private CA means exactly that
-// CA, not that CA in addition to the public web PKI.
-func caTransport(sf plugin.Surface, ca string) (*http.Transport, *view.Error) {
+// CA, not that CA in addition to the public web PKI. And with name, when
+// tls-server-name gives one, as what the certificate is checked for and the
+// SNI sent, in place of the endpoint's host.
+func tlsTransport(sf plugin.Surface, ca, name string) (*http.Transport, *view.Error) {
+	transport, err := minio.DefaultTransport(true)
+	if err != nil {
+		return nil, view.Errorf("s3.tls.transport", "%v", err)
+	}
+	transport.TLSClientConfig.ServerName = name
+	if ca == "" {
+		return transport, nil
+	}
 	pem, err := os.ReadFile(ca)
 	if err != nil {
 		return nil, view.Errorf("s3.tls.ca.unreadable", "%v", err).
@@ -130,13 +152,13 @@ func caTransport(sf plugin.Surface, ca string) (*http.Transport, *view.Error) {
 				"server's own such as a local MinIO's public.crt — and a private key or a DER-encoded " +
 				"certificate is not one")
 	}
-	transport, err := minio.DefaultTransport(true)
-	if err != nil {
-		return nil, view.Errorf("s3.tls.transport", "%v", err)
-	}
 	transport.TLSClientConfig.RootCAs = pool
 	return transport, nil
 }
+
+// serverName is the name the certificate is checked for in place of the
+// endpoint's host, or "" for the host.
+func serverName(req plugin.Request) string { return strings.TrimSpace(req.String("tls-server-name")) }
 
 // classify turns a client error into something an operator can act on.
 //
@@ -250,14 +272,63 @@ func classify(err error, req plugin.Request) *view.Error {
 	// Every other verdict is its own reason, quoted in the verifier's words —
 	// the system's, for one macOS gives untyped — and never "could not reach":
 	// the server was reached, and answered with a certificate.
+	//
+	// A certificate that is not for the end of a forward the host opened is
+	// no fault of the server's, and not one the endpoint can fix: through a
+	// forward the host fills the endpoint with 127.0.0.1 and a port of its
+	// own, which a service's certificate names only by luck. So the refusal
+	// names the forward and the name the certificate is for, and sends the
+	// reader to tls-server-name, which checks that name in 127.0.0.1's place
+	// — never to anything that checks less. Only when tls-server-name is not
+	// set: a name given and not matched is the certificate's to explain.
+	var hostErr x509.HostnameError
+	if errors.As(err, &hostErr) && req.Tunnel() != plugin.TunnelNone && serverName(req) == "" {
+		return forwardName(req, hostErr)
+	}
 	var verifyErr *tls.CertificateVerificationError
 	if errors.As(err, &verifyErr) {
+		checked := "the host in " + sf.SettingName("endpoint")
+		if serverName(req) != "" {
+			checked = "the name in " + sf.SettingName("tls-server-name")
+		}
 		return view.Errorf("s3.tls.rejected", "%s presented a certificate that does not verify: %v", where, verifyErr.Err).
-			WithHint("a certificate is checked for the host in " + sf.SettingName("endpoint") +
+			WithHint("a certificate is checked for " + checked +
 				", its dates and the use it was issued for, as well as for who issued it")
 	}
 	return view.Errorf("s3.conn.failed", "could not reach %s: %v", where, err).
 		WithHint(sf.SettingsHint("s3.overview"))
+}
+
+// forwardName is the refusal for a certificate checked for the end of a
+// forward the host opened — 127.0.0.1 — and not for the name the server
+// answers as, which the certificate names instead.
+func forwardName(req plugin.Request, hostErr x509.HostnameError) *view.Error {
+	return view.Errorf("s3.tls.forward", "the certificate behind profile %s's %s: forward is for %s, not for %s, "+
+		"where the forward ends", req.Profile(), req.Tunnel(), certNames(hostErr.Certificate), hostErr.Host).
+		WithHint("a forward always ends at 127.0.0.1, so the certificate is checked for the name the server " +
+			"answers as instead: " + req.Surface().SettingName("tls-server-name") + ", which the profile can " +
+			"hold beside its forward, names it — one the certificate is for — and it is checked as strictly " +
+			"as the host it replaces")
+}
+
+// certNames lists the names a certificate is for, the ones a check reads:
+// its DNS names and its IP addresses, never the subject's common name, which
+// Go's verifier ignores.
+func certNames(cert *x509.Certificate) string {
+	if cert == nil {
+		return "another name"
+	}
+	names := slices.Clone(cert.DNSNames)
+	for _, ip := range cert.IPAddresses {
+		names = append(names, ip.String())
+	}
+	switch {
+	case len(names) == 0:
+		return "no name a check reads"
+	case len(names) > 3:
+		return strings.Join(names[:3], ", ") + fmt.Sprintf(" and %d more", len(names)-3)
+	}
+	return strings.Join(names, ", ")
 }
 
 // ctxErr is what a ListObjectsIter walk needs checked once it stops,
