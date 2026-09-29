@@ -273,6 +273,22 @@ func TestOverviewGradesMemoryAgainstMaxmemory(t *testing.T) {
 	}
 }
 
+// A peer at an IPv6 address is named bracketed in the replication table, on
+// either side of the link: joined with a bare colon, ::1 read ::1:6380, a port
+// no reader could tell from the address.
+func TestAReplicationPeerAtAnIPv6AddressIsNamedBracketed(t *testing.T) {
+	for role, raw := range map[string]string{
+		"primary": "# Replication\r\nrole:master\r\nconnected_slaves:1\r\n" +
+			"slave0:ip=::1,port=6380,state=online,offset=12,lag=0\r\n",
+		"replica": "# Replication\r\nrole:slave\r\nmaster_host:::1\r\nmaster_port:6380\r\n" +
+			"master_link_status:up\r\n",
+	} {
+		if got := replicationTable(parseInfo(raw)).Rows[0][1]; got != "[::1]:6380" {
+			t.Errorf("%s: peer = %q, want [::1]:6380", role, got)
+		}
+	}
+}
+
 // maxmemory 0 is no ceiling, and the share must be blank rather than 0%.
 func TestOverviewBlanksTheShareWithoutACeiling(t *testing.T) {
 	info := strings.Replace(sampleInfo, "maxmemory:1000000000", "maxmemory:0", 1)
