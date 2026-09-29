@@ -57,7 +57,7 @@ func req(t *testing.T, capID string, values map[string]any) plugin.Request {
 // file, and without one its dry run stops at the refusal asking for it,
 // short of the description the rule is there to reach.
 func TestConformance(t *testing.T) {
-	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs))
+	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."))
 }
 
 // conformanceInputs points both writes at a port nothing listens on, so

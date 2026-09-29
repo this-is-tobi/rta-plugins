@@ -20,7 +20,7 @@ import (
 // which is fine: the rule is about what the handler does, and a refusal is
 // not a mutation.
 func TestConformance(t *testing.T) {
-	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs))
+	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."))
 }
 
 func conformanceInputs(string) map[string]map[string]any {

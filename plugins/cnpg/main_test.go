@@ -45,7 +45,7 @@ func TestPluginPassesTheConformanceSuite(t *testing.T) {
 			// path rather than the create path.
 			"cnpg.backup.request": {"cluster": "absent"},
 		}
-	}))
+	}), sdktest.WithSource("."))
 }
 
 // fakeKubectl points the plugin at a script instead of a cluster.

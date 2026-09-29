@@ -34,7 +34,7 @@ import (
 // without them two of pg's four mutating capabilities were never driven at
 // all — the suite reported a pass for capabilities it had not run.
 func TestConformance(t *testing.T) {
-	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs))
+	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."))
 }
 
 // conformanceInputs points the mutating capabilities at a port nothing is

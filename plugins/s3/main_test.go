@@ -27,7 +27,7 @@ import (
 // s3.object.presign really minted a working bearer URL. The suite could see
 // all three the moment it was given something to drive them with.
 func TestConformance(t *testing.T) {
-	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs))
+	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."))
 }
 
 // conformanceInputs points every mutating capability at a bucket and key that

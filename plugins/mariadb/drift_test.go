@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/this-is-tobi/rta/pkg/sdk/sdktest"
 )
 
 // The two forks are one source tree twice over (fork_test.go), and a fix
@@ -111,21 +113,22 @@ var meansMySQL = []string{
 }
 
 func TestEverySentenceNamesTheServerThisPluginTalksTo(t *testing.T) {
-	fset, files := parseSource(t)
-	for _, f := range files {
-		for _, s := range sentences(f) {
-			rest := s.text
-			for _, phrase := range meansMySQL {
-				rest = strings.ReplaceAll(rest, phrase, "")
-			}
-			// The flavour a version string reads as, when it names no fork.
-			if rest == "MySQL" || !strings.Contains(rest, "MySQL") {
-				continue
-			}
-			t.Errorf("%s: %q names MySQL where the server this plugin talks to is MariaDB — "+
-				"word it for MariaDB, or add the phrase to meansMySQL if it does mean MySQL",
-				fset.Position(s.pos), s.text)
+	said, err := sdktest.Sentences(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range said {
+		rest := s.Text
+		for _, phrase := range meansMySQL {
+			rest = strings.ReplaceAll(rest, phrase, "")
 		}
+		// The flavour a version string reads as, when it names no fork.
+		if rest == "MySQL" || !strings.Contains(rest, "MySQL") {
+			continue
+		}
+		t.Errorf("%s: %q names MySQL where the server this plugin talks to is MariaDB — "+
+			"word it for MariaDB, or add the phrase to meansMySQL if it does mean MySQL",
+			s.Pos, s.Text)
 	}
 }
 

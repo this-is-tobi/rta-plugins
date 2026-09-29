@@ -38,7 +38,7 @@ func req(t *testing.T, capID string, values map[string]any) plugin.Request {
 // no default supplies: without one the suite fails rather than report a
 // pass for a capability it never ran.
 func TestConformance(t *testing.T) {
-	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs))
+	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."))
 }
 
 // conformanceInputs points every write at a port nothing listens on, so none
