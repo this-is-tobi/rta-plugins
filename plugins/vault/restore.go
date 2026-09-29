@@ -98,7 +98,7 @@ func runRestoreSnapshot(ctx context.Context, req plugin.Request) (view.View, err
 		}
 		return view.Text{Body: fmt.Sprintf(
 			"would replace the storage of %s with %s, %s",
-			req.String("address"), path, what)}, nil
+			reached(req), path, what)}, nil
 	}
 
 	return withClient(req, func(client *vaultapi.Client) (view.View, error) {
@@ -118,7 +118,7 @@ func runRestoreSnapshot(ctx context.Context, req plugin.Request) (view.View, err
 
 		return view.KeyValue{Pairs: []view.Pair{
 			{Key: "restored", Value: path},
-			{Key: "into", Value: req.String("address")},
+			{Key: "into", Value: reached(req)},
 			{Key: "took", Value: time.Since(started).Round(time.Millisecond).String()},
 			// Said here, not left to be discovered as a mysterious 403 on the
 			// next call: the auth state is the snapshot's now.
@@ -167,7 +167,7 @@ func sealStateAfter(ctx context.Context, client *vaultapi.Client, req plugin.Req
 	}
 	name := status.ClusterName
 	if name == "" {
-		name = req.String("address")
+		name = reached(req)
 	}
 	return fmt.Sprintf("%s is unsealed and serving the snapshot's data", name)
 }

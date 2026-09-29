@@ -148,6 +148,59 @@ func TestTheRestoreReachesTheVaultTheSnapshotCameFrom(t *testing.T) {
 	}
 }
 
+// The restore line reaches the Vault the snapshot came from again. Through a
+// profile it names the profile, whose token the snapshot may have used;
+// through a forward the host opened on it, the profile alone, since the
+// address was the forward's end on 127.0.0.1 and nothing listens there once
+// the snapshot is over; and reached directly, the address too, which may be
+// one typed over the profile's.
+func TestTheRestoreLineReachesTheSameVaultAgain(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		profile string
+		tunnel  plugin.Tunnel
+		want    string
+	}{
+		{"no profile", "", plugin.TunnelNone,
+			"rta vault restore /backups/vault.snap --address https://vault.internal:8200"},
+		{"a profile reached directly", "prod", plugin.TunnelNone,
+			"rta vault restore /backups/vault.snap --profile prod --address https://vault.internal:8200"},
+		{"a profile through a forward", "prod", plugin.TunnelSSH,
+			"rta vault restore /backups/vault.snap --profile prod"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			address := "https://vault.internal:8200"
+			if tc.tunnel != plugin.TunnelNone {
+				address = "https://127.0.0.1:54321"
+			}
+			r := req(t, "vault.snapshot", map[string]any{"address": address}).WithProfile(tc.profile, tc.tunnel)
+			if got := restoreCommand(r, "/backups/vault.snap"); got != tc.want {
+				t.Errorf("restore = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// What a receipt says was reached is the Vault the reader can reach again:
+// never the forward's end, which closed with the call.
+func TestAReceiptNamesTheProfileRatherThanAForwardsEnd(t *testing.T) {
+	for _, tc := range []struct {
+		name, profile, address, want string
+		tunnel                       plugin.Tunnel
+	}{
+		{"no profile", "", "https://vault.internal:8200", "https://vault.internal:8200", plugin.TunnelNone},
+		{"a profile reached directly", "prod", "https://vault.internal:8200",
+			"https://vault.internal:8200 (profile prod)", plugin.TunnelNone},
+		{"a profile through a forward", "prod", "http://127.0.0.1:54321",
+			"profile prod, through its kube: forward", plugin.TunnelKube},
+	} {
+		r := req(t, "vault.snapshot", map[string]any{"address": tc.address}).WithProfile(tc.profile, tc.tunnel)
+		if got := reached(r); got != tc.want {
+			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
 // The whole-Vault snapshot has no blast radius a grant could name, so it
 // leaves the agent surface rather than asking for one.
 func TestTheSnapshotRefusesMCP(t *testing.T) {

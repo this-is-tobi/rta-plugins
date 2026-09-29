@@ -205,6 +205,24 @@ func dataHint(sf plugin.Surface) string {
 	return "each " + sf.InputName("data") + " is one key=value pair, repeated for more than one"
 }
 
+// reached names the Vault this call reached the way its reader reaches it
+// again once the call is over: the address, beside the profile that filled
+// the rest of the connection when there was one — and the profile alone when
+// the host reached the Vault through a forward it opened on that profile. A
+// forward's end is 127.0.0.1 and a port that closed with the call, and a
+// receipt naming it named a Vault nothing answers as any more.
+func reached(req plugin.Request) string {
+	address := req.String("address")
+	switch profile := req.Profile(); {
+	case profile == "":
+		return address
+	case req.Tunnel() == plugin.TunnelNone:
+		return address + " (profile " + profile + ")"
+	default:
+		return "profile " + profile + ", through its " + string(req.Tunnel()) + ": forward"
+	}
+}
+
 // hostOf is the name in address, the one DNS was asked for: address is a
 // URL, and a lookup given the whole of it, scheme and port and all, answers
 // for no name anybody has. The address itself when it holds no host to take.
