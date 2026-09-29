@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"crypto/x509"
 	"database/sql/driver"
 	"errors"
@@ -11,7 +10,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -364,21 +362,30 @@ func classify(err error, req plugin.Request) *view.Error {
 	// server behind a VPN that is down, or at an address of another
 	// network's, was "nothing is listening" about a port no packet reached.
 	// The bound's own end arrives as a deadline, and the operating system's
-	// connect timeout as a dial that timed out. Windows numbers its socket
-	// errors otherwise, and there no route falls through to the refusal
-	// below, as it always did.
+	// connect timeout as a dial that timed out.
+	//
+	// The other two by the operating system's own error, as plugin.DialRefused
+	// and DialUnroutable read it, and never by the *net.OpError around it,
+	// which every failed dial and every broken read is: read that way, a
+	// server that reset the handshake was "nothing is listening" too. They
+	// read Windows' socket errors as well, which the errnos asked here before
+	// them did not.
 	var netErr *net.OpError
 	if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout()) {
 		return view.Errorf("pg.conn.timeout", "%s did not answer in time", where).
 			WithHint("a firewall that drops rather than refuses looks exactly like this")
 	}
-	if errors.As(err, &netErr) && unroutable(err) {
-		return view.Errorf("pg.conn.unreachable", "%s cannot be reached from this machine: %v", where, netErr.Err).
+	if plugin.DialUnroutable(err) {
+		why := err
+		if errors.As(err, &netErr) {
+			why = netErr.Err
+		}
+		return view.Errorf("pg.conn.unreachable", "%s cannot be reached from this machine: %v", where, why).
 			WithHint("no route leads there from here — a VPN or tunnel the server sits behind that is " +
 				"down looks exactly like this, and so does " + setting(sf, "host") + " naming an address " +
 				"on a network this machine is not on")
 	}
-	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
+	if plugin.DialRefused(err) {
 		refused := view.Errorf("pg.conn.refused", "nothing is listening on %s", where)
 		if loopback(req.String("host")) {
 			// "Is the server up?" is the wrong question about a port on this
@@ -410,15 +417,26 @@ func classify(err error, req plugin.Request) *view.Error {
 	// CA verify nothing, and checkRootCert refuses either beside one, and
 	// verify-ca without one. So the hint names the CA, and never a mode —
 	// the one it once pointed at, require, is refused beside sslrootcert now.
-	if untrusted(err) {
+	//
+	// **Only a certificate plugin.CertUntrusted reads as an unknown issuer's,
+	// never every one the handshake refused.** With no CA file, macOS asks
+	// its own verifier, which gives most of its verdicts untyped, and each
+	// was read here as untrusted: a revoked certificate was answered with the
+	// CA to name, and naming one replaces the system's checks, revocation
+	// among them, with Go's verifier and that CA alone — the operator who
+	// followed the hint reached the server the check had caught. A verdict
+	// CertUntrusted does not read keeps the system's words, in
+	// pg.conn.failed, and the hint that sends somebody to name a CA says what
+	// naming one costs (CAHint).
+	if plugin.CertUntrusted(err) {
 		refused := view.Errorf("pg.tls.untrusted", "%s presented a certificate nothing here trusts", where)
 		switch ca := req.String("sslrootcert"); ca {
 		case "":
-			return refused.WithHint("a tunnelled PostgreSQL commonly has its own operator- or cluster-generated CA, " +
-				"and it belongs in " + setting(sf, "sslrootcert") + " — a self-signed certificate is its own CA")
+			return refused.WithHint("a PostgreSQL an operator or a cluster runs commonly has a CA of its own — " +
+				sf.CAHint("sslrootcert"))
 		case "system":
 			return refused.WithHint("no CA in this machine's trust store, which " + settingTo(sf, "sslrootcert", "system") +
-				" names, issued it — a server with a CA of its own wants that CA's file in " + setting(sf, "sslrootcert"))
+				" names, issued it — " + sf.CAHint("sslrootcert"))
 		default:
 			return refused.WithHint(rootCert(req) + ", which " + setting(sf, "sslrootcert") + " names, does not hold " +
 				"the CA that issued it — a self-signed certificate is its own CA")
@@ -426,52 +444,6 @@ func classify(err error, req plugin.Request) *view.Error {
 	}
 	return view.Errorf("pg.conn.failed", "could not connect to %s: %v", where, err).
 		WithHint(explainHint(sf, "pg.status"))
-}
-
-// untrusted reports whether err is a certificate that nothing here vouches
-// for. Go's own verifier says so as an x509.UnknownAuthorityError, and it is
-// the one that runs whenever sslrootcert is set. Without one, on macOS, the
-// system's trust store is consulted through the platform's verifier, and an
-// untrusted chain comes back from it as a bare error inside the handshake's
-// *tls.CertificateVerificationError — as does a self-signed certificate
-// valid for longer than Apple's policy allows, "not standards compliant" —
-// so a verification failure the platform answers untyped is read as one too.
-// Read the typed way alone, a server with its own CA reached from a Mac over
-// verify-full was answered "could not connect", with the page of every input
-// for a hint, rather than with the CA to trust.
-//
-// Untyped, and not merely not UnknownAuthorityError: Go's verifier types
-// every failure it names — a host the certificate is not for, a date or a
-// use it is not valid for, a signature algorithm it will not accept, a
-// critical extension it does not handle — and each of those is a reason of
-// its own, which no CA in sslrootcert would cure. Read as untrusted, a SHA-1
-// certificate was answered "nothing here trusts" with the CA to name, and the
-// reason itself, which pg.conn.failed quotes, went unsaid.
-func untrusted(err error) bool {
-	var authErr x509.UnknownAuthorityError
-	if errors.As(err, &authErr) {
-		return true
-	}
-	var verifyErr *tls.CertificateVerificationError
-	if !errors.As(err, &verifyErr) {
-		return false
-	}
-	for _, reason := range []any{new(x509.HostnameError), new(x509.CertificateInvalidError),
-		new(x509.InsecureAlgorithmError), new(x509.UnhandledCriticalExtension),
-		new(x509.ConstraintViolationError)} {
-		if errors.As(verifyErr.Err, reason) {
-			return false
-		}
-	}
-	return true
-}
-
-// unroutable reports whether err is a dial that found no way to the host: no
-// route to it, a network this machine has no way onto, a host its own network
-// reports down.
-func unroutable(err error) bool {
-	return errors.Is(err, syscall.ENETUNREACH) || errors.Is(err, syscall.EHOSTUNREACH) ||
-		errors.Is(err, syscall.EHOSTDOWN)
 }
 
 // setting names connection input name in a message the way its reader
