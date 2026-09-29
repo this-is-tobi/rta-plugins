@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"strings"
 	"syscall"
 	"time"
@@ -201,10 +202,10 @@ func rootCert(req plugin.Request) string {
 }
 
 // checkRootCert refuses sslrootcert beside an sslmode that does not name
-// verification: prefer and require. Refused before anything dials, and
-// before a dump or a restore's dry run describes a child that would carry
-// the pair — the same place plugins/mysql refuses ca-file beside a tls that
-// never verifies.
+// verification, prefer and require, and a file named beside one that does
+// when it cannot be read or holds no certificate. Refused before anything
+// dials, and before a dump or a restore's dry run describes a child that
+// would carry it — the same place plugins/mysql refuses its ca-file.
 //
 // **Refused rather than applied, because neither mode can be made to mean
 // verified.** prefer never verifies in pgx, whatever CA it is given, so the
@@ -277,6 +278,28 @@ func checkRootCert(req plugin.Request) *view.Error {
 			WithHint(settingTo(sf, "sslmode", "verify-ca") + " is that same check under its own name, which does " +
 				"not stop the day the CA is dropped, and " + settingTo(sf, "sslmode", "verify-full") +
 				" checks the server's name as well")
+	case "disable":
+		return nil
+	}
+	if ca == "system" {
+		return nil
+	}
+	// The file read here too, for what it has to hold, before pgx reads it
+	// again: left to the driver, a file that was not there, or held a key
+	// instead of a certificate, came back as pg.conn.failed "could not
+	// connect", quoting the whole connection string, from a failure that
+	// never reached the network. The dry runs refuse it the same way.
+	path := rootCert(req)
+	pem, err := os.ReadFile(path)
+	if err != nil {
+		return view.Errorf("pg.tls.ca.unreadable", "%v", err).
+			WithHint(setting(sf, "sslrootcert") + " names a file on this machine, read by rta rather than by the " +
+				"server, holding the CA's certificate in PEM")
+	}
+	if !x509.NewCertPool().AppendCertsFromPEM(pem) {
+		return view.Errorf("pg.tls.ca.invalid", "%s holds no PEM certificate", path).
+			WithHint(setting(sf, "sslrootcert") + " wants a PEM certificate — the CA's, or a self-signed " +
+				"server's own — and a private key or a DER-encoded certificate is not one")
 	}
 	return nil
 }
