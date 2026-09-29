@@ -15,6 +15,7 @@ import (
 	stdnet "net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -216,8 +217,10 @@ func TestACAFileVerifiesAServerWithAPrivateCA(t *testing.T) {
 	if verr.Code != "mysql.tls.untrusted" {
 		t.Fatalf("code = %s, want mysql.tls.untrusted: %s", verr.Code, verr.Message)
 	}
-	if !strings.Contains(verr.Hint, "that CA in --ca-file rather than --tls skip-verify") {
-		t.Errorf("hint = %q, want the CA named in --ca-file, over turning verification off", verr.Hint)
+	if !strings.Contains(verr.Hint, "rather than --tls skip-verify, which turns verification off — "+
+		"the CA that issued it belongs in --ca-file") || !strings.Contains(verr.Hint, "replaces the system's") {
+		t.Errorf("hint = %q, want the CA named in --ca-file, what naming one replaces, and skip-verify "+
+			"named as what it is not", verr.Hint)
 	}
 
 	conn["ca-file"] = writeFile(t, "ca.pem", ca.pem)
@@ -463,5 +466,60 @@ func TestTheDryRunRefusesTheCAAsTheRunWould(t *testing.T) {
 		if !errors.As(err, &verr) || verr.Code != "mysql.tls.ca.unused" {
 			t.Errorf("%s: err = %v, want mysql.tls.ca.unused", name, err)
 		}
+	}
+}
+
+// A certificate is answered with the CA to name only when it is an unknown
+// issuer's. macOS's own verifier, asked whenever no ca-file is named, gives
+// most of its verdicts untyped, and every one was read as untrusted: a
+// revoked certificate was answered with the CA file that turns the system's
+// revocation check off. Such a verdict keeps the system's words, and the one
+// hint that does send the reader to a CA file says what naming one costs.
+func TestOnlyAnUnknownIssuerIsAnsweredWithTheCA(t *testing.T) {
+	r := req(t, "mysql.overview", map[string]any{"host": "db.internal", "tls": "true"})
+	open, closing := string(rune(0x201c)), string(rune(0x201d))
+	verdict := func(words string) error {
+		return &tls.CertificateVerificationError{
+			Err: errors.New("x509: " + open + "db.internal" + closing + " " + words)}
+	}
+	// The system's words for a chain to no anchor it holds are read as
+	// untrusted where the system gave them, and are nobody's words elsewhere.
+	notTrusted := "mysql.conn.failed"
+	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+		notTrusted = "mysql.tls.untrusted"
+	}
+	for _, tc := range []struct {
+		name string
+		err  error
+		code string
+	}{
+		{"Go's verifier, an issuer in no pool", x509.UnknownAuthorityError{}, "mysql.tls.untrusted"},
+		{"no pool to read at all", x509.SystemRootsError{}, "mysql.tls.untrusted"},
+		{"macOS, a chain to no anchor it holds", verdict("certificate is not trusted"), notTrusted},
+		{"macOS, a revoked certificate", verdict("certificate is revoked"), "mysql.conn.failed"},
+		{"macOS, a policy it will not pass", verdict("certificate is not standards compliant"), "mysql.conn.failed"},
+		{"a revoked certificate named to look untrusted",
+			verdict("certificate is not trusted" + closing + " certificate is revoked"), "mysql.conn.failed"},
+		{"a signature algorithm Go's verifier refuses", &tls.CertificateVerificationError{
+			Err: x509.InsecureAlgorithmError(x509.SHA1WithRSA)}, "mysql.conn.failed"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			verr := classify(tc.err, r)
+			if verr.Code != tc.code {
+				t.Fatalf("code = %q, want %q", verr.Code, tc.code)
+			}
+			if tc.code != "mysql.tls.untrusted" {
+				if !strings.Contains(verr.Message, tc.err.Error()) {
+					t.Errorf("message = %q, want the verifier's own words in it", verr.Message)
+				}
+				if strings.Contains(verr.Hint, "ca-file") {
+					t.Errorf("hint = %q sends the reader to a CA for a reason no CA cures", verr.Hint)
+				}
+				return
+			}
+			if !strings.Contains(verr.Hint, "--ca-file") || !strings.Contains(verr.Hint, "replaces the system's") {
+				t.Errorf("hint = %q, want the CA file named and what naming one replaces", verr.Hint)
+			}
+		})
 	}
 }

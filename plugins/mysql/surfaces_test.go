@@ -59,9 +59,10 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			},
 		},
 		{
-			name:    "a certificate nothing here trusts",
-			cli:     "wants that CA in --ca-file rather than --tls skip-verify, which turns verification off",
-			other:   "wants that CA in `ca-file` rather than `tls` set to skip-verify, which turns verification off",
+			name: "a certificate nothing here trusts",
+			cli:  "which turns verification off — the CA that issued it belongs in --ca-file (a self-signed",
+			other: "which turns verification off — the CA that issued it belongs in the operator's `ca-file` " +
+				"setting (a self-signed",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(x509.UnknownAuthorityError{}, req(t, "mysql.overview", nil).WithSurface(sf)))
