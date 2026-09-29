@@ -81,7 +81,10 @@ func connect(req plugin.Request) (*vaultapi.Client, *view.Error) {
 	if transport, ok := cfg.HttpClient.Transport.(*http.Transport); ok {
 		transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
 	}
-	if ca := req.String("ca-file"); ca != "" {
+	// The path with a leading ~ resolved, as every other path a plugin reads
+	// is. Opened as typed, ~/ca.pem was a path under a directory named ~, and
+	// a CA sitting in the operator's home was answered as no such file.
+	if ca := plugin.ExpandHome(req.String("ca-file")); ca != "" {
 		if err := cfg.ConfigureTLS(&vaultapi.TLSConfig{CACert: ca}); err != nil {
 			return nil, view.Errorf("vault.tls.ca.invalid", "%v", err).
 				WithHint(req.Surface().SettingName("ca-file") + " is a path on this machine, read by rta rather than by Vault")
