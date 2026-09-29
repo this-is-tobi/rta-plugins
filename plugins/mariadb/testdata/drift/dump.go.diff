@@ -56,6 +56,13 @@
 + 			"brand new.\n\n" +
 - 				"Install the MySQL client tools — `brew install mysql` or " +
 + 				"Install the MySQL client tools — `brew install mysql-client` or " +
+- 	pinning := req.String("tls") == "verify-ca" && takesPin(ctx, tool)
+- 		if pinning {
+- 			args = pinned(args, pinPending)
+- 		}
+- 	if pinning {
+- 		args = pinned(args, src.pin)
+- 	}
 - 		{Key: "source", Value: src.describe(req.Surface())},
 + 		{Key: "source", Value: src.describe()},
 - 		// assumed: mysqldump 11.4 has `--system=name` ("Any combination of:
@@ -71,6 +78,9 @@
 - 	// partition — so a dump taken there is a backup of one side of a split
 - 	// brain, and nothing about the file says so afterwards.
 - 	galeraStatus string
+- 	// pin is the SHA-256 fingerprint of the certificate a verify-ca
+- 	// connection verified against ca-file, which pin.go hands the child.
+- 	pin string
 - func (s source) describe(sf plugin.Surface) string {
 + func (s source) describe() string {
 - 	switch {
@@ -87,6 +97,10 @@
 - 			"dump is a backup of that side. %s has the whole picture",
 - 			s.galeraStatus, sf.CapabilityName("mysql.galera.status"))
 - 	}
+- 	db, pin, verr := connectPinned(ctx, req)
++ 	db, verr := connect(ctx, req)
+- 	s := source{pin: pin}
++ 	var s source
 - 	// Only InnoDB sits inside --single-transaction's snapshot. Aria is
 - 	// MySQL's own crash-safe engine and the default for system tables, but
 - 	// crash-safe is not transactional, so an Aria table is read live and
@@ -127,25 +141,34 @@
 - //
 - // The mapping is by *meaning*, matching the mysql plugin's: "true" both
 - // encrypts and verifies the server is who it claims (the driver's own
-- // behaviour for true), "skip-verify" encrypts without verifying,
-- // "preferred" is the client's default and passes nothing.
+- // behaviour for true), "verify-ca" its chain alone, "skip-verify"
+- // encrypts without verifying, "preferred" is the client's default and
+- // passes nothing.
 + // with every in-process capability here — onto mysqldump/mysql's --ssl-mode.
 + // The mapping is by *meaning*: "true" verifies the server is who it claims
-+ // (VERIFY_IDENTITY, the driver's own behaviour for true), "skip-verify"
++ // (VERIFY_IDENTITY, the driver's own behaviour for true), "verify-ca" its
++ // chain alone (VERIFY_CA, which is where the name came from), "skip-verify"
 + // encrypts without verifying (REQUIRED), "preferred" is the client default
 + // and passes nothing.
+- // verify-ca has no word of its own in this client, and this spelling of it is
+- // the one a client before 11.4 reads as a chain check; pin.go says what a
+- // newer one is handed instead.
 - 		return []string{"--skip-ssl"}
 + 		return []string{"--ssl-mode=DISABLED"}
 - 			return []string{"--ssl", "--ssl-verify-server-cert", "--ssl-ca=" + ca}
 + 			return []string{"--ssl-mode=VERIFY_IDENTITY", "--ssl-ca=" + ca}
 - 		return []string{"--ssl", "--ssl-verify-server-cert"}
 + 		return []string{"--ssl-mode=VERIFY_IDENTITY"}
+- 		return []string{"--ssl", "--ssl-ca=" + caFile(req), "--skip-ssl-verify-server-cert"}
++ 		return []string{"--ssl-mode=VERIFY_CA", "--ssl-ca=" + caFile(req)}
 - 		return []string{"--ssl"}
 + 		return []string{"--ssl-mode=REQUIRED"}
 - 			WithHint("this is the server refusing a privilege, not rta — check SHOW GRANTS for " +
 - 				"the user this dump connects as")
 + 			WithHint("this is the server refusing a privilege, not rta — and not the tablespace " +
 + 				"wall, which `mysqldump --no-tablespaces` already avoids. Check SHOW GRANTS")
+- 	case strings.Contains(stderr, "Fingerprint validation"):
+- 		return pinRefusal(req.Surface(), msg("Fingerprint validation"))
 + 	case strings.Contains(stderr, "CA certificate is required"):
 + 		return noCA(req.Surface(), msg("CA certificate is required"))
 - 		// The version-skew failure, and here it is the likelier one: this
