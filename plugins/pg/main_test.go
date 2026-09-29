@@ -171,7 +171,7 @@ func TestSSLRootCertIsRefusedBesideAModeThatDoesNotVerify(t *testing.T) {
 		case want != "" && !strings.Contains(got.Hint, "--sslmode verify-"):
 			t.Errorf("sslmode %s: the hint %q names no mode that verifies against it", mode, got.Hint)
 		}
-		if got := checkRootCert(req(t, map[string]any{"sslmode": mode})); got != nil {
+		if got := checkRootCert(req(t, map[string]any{"sslmode": mode})); got != nil && mode != "verify-ca" {
 			t.Errorf("sslmode %s with no CA: refused as %s", mode, got.Code)
 		}
 	}
@@ -216,6 +216,42 @@ func TestDisableLeavesTheCAOutOfTheConnection(t *testing.T) {
 		}) {
 			t.Errorf("%s beside disable reached the child: %v", ca, env)
 		}
+	}
+}
+
+// verify-ca with no file named is refused, before anything dials and before a
+// dry run: pgx would check the chain against this machine's own store and no
+// name, which any certificate a public CA issued passes. verify-full with no
+// file keeps the store, since it checks the name as well.
+func TestVerifyCAWithoutASSLRootCertIsRefused(t *testing.T) {
+	values := func(extra map[string]any) map[string]any {
+		extra["host"], extra["port"], extra["sslmode"] = "127.0.0.1", 1, "verify-ca"
+		return extra
+	}
+	_, verr := connect(context.Background(), req(t, values(map[string]any{})))
+	if verr == nil || verr.Code != "pg.tls.ca.missing" || !strings.Contains(verr.Hint, "--sslrootcert names it") {
+		t.Fatalf("connect: %v, want pg.tls.ca.missing naming --sslrootcert", verr)
+	}
+	dir := t.TempDir()
+	fixture := filepath.Join(dir, "app.sql")
+	if err := os.WriteFile(fixture, []byte("select 1;\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for id, run := range map[string]func(context.Context, plugin.Request) (view.View, error){
+		"pg.dump":    runFullDump,
+		"pg.restore": runRestore,
+	} {
+		extra := map[string]any{"out": filepath.Join(dir, "out.sql")}
+		if id == "pg.restore" {
+			extra = map[string]any{"file": fixture}
+		}
+		_, err := run(context.Background(), dryRunReqFor(t, id, values(extra)))
+		if !errors.As(err, &verr) || verr.Code != "pg.tls.ca.missing" {
+			t.Errorf("%s dry run: %v, want pg.tls.ca.missing", id, err)
+		}
+	}
+	if got := checkRootCert(req(t, map[string]any{"sslmode": "verify-full"})); got != nil {
+		t.Errorf("verify-full with no file: refused as %s, though it checks the name", got.Code)
 	}
 }
 
