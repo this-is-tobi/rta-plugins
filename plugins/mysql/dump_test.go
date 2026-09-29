@@ -293,6 +293,12 @@ func TestClassifyDumpNamesTheFailure(t *testing.T) {
 		"atstraws":  {"mysqldump: something nobody anticipated", "mysql.dump.failed"},
 		"no CA": {"mysqldump: Got error: 2026: SSL connection error: CA certificate is required if ssl-mode is " +
 			"VERIFY_CA or VERIFY_IDENTITY when trying to connect", "mysql.tls.ca.required"},
+		"refused, numbered": {fmt.Sprintf("mysqldump: Got error: 2003: Can't connect to MySQL server on 'db.internal:3306' "+
+			"(%d) when trying to connect", int(syscall.ECONNREFUSED)), "mysql.conn.refused"},
+		"no route": {fmt.Sprintf("mysqldump: Got error: 2003: Can't connect to MySQL server on 'db.internal:3306' "+
+			"(%d) when trying to connect", int(syscall.EHOSTUNREACH)), "mysql.conn.unreachable"},
+		"in progress": {fmt.Sprintf("mysqldump: Got error: 2003: Can't connect to MySQL server on 'db.internal:3306' "+
+			"(%d) when trying to connect", int(syscall.EINPROGRESS)), "mysql.conn.refused"},
 		"timed out": {fmt.Sprintf("mysqldump: Got error: 2003: Can't connect to MySQL server on 'db.internal:3306' "+
 			"(%d) when trying to connect", int(syscall.ETIMEDOUT)), "mysql.conn.timeout"},
 	} {

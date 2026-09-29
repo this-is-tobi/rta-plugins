@@ -160,6 +160,10 @@ func TestClassifyRestoreNamesTheFailure(t *testing.T) {
 		"anything":  {"something nobody anticipated", "mysql.restore.failed"},
 		"no CA": {"ERROR 2026 (HY000): SSL connection error: CA certificate is required if ssl-mode is " +
 			"VERIFY_CA or VERIFY_IDENTITY", "mysql.tls.ca.required"},
+		"no route": {fmt.Sprintf("ERROR 2003 (HY000): Can't connect to MySQL server on 'db.internal:3306' (%d)",
+			int(syscall.EHOSTUNREACH)), "mysql.conn.unreachable"},
+		"in progress": {fmt.Sprintf("ERROR 2003 (HY000): Can't connect to MySQL server on 'db.internal:3306' (%d)",
+			int(syscall.EINPROGRESS)), "mysql.conn.refused"},
 		"timed out": {fmt.Sprintf("ERROR 2003 (HY000): Can't connect to MySQL server on 'db.internal:3306' (%d)",
 			int(syscall.ETIMEDOUT)), "mysql.conn.timeout"},
 	} {

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -458,17 +459,51 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 // line for it: a connect that ran out of time, its bound or the operating
 // system's, is not a port nobody is on, and rta's own connection reached the
 // server a moment before, so what is in question is what changed in between.
-// The client ends the line with the errno in parentheses, ETIMEDOUT's number
-// on this platform for a timeout. Windows numbers its socket errors
-// otherwise, and there a timeout reads as refused, as it always did.
+//
+// The client gives the operating system's error as its number, in
+// parentheses — "(110) when trying to connect" — and it ran on this
+// machine, so the number is this platform's own errno: ETIMEDOUT's for a
+// timeout, and on Windows a Winsock error's, which the SDK's predicates
+// read there. No route is read by it too, with plugin.DialUnroutable as
+// the pre-flight's own dial is: a route that went down in between, (113)
+// from the MySQL client on Linux, was "is the server up, and are the host
+// and port right?" about a port no packet reached.
+//
+// Every other number is the refusal it always was, and not the system's
+// words for it: the MariaDB client gives EINPROGRESS, the state of its own
+// non-blocking connect, whatever failed it — a port refused and a host
+// with no route alike, measured against 11.4 — and in its words, a
+// connection "in progress" would have been the answer to both.
 func unreached(sf plugin.Surface, line string) *view.Error {
-	if strings.Contains(line, fmt.Sprintf("(%d)", int(syscall.ETIMEDOUT))) {
+	errno, numbered := childErrno(line)
+	switch {
+	case numbered && errno == syscall.ETIMEDOUT:
 		return view.Errorf("mysql.conn.timeout", "%s", line).
 			WithHint("rta's own connection reached the server a moment before — a failover, a port-forward " +
 				"that exited, or a firewall that began dropping rather than refusing looks exactly like this")
+	case numbered && plugin.DialUnroutable(errno):
+		return view.Errorf("mysql.conn.unreachable", "%s", line).
+			WithHint("rta's own connection reached the server a moment before, and now no route leads " +
+				"there — a VPN or tunnel that went down in between looks exactly like this")
 	}
 	return view.Errorf("mysql.conn.refused", "%s", line).WithHint(reachHint(sf))
 }
+
+// childErrno is the errno a client's line gives in parentheses, the last
+// number so given.
+func childErrno(line string) (syscall.Errno, bool) {
+	found := errnoInLine.FindAllStringSubmatch(line, -1)
+	if len(found) == 0 {
+		return 0, false
+	}
+	n, err := strconv.Atoi(found[len(found)-1][1])
+	if err != nil {
+		return 0, false
+	}
+	return syscall.Errno(n), true
+}
+
+var errnoInLine = regexp.MustCompile(`\((\d+)\)`)
 
 // noCA answers the client refusing tls=true for want of a CA. true is
 // VERIFY_IDENTITY to the child, and the MySQL client, unlike the driver, never
