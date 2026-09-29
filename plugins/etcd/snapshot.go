@@ -149,7 +149,7 @@ func runSnapshot(ctx context.Context, req plugin.Request) (view.View, error) {
 	out := strings.TrimSpace(req.String("out"))
 	if out == "" {
 		return nil, view.Errorf("etcd.snapshot.nooutput", "say where the snapshot should be written").
-			WithHint(given(req.Surface(), "out", "./etcd.snap") + " — a whole keyspace is a file, not " +
+			WithHint(req.Surface().SettingTo("out", "./etcd.snap") + " — a whole keyspace is a file, not " +
 				"something to read in a terminal")
 	}
 	path, err := expandHome(out)

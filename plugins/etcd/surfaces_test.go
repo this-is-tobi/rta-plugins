@@ -31,7 +31,7 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			name:    "a certificate without its key",
 			cli:     "--cert-file given without --key-file",
-			other:   "`cert-file` given without `key-file`",
+			other:   "the operator's `cert-file` setting given without the operator's `key-file` setting",
 			surface: plugin.SurfaceMCP,
 			refuse: func(sf plugin.Surface) *view.Error {
 				_, verr := tlsConfig(req(t, "etcd.overview", map[string]any{"cert-file": "/tmp/client.pem"}).WithSurface(sf))
@@ -45,7 +45,7 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 			// here.
 			name:    "a CA file with no PEM certificate in it",
 			cli:     "--ca-file wants a PEM certificate — the CA's, or a self-signed server's own — and a private key, which belongs in --key-file,",
-			other:   "`ca-file` wants a PEM certificate — the CA's, or a self-signed server's own — and a private key, which belongs in `key-file`,",
+			other:   "the operator's `ca-file` setting wants a PEM certificate — the CA's, or a self-signed server's own — and a private key, which belongs in the operator's `key-file` setting,",
 			surface: plugin.SurfaceMCP,
 			refuse: func(sf plugin.Surface) *view.Error {
 				der := filepath.Join(t.TempDir(), "server.der")
@@ -68,7 +68,7 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			name:    "no endpoint answering",
 			cli:     "is the cluster up, and is --endpoint right?",
-			other:   "is the cluster up, and is `endpoint` right?",
+			other:   "is the cluster up, and is the operator's `endpoint` setting right?",
 			surface: plugin.SurfaceMCP,
 			refuse: func(sf plugin.Surface) *view.Error {
 				return classify(clientv3.ErrNoAvailableEndpoints, req(t, "etcd.overview", nil).WithSurface(sf))
@@ -90,7 +90,7 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			name:    "a certificate nothing here trusts",
 			cli:     "etcd clusters usually have their own CA, and it belongs in --ca-file",
-			other:   "etcd clusters usually have their own CA, and it belongs in `ca-file`",
+			other:   "etcd clusters usually have their own CA, and it belongs in the operator's `ca-file` setting",
 			surface: plugin.SurfaceMCP,
 			refuse: func(sf plugin.Surface) *view.Error {
 				return classify(x509.UnknownAuthorityError{}, req(t, "etcd.overview", nil).WithSurface(sf))
@@ -101,7 +101,7 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 			// agent has no host environment to set and no password to pass.
 			name:    "credentials the cluster rejects",
 			cli:     "the password is read from $RTA_ETCD_PASSWORD or --password — check it, and --username:",
-			other:   "the password is read from $RTA_ETCD_PASSWORD or `password` — check it, and `username`:",
+			other:   "the password is read from $RTA_ETCD_PASSWORD or the operator's `password` setting — check it, and the operator's `username` setting:",
 			surface: plugin.SurfaceMCP,
 			refuse: func(sf plugin.Surface) *view.Error {
 				return classify(status.Error(codes.Unauthenticated, "authentication failed"), req(t, "etcd.overview", nil).WithSurface(sf))
@@ -109,8 +109,8 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "anything else",
-			cli:     "`rta explain etcd.overview` lists every input and where each one can come from",
-			other:   "ask the operator to run `rta explain etcd.overview`, which lists every input",
+			cli:     "`rta explain etcd.overview` lists every input and which of the command line, the rta config, a profile and the environment can set it",
+			other:   "ask the operator to run `rta explain etcd.overview`, which lists every setting and which of the rta config",
 			surface: plugin.SurfaceMCP,
 			refuse: func(sf plugin.Surface) *view.Error {
 				return classify(errors.New("handshake went sideways"), req(t, "etcd.overview", nil).WithSurface(sf))
