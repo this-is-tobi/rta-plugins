@@ -75,7 +75,7 @@ func runFullDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	out := strings.TrimSpace(req.String("out"))
 	if out == "" {
 		return nil, view.Errorf("pg.dump.nooutput", "say where the dump should be written").
-			WithHint(given(req.Surface(), "out", "./"+req.String("database")+backupSuffix(req.String("format"))) +
+			WithHint(req.Surface().SettingTo("out", "./"+req.String("database")+backupSuffix(req.String("format"))) +
 				" — a whole database is a file, not something to read in a terminal")
 	}
 	path, err := expandHome(out)
@@ -319,11 +319,10 @@ func checkParallel(req plugin.Request) *view.Error {
 	}
 	sf := req.Surface()
 	return view.Errorf("pg.dump.notparallel",
-		"%s needs %s, not %s", sf.InputName("jobs"), given(sf, "format", "directory"), req.String("format")).
+		"%s needs %s, not %s", sf.InputName("jobs"), sf.InputTo("format", "directory"), req.String("format")).
 		WithHint("pg_dump parallelises by giving each worker its own connection and its own " +
-			"file, so there has to be a directory to put them in — " +
-			givenAll(sf, [2]string{"format", "directory"}, [2]string{"jobs", strconv.Itoa(req.Int("jobs"))}) +
-			", restored with `pg_restore --jobs`")
+			"file, so there has to be a directory to put them in — " + sf.InputTo("format", "directory") +
+			" keeps " + sf.InputTo("jobs", req.Int("jobs")) + ", restored with `pg_restore --jobs`")
 }
 
 // writeDump creates the destination, runs the tool, and reports how much
@@ -616,7 +615,7 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 		return view.Errorf("pg.dump.nosnapshot",
 			"this server cannot share one snapshot across parallel workers: %s",
 			msg("pg_export_snapshot", "synchronized snapshot")).
-			WithHint("run it serially with " + given(req.Surface(), "jobs", "1") + ", which uses a single " +
+			WithHint("run it serially with " + req.Surface().InputTo("jobs", 1) + ", which uses a single " +
 				"transaction. rta will not run `pg_dump --no-synchronized-snapshots` to make " +
 				req.Surface().InputName("jobs") + " work here: that drops the " +
 				"guarantee that every table came from the same instant, and a dump without it " +
