@@ -193,7 +193,7 @@ func feed(t *testing.T, chunk int, body, trailer []byte) *trailerHasher {
 // future edit could quietly drop.
 func TestTheReceiptNamesTheOfflineRestoreAndWhyThereIsNoCapability(t *testing.T) {
 	src := source{
-		endpoint: "etcd-0.internal:2379",
+		where:    "etcd-0.internal:2379",
 		member:   "8e9e05c52164694d",
 		revision: 4021,
 		version:  "3.6.6",
@@ -232,7 +232,7 @@ func TestTheReceiptNamesTheOfflineRestoreAndWhyThereIsNoCapability(t *testing.T)
 // shell word whatever it holds: a space split it into two arguments to
 // etcdutl, and a $( ran something on paste.
 func TestTheRestoreLinePastesAsTheCommandItReadsAs(t *testing.T) {
-	src := source{endpoint: "e:2379", member: "abc", revision: 7, version: "3.6.6", leader: true}
+	src := source{where: "e:2379", member: "abc", revision: 7, version: "3.6.6", leader: true}
 	for _, tc := range []struct{ path, want string }{
 		{"/backups/etcd.snap", "`etcdutl snapshot restore /backups/etcd.snap --data-dir"},
 		{"/backups/my etcd.snap", "`etcdutl snapshot restore '/backups/my etcd.snap' --data-dir"},
@@ -256,11 +256,45 @@ func TestTheRestoreLinePastesAsTheCommandItReadsAs(t *testing.T) {
 	}
 }
 
+// Which member a snapshot came from is named the way the reader reaches it
+// again: the endpoint, beside the profile when there was one, and through a
+// forward the host opened on that profile, the profile alone — the forward's
+// end on 127.0.0.1 is a port nothing listens on once the call is over.
+func TestASnapshotNamesTheProfileRatherThanAForwardsEnd(t *testing.T) {
+	for _, tc := range []struct {
+		name, profile, endpoint, want string
+		tunnel                        plugin.Tunnel
+	}{
+		{"no profile", "", "etcd-0.internal:2379", "etcd-0.internal:2379", plugin.TunnelNone},
+		{"a profile reached directly", "prod", "etcd-0.internal:2379", "etcd-0.internal:2379 (profile prod)",
+			plugin.TunnelNone},
+		{"a profile through a forward", "prod", "127.0.0.1:54321", "profile prod, through its kube: forward",
+			plugin.TunnelKube},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			out := filepath.Join(t.TempDir(), "etcd.snap")
+			r := req(t, "etcd.snapshot", map[string]any{"endpoint": tc.endpoint, "out": out}).
+				WithProfile(tc.profile, tc.tunnel)
+			r.DryRun = true
+			v, err := runSnapshot(context.Background(), r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got, want := v.(view.Text).Body, "would write a snapshot of "+tc.want+" to "+out; got != want {
+				t.Errorf("dry run = %q, want %q", got, want)
+			}
+			if got := reached(r); got != tc.want {
+				t.Errorf("the receipt's source names %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 // A member with no leader is mid-election or outside quorum, and its revision
 // is whatever it last managed to apply. A backup taken from one is still worth
 // having and is not worth mistaking for current.
 func TestAMemberWithNoLeaderSaysSoOnTheReceipt(t *testing.T) {
-	src := source{endpoint: "e:2379", member: "abc", revision: 7, version: "3.6.6"}
+	src := source{where: "e:2379", member: "abc", revision: 7, version: "3.6.6"}
 	if !strings.Contains(src.describe(), "NO LEADER") {
 		t.Errorf("describe = %q, want it to say the member has no leader", src.describe())
 	}

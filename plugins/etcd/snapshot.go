@@ -165,7 +165,7 @@ func runSnapshot(ctx context.Context, req plugin.Request) (view.View, error) {
 
 	if req.DryRun {
 		return view.Text{Body: "would write a snapshot of " +
-			endpointOf(req) + " to " + path}, nil
+			reached(req) + " to " + path}, nil
 	}
 
 	return withClient(ctx, req, func(ctx context.Context, c *clientv3.Client) (view.View, error) {
@@ -189,7 +189,10 @@ func runSnapshot(ctx context.Context, req plugin.Request) (view.View, error) {
 // hands back a snapshot that has fallen behind with it — and nothing about the
 // resulting file says so. The receipt does.
 type source struct {
-	endpoint string
+	// where is the member as the reader reaches it again (reached): its
+	// endpoint, or the profile whose forward reached it, since a forward's
+	// end on 127.0.0.1 is gone once the snapshot is.
+	where    string
 	member   string
 	revision int64
 	version  string
@@ -204,7 +207,7 @@ func describeSource(ctx context.Context, c *clientv3.Client, req plugin.Request)
 		return source{}, classifySnapshot(err, req)
 	}
 	return source{
-		endpoint: endpoint,
+		where:    reached(req),
 		member:   hexID(st.Header.MemberId),
 		revision: st.Header.Revision,
 		version:  st.Version,
@@ -215,7 +218,7 @@ func describeSource(ctx context.Context, c *clientv3.Client, req plugin.Request)
 
 func (s source) describe() string {
 	where := fmt.Sprintf("%s — member %s at revision %d, etcd %s",
-		s.endpoint, s.member, s.revision, s.version)
+		s.where, s.member, s.revision, s.version)
 	if !s.leader {
 		// The same fact leaderText spells out for etcd.overview, said here
 		// because it changes what the backup is worth: a member with no leader
