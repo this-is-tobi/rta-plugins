@@ -87,7 +87,7 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 	database := req.String("database")
 	if database == "" {
 		return nil, view.Errorf("mysql.restore.nodatabase", "say which database to restore into").
-			WithHint(given(req.Surface(), "database", "<name>") + " — " +
+			WithHint(req.Surface().SettingTo("database", "<name>") + " — " +
 				req.Surface().CapabilityName("mysql.database.list") + " shows what is there, and " +
 				"CREATE DATABASE makes a fresh one")
 	}
@@ -293,7 +293,7 @@ func classifyRestore(err error, stderr string, req plugin.Request) *view.Error {
 				"then restore again")
 	case strings.Contains(stderr, "Access denied"):
 		return view.Errorf("mysql.auth.failed", "%s", msg("Access denied")).
-			WithHint("set $" + plugin.LocalEnvVar("mysql.restore", "password") + ", or check " + setting(req.Surface(), "user"))
+			WithHint("set $" + plugin.LocalEnvVar("mysql.restore", "password") + ", or check " + req.Surface().SettingName("user"))
 	case strings.Contains(stderr, "read-only") || strings.Contains(stderr, "read only"):
 		return view.Errorf("mysql.restore.readonly", "%s", msg("read")).
 			WithHint("the target became read-only after the pre-flight check — a promoted " +

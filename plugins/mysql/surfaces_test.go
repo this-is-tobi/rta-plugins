@@ -29,9 +29,10 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			// Where the password comes from, never a verb for the reader: an
 			// agent has no host environment to set and no password to pass.
-			name:    "credentials the server rejected",
-			cli:     "the password is read from $RTA_MYSQL_PASSWORD or --password — check it, and --user",
-			other:   "the password is read from $RTA_MYSQL_PASSWORD or `password` — check it, and `user`",
+			name: "credentials the server rejected",
+			cli:  "the password is read from $RTA_MYSQL_PASSWORD or --password — check it, and --user",
+			other: "the password is read from $RTA_MYSQL_PASSWORD or the operator's `password` setting — check " +
+				"it, and the operator's `user` setting",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(&mysql.MySQLError{Number: 1045, Message: "Access denied"},
@@ -50,8 +51,8 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "nothing listening",
-			cli:     "is the server up, and is --host/--port right?",
-			other:   "is the server up, and are `host` and `port` right?",
+			cli:     "is the server up, and are --host and --port right?",
+			other:   "is the server up, and are the operator's `host` and `port` settings right?",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(&stdnet.OpError{Op: "dial", Net: "tcp", Err: errors.New("connection refused")},
@@ -86,6 +87,25 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			say: func(sf plugin.Surface) string {
 				_, err := runDump(context.Background(), req(t, "mysql.dump", map[string]any{
 					"out": filepath.Join(t.TempDir(), "app.sql"),
+				}).WithSurface(sf))
+				var verr *view.Error
+				if !errors.As(err, &verr) {
+					t.Fatalf("err = %v, want a refusal", err)
+				}
+				return refusal(verr)
+			},
+		},
+		{
+			// Built from the database's name, which is the server's, and spelled
+			// as one shell word: pasted bare, a name holding a command
+			// substitution ran it.
+			name:    "a dump with nowhere to go",
+			cli:     "--out './app $(id).sql' — a whole database is a file",
+			other:   `the out box set to "./app $(id).sql" — a whole database is a file`,
+			surface: plugin.SurfaceTUI,
+			say: func(sf plugin.Surface) string {
+				_, err := runDump(context.Background(), req(t, "mysql.dump", map[string]any{
+					"database": "app $(id)",
 				}).WithSurface(sf))
 				var verr *view.Error
 				if !errors.As(err, &verr) {
