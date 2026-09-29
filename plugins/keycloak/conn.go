@@ -104,7 +104,7 @@ func connect(ctx context.Context, req plugin.Request) (*session, *view.Error) {
 	realm := req.String("realm")
 	if realm == "" {
 		return nil, view.Errorf("keycloak.realm.missing", "no realm named").
-			WithHint(setting(req.Surface(), "realm") + ", or `realm:` under this plugin's section in rta's config")
+			WithHint(req.Surface().SettingName("realm") + ", or `realm:` under this plugin's section in rta's config")
 	}
 	// Where the secret comes from rather than a verb telling the reader to
 	// set one: an agent has no host environment to set, and no secret
@@ -113,7 +113,7 @@ func connect(ctx context.Context, req plugin.Request) (*session, *view.Error) {
 	if secret == "" {
 		return nil, view.Errorf("keycloak.secret.missing", "no client secret").
 			WithHint("the secret is read from $" + plugin.LocalEnvVar("keycloak.overview", "client-secret") +
-				" or " + setting(req.Surface(), "client-secret") + ", or mapped from the store in a profile's secrets:")
+				" or " + req.Surface().SettingName("client-secret") + ", or mapped from the store in a profile's secrets:")
 	}
 	client, verr := httpClient(req)
 	if verr != nil {
@@ -240,7 +240,7 @@ func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 	pem, err := os.ReadFile(ca)
 	if err != nil {
 		return nil, view.Errorf("keycloak.tls.ca.unreadable", "%v", err).
-			WithHint(setting(sf, "ca-file") + " is a path on this machine, read by rta rather than by the server")
+			WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by the server")
 	}
 	pool := x509.NewCertPool()
 	// What the file has to hold, rather than a guess at what it held instead.
@@ -252,7 +252,7 @@ func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 	// certificate.
 	if !pool.AppendCertsFromPEM(pem) {
 		return nil, view.Errorf("keycloak.tls.ca.invalid", "%s holds no PEM certificate", ca).
-			WithHint(setting(sf, "ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
+			WithHint(sf.SettingName("ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
 				"server's own — and a private key or a DER-encoded certificate is not one")
 	}
 	return &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}}}, nil
@@ -273,11 +273,11 @@ func (s *session) classifyToken(code int, body []byte) *view.Error {
 	switch {
 	case code == http.StatusNotFound:
 		return view.Errorf("keycloak.realm.unknown", "%s has no realm to authenticate against: %s", s.base, firstOf(desc, oauthErr)).
-			WithHint(setting(sf, "auth-realm") + " (or " + setting(sf, "realm") + ") names the realm the client " +
+			WithHint(sf.SettingName("auth-realm") + " (or " + sf.SettingName("realm") + ") names the realm the client " +
 				"lives in; the issuer URL's last segment is its name")
 	case code == http.StatusUnauthorized, code == http.StatusBadRequest && oauthErr == "invalid_client":
 		return view.Errorf("keycloak.auth.failed", "%s refused the client credentials: %s", s.base, firstOf(desc, oauthErr)).
-			WithHint(setting(sf, "client-id") + " names a confidential client with service accounts enabled, and $" +
+			WithHint(sf.SettingName("client-id") + " names a confidential client with service accounts enabled, and $" +
 				plugin.LocalEnvVar("keycloak.overview", "client-secret") + " is its secret")
 	case code == http.StatusBadRequest && oauthErr == "unauthorized_client":
 		return view.Errorf("keycloak.auth.grant", "%s: %s", s.base, firstOf(desc, oauthErr)).
@@ -305,7 +305,7 @@ func (s *session) classifyStatus(code int, body []byte) *view.Error {
 			WithHint("realm " + s.realm + " on " + s.base)
 	}
 	return view.Errorf("keycloak.request.failed", "%s returned %d: %s", s.base, code, detail).
-		WithHint(explainHint(s.req.Surface(), "keycloak.overview"))
+		WithHint(s.req.Surface().SettingsHint("keycloak.overview"))
 }
 
 // classifyTransport turns a failure to reach the server at all into
@@ -325,7 +325,7 @@ func (s *session) classifyTransport(err error) *view.Error {
 	var dnsErr *stdnet.DNSError
 	if errors.As(err, &dnsErr) {
 		return view.Errorf("keycloak.host.unknown", "no address for %q", s.host()).
-			WithHint(dnsHint(s.req.Surface(), s.host()))
+			WithHint(s.req.Surface().DNSHint(s.host()))
 	}
 	// Short of the host, before the port: a dial that found no way there
 	// reached nothing that could refuse it, and read as refused, a Keycloak
@@ -337,12 +337,12 @@ func (s *session) classifyTransport(err error) *view.Error {
 	if errors.As(err, &netErr) && unroutable(err) {
 		return view.Errorf("keycloak.conn.unreachable", "%s cannot be reached from this machine: %v", s.base, netErr.Err).
 			WithHint("no route leads there from here — a VPN or tunnel the server sits behind that is " +
-				"down looks exactly like this, and so does " + setting(s.req.Surface(), "url") + " naming " +
+				"down looks exactly like this, and so does " + s.req.Surface().SettingName("url") + " naming " +
 				"an address on a network this machine is not on")
 	}
 	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
 		return view.Errorf("keycloak.conn.refused", "nothing is listening on %s", s.base).
-			WithHint("is the server up, and is " + setting(s.req.Surface(), "url") + " right?")
+			WithHint("is the server up, and is " + s.req.Surface().SettingName("url") + " right?")
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
@@ -354,11 +354,11 @@ func (s *session) classifyTransport(err error) *view.Error {
 	// has no such argument to give and would read this refusal again.
 	if untrusted(err) {
 		return view.Errorf("keycloak.tls.untrusted", "%s presented a certificate nothing here trusts", s.base).
-			WithHint("a Keycloak behind an internal CA wants that CA in " + setting(s.req.Surface(), "ca-file") +
+			WithHint("a Keycloak behind an internal CA wants that CA in " + s.req.Surface().SettingName("ca-file") +
 				" rather than verification turned off — a self-signed certificate is its own CA")
 	}
 	return view.Errorf("keycloak.conn.failed", "could not reach %s: %v", s.base, err).
-		WithHint(explainHint(s.req.Surface(), "keycloak.overview"))
+		WithHint(s.req.Surface().SettingsHint("keycloak.overview"))
 }
 
 // untrusted reports whether err is a certificate that nothing here vouches
@@ -458,37 +458,4 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n] + "…"
-}
-
-// setting names connection input name in a message the way its reader
-// changes it: the flag on the CLI, the box in a TUI form. Not the argument
-// over MCP, as plugin.Surface.InputName would: every connection input is
-// Local, so the tool's schema hides it and the bridge drops one given, and an
-// agent told to check the "realm" argument would pass one that is thrown
-// away and read the same refusal again. It is named there as the declaration
-// names it, `realm` — a setting of the operator's, which the agent can
-// report and cannot change.
-func setting(sf plugin.Surface, name string) string {
-	if sf == plugin.SurfaceMCP {
-		return "`" + name + "`"
-	}
-	return sf.InputName(name)
-}
-
-// explainHint sends the reader to the page listing every input and where each
-// one can come from. That page is `rta explain`, a terminal's command with no
-// capability behind it, and what it answers here is where the connection
-// inputs come from — the operator's to set — so over MCP it is the operator
-// who is asked to read it.
-func explainHint(sf plugin.Surface, id string) string {
-	if sf == plugin.SurfaceMCP {
-		return plugin.AskOperator("explain "+id) + ", which lists every input and where each one can come from"
-	}
-	return "`rta explain " + id + "` lists every input and where each one can come from"
-}
-
-// dnsHint is the call that shows what DNS returns for host, spelled for the
-// surface that will make it.
-func dnsHint(sf plugin.Surface, host string) string {
-	return "`" + sf.Call("net.dns", plugin.Arg{Name: "name", Value: host, Positional: true}) + "` shows what DNS returns"
 }

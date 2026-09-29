@@ -77,7 +77,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			// bare, which reads as neither.
 			name: "a realm the client does not live in",
 			cli:  "--auth-realm (or --realm) names the realm the client lives in",
-			mcp:  "`auth-realm` (or `realm`) names the realm the client lives in",
+			mcp:  "the operator's `auth-realm` setting (or the operator's `realm` setting) names the realm the client lives in",
 			say: func(sf plugin.Surface) string {
 				return refusal(sf, "keycloak.overview", map[string]any{"auth-realm": "elsewhere"})
 			},
@@ -85,7 +85,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			name: "client credentials the server refuses",
 			cli:  "--client-id names a confidential client with service accounts enabled",
-			mcp:  "`client-id` names a confidential client with service accounts enabled",
+			mcp:  "the operator's `client-id` setting names a confidential client with service accounts enabled",
 			say: func(sf plugin.Surface) string {
 				_, verr := connect(context.Background(), req(t, "keycloak.overview", map[string]any{
 					"url": f.URL, "realm": "demo", "client-id": "someone-else", "client-secret": fakeSecret,
@@ -98,7 +98,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			// agent has no host environment to set and no secret to pass.
 			name: "no client secret",
 			cli:  "the secret is read from $RTA_KEYCLOAK_CLIENT_SECRET or --client-secret, or mapped",
-			mcp:  "the secret is read from $RTA_KEYCLOAK_CLIENT_SECRET or `client-secret`, or mapped",
+			mcp:  "the secret is read from $RTA_KEYCLOAK_CLIENT_SECRET or the operator's `client-secret` setting, or mapped",
 			say: func(sf plugin.Surface) string {
 				_, verr := connect(context.Background(), req(t, "keycloak.overview", map[string]any{}).WithSurface(sf))
 				return verr.Message + "\n" + verr.Hint
@@ -107,7 +107,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			name: "nothing listening",
 			cli:  "is the server up, and is --url right?",
-			mcp:  "is the server up, and is `url` right?",
+			mcp:  "is the server up, and is the operator's `url` setting right?",
 			say: func(sf plugin.Surface) string {
 				s := &session{req: req(t, "keycloak.overview", nil).WithSurface(sf), base: "http://127.0.0.1:1"}
 				verr := s.classifyTransport(&stdnet.OpError{Op: "dial", Net: "tcp", Err: errors.New("connection refused")})
@@ -117,7 +117,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			name: "a CA file that cannot be read",
 			cli:  "--ca-file is a path on this machine",
-			mcp:  "`ca-file` is a path on this machine",
+			mcp:  "the operator's `ca-file` setting is a path on this machine",
 			say: func(sf plugin.Surface) string {
 				return caRefusal(sf, filepath.Join(t.TempDir(), "absent.pem"))
 			},
@@ -128,7 +128,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			// untrusted-certificate hint sends the reader to name.
 			name: "a CA file with no PEM certificate in it",
 			cli:  "--ca-file wants a PEM certificate — the CA's, or a self-signed server's own",
-			mcp:  "`ca-file` wants a PEM certificate — the CA's, or a self-signed server's own",
+			mcp:  "the operator's `ca-file` setting wants a PEM certificate — the CA's, or a self-signed server's own",
 			say: func(sf plugin.Surface) string {
 				der := filepath.Join(t.TempDir(), "server.der")
 				if err := os.WriteFile(der, []byte{0x30, 0x03, 0x02, 0x01, 0x01}, 0o600); err != nil {
@@ -140,10 +140,23 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			name: "a certificate nothing here trusts",
 			cli:  "a Keycloak behind an internal CA wants that CA in --ca-file rather than verification turned off",
-			mcp:  "a Keycloak behind an internal CA wants that CA in `ca-file` rather than verification turned off",
+			mcp:  "a Keycloak behind an internal CA wants that CA in the operator's `ca-file` setting rather than verification turned off",
 			say: func(sf plugin.Surface) string {
 				s := &session{req: req(t, "keycloak.overview", nil).WithSurface(sf), base: "https://sso.internal"}
 				verr := s.classifyTransport(x509.UnknownAuthorityError{})
+				return verr.Message + "\n" + verr.Hint
+			},
+		},
+		{
+			// Which places can set an input, never "where each one can come
+			// from": a secret has no config key, and an agent is told the
+			// settings are the operator's to set.
+			name: "anything else",
+			cli:  "`rta explain keycloak.overview` lists every input and which of the command line, the rta config",
+			mcp:  "ask the operator to run `rta explain keycloak.overview`, which lists every setting",
+			say: func(sf plugin.Surface) string {
+				s := &session{req: req(t, "keycloak.overview", nil).WithSurface(sf), base: "https://sso.internal"}
+				verr := s.classifyTransport(errors.New("handshake went sideways"))
 				return verr.Message + "\n" + verr.Hint
 			},
 		},
