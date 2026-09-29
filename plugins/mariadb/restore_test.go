@@ -3,9 +3,12 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -97,6 +100,20 @@ func TestRestoreArgsCarryTheDecidedFlags(t *testing.T) {
 	}
 }
 
+// The pre-flight proves the server was there a moment ago, and nothing about
+// the child's own connection a moment later: the restore's client is bound as
+// the pre-flight was, in its seconds. mariadb-dump has no such flag, and refuses
+// one, so the dump's argv carries none.
+func TestTheRestoreChildConnectsWithinThePluginsBound(t *testing.T) {
+	values := map[string]any{"database": "app"}
+	if args := restoreArgs(req(t, "mariadb.restore", values)); !slices.Contains(args, "--connect-timeout=10") {
+		t.Errorf("restore argv = %q, want --connect-timeout=10", args)
+	}
+	if args := strings.Join(dumpArgs(req(t, "mariadb.dump", values)), " "); strings.Contains(args, "connect-timeout") {
+		t.Errorf("dump argv = %q, which the dump tool refuses as an unknown variable", args)
+	}
+}
+
 func TestClassifyRestoreNamesTheFailure(t *testing.T) {
 	r := req(t, "mariadb.restore", map[string]any{"database": "app"})
 	boom := errors.New("exit status 1")
@@ -110,6 +127,8 @@ func TestClassifyRestoreNamesTheFailure(t *testing.T) {
 		"refused":   {"ERROR 2002 (HY000): Can't connect to server on '127.0.0.1'", "mariadb.conn.refused"},
 		"mid file":  {"ERROR 1064 (42000) at line 42: You have an error in your SQL syntax", "mariadb.restore.failed"},
 		"anything":  {"something nobody anticipated", "mariadb.restore.failed"},
+		"timed out": {fmt.Sprintf("ERROR 2003 (HY000): Can't connect to server on 'db.internal:3306' (%d)",
+			int(syscall.ETIMEDOUT)), "mariadb.conn.timeout"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			verr := classifyRestore(boom, tc.stderr, r)
