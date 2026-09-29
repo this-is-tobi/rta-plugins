@@ -171,9 +171,10 @@ func checkRestoreFlags(req plugin.Request, format dumpFormat) *view.Error {
 	case req.Int("jobs") > 1:
 		return view.Errorf("pg.restore.plainflag",
 			"%s needs a custom or directory dump, not plain SQL", sf.InputName("jobs")).
-			WithHint("psql replays the file as written, one statement at a time — dump with " +
-				givenAll(sf, [2]string{"format", "directory"}, [2]string{"jobs", "N"}) +
-				" to get a parallel restore")
+			WithHint("psql replays the file as written, one statement at a time — `" +
+				sf.Call("pg.dump", plugin.Arg{Name: "out", Value: "<path>"},
+					plugin.Arg{Name: "format", Value: "directory"}, plugin.Arg{Name: "jobs", Value: "<n>"}) +
+				"` writes a dump that restores in parallel")
 	case req.Bool("clean"):
 		return view.Errorf("pg.restore.plainflag",
 			"%s needs a custom or directory dump, not plain SQL", sf.InputName("clean")).

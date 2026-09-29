@@ -48,9 +48,10 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			// Where the password comes from, never a verb for the reader: an
 			// agent has no host environment to set and no password to pass.
-			name:    "credentials the server rejects",
-			cli:     "the password is read from $RTA_PG_PASSWORD or --password — check it, and --user:",
-			other:   "the password is read from $RTA_PG_PASSWORD or `password` — check it, and `user`:",
+			name: "credentials the server rejects",
+			cli:  "the password is read from $RTA_PG_PASSWORD or --password — check it, and --user:",
+			other: "the password is read from $RTA_PG_PASSWORD or the operator's `password` setting — check it, " +
+				"and the operator's `user` setting:",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(&pgconn.PgError{Code: "28P01"}, reqFor(t, "pg.status", nil).WithSurface(sf)))
@@ -59,7 +60,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			name:    "a server that offers no TLS",
 			cli:     "--sslmode disable if that is expected on this network",
-			other:   "`sslmode` set to disable if that is expected on this network",
+			other:   "the operator's `sslmode` set to disable if that is expected on this network",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(errors.New("server does not support SSL"),
@@ -76,9 +77,11 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			},
 		},
 		{
-			name:    "anything else",
-			cli:     "`rta explain pg.status` lists every input and where each one can come from",
-			other:   "ask the operator to run `rta explain pg.status`, which lists every input",
+			name: "anything else",
+			cli: "`rta explain pg.status` lists every input and which of the command line, the rta config, " +
+				"a profile and the environment can set it",
+			other: "ask the operator to run `rta explain pg.status`, which lists every setting and which of the " +
+				"rta config, a profile and the environment the operator can set it in",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(errors.New("handshake went sideways"), reqFor(t, "pg.status", nil).WithSurface(sf)))

@@ -197,8 +197,8 @@ func TestParallelIsRefusedWhereItCannotWork(t *testing.T) {
 		if verr.Code != "pg.dump.notparallel" {
 			t.Errorf("format %s: code = %q", format, verr.Code)
 		}
-		if !strings.Contains(verr.Hint, "--format directory --jobs 8") {
-			t.Errorf("format %s: hint = %q, want the working command", format, verr.Hint)
+		if !strings.Contains(verr.Hint, "--format directory keeps --jobs 8") {
+			t.Errorf("format %s: hint = %q, want the format that keeps the workers", format, verr.Hint)
 		}
 	}
 
@@ -274,6 +274,21 @@ func TestNoDestinationIsRefusedWithTheFlagNamed(t *testing.T) {
 	}
 	if !strings.Contains(verr.Hint, "--out ./prod.sql") {
 		t.Errorf("hint = %q, want it to show the flag with a usable filename", verr.Hint)
+	}
+}
+
+// The filename the hint offers is built from the database's name, which is
+// the server's, and it is spelled as one shell word: pasted bare, a database
+// named with a command substitution in it ran that command.
+func TestTheSuggestedDestinationIsOneShellWord(t *testing.T) {
+	_, err := runFullDump(context.Background(),
+		reqFor(t, "pg.dump", map[string]any{"database": "app $(id)"}))
+	var verr *view.Error
+	if !errors.As(err, &verr) || verr.Code != "pg.dump.nooutput" {
+		t.Fatalf("err = %v, want pg.dump.nooutput", err)
+	}
+	if !strings.Contains(verr.Hint, "--out './app $(id).sql'") {
+		t.Errorf("hint = %q, want the filename quoted as one shell word", verr.Hint)
 	}
 }
 

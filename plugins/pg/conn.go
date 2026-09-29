@@ -250,9 +250,9 @@ func checkRootCert(req plugin.Request) *view.Error {
 		if mode := req.String("sslmode"); mode == "verify-ca" {
 			sf := req.Surface()
 			return view.Errorf("pg.tls.ca.missing", "%s checks the server's chain against the CA %s names, "+
-				"and it names none", settingTo(sf, "sslmode", mode), setting(sf, "sslrootcert")).
-				WithHint(setting(sf, "sslrootcert") + " names it: the CA that issued the server's certificate, or " +
-					"the certificate itself when it is self-signed. " + settingTo(sf, "sslmode", "verify-full") +
+				"and it names none", sf.SettingTo("sslmode", mode), sf.SettingName("sslrootcert")).
+				WithHint(sf.SettingName("sslrootcert") + " names it: the CA that issued the server's certificate, or " +
+					"the certificate itself when it is self-signed. " + sf.SettingTo("sslmode", "verify-full") +
 					" checks against this machine's own CAs instead, the server's name included")
 		}
 		return nil
@@ -260,22 +260,22 @@ func checkRootCert(req plugin.Request) *view.Error {
 	sf := req.Surface()
 	if mode := req.String("sslmode"); ca == "system" && mode != "verify-full" && mode != "disable" {
 		return view.Errorf("pg.tls.ca.system", "%s trusts every CA this machine does, and is taken beside %s alone",
-			settingTo(sf, "sslrootcert", "system"), settingTo(sf, "sslmode", "verify-full")).
+			sf.SettingTo("sslrootcert", "system"), sf.SettingTo("sslmode", "verify-full")).
 			WithHint("a certificate from any of them is had for any name its holder controls, so only the " +
 				"mode that checks the name makes it mean anything. A CA of the server's own belongs in " +
-				setting(sf, "sslrootcert") + " as a file, which verify-ca reads too")
+				sf.SettingName("sslrootcert") + " as a file, which verify-ca reads too")
 	}
 	switch mode := req.String("sslmode"); mode {
 	case "prefer":
 		return view.Errorf("pg.tls.ca.unused", "%s names a CA, and %s never verifies against one",
-			setting(sf, "sslrootcert"), settingTo(sf, "sslmode", mode)).
-			WithHint(settingTo(sf, "sslmode", "verify-full") + " verifies the server against it, its name " +
-				"included, and " + settingTo(sf, "sslmode", "verify-ca") + " its chain alone")
+			sf.SettingName("sslrootcert"), sf.SettingTo("sslmode", mode)).
+			WithHint(sf.SettingTo("sslmode", "verify-full") + " verifies the server against it, its name " +
+				"included, and " + sf.SettingTo("sslmode", "verify-ca") + " its chain alone")
 	case "require":
 		return view.Errorf("pg.tls.ca.implied", "%s names a CA, and %s verifies against one only because it is there",
-			setting(sf, "sslrootcert"), settingTo(sf, "sslmode", mode)).
-			WithHint(settingTo(sf, "sslmode", "verify-ca") + " is that same check under its own name, which does " +
-				"not stop the day the CA is dropped, and " + settingTo(sf, "sslmode", "verify-full") +
+			sf.SettingName("sslrootcert"), sf.SettingTo("sslmode", mode)).
+			WithHint(sf.SettingTo("sslmode", "verify-ca") + " is that same check under its own name, which does " +
+				"not stop the day the CA is dropped, and " + sf.SettingTo("sslmode", "verify-full") +
 				" checks the server's name as well")
 	case "disable":
 		return nil
@@ -292,12 +292,12 @@ func checkRootCert(req plugin.Request) *view.Error {
 	pem, err := os.ReadFile(path)
 	if err != nil {
 		return view.Errorf("pg.tls.ca.unreadable", "%v", err).
-			WithHint(setting(sf, "sslrootcert") + " names a file on this machine, read by rta rather than by the " +
+			WithHint(sf.SettingName("sslrootcert") + " names a file on this machine, read by rta rather than by the " +
 				"server, holding the CA's certificate in PEM")
 	}
 	if !x509.NewCertPool().AppendCertsFromPEM(pem) {
 		return view.Errorf("pg.tls.ca.invalid", "%s holds no PEM certificate", path).
-			WithHint(setting(sf, "sslrootcert") + " wants a PEM certificate — the CA's, or a self-signed " +
+			WithHint(sf.SettingName("sslrootcert") + " wants a PEM certificate — the CA's, or a self-signed " +
 				"server's own — and a private key or a DER-encoded certificate is not one")
 	}
 	return nil
@@ -342,7 +342,7 @@ func classify(err error, req plugin.Request) *view.Error {
 			return view.Errorf("pg.auth.failed", "%s rejected the credentials for %q",
 				where, req.String("user")).
 				WithHint("the password is read from $" + plugin.LocalEnvVar("pg.status", "password") +
-					" or " + setting(sf, "password") + " — check it, and " + setting(sf, "user") +
+					" or " + sf.SettingName("password") + " — check it, and " + sf.SettingName("user") +
 					": rta only ever uses the password it is given, never ~/.pgpass")
 		case "3D000": // invalid_catalog_name
 			return view.Errorf("pg.database.missing", "%s has no database named %q",
@@ -382,7 +382,7 @@ func classify(err error, req plugin.Request) *view.Error {
 		}
 		return view.Errorf("pg.conn.unreachable", "%s cannot be reached from this machine: %v", where, why).
 			WithHint("no route leads there from here — a VPN or tunnel the server sits behind that is " +
-				"down looks exactly like this, and so does " + setting(sf, "host") + " naming an address " +
+				"down looks exactly like this, and so does " + sf.SettingName("host") + " naming an address " +
 				"on a network this machine is not on")
 	}
 	if plugin.DialRefused(err) {
@@ -406,12 +406,12 @@ func classify(err error, req plugin.Request) *view.Error {
 	var dnsErr *net.DNSError
 	if errors.As(err, &dnsErr) {
 		return view.Errorf("pg.host.unknown", "no address for %q", req.String("host")).
-			WithHint(dnsHint(sf, req.String("host")))
+			WithHint(sf.DNSHint(req.String("host")))
 	}
 	if strings.Contains(err.Error(), "SSL is not enabled") ||
 		strings.Contains(err.Error(), "server does not support SSL") {
 		return view.Errorf("pg.tls.unsupported", "%s does not offer TLS", where).
-			WithHint(settingTo(sf, "sslmode", "disable") + " if that is expected on this network")
+			WithHint(sf.SettingTo("sslmode", "disable") + " if that is expected on this network")
 	}
 	// Only verify-ca and verify-full get here: prefer and require without a
 	// CA verify nothing, and checkRootCert refuses either beside one, and
@@ -435,83 +435,15 @@ func classify(err error, req plugin.Request) *view.Error {
 			return refused.WithHint("a PostgreSQL an operator or a cluster runs commonly has a CA of its own — " +
 				sf.CAHint("sslrootcert"))
 		case "system":
-			return refused.WithHint("no CA in this machine's trust store, which " + settingTo(sf, "sslrootcert", "system") +
+			return refused.WithHint("no CA in this machine's trust store, which " + sf.SettingTo("sslrootcert", "system") +
 				" names, issued it — " + sf.CAHint("sslrootcert"))
 		default:
-			return refused.WithHint(rootCert(req) + ", which " + setting(sf, "sslrootcert") + " names, does not hold " +
+			return refused.WithHint(rootCert(req) + ", which " + sf.SettingName("sslrootcert") + " names, does not hold " +
 				"the CA that issued it — a self-signed certificate is its own CA")
 		}
 	}
 	return view.Errorf("pg.conn.failed", "could not connect to %s: %v", where, err).
-		WithHint(explainHint(sf, "pg.status"))
-}
-
-// setting names connection input name in a message the way its reader
-// changes it: the flag on the CLI, the box in a TUI form. Not the argument
-// over MCP, as plugin.Surface.InputName would: every connection input is
-// Local, so the tool's schema hides it and the bridge drops one given, and an
-// agent told to check the "sslmode" argument would pass one that is thrown
-// away and read the same refusal again. It is named there as the declaration
-// names it, `sslmode` — a setting of the operator's, which the agent can
-// report and cannot change.
-func setting(sf plugin.Surface, name string) string {
-	if sf == plugin.SurfaceMCP {
-		return "`" + name + "`"
-	}
-	return sf.InputName(name)
-}
-
-// settingTo is setting with the value to give it: "--sslmode disable" on the
-// CLI, as a command line takes it, and elsewhere the setting with the value
-// beside it.
-func settingTo(sf plugin.Surface, name, value string) string {
-	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
-		return setting(sf, name) + " set to " + value
-	}
-	return sf.InputName(name) + " " + value
-}
-
-// given names input name set to value, as the reader would give it: "--out
-// ./app.sql" on the CLI, and elsewhere the input the surface names, with the
-// value beside it. For an input a caller on every surface may give; a
-// connection input is settingTo's.
-func given(sf plugin.Surface, name, value string) string {
-	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
-		return sf.InputName(name) + " set to " + value
-	}
-	return sf.InputName(name) + " " + value
-}
-
-// givenAll names several inputs given together, the way the reader gives
-// them: one command line's worth of flags on the CLI, `--format directory
-// --jobs 4`, and elsewhere each input with its value.
-func givenAll(sf plugin.Surface, pairs ...[2]string) string {
-	spelled := make([]string, len(pairs))
-	for i, p := range pairs {
-		spelled[i] = given(sf, p[0], p[1])
-	}
-	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
-		return strings.Join(spelled, " and ")
-	}
-	return "`" + strings.Join(spelled, " ") + "`"
-}
-
-// explainHint sends the reader to the page listing every input and where each
-// one can come from. That page is `rta explain`, a terminal's command with no
-// capability behind it, and what it answers here is where the connection
-// inputs come from — the operator's to set — so over MCP it is the operator
-// who is asked to read it.
-func explainHint(sf plugin.Surface, id string) string {
-	if sf == plugin.SurfaceMCP {
-		return plugin.AskOperator("explain "+id) + ", which lists every input and where each one can come from"
-	}
-	return "`rta explain " + id + "` lists every input and where each one can come from"
-}
-
-// dnsHint is the call that shows what DNS returns for host, spelled for the
-// surface that will make it.
-func dnsHint(sf plugin.Surface, host string) string {
-	return "`" + sf.Call("net.dns", plugin.Arg{Name: "name", Value: host, Positional: true}) + "` shows what DNS returns"
+		WithHint(sf.SettingsHint("pg.status"))
 }
 
 // address is host and port as one address, an IPv6 literal bracketed, for
