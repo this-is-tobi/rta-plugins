@@ -300,8 +300,28 @@ func classify(err error, req plugin.Request) *view.Error {
 		return view.Errorf("qdrant.host.unknown", "no address for %q", hostOnly(where)).
 			WithHint(req.Surface().DNSHint(hostOnly(where)))
 	}
-	var netErr *stdnet.OpError
-	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
+	// Short of the host, before the port: a dial that found no way there
+	// reached nothing that could refuse it, and read as refused, an instance
+	// behind a VPN that is down, or at an address of another network's, was
+	// "nothing is listening" about a port no packet reached.
+	//
+	// Each read by the operating system's own error (plugin.DialUnroutable,
+	// plugin.DialRefused), never by the *net.OpError around it, which every
+	// failed dial is: read that way, a dial that was reset was "nothing is
+	// listening" too, and one that timed out never reached the timeout below.
+	sf := req.Surface()
+	if plugin.DialUnroutable(err) {
+		reason := err
+		var netErr *stdnet.OpError
+		if errors.As(err, &netErr) {
+			reason = netErr.Err
+		}
+		return view.Errorf("qdrant.conn.unreachable", "%s cannot be reached from this machine: %v", where, reason).
+			WithHint("no route leads there from here — a VPN or tunnel the instance sits behind that is " +
+				"down looks exactly like this, and so does " + sf.SettingName("endpoint") + " naming " +
+				"an address on a network this machine is not on")
+	}
+	if plugin.DialRefused(err) {
 		return view.Errorf("qdrant.conn.refused", "nothing is listening on %s", where).
 			WithHint("Qdrant serves REST on 6333 and gRPC on 6334 — the gRPC port will not answer this")
 	}
@@ -315,15 +335,28 @@ func classify(err error, req plugin.Request) *view.Error {
 	// request, so turning tls off reaches nothing — and with ca-file set it
 	// does not even turn TLS off, since ca-file alone turns it on. The hint
 	// once offered it anyway, as the quick way round.
-	var certErr x509.UnknownAuthorityError
-	if errors.As(err, &certErr) {
+	//
+	// Asked of plugin.CertUntrusted rather than of the type Go's verifier
+	// alone gives: with no ca-file, macOS answers a private CA's chain
+	// untyped, and it was "could not reach". And only for a verdict that
+	// means an issuer nothing here vouches for — a revoked certificate is
+	// answered untyped too, and the CA file is no cure for it but a way
+	// around the check that caught it.
+	if plugin.CertUntrusted(err) {
 		return view.Errorf("qdrant.tls.untrusted", "%s presented a certificate nothing here trusts", where).
-			WithHint("the CA that issued it belongs in " + req.Surface().SettingName("ca-file") +
-				" — a self-signed certificate is its own CA; turning TLS off is no way round it, " +
-				"as the server refuses plain HTTP")
+			WithHint(sf.CAHint("ca-file") + "; turning TLS off is no way round it, as the server refuses plain HTTP")
+	}
+	// Every other verdict is its own reason, quoted in the verifier's words —
+	// the system's, for one macOS gives untyped — and never "could not reach":
+	// the server was reached, and answered with a certificate.
+	var verifyErr *tls.CertificateVerificationError
+	if errors.As(err, &verifyErr) {
+		return view.Errorf("qdrant.tls.rejected", "%s presented a certificate that does not verify: %v", where, verifyErr.Err).
+			WithHint("a certificate is checked for the host in " + sf.SettingName("endpoint") +
+				", its dates and the use it was issued for, as well as for who issued it")
 	}
 	return view.Errorf("qdrant.conn.failed", "could not reach %s: %v", where, err).
-		WithHint(req.Surface().SettingsHint("qdrant.overview"))
+		WithHint(sf.SettingsHint("qdrant.overview"))
 }
 
 func hostOnly(endpoint string) string {
