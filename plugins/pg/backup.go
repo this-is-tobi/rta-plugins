@@ -524,7 +524,7 @@ func childEnv(req plugin.Request) []string {
 	if mode := req.String("sslmode"); mode != "" {
 		env = append(env, "PGSSLMODE="+mode)
 	}
-	if ca := req.String("sslrootcert"); ca != "" && req.String("sslmode") != "disable" {
+	if ca := rootCert(req); ca != "" && req.String("sslmode") != "disable" {
 		// The same keyword dsn() writes into the in-process driver's
 		// connection string, carried the only way a subprocess reads it —
 		// pg_dump has no connection-string argument for a single value like
@@ -732,7 +732,7 @@ func restoreCommand(req plugin.Request, path string) string {
 	}
 	if mode := req.String("sslmode"); verifiesOrRequires(mode) {
 		args = append(args, plugin.Arg{Name: "sslmode", Value: mode})
-		if ca := req.String("sslrootcert"); ca != "" {
+		if ca := rootCert(req); ca != "" {
 			args = append(args, plugin.Arg{Name: "sslrootcert", Value: ca})
 		}
 	}

@@ -299,6 +299,32 @@ func TestAnUntrustedCertificateNamesTheCAThatDidNotIssueIt(t *testing.T) {
 	}
 }
 
+// sslrootcert is resolved as every other path this plugin reads, a leading ~
+// to the home directory and the rest made absolute, and the one resolution
+// goes wherever the connection does: the driver's connection string, the
+// child's PGSSLROOTCERT, and the restore line a dump's receipt prints. system
+// is libpq's word for the trust store, and stays that word.
+func TestSSLRootCertIsResolvedWhereverItGoes(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	want := filepath.Join(home, "ca.pem")
+	values := map[string]any{"host": "db.internal", "sslmode": "verify-full", "sslrootcert": "~/ca.pem"}
+	if got := dsn(req(t, values)); !strings.Contains(got, "sslrootcert='"+want+"'") {
+		t.Errorf("dsn = %s, want sslrootcert='%s'", got, want)
+	}
+	if env := childEnv(reqFor(t, "pg.dump", values)); !slices.Contains(env, "PGSSLROOTCERT="+want) {
+		t.Errorf("the child's env = %v, want PGSSLROOTCERT=%s", env, want)
+	}
+	if line := restoreCommand(reqFor(t, "pg.dump", values), "/backups/app.dump"); !strings.Contains(line,
+		"--sslrootcert "+want) {
+		t.Errorf("restore line = %q, want --sslrootcert %s", line, want)
+	}
+	values["sslrootcert"] = "system"
+	if got := dsn(req(t, values)); !strings.Contains(got, "sslrootcert='system'") {
+		t.Errorf("dsn = %s, want the trust store named as libpq names it", got)
+	}
+}
+
 func TestAnEmptySSLRootCertIsOmitted(t *testing.T) {
 	if got := dsn(req(t, map[string]any{})); strings.Contains(got, "sslrootcert=") {
 		t.Errorf("an unset sslrootcert was sent as empty: %s", got)
