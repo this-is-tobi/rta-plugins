@@ -273,6 +273,44 @@ func TestACertificateForAnotherNameIsNamedAsThat(t *testing.T) {
 	}
 }
 
+// A TLS server hangs up on a plaintext client, and "try --tls" is the way on
+// for a direct connection. Through a forward it was a way off it: tls given
+// by the caller opens no forward, and the call went to the default address
+// instead. There ca-file is what turns TLS on, and the forward stays open.
+func TestAHangUpThroughAForwardIsNotSentToTLS(t *testing.T) {
+	ln, err := stdnet.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			_, _ = conn.Read(make([]byte, 64))
+			_ = conn.Close()
+		}
+	}()
+	values := map[string]any{"address": ln.Addr().String()}
+
+	_, verr := connect(context.Background(), req(t, "redis.overview", values))
+	if verr == nil || verr.Code != "redis.conn.closed" || !strings.Contains(verr.Hint, "try --tls") {
+		t.Fatalf("a direct connection: %v, want redis.conn.closed with --tls", verr)
+	}
+	_, verr = connect(context.Background(), req(t, "redis.overview", values).WithProfile("prod", plugin.TunnelKube))
+	if verr == nil || verr.Code != "redis.conn.closed" {
+		t.Fatalf("through a forward: %v, want redis.conn.closed", verr)
+	}
+	if want := "the kube: forward profile prod opened asks for — --ca-file turns TLS on over the forward"; !strings.Contains(verr.Hint, want) {
+		t.Errorf("hint = %q, want %q in it", verr.Hint, want)
+	}
+	if strings.Contains(verr.Hint, "--tls") {
+		t.Errorf("hint = %q offers --tls, which given by the caller opens no forward", verr.Hint)
+	}
+}
+
 // A failed dial is read by the operating system's own error, never by the
 // *net.OpError around it, which every broken socket call is: a server behind
 // a VPN that was down, and one that reset the connection, were each "nothing

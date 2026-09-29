@@ -124,13 +124,13 @@ func connect(ctx context.Context, req plugin.Request) (*client, *view.Error) {
 		}
 		if _, err := c.do(ctx, args...); err != nil {
 			c.Close()
-			return nil, classify(err, addr, req.Surface())
+			return nil, classifyDial(err, addr, req)
 		}
 	}
 	if db := req.Int("db"); db != 0 {
 		if _, err := c.do(ctx, "SELECT", strconv.Itoa(db)); err != nil {
 			c.Close()
-			return nil, classify(err, addr, req.Surface())
+			return nil, classifyDial(err, addr, req)
 		}
 	}
 	// One PING, so that a server that requires a password nobody supplied is
@@ -138,7 +138,7 @@ func connect(ctx context.Context, req plugin.Request) (*client, *view.Error) {
 	// command a capability happens to send first.
 	if _, err := c.do(ctx, "PING"); err != nil {
 		c.Close()
-		return nil, classify(err, addr, req.Surface())
+		return nil, classifyDial(err, addr, req)
 	}
 	return c, nil
 }
@@ -419,11 +419,13 @@ func classify(err error, addr string, sf plugin.Surface) *view.Error {
 		WithHint(sf.SettingsHint("redis.overview"))
 }
 
-// classifyDial is classify for the dial and its handshake: the one step that
-// can fail on the server's certificate, and the one with the request to hand,
-// so the one that can say a ca-file named is not the CA that issued it —
-// rather than send the reader to name the CA in the setting that already
-// names one.
+// classifyDial is classify for the dial, its handshake and the commands
+// connect sends before it hands the connection over: the steps that can fail
+// on the server's certificate, or on a TLS server hanging up on plaintext,
+// and the ones with the request to hand — so the ones that can say a ca-file
+// named is not the CA that issued it, rather than send the reader to name
+// the CA in the setting that already names one, and that a forward is what
+// turned TLS off.
 func classifyDial(err error, addr string, req plugin.Request) *view.Error {
 	var nameErr x509.HostnameError
 	if errors.As(err, &nameErr) {
@@ -431,6 +433,20 @@ func classifyDial(err error, addr string, req plugin.Request) *view.Error {
 			return forwardRefusal(addr, nameErr.Certificate, req)
 		}
 		return nameRefusal(addr, nameErr.Certificate, req.Surface())
+	}
+	// **Through a forward the way to TLS is ca-file, never tls.** The forward
+	// turns tls off, and given by the caller tls is an input the forward
+	// fills: the host then opens no forward at all, and the call that followed
+	// "try --tls" went to the address config or the default names, and was
+	// answered "nothing is listening" about a server that had just hung up on
+	// plaintext. ca-file turns TLS on and leaves the forward open, and the
+	// certificate is then checked against the forward's address (forwardRefusal).
+	if req.Tunnel() != plugin.TunnelNone && errors.Is(err, io.EOF) {
+		return view.Errorf("redis.conn.closed", "%s closed the connection", addr).
+			WithHint("a TLS server answers a plaintext client by hanging up, and plaintext is what the " +
+				string(req.Tunnel()) + ": forward profile " + req.Profile() + " opened asks for — " +
+				req.Surface().SettingName("ca-file") + " turns TLS on over the forward, where the certificate is " +
+				"checked against " + hostOnly(addr) + " and has to name it")
 	}
 	if ca := plugin.ExpandHome(req.String("ca-file")); ca != "" && plugin.CertUntrusted(err) {
 		return view.Errorf("redis.tls.untrusted", "%s presented a certificate nothing here trusts", addr).
