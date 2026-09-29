@@ -459,7 +459,7 @@ func TestTLSToAPlaintextPortIsNamedAsTheHandshake(t *testing.T) {
 	if verr.Code != "etcd.tls.failed" || !strings.Contains(verr.Message, endpoint) {
 		t.Errorf("got %s %q, want etcd.tls.failed naming %s", verr.Code, verr.Message, endpoint)
 	}
-	if !strings.Contains(verr.Hint, "an https:// endpoint, --tls, --ca-file and --cert-file each turn it on") {
+	if !strings.Contains(verr.Hint, "an https:// endpoint turns it on, as do --tls, --ca-file and --cert-file") {
 		t.Errorf("hint = %q, want every setting that turns TLS on named", verr.Hint)
 	}
 }

@@ -218,7 +218,7 @@ func wrongPort(req plugin.Request, to target) *view.Error {
 	}
 	return refusal.WithHint("etcd listens on 2379 for clients and 2380 for peers, and the peer port will " +
 		"not answer this — nor will a client port serving TLS, to a client without " +
-		setting(req.Surface(), "tls") + " on")
+		req.Surface().SettingName("tls") + " on")
 }
 
 // target is where etcd's client dials an endpoint, and with what TLS.
@@ -305,7 +305,7 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 		pem, err := os.ReadFile(ca)
 		if err != nil {
 			return nil, view.Errorf("etcd.tls.ca.unreadable", "%v", err).
-				WithHint(setting(sf, "ca-file") + " is a path on this machine, read by rta rather than by the cluster")
+				WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by the cluster")
 		}
 		pool := x509.NewCertPool()
 		// What the file has to hold, rather than a guess at what it held
@@ -317,8 +317,8 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 		// untrusted-certificate hint in classify sends the reader to name.
 		if !pool.AppendCertsFromPEM(pem) {
 			return nil, view.Errorf("etcd.tls.ca.invalid", "%s holds no PEM certificate", ca).
-				WithHint(setting(sf, "ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
-					"server's own — and a private key, which belongs in " + setting(sf, "key-file") +
+				WithHint(sf.SettingName("ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
+					"server's own — and a private key, which belongs in " + sf.SettingName("key-file") +
 					", or a DER-encoded certificate is not one")
 		}
 		cfg.RootCAs = pool
@@ -330,10 +330,10 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 	// neither file. Refusing here says which half is missing.
 	switch {
 	case cert != "" && key == "":
-		return nil, view.Errorf("etcd.tls.key.missing", "%s given without %s", setting(sf, "cert-file"), setting(sf, "key-file")).
+		return nil, view.Errorf("etcd.tls.key.missing", "%s given without %s", sf.SettingName("cert-file"), sf.SettingName("key-file")).
 			WithHint("a client certificate is unusable without its private key")
 	case key != "" && cert == "":
-		return nil, view.Errorf("etcd.tls.cert.missing", "%s given without %s", setting(sf, "key-file"), setting(sf, "cert-file")).
+		return nil, view.Errorf("etcd.tls.cert.missing", "%s given without %s", sf.SettingName("key-file"), sf.SettingName("cert-file")).
 			WithHint("a private key is unusable without the certificate it belongs to")
 	case cert != "":
 		pair, err := tls.LoadX509KeyPair(cert, key)
@@ -367,7 +367,7 @@ func classify(err error, req plugin.Request) *view.Error {
 				sf.CapabilityName("etcd.overview") + " shows whether the members can see each other")
 	case errors.Is(err, clientv3.ErrNoAvailableEndpoints):
 		return view.Errorf("etcd.unreachable", "no endpoint answered at %s", where).
-			WithHint("is the cluster up, and is " + setting(sf, "endpoint") + " right? etcd listens on 2379 for clients " +
+			WithHint("is the cluster up, and is " + sf.SettingName("endpoint") + " right? etcd listens on 2379 for clients " +
 				"and 2380 for peers, and the peer port will not answer this")
 	}
 
@@ -380,7 +380,7 @@ func classify(err error, req plugin.Request) *view.Error {
 			// input given.
 			return view.Errorf("etcd.auth.failed", "%s rejected the credentials", where).
 				WithHint("the password is read from $" + plugin.LocalEnvVar("etcd.overview", "password") +
-					" or " + setting(sf, "password") + " — check it, and " + setting(sf, "username") +
+					" or " + sf.SettingName("password") + " — check it, and " + sf.SettingName("username") +
 					": a cluster with auth disabled refuses a username too")
 		case codes.PermissionDenied:
 			return view.Errorf("etcd.denied", "%s: %s", where, st.Message()).
@@ -402,7 +402,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	var dnsErr *stdnet.DNSError
 	if errors.As(err, &dnsErr) {
 		return view.Errorf("etcd.host.unknown", "no address for %q", hostOnly(where)).
-			WithHint(dnsHint(sf, hostOnly(where)))
+			WithHint(sf.DNSHint(hostOnly(where)))
 	}
 	// The handshake before the port: a connection that was made and then
 	// failed its handshake is something listening, and a reset or a hang-up
@@ -414,21 +414,21 @@ func classify(err error, req plugin.Request) *view.Error {
 	// such argument to give.
 	if untrusted(err) {
 		return view.Errorf("etcd.tls.untrusted", "%s presented a certificate nothing here trusts", where).
-			WithHint("etcd clusters usually have their own CA, and it belongs in " + setting(sf, "ca-file") +
+			WithHint("etcd clusters usually have their own CA, and it belongs in " + sf.SettingName("ca-file") +
 				" — a self-signed certificate is its own CA")
 	}
 	var verifyErr *tls.CertificateVerificationError
 	if errors.As(err, &verifyErr) {
 		return view.Errorf("etcd.tls.rejected", "%s presented a certificate that does not verify: %v", where, verifyErr.Err).
-			WithHint("a certificate is checked for the host in " + setting(sf, "endpoint") +
+			WithHint("a certificate is checked for the host in " + sf.SettingName("endpoint") +
 				", its dates and the use it was issued for, as well as for who issued it")
 	}
 	var hsErr handshakeError
 	if errors.As(err, &hsErr) {
 		return view.Errorf("etcd.tls.failed", "TLS with %s failed: %v", where, hsErr.err).
 			WithHint("a client port serving plaintext hangs up on TLS: TLS is for a cluster whose client " +
-				"URLs are https://, and an https:// endpoint, " + setting(sf, "tls") + ", " + setting(sf, "ca-file") +
-				" and " + setting(sf, "cert-file") + " each turn it on")
+				"URLs are https://, and an https:// endpoint turns it on, as do " +
+				sf.SettingName("tls", "ca-file", "cert-file"))
 	}
 	// Short of the host, before the port: a dial that found no way there
 	// reached nothing that could refuse it, and read as refused, a cluster on
@@ -440,7 +440,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	if errors.As(err, &netErr) && unroutable(err) {
 		return view.Errorf("etcd.unreachable", "%s cannot be reached from this machine: %v", where, netErr.Err).
 			WithHint("no route leads there from here — a VPN or tunnel the cluster sits behind that is down " +
-				"looks exactly like this, and so does " + setting(sf, "endpoint") + " naming an address on " +
+				"looks exactly like this, and so does " + sf.SettingName("endpoint") + " naming an address on " +
 				"a network this machine is not on")
 	}
 	if errors.As(err, &netErr) || strings.Contains(err.Error(), "connection refused") {
@@ -448,7 +448,7 @@ func classify(err error, req plugin.Request) *view.Error {
 			WithHint("etcd listens on 2379 for clients and 2380 for peers — the peer port will not answer this")
 	}
 	return view.Errorf("etcd.conn.failed", "could not reach %s: %v", where, err).
-		WithHint(explainHint(sf, "etcd.overview"))
+		WithHint(sf.SettingsHint("etcd.overview"))
 }
 
 // untrusted reports whether err is a certificate that nothing here vouches
@@ -551,47 +551,4 @@ func hostOnly(endpoint string) string {
 		return endpoint
 	}
 	return host
-}
-
-// setting names connection input name in a message the way its reader
-// changes it: the flag on the CLI, the box in a TUI form. Not the argument
-// over MCP, as plugin.Surface.InputName would: every connection input is
-// Local, so the tool's schema hides it and the bridge drops one given, and an
-// agent told to check the "username" argument would pass one that is thrown
-// away and read the same refusal again. It is named there as the declaration
-// names it, `username` — a setting of the operator's, which the agent can
-// report and cannot change.
-func setting(sf plugin.Surface, name string) string {
-	if sf == plugin.SurfaceMCP {
-		return "`" + name + "`"
-	}
-	return sf.InputName(name)
-}
-
-// explainHint sends the reader to the page listing every input and where each
-// one can come from. That page is `rta explain`, a terminal's command with no
-// capability behind it, and what it answers here is where the connection
-// inputs come from — the operator's to set — so over MCP it is the operator
-// who is asked to read it.
-func explainHint(sf plugin.Surface, id string) string {
-	if sf == plugin.SurfaceMCP {
-		return plugin.AskOperator("explain "+id) + ", which lists every input and where each one can come from"
-	}
-	return "`rta explain " + id + "` lists every input and where each one can come from"
-}
-
-// dnsHint is the call that shows what DNS returns for host, spelled for the
-// surface that will make it.
-func dnsHint(sf plugin.Surface, host string) string {
-	return "`" + sf.Call("net.dns", plugin.Arg{Name: "name", Value: host, Positional: true}) + "` shows what DNS returns"
-}
-
-// given names input name set to value, as the reader would give it: "--out
-// ./etcd.snap" on the CLI, and elsewhere the input the surface names, with
-// the value beside it.
-func given(sf plugin.Surface, name, value string) string {
-	if sf == plugin.SurfaceMCP || sf == plugin.SurfaceTUI {
-		return sf.InputName(name) + " set to " + value
-	}
-	return sf.InputName(name) + " " + value
 }
