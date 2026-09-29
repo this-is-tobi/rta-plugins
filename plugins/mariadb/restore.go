@@ -114,7 +114,11 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 	}
 
 	args := restoreArgs(req)
+	pinning := req.String("tls") == "verify-ca" && takesPin(ctx, tool)
 	if req.DryRun {
+		if pinning {
+			args = pinned(args, pinPending)
+		}
 		return view.Text{Body: fmt.Sprintf("would run %s %s\nfeeding it %s, restoring into %s on %s:%d",
 			filepath.Base(tool), strings.Join(args, " "), path,
 			database, req.String("host"), req.Int("port"))}, nil
@@ -124,8 +128,12 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 	// describeSource discipline, with the two questions only a restore has to
 	// ask: a read-only server cannot be written, and a database already
 	// holding tables is refused.
-	if verr := checkTarget(ctx, req, database); verr != nil {
+	pin, verr := checkTarget(ctx, req, database)
+	if verr != nil {
 		return nil, verr
+	}
+	if pinning {
+		args = pinned(args, pin)
 	}
 
 	started := time.Now()
@@ -197,9 +205,10 @@ func restoreArgs(req plugin.Request) []string {
 }
 
 // checkTarget asks the server what it is before anything writes into it, on
-// one connection.
-func checkTarget(ctx context.Context, req plugin.Request, database string) *view.Error {
-	db, verr := connect(ctx, req)
+// one connection, and answers with the certificate pin.go hands the child
+// when tls is verify-ca.
+func checkTarget(ctx context.Context, req plugin.Request, database string) (string, *view.Error) {
+	db, pin, verr := connectPinned(ctx, req)
 	if verr != nil {
 		// The driver has already classified an absent database (1049), but
 		// its hint points at `mariadb database list` — the right next step for
@@ -207,21 +216,21 @@ func checkTarget(ctx context.Context, req plugin.Request, database string) *view
 		// missing database is the fresh target somebody has not created yet.
 		// Same fact, restore's advice.
 		if verr.Code == "mariadb.database.notfound" {
-			return view.Errorf("mariadb.restore.notarget", "%s", verr.Message).
+			return "", view.Errorf("mariadb.restore.notarget", "%s", verr.Message).
 				WithHint("rta does not create databases on its own — a typo'd name becoming a " +
 					"new database is worse than this refusal. `CREATE DATABASE " + database +
 					"` makes it, then restore again")
 		}
-		return verr
+		return "", verr
 	}
 	defer func() { _ = db.Close() }()
 
 	var ro int
 	if err := db.QueryRowContext(ctx, "select @@read_only").Scan(&ro); err != nil {
-		return classify(err, req)
+		return "", classify(err, req)
 	}
 	if ro != 0 {
-		return view.Errorf("mariadb.restore.readonly",
+		return "", view.Errorf("mariadb.restore.readonly",
 			"%s:%d is read-only, and a read-only server cannot be written",
 			req.String("host"), req.Int("port")).
 			WithHint("usually a replica — restore on the primary, which the replica then " +
@@ -232,16 +241,16 @@ func checkTarget(ctx context.Context, req plugin.Request, database string) *view
 	if err := db.QueryRowContext(ctx, `
 		select count(*) from information_schema.tables where table_schema = ?`,
 		database).Scan(&tables); err != nil {
-		return classify(err, req)
+		return "", classify(err, req)
 	}
 	if tables > 0 {
-		return view.Errorf("mariadb.restore.notempty",
+		return "", view.Errorf("mariadb.restore.notempty",
 			"%s already holds %s", database, format.CountOf(tables, "table")).
 			WithHint("restore into a fresh database — CREATE DATABASE is one command, and " +
 				"whether this dump drops objects first was decided when mariadb-dump wrote it, " +
 				"so rta will not guess on its behalf")
 	}
-	return nil
+	return pin, nil
 }
 
 // runRestoreTool runs the child with the dump on its stdin — the descriptor
@@ -294,6 +303,8 @@ func classifyRestore(err error, stderr string, req plugin.Request) *view.Error {
 		return view.Errorf("mariadb.restore.readonly", "%s", msg("read")).
 			WithHint("the target became read-only after the pre-flight check — a promoted " +
 				"replica, usually. Restore on the primary")
+	case strings.Contains(stderr, "Fingerprint validation"):
+		return pinRefusal(req.Surface(), msg("Fingerprint validation"))
 	case strings.Contains(stderr, "Can't connect"):
 		return view.Errorf("mariadb.conn.refused", "%s", msg("Can't connect")).
 			WithHint(reachHint(req.Surface()))

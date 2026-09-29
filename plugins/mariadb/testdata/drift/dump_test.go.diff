@@ -24,13 +24,13 @@
 - 		"false":       {"--skip-ssl"},
 - 		"true":        {"--ssl", "--ssl-verify-server-cert"},
 - 		"skip-verify": {"--ssl"},
+- 		"verify-ca":   {"--ssl", "--ssl-ca=/etc/mysql/ca.pem", "--skip-ssl-verify-server-cert"},
 + 	for tls, want := range map[string]string{
 + 		"false":       "--ssl-mode=DISABLED",
 + 		"true":        "--ssl-mode=VERIFY_IDENTITY",
 + 		"skip-verify": "--ssl-mode=REQUIRED",
-- 		args := dumpArgs(req(t, "mysql.dump", map[string]any{
-+ 		args := strings.Join(dumpArgs(req(t, "mysql.dump", map[string]any{
-- 		}))
++ 		"verify-ca":   "--ssl-mode=VERIFY_CA --ssl-ca=/etc/mysql/ca.pem",
+- 		args := dumpArgs(req(t, "mysql.dump", values))
 - 		joined := strings.Join(args, " ")
 - 		for _, w := range want {
 - 			if !slices.Contains(args, w) {
@@ -40,7 +40,7 @@
 - 		if strings.Contains(joined, "--ssl-mode") {
 - 			t.Errorf("tls=%s: passes MySQL's --ssl-mode, which this client does not have: %q",
 - 				tls, joined)
-+ 		})), " ")
++ 		args := strings.Join(dumpArgs(req(t, "mysql.dump", values)), " ")
 + 		if !strings.Contains(args, want) {
 + 			t.Errorf("tls=%s: missing %q in %q", tls, want, args)
 - 	// skip-verify encrypts without verifying, so the verify flag must be the

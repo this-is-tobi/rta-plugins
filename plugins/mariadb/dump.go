@@ -180,7 +180,11 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	}
 
 	args := dumpArgs(req)
+	pinning := req.String("tls") == "verify-ca" && takesPin(ctx, tool)
 	if req.DryRun {
+		if pinning {
+			args = pinned(args, pinPending)
+		}
 		return view.Text{Body: fmt.Sprintf("would run %s %s\nand write %s",
 			filepath.Base(tool), strings.Join(args, " "), path)}, nil
 	}
@@ -192,6 +196,9 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	src, verr := describeSource(ctx, req, database)
 	if verr != nil {
 		return nil, verr
+	}
+	if pinning {
+		args = pinned(args, src.pin)
 	}
 
 	started := time.Now()
@@ -246,6 +253,9 @@ type source struct {
 	// transactional — MyISAM and friends — and therefore read live, outside
 	// the snapshot --single-transaction opens.
 	liveTables int
+	// pin is the SHA-256 fingerprint of the certificate a verify-ca
+	// connection verified against ca-file, which pin.go hands the child.
+	pin string
 }
 
 func (s source) describe(sf plugin.Surface) string {
@@ -283,13 +293,13 @@ func (s source) consistency() string {
 }
 
 func describeSource(ctx context.Context, req plugin.Request, database string) (source, *view.Error) {
-	db, verr := connect(ctx, req)
+	db, pin, verr := connectPinned(ctx, req)
 	if verr != nil {
 		return source{}, verr
 	}
 	defer func() { _ = db.Close() }()
 
-	var s source
+	s := source{pin: pin}
 	if err := db.QueryRowContext(ctx, "select version()").Scan(&s.version); err != nil {
 		return source{}, classify(err, req)
 	}
@@ -380,13 +390,17 @@ func dumpArgs(req plugin.Request) []string {
 //
 // The mapping is by *meaning*, matching the mysql plugin's: "true" both
 // encrypts and verifies the server is who it claims (the driver's own
-// behaviour for true), "skip-verify" encrypts without verifying,
-// "preferred" is the client's default and passes nothing.
+// behaviour for true), "verify-ca" its chain alone, "skip-verify"
+// encrypts without verifying, "preferred" is the client's default and
+// passes nothing.
 //
-// ca-file goes with true as --ssl-ca, the CA the child verifies against, so
-// the dump verifies the server the pre-flight connection did. It is only
-// ever beside true: tlsConfig refuses it beside the two modes that never
-// verify, before any child is described.
+// ca-file goes with true and verify-ca as --ssl-ca, the CA the child verifies
+// against, so the dump verifies the server the pre-flight connection did. It
+// is only ever beside those two: tlsConfig refuses it beside the two modes
+// that never verify, and verify-ca without it, before any child is described.
+// verify-ca has no word of its own in this client, and this spelling of it is
+// the one a client before 11.4 reads as a chain check; pin.go says what a
+// newer one is handed instead.
 func tlsArgs(req plugin.Request) []string {
 	switch req.String("tls") {
 	case "false":
@@ -396,6 +410,8 @@ func tlsArgs(req plugin.Request) []string {
 			return []string{"--ssl", "--ssl-verify-server-cert", "--ssl-ca=" + ca}
 		}
 		return []string{"--ssl", "--ssl-verify-server-cert"}
+	case "verify-ca":
+		return []string{"--ssl", "--ssl-ca=" + caFile(req), "--skip-ssl-verify-server-cert"}
 	case "skip-verify":
 		return []string{"--ssl"}
 	}
@@ -489,6 +505,8 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 	case strings.Contains(stderr, "Unknown MySQL server host"):
 		return view.Errorf("mariadb.host.unknown", "%s", msg("Unknown MySQL server host")).
 			WithHint(dnsHint(req.Surface(), req.String("host")))
+	case strings.Contains(stderr, "Fingerprint validation"):
+		return pinRefusal(req.Surface(), msg("Fingerprint validation"))
 	case strings.Contains(stderr, "Can't connect"):
 		return view.Errorf("mariadb.conn.refused", "%s", msg("Can't connect")).
 			WithHint(reachHint(req.Surface()))
@@ -513,19 +531,19 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 // restoreCommand names the other half. A backup capability that does not say
 // how to restore is the shape of every backup that turned out not to be one.
 //
-// **tls travels when the dump insisted on it** — true, which verifies, and
-// skip-verify, which at least never falls back to plaintext. Left out, the
-// line connected however the config where it was pasted said, preferred on a
-// machine with none: a dump taken over a verified connection printed a
-// restore that sent the password to a server nothing had verified, or in the
-// clear to one that offered no TLS. A looser tls stays off the line — the
-// default is at least as protected, a stricter config there still wins, and
-// false is what a tunnel forces for the forward alone, which a line that
+// **tls travels when the dump insisted on it** — true and verify-ca, which
+// verify, and skip-verify, which at least never falls back to plaintext. Left
+// out, the line connected however the config where it was pasted said,
+// preferred on a machine with none: a dump taken over a verified connection
+// printed a restore that sent the password to a server nothing had verified,
+// or in the clear to one that offered no TLS. A looser tls stays off the line —
+// the default is at least as protected, a stricter config there still wins,
+// and false is what a tunnel forces for the forward alone, which a line that
 // spelled it would carry to a restore with no tunnel. Never the password.
 //
-// ca-file travels beside true, the one mode that reads it. Left off, the
-// line would verify against whatever the machine it is pasted on trusts, and
-// refuse the server this dump verified against its own CA.
+// ca-file travels beside true and verify-ca, the modes that read it. Left
+// off, the line would verify against whatever the machine it is pasted on
+// trusts, and refuse the server this dump verified against its own CA.
 func restoreCommand(req plugin.Request, path string) string {
 	args := []plugin.Arg{
 		{Name: "file", Value: path, Positional: true},
@@ -534,9 +552,9 @@ func restoreCommand(req plugin.Request, path string) string {
 		{Name: "user", Value: req.String("user")},
 		{Name: "database", Value: req.String("database")},
 	}
-	if mode := req.String("tls"); mode == "true" || mode == "skip-verify" {
+	if mode := req.String("tls"); mode == "true" || mode == "verify-ca" || mode == "skip-verify" {
 		args = append(args, plugin.Arg{Name: "tls", Value: mode})
-		if ca := caFile(req); mode == "true" && ca != "" {
+		if ca := caFile(req); mode != "skip-verify" && ca != "" {
 			args = append(args, plugin.Arg{Name: "ca-file", Value: ca})
 		}
 	}

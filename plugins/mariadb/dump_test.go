@@ -112,10 +112,13 @@ func TestTLSModesMapByMeaning(t *testing.T) {
 		"false":       {"--skip-ssl"},
 		"true":        {"--ssl", "--ssl-verify-server-cert"},
 		"skip-verify": {"--ssl"},
+		"verify-ca":   {"--ssl", "--ssl-ca=/etc/mysql/ca.pem", "--skip-ssl-verify-server-cert"},
 	} {
-		args := dumpArgs(req(t, "mariadb.dump", map[string]any{
-			"database": "app", "tls": tls,
-		}))
+		values := map[string]any{"database": "app", "tls": tls}
+		if tls == "verify-ca" {
+			values["ca-file"] = "/etc/mysql/ca.pem"
+		}
+		args := dumpArgs(req(t, "mariadb.dump", values))
 		joined := strings.Join(args, " ")
 		for _, w := range want {
 			if !slices.Contains(args, w) {

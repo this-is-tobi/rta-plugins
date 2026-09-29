@@ -7,5 +7,38 @@
 + var restoreTools = []string{"mysql"}
 - 				"Install the MySQL client tools — `brew install mysql` or " +
 + 				"Install the MySQL client tools — `brew install mysql-client` or " +
+- 	pinning := req.String("tls") == "verify-ca" && takesPin(ctx, tool)
+- 		if pinning {
+- 			args = pinned(args, pinPending)
+- 		}
+- 	pin, verr := checkTarget(ctx, req, database)
+- 	if verr != nil {
++ 	if verr := checkTarget(ctx, req, database); verr != nil {
+- 	if pinning {
+- 		args = pinned(args, pin)
+- 	}
+- // one connection, and answers with the certificate pin.go hands the child
+- // when tls is verify-ca.
+- func checkTarget(ctx context.Context, req plugin.Request, database string) (string, *view.Error) {
+- 	db, pin, verr := connectPinned(ctx, req)
++ // one connection.
++ func checkTarget(ctx context.Context, req plugin.Request, database string) *view.Error {
++ 	db, verr := connect(ctx, req)
+- 			return "", view.Errorf("mysql.restore.notarget", "%s", verr.Message).
++ 			return view.Errorf("mysql.restore.notarget", "%s", verr.Message).
+- 		return "", verr
++ 		return verr
+- 		return "", classify(err, req)
++ 		return classify(err, req)
+- 		return "", view.Errorf("mysql.restore.readonly",
++ 		return view.Errorf("mysql.restore.readonly",
+- 		return "", classify(err, req)
++ 		return classify(err, req)
+- 		return "", view.Errorf("mysql.restore.notempty",
++ 		return view.Errorf("mysql.restore.notempty",
+- 	return pin, nil
++ 	return nil
+- 	case strings.Contains(stderr, "Fingerprint validation"):
+- 		return pinRefusal(req.Surface(), msg("Fingerprint validation"))
 + 	case strings.Contains(stderr, "CA certificate is required"):
 + 		return noCA(req.Surface(), msg("CA certificate is required"))
