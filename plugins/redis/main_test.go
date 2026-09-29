@@ -3,11 +3,21 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
+	"math/big"
 	stdnet "net"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/sdk/sdktest"
@@ -37,6 +47,50 @@ func TestConformance(t *testing.T) {
 	sdktest.Check(t, Plugin(), sdktest.WithInputs(func(string) map[string]map[string]any {
 		return map[string]map[string]any{"redis.key.get": {"key": "absent"}}
 	}))
+}
+
+// The three certificate paths resolve a leading ~ as every other path a
+// plugin reads does. Opened as typed, ~/ca.pem was a path under a directory
+// named ~, and a CA sitting in the operator's home was answered as no such
+// file.
+func TestTheCertificatePathsResolveTheHomeDirectory(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "rta test"},
+		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour),
+		IsCA: true, BasicConstraintsValid: true,
+		KeyUsage: x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyDER, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, block := range map[string]*pem.Block{
+		"cert.pem": {Type: "CERTIFICATE", Bytes: der},
+		"key.pem":  {Type: "PRIVATE KEY", Bytes: keyDER},
+	} {
+		if err := os.WriteFile(filepath.Join(home, name), pem.EncodeToMemory(block), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cfg, verr := tlsConfig(req(t, "redis.overview", map[string]any{
+		"ca-file": "~/cert.pem", "cert-file": "~/cert.pem", "key-file": "~/key.pem",
+	}))
+	if verr != nil {
+		t.Fatalf("paths under ~ were refused: %s: %s", verr.Code, verr.Message)
+	}
+	if cfg.RootCAs == nil || len(cfg.Certificates) != 1 {
+		t.Errorf("the CA or the client pair under ~ was not loaded: %+v", cfg)
+	}
 }
 
 // Every shared connection input must be Local: together they name which
