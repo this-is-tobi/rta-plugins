@@ -379,6 +379,32 @@ func TestACallAHintNamesReadsTheClusterWhereItWasFound(t *testing.T) {
 	}
 }
 
+// Through a profile, the call a receipt hands its reader names the profile on
+// every surface. An agent gives no context, and its call without the profile
+// read the operator's current context rather than the one the profile named:
+// another cluster, where the backup it was told to watch is not.
+func TestACallAReceiptNamesCarriesTheProfileItCameThrough(t *testing.T) {
+	for _, tc := range []struct {
+		sf    plugin.Surface
+		watch string
+	}{
+		{plugin.SurfaceCLI, "`rta cnpg backup list --cluster shop --namespace prod --context kind --profile staging`"},
+		{plugin.SurfaceTUI, "`cnpg.backup.list cluster=shop namespace=prod context=kind profile=staging`"},
+		{plugin.SurfaceMCP, "`cnpg_backup_list {\"cluster\":\"shop\",\"namespace\":\"prod\",\"profile\":\"staging\"}`"},
+	} {
+		recordingKubectl(t, mustJSON(t, aCluster("shop", "prod")))
+		v, err := runBackupRequest(context.Background(),
+			req(map[string]any{"cluster": "shop", "namespace": "prod", "context": "kind"}).
+				WithProfile("staging", plugin.TunnelNone).WithSurface(tc.sf))
+		if err != nil {
+			t.Fatalf("%s: %v", tc.sf, err)
+		}
+		if text := renderPairs(t, v); !strings.Contains(text, tc.watch) {
+			t.Errorf("%s: the receipt reads\n%s\nwant %q in it", tc.sf, text, tc.watch)
+		}
+	}
+}
+
 // An override the CRD's enum does not admit is refused by rta, with the list
 // in hand — rather than by the API server, with a schema error naming a JSON
 // path instead of a flag.
