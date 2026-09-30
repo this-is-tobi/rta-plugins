@@ -160,6 +160,23 @@ func tlsTransport(sf plugin.Surface, ca, name string) (*http.Transport, *view.Er
 // endpoint's host, or "" for the host.
 func serverName(req plugin.Request) string { return strings.TrimSpace(req.String("tls-server-name")) }
 
+// tlsExpected is the refusal for a plain-HTTP call to a port that speaks only
+// TLS. Through a forward that is the host's doing — it turns tls off unless
+// the profile's connection says its far end speaks TLS — so the way out is
+// named there, where the endpoint the forward filled names nothing the
+// operator could change.
+func tlsExpected(req plugin.Request) *view.Error {
+	if req.Tunnel() != plugin.TunnelNone {
+		return view.Errorf("s3.tls.expected", "this call spoke plain HTTP through profile %s's %s: forward, "+
+			"to a server that speaks only HTTPS", req.Profile(), req.Tunnel()).
+			WithHint("a forward carries plain HTTP unless the profile's connection says its far end speaks TLS: " +
+				"tunnelTLS: true on that connection")
+	}
+	return view.Errorf("s3.tls.expected", "this call spoke plain HTTP to %s, which speaks only HTTPS",
+		req.String("endpoint")).
+		WithHint(req.Surface().SettingName("tls") + " turns HTTPS on")
+}
+
 // classify turns a client error into something an operator can act on.
 //
 // minio-go returns its own errors as a value type, minio.ErrorResponse (not
@@ -210,6 +227,16 @@ func classify(err error, req plugin.Request) *view.Error {
 		case minio.BucketAlreadyExists, minio.BucketAlreadyOwnedByYou:
 			return view.Errorf("s3.bucket.exists", "%q already exists", errResp.BucketName).
 				WithHint(sf.CapabilityName("s3.bucket.list") + " shows who owns what this plugin can see")
+		}
+		// Go's own answer, from the listener rather than from the S3 API behind
+		// it, to a plain-HTTP request on a port that speaks only TLS — MinIO's
+		// listener is Go's. A forward carries plain HTTP unless the profile's
+		// connection says its far end speaks TLS, and quoted as the server's
+		// refusal, with the page of every input for a hint, it named nothing
+		// the operator could change.
+		if errResp.StatusCode == http.StatusBadRequest &&
+			strings.Contains(errResp.Message, "Client sent an HTTP request to an HTTPS server") {
+			return tlsExpected(req)
 		}
 		return view.Errorf("s3.request.failed", "%s: %s", errResp.Code, errResp.Message).
 			WithHint(sf.SettingsHint("s3.overview"))
