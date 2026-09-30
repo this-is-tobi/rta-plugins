@@ -535,6 +535,29 @@ func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
 	}
 }
 
+// A certificate's names are the server's to choose, and a verdict quotes
+// them: one valid for "connection refused" or "no route to host" alone, or
+// a revoked one the system names so, is still a certificate that does not
+// verify — never a port nothing listens on or a host no route reaches, as
+// the dial's words, read first, would have had it.
+func TestACertificatesOwnNamesAreNeverReadAsTheDialsFailure(t *testing.T) {
+	r := req(t, "qdrant.overview", map[string]any{"endpoint": "qdrant.internal:6333"})
+	open, closing := string(rune(0x201c)), string(rune(0x201d))
+	for _, verdict := range []error{
+		x509.HostnameError{Certificate: &x509.Certificate{DNSNames: []string{syscall.ECONNREFUSED.Error()}},
+			Host: "qdrant.internal"},
+		x509.HostnameError{Certificate: &x509.Certificate{DNSNames: []string{syscall.EHOSTUNREACH.Error()}},
+			Host: "qdrant.internal"},
+		errors.New("x509: " + open + syscall.ECONNREFUSED.Error() + closing + " certificate is revoked"),
+	} {
+		err := &url.Error{Op: "Get", URL: "https://qdrant.internal:6333/",
+			Err: &tls.CertificateVerificationError{Err: verdict}}
+		if got := classify(err, r); got.Code != "qdrant.tls.rejected" {
+			t.Errorf("%v: classified %s %q, want qdrant.tls.rejected", verdict, got.Code, got.Message)
+		}
+	}
+}
+
 // Each HTTP failure must produce a distinct code and a hint naming the next
 // step. A 401 against an instance with no key configured is the one people
 // actually hit, and it fails the same way as a wrong key.
