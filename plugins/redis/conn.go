@@ -557,6 +557,49 @@ func certNames(cert *x509.Certificate) []string {
 	return names
 }
 
+// reachArgs points a call this one hands its reader at the server it reached,
+// as the calls s3's and qdrant's messages name are: the profile it came
+// through whenever there was one, since the password it used may be the
+// profile's and no other layer holds it, and the address only when the host
+// opened no forward (Request.Tunnel) — through one, the address was
+// 127.0.0.1 and a port that closed with the call, and the profile is what
+// reaches the same server again. Reached directly, the address stays, since
+// it may be one typed over the profile's, and with it how it was reached when
+// that was protected — tls when on, the certificate paths and
+// tls-server-name when named — and as whom and where: the ACL user, whose
+// rules decide which keys it may see, and the database, since a key in
+// database 3 is in no listing of database 0.
+//
+// **Without them, the call named reached another server.** Pasted, it ran
+// against whatever address the configuration there named, and a key "not
+// found" was looked for again somewhere it was never going to be. Over MCP
+// the call gives the profile alone: the rest are Local, and the bridge drops
+// one an agent sends.
+func reachArgs(req plugin.Request) []plugin.Arg {
+	var args []plugin.Arg
+	if profile := req.Profile(); profile != "" {
+		args = append(args, plugin.Arg{Name: "profile", Value: profile})
+	}
+	if req.Surface() == plugin.SurfaceMCP {
+		return args
+	}
+	if req.Tunnel() == plugin.TunnelNone {
+		args = append(args, plugin.Arg{Name: "address", Value: req.String("address")})
+	}
+	if req.Bool("tls") {
+		args = append(args, plugin.Arg{Name: "tls", Value: true})
+	}
+	for _, name := range []string{"ca-file", "tls-server-name", "cert-file", "key-file", "username"} {
+		if v := strings.TrimSpace(req.String(name)); v != "" {
+			args = append(args, plugin.Arg{Name: name, Value: v})
+		}
+	}
+	if db := req.Int("db"); db != 0 {
+		args = append(args, plugin.Arg{Name: "db", Value: db})
+	}
+	return args
+}
+
 // serverName is the name the certificate is checked for in place of the
 // address's host, or "" for the host.
 func serverName(req plugin.Request) string { return strings.TrimSpace(req.String("tls-server-name")) }
