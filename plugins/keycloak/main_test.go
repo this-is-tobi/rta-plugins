@@ -627,6 +627,29 @@ func TestADialIsReadByTheErrorItCarries(t *testing.T) {
 	}
 }
 
+// A certificate's names are the server's to choose, and a verdict quotes
+// them: one valid for "connection refused" or "no route to host" alone, or
+// a revoked one the system names so, is still a certificate that does not
+// verify — never a port nothing listens on or a host no route reaches, as
+// the dial's words, read first, would have had it.
+func TestACertificatesOwnNamesAreNeverReadAsTheDialsFailure(t *testing.T) {
+	s := &session{req: plugin.NewRequest(nil, false, false), base: "https://sso.internal"}
+	open, closing := string(rune(0x201c)), string(rune(0x201d))
+	for _, verdict := range []error{
+		x509.HostnameError{Certificate: &x509.Certificate{DNSNames: []string{syscall.ECONNREFUSED.Error()}},
+			Host: "sso.internal"},
+		x509.HostnameError{Certificate: &x509.Certificate{DNSNames: []string{syscall.EHOSTUNREACH.Error()}},
+			Host: "sso.internal"},
+		errors.New("x509: " + open + syscall.ECONNREFUSED.Error() + closing + " certificate is revoked"),
+	} {
+		err := &url.Error{Op: "Get", URL: "https://sso.internal/realms/demo/protocol/openid-connect/token",
+			Err: &tls.CertificateVerificationError{Err: verdict}}
+		if got := s.classifyTransport(err); got.Code != "keycloak.tls.rejected" {
+			t.Errorf("%v: classified %s %q, want keycloak.tls.rejected", verdict, got.Code, got.Message)
+		}
+	}
+}
+
 // timeoutError is a net.Error that timed out, as a dial's deadline reports.
 type timeoutError struct{}
 
