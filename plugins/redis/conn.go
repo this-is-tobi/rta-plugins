@@ -39,6 +39,14 @@ func connFields() []plugin.Field {
 			Local: true, Endpoint: plugin.EndpointTLS, Help: "connect over TLS"},
 		{Name: "ca-file", Type: plugin.String, Default: "", Config: "ca-file",
 			Local: true, Help: "PEM bundle to verify the server against"},
+		// The name the certificate is checked for when it is not the host
+		// dialled — above all through a kube: or ssh: forward, whose end is
+		// 127.0.0.1 whatever the server is called, and which a service's
+		// certificate names only by luck. Checked as strictly as the host would
+		// have been: it moves the check, never loosens it. Local for the reason
+		// tls is: what a certificate has to prove is the operator's to say.
+		{Name: "tls-server-name", Type: plugin.String, Default: "", Config: "tls-server-name",
+			Local: true, Help: "name to check the server's certificate for, in place of the address's host"},
 		{Name: "cert-file", Type: plugin.String, Default: "", Config: "cert-file",
 			Local: true, Help: "client certificate, for a server using mTLS"},
 		{Name: "key-file", Type: plugin.String, Default: "", Config: "key-file",
@@ -95,12 +103,16 @@ func connect(ctx context.Context, req plugin.Request) (*client, *view.Error) {
 	dialer := stdnet.Dialer{Timeout: dialTimeout}
 	var conn stdnet.Conn
 	var err error
-	if req.Bool("tls") || req.String("ca-file") != "" || req.String("cert-file") != "" {
+	// tls-server-name turns TLS on as ca-file does, for the same reason:
+	// through a forward the host turns tls off, and a name given in the
+	// profile beside it would have been a plaintext call to a TLS port, the
+	// name checked by nothing.
+	if req.Bool("tls") || req.String("ca-file") != "" || req.String("cert-file") != "" || serverName(req) != "" {
 		cfg, verr := tlsConfig(req)
 		if verr != nil {
 			return nil, verr
 		}
-		if host, _, splitErr := stdnet.SplitHostPort(addr); splitErr == nil {
+		if host, _, splitErr := stdnet.SplitHostPort(addr); splitErr == nil && cfg.ServerName == "" {
 			cfg.ServerName = host
 		}
 		// tls.Dialer and not tls.DialWithDialer, which takes the deadline and
@@ -149,7 +161,9 @@ func connect(ctx context.Context, req plugin.Request) (*client, *view.Error) {
 // operator's home was answered as no such file.
 func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 	sf := req.Surface()
-	cfg := &tls.Config{MinVersion: tls.VersionTLS12}
+	// ServerName is what the certificate is checked for, and what is sent as
+	// SNI; empty, connect fills it with the host it dials.
+	cfg := &tls.Config{MinVersion: tls.VersionTLS12, ServerName: serverName(req)}
 	if ca := plugin.ExpandHome(req.String("ca-file")); ca != "" {
 		pem, err := os.ReadFile(ca)
 		if err != nil {
@@ -427,26 +441,35 @@ func classify(err error, addr string, sf plugin.Surface) *view.Error {
 // the CA in the setting that already names one, and that a forward is what
 // turned TLS off.
 func classifyDial(err error, addr string, req plugin.Request) *view.Error {
+	// A certificate that is not for the end of a forward the host opened is
+	// no fault of the server's, and not one the address can fix: through a
+	// forward the host fills the address with 127.0.0.1 and a port of its
+	// own, which a service's certificate names only by luck. So the refusal
+	// names the forward and the name the certificate is for, and sends the
+	// reader to tls-server-name, which checks that name in 127.0.0.1's place
+	// — never to anything that checks less. Only when tls-server-name is not
+	// set: a name given and not matched is the certificate's to explain.
 	var nameErr x509.HostnameError
 	if errors.As(err, &nameErr) {
-		if req.Tunnel() != plugin.TunnelNone {
-			return forwardRefusal(addr, nameErr.Certificate, req)
+		if req.Tunnel() != plugin.TunnelNone && serverName(req) == "" {
+			return forwardName(req, nameErr)
 		}
-		return nameRefusal(addr, nameErr.Certificate, req.Surface())
+		return nameRefusal(addr, nameErr, req)
 	}
-	// **Through a forward the way to TLS is ca-file, never tls.** The forward
-	// turns tls off, and given by the caller tls is an input the forward
-	// fills: the host then opens no forward at all, and the call that followed
-	// "try --tls" went to the address config or the default names, and was
-	// answered "nothing is listening" about a server that had just hung up on
-	// plaintext. ca-file turns TLS on and leaves the forward open, and the
-	// certificate is then checked against the forward's address (forwardRefusal).
+	// **Through a forward the way to TLS is ca-file or tls-server-name, never
+	// tls.** The forward turns tls off, and given by the caller tls is an
+	// input the forward fills: the host then opens no forward at all, and the
+	// call that followed "try --tls" went to the address config or the
+	// default names, and was answered "nothing is listening" about a server
+	// that had just hung up on plaintext. Either of the two turns TLS on and
+	// leaves the forward open, and the name is what the certificate is then
+	// checked for, in place of the forward's end.
 	if req.Tunnel() != plugin.TunnelNone && errors.Is(err, io.EOF) {
 		return view.Errorf("redis.conn.closed", "%s closed the connection", addr).
 			WithHint("a TLS server answers a plaintext client by hanging up, and plaintext is what the " +
 				string(req.Tunnel()) + ": forward profile " + req.Profile() + " opened asks for — " +
-				req.Surface().SettingName("ca-file") + " turns TLS on over the forward, where the certificate is " +
-				"checked against " + hostOnly(addr) + " and has to name it")
+				req.Surface().SettingName("ca-file", "tls-server-name") + " each turn TLS on over the forward, " +
+				"and the name is the one the certificate is checked for, since the forward ends at " + hostOnly(addr))
 	}
 	if ca := plugin.ExpandHome(req.String("ca-file")); ca != "" && plugin.CertUntrusted(err) {
 		return view.Errorf("redis.tls.untrusted", "%s presented a certificate nothing here trusts", addr).
@@ -456,29 +479,38 @@ func classifyDial(err error, addr string, req plugin.Request) *view.Error {
 	return classify(err, addr, req.Surface())
 }
 
-// nameRefusal is redis.tls.name: the certificate cert, presented at addr,
-// refused for a host it does not name.
+// nameRefusal is redis.tls.name: the certificate presented at addr refused
+// for the name it was checked for, which it does not carry.
 //
 // The server answered, and "could not reach" misnamed it, with the page of
 // every input for a hint. What the reader needs is the names the
-// certificate does carry, since the host in address is the one it is
-// checked against, and a ca-file cures nothing here: Go checks the name
-// before it builds a chain, so this says nothing about the CA either way.
-// No mode here checks the chain alone, so the ways on are the address and
-// the certificate.
-func nameRefusal(addr string, cert *x509.Certificate, sf plugin.Surface) *view.Error {
-	host := hostOnly(addr)
-	names := certNames(cert)
+// certificate does carry, and the setting the name checked came from — the
+// host in address, or tls-server-name when one is given — and a ca-file
+// cures nothing here: Go checks the name before it builds a chain, so this
+// says nothing about the CA either way. No mode here checks the chain alone,
+// so the ways on are the name and the certificate.
+func nameRefusal(addr string, nameErr x509.HostnameError, req plugin.Request) *view.Error {
+	sf := req.Surface()
+	checked := nameErr.Host
+	if checked == "" {
+		checked = hostOnly(addr)
+	}
+	names := certNames(nameErr.Certificate)
 	if len(names) == 0 {
 		return view.Errorf("redis.tls.name", "%s presented a certificate that names no host, %s or any other",
-			addr, host).
+			addr, checked).
 			WithHint("a certificate with no subject alternative names verifies as no host at all — it reaches " +
-				"the server once it is reissued with " + host + " among them")
+				"the server once it is reissued with " + checked + " among them")
 	}
-	return view.Errorf("redis.tls.name", "%s presented a certificate for %s, not %s",
-		addr, strings.Join(names, ", "), host).
-		WithHint(sf.SettingName("address") + " is the name the certificate is checked against — reach the " +
-			"server by one it carries, or have it reissued with " + host + " among its subject alternative names")
+	refusal := view.Errorf("redis.tls.name", "%s presented a certificate for %s, not %s",
+		addr, strings.Join(names, ", "), checked)
+	if serverName(req) != "" {
+		return refusal.WithHint(sf.SettingName("tls-server-name") + " is the name the certificate is checked " +
+			"against — name one it carries, or have it reissued with " + checked + " among its subject " +
+			"alternative names")
+	}
+	return refusal.WithHint(sf.SettingName("address") + " is the name the certificate is checked against — reach " +
+		"the server by one it carries, or have it reissued with " + checked + " among its subject alternative names")
 }
 
 // certNames is the names cert is for, as a refusal lists them: its subject
@@ -500,54 +532,31 @@ func certNames(cert *x509.Certificate) []string {
 	return names
 }
 
-// forwardRefusal is redis.tls.forward: the certificate cert, presented at
-// addr, refused for a name that was the local end of the forward the call
-// came through.
+// serverName is the name the certificate is checked for in place of the
+// address's host, or "" for the host.
+func serverName(req plugin.Request) string { return strings.TrimSpace(req.String("tls-server-name")) }
+
+// forwardName is redis.tls.forward: the refusal for a certificate checked
+// for the end of a forward the host opened — 127.0.0.1 — and not for the
+// name the server answers as, which the certificate names instead.
 //
-// **Through a forward, TLS checks the certificate against the forward's own
-// address.** connect takes the name to verify from the address it dials, and
-// a kube: or ssh: profile hands it 127.0.0.1, which a certificate issued for
-// the server does not name. The forward turns tls off, but ca-file and
-// cert-file turn TLS on whatever tls says, so a profile naming a CA beside a
-// kube: coordinate failed on every call, as "could not reach" a server that
-// had answered. The name the server goes by is the profile's coordinate,
-// which the host never tells a plugin, so it cannot be checked in its place,
-// and neither is the check turned off: this plugin has no mode that checks
-// the chain alone, so the refusal says what does get through — the forward's
-// plaintext, and a certificate that names the address too.
-func forwardRefusal(addr string, cert *x509.Certificate, req plugin.Request) *view.Error {
-	sf := req.Surface()
-	names := "no host"
-	if sans := certNames(cert); len(sans) > 0 {
+// **The way through is tls-server-name, never tls set to false.** The
+// forward has set tls to false already, and given by the caller it is an
+// input the forward fills: the host then opens no forward at all, and the
+// call goes to the address config or the default names. Nor anything that
+// checks less: this plugin has no mode that checks the chain alone, which
+// would accept any certificate the CA ever signed.
+func forwardName(req plugin.Request, nameErr x509.HostnameError) *view.Error {
+	names := "no name a check reads"
+	if sans := certNames(nameErr.Certificate); len(sans) > 0 {
 		names = strings.Join(sans, ", ")
 	}
-	// Which input turned TLS on, since the forward had turned it off.
-	on := sf.SettingTo("tls", true)
-	switch {
-	case req.String("ca-file") != "":
-		on = sf.SettingName("ca-file")
-	case req.String("cert-file") != "":
-		on = sf.SettingName("cert-file")
-	}
-	// What the hop off this machine already runs inside, which is why the
-	// forward turns TLS off in the first place (plugin.EndpointTLS).
-	carrier := "the SSH connection it rides"
-	if req.Tunnel() == plugin.TunnelKube {
-		carrier = "the API server's TLS"
-	}
-	// **The way through is ca-file and cert-file left out, never tls set to
-	// false.** The forward has set tls to false already, and given by the
-	// caller it is an input the forward fills: the host then opens no forward
-	// at all, and the call goes to the address config or the default names.
-	return view.Errorf("redis.tls.forward", "%s presented a certificate for %s; the TLS %s turns on checked it "+
-		"against %s, the local end of the %s: forward profile %s opened", addr, names, on, hostOnly(addr),
-		req.Tunnel(), req.Profile()).
-		WithHint("through a forward the name a certificate is checked against is the forward's own address, never " +
-			"the server's, and this plugin has no mode that checks the chain alone — without " +
-			sf.SettingName("ca-file", "cert-file") + ", which turn TLS on though the forward turns it off, the " +
-			"connection runs over the forward in the clear, the hop off this machine inside " + carrier + "; a " +
-			"server that takes TLS alone is reached through a forward only by a certificate that names " +
-			hostOnly(addr) + " too")
+	return view.Errorf("redis.tls.forward", "the certificate behind profile %s's %s: forward is for %s, not for %s, "+
+		"where the forward ends", req.Profile(), req.Tunnel(), names, nameErr.Host).
+		WithHint("a forward always ends at 127.0.0.1, so the certificate is checked for the name the server " +
+			"answers as instead: " + req.Surface().SettingName("tls-server-name") + ", which the profile can " +
+			"hold beside its forward, names it — one the certificate is for — and it is checked as strictly " +
+			"as the host it replaces")
 }
 
 func hostOnly(addr string) string {

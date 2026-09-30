@@ -190,52 +190,97 @@ func TestACAFileThatDidNotIssueTheCertificateIsNamed(t *testing.T) {
 	}
 }
 
-// Through a kube: or ssh: forward connect dials 127.0.0.1, and TLS checks the
-// certificate against that. The forward turns tls off, and ca-file turns it
-// back on, so a profile naming a CA beside a coordinate failed on every call
-// as "could not reach" a server that had answered. It is the forward's doing,
-// said as that with what does get through; a certificate that names the
-// address still passes, as it always did, and a name refused on a direct
-// connection is the certificate's, not the forward's.
-func TestANameCheckedThroughAForwardIsNamedAsTheForwards(t *testing.T) {
+// A server behind a kube: or ssh: forward is dialled at the forward's end,
+// 127.0.0.1, and its certificate is for the name it answers as. Through a
+// forward, a certificate for that name alone is refused as one checked for
+// the forward's end, with the name it is for and the setting that checks
+// that name instead — never a tls value, which given by the caller opens no
+// forward; given the name, the call is answered, and the name is what TLS
+// checked; given another, the certificate is refused for it. Reached
+// directly, the address is what the reader chose, and its refusal names it;
+// a certificate that names the forward's end passes as it always did.
+func TestThroughAForwardTheCertificateIsCheckedForTheNameGiven(t *testing.T) {
 	ca := newTestCA(t)
 	caFile := writeFile(t, "ca.pem", ca.pem)
-	values := func(addr string) map[string]any { return map[string]any{"address": addr, "ca-file": caFile} }
 	service := tlsServer(t, ca.serverCert(t, "cache.internal", "cache.prod.svc"))
+	through := func(values map[string]any, tunnel plugin.Tunnel) plugin.Request {
+		values["address"], values["ca-file"] = service, caFile
+		// What the host forces over a forward, and what ca-file and
+		// tls-server-name each turn back on.
+		values["tls"] = false
+		return req(t, "redis.overview", values).WithProfile("prod", tunnel)
+	}
 
-	_, verr := connect(context.Background(), req(t, "redis.overview", values(service)).WithProfile("prod", plugin.TunnelKube))
+	_, verr := connect(context.Background(), through(map[string]any{}, plugin.TunnelKube))
 	if verr == nil || verr.Code != "redis.tls.forward" {
-		t.Fatalf("err = %v, want redis.tls.forward", verr)
+		t.Fatalf("through a forward with no name: %v, want redis.tls.forward", verr)
 	}
-	for _, want := range []string{"a certificate for cache.internal, cache.prod.svc; the TLS --ca-file turns on",
-		"checked it against 127.0.0.1, the local end of the kube: forward profile prod opened"} {
-		if !strings.Contains(verr.Message, want) {
-			t.Errorf("message = %q, want %q in it", verr.Message, want)
-		}
+	if want := "the certificate behind profile prod's kube: forward is for cache.internal, cache.prod.svc, " +
+		"not for 127.0.0.1, where the forward ends"; !strings.Contains(verr.Message, want) {
+		t.Errorf("message = %q, want %q in it", verr.Message, want)
 	}
-	for _, want := range []string{"without --ca-file and --cert-file, which turn TLS on though the forward turns it off",
-		"inside the API server's TLS", "a certificate that names 127.0.0.1 too"} {
-		if !strings.Contains(verr.Hint, want) {
-			t.Errorf("hint = %q, want %q in it", verr.Hint, want)
-		}
+	if !strings.Contains(verr.Hint, "--tls-server-name, which the profile can hold beside its forward") {
+		t.Errorf("hint = %q does not name the setting", verr.Hint)
 	}
-	// --tls=false given by the caller opens no forward, and the call goes to
-	// the config's address instead: the hint never offers it.
-	if strings.Contains(verr.Hint, "--tls") {
+	if strings.Contains(verr.Hint, "--tls ") || strings.Contains(verr.Hint, "--tls=") {
 		t.Errorf("hint = %q offers a tls value, which given by the caller skips the forward", verr.Hint)
 	}
 
-	_, verr = connect(context.Background(), req(t, "redis.overview", values(service)).WithProfile("prod", plugin.TunnelNone))
-	if verr == nil || verr.Code != "redis.tls.name" {
-		t.Errorf("a name refused on a direct connection: %v, want redis.tls.name", verr)
+	c, verr := connect(context.Background(), through(map[string]any{"tls-server-name": "cache.prod.svc"}, plugin.TunnelKube))
+	if verr != nil {
+		t.Fatalf("the name the certificate is for was refused: %s: %s", verr.Code, verr.Message)
+	}
+	c.Close()
+
+	_, verr = connect(context.Background(), through(map[string]any{"tls-server-name": "other.internal"}, plugin.TunnelKube))
+	if verr == nil || verr.Code != "redis.tls.name" || !strings.Contains(verr.Message, "not other.internal") ||
+		!strings.Contains(verr.Hint, "--tls-server-name is the name the certificate is checked against") {
+		t.Errorf("a name the certificate is not for: %v, want redis.tls.name naming the setting", verr)
+	}
+
+	_, verr = connect(context.Background(), through(map[string]any{}, plugin.TunnelNone))
+	if verr == nil || verr.Code != "redis.tls.name" || !strings.Contains(verr.Hint, "--address is the name") {
+		t.Errorf("a name refused on a direct connection: %v, want redis.tls.name naming the address", verr)
 	}
 
 	probes := tlsServer(t, ca.serverCert(t, "cache.internal", "127.0.0.1"))
-	c, verr := connect(context.Background(), req(t, "redis.overview", values(probes)).WithProfile("prod", plugin.TunnelKube))
+	c, verr = connect(context.Background(), req(t, "redis.overview", map[string]any{"address": probes, "ca-file": caFile}).
+		WithProfile("prod", plugin.TunnelKube))
 	if verr != nil {
 		t.Fatalf("a certificate naming the forward's address, through the forward: %s: %s", verr.Code, verr.Message)
 	}
 	c.Close()
+}
+
+// A name given turns TLS on by itself, as ca-file does: through a forward the
+// host has turned tls off, and a name given in the profile beside it would
+// otherwise have been a plaintext call to a TLS port, with nothing checked.
+func TestATLSServerNameTurnsTLSOn(t *testing.T) {
+	ca := newTestCA(t)
+	service := tlsServer(t, ca.serverCert(t, "cache.prod.svc"))
+	_, verr := connect(context.Background(), req(t, "redis.overview", map[string]any{
+		"address": service, "tls": false, "tls-server-name": "cache.prod.svc",
+	}).WithProfile("prod", plugin.TunnelKube))
+	// No ca-file: the handshake happened, and the certificate's issuer is one
+	// nothing here trusts — plaintext would have been a hang-up instead.
+	if verr == nil || verr.Code != "redis.tls.untrusted" {
+		t.Fatalf("err = %v, want redis.tls.untrusted from a TLS handshake", verr)
+	}
+}
+
+// The name is the operator's to say, as everything a connection is checked
+// by is: an agent cannot set it, and a profile or the config can.
+func TestTLSServerNameIsTheOperators(t *testing.T) {
+	for _, f := range connFields() {
+		if f.Name != "tls-server-name" {
+			continue
+		}
+		if !f.Local || f.Config != "tls-server-name" {
+			t.Fatalf("tls-server-name: Local %v, Config %q; want Local and configurable", f.Local, f.Config)
+		}
+		return
+	}
+	t.Fatal("no tls-server-name input")
 }
 
 // A certificate for another name than the one dialled was "could not reach"
@@ -276,7 +321,8 @@ func TestACertificateForAnotherNameIsNamedAsThat(t *testing.T) {
 // A TLS server hangs up on a plaintext client, and "try --tls" is the way on
 // for a direct connection. Through a forward it was a way off it: tls given
 // by the caller opens no forward, and the call went to the default address
-// instead. There ca-file is what turns TLS on, and the forward stays open.
+// instead. There ca-file and tls-server-name are what turn TLS on, and the
+// forward stays open.
 func TestAHangUpThroughAForwardIsNotSentToTLS(t *testing.T) {
 	ln, err := stdnet.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -303,10 +349,13 @@ func TestAHangUpThroughAForwardIsNotSentToTLS(t *testing.T) {
 	if verr == nil || verr.Code != "redis.conn.closed" {
 		t.Fatalf("through a forward: %v, want redis.conn.closed", verr)
 	}
-	if want := "the kube: forward profile prod opened asks for — --ca-file turns TLS on over the forward"; !strings.Contains(verr.Hint, want) {
-		t.Errorf("hint = %q, want %q in it", verr.Hint, want)
+	for _, want := range []string{"the kube: forward profile prod opened asks for — --ca-file and " +
+		"--tls-server-name each turn TLS on over the forward", "since the forward ends at 127.0.0.1"} {
+		if !strings.Contains(verr.Hint, want) {
+			t.Errorf("hint = %q, want %q in it", verr.Hint, want)
+		}
 	}
-	if strings.Contains(verr.Hint, "--tls") {
+	if strings.Contains(verr.Hint, "--tls ") || strings.Contains(verr.Hint, "--tls=") {
 		t.Errorf("hint = %q offers --tls, which given by the caller opens no forward", verr.Hint)
 	}
 }
