@@ -452,8 +452,23 @@ func (s *session) classifyTransport(err error) *view.Error {
 		return view.Errorf("keycloak.timeout", "%s did not answer in time", s.base).
 			WithHint("a firewall that drops rather than refuses looks exactly like this")
 	}
-	return view.Errorf("keycloak.conn.failed", "could not reach %s: %v", s.base, err).
-		WithHint(sf.SettingsHint("keycloak.overview"))
+	failed := view.Errorf("keycloak.conn.failed", "could not reach %s: %v", s.base, err)
+	// A hang-up with no answer, to an http:// URL: Keycloak's HTTPS listener
+	// closes a plain-HTTP connection this way, with no alert and no 400 to
+	// tell it by, and a forward carries plain HTTP unless the profile's
+	// connection says its far end speaks TLS. EOF says no more than that the
+	// server hung up, so it stays conn.failed, and the hint names the likelier
+	// reason and where it is changed rather than the page of every input.
+	if parsed, perr := url.Parse(s.base); perr == nil && parsed.Scheme == "http" && errors.Is(err, io.EOF) {
+		if s.req.Tunnel() != plugin.TunnelNone {
+			return failed.WithHint("a Keycloak serving only HTTPS hangs up on plain HTTP like this, and a forward " +
+				"carries plain HTTP unless the profile's connection says its far end speaks TLS: tunnelTLS: true " +
+				"on that connection")
+		}
+		return failed.WithHint("a Keycloak serving only HTTPS on that port hangs up on plain HTTP like this — " +
+			"an https:// URL is what makes the call TLS: " + sf.SettingName("url") + " names the scheme")
+	}
+	return failed.WithHint(sf.SettingsHint("keycloak.overview"))
 }
 
 // forwardName is the refusal for a certificate checked for the end of a
