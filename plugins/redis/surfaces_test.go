@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/x509"
 	"errors"
 	"io"
@@ -123,6 +124,53 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 			// thrown away and reads the same refusal again.
 			if strings.Contains(said, "pass ") {
 				t.Errorf("an agent is told to pass a setting it cannot: %q", said)
+			}
+		})
+	}
+}
+
+// The listing a missing key offers runs against the server the lookup
+// reached, never whatever the configuration where it is pasted points at:
+// through a profile it names the profile, whose password the lookup may have
+// used; reached directly, the address too, which may be one typed over the
+// profile's, and how and as whom it was reached, and the database the key was
+// looked for in; through a forward the host opened, the profile alone, since
+// the address was the forward's end on 127.0.0.1. An agent gives the profile
+// and nothing Local.
+func TestTheListingAMissingKeyOffersReachesTheServerTheLookupReached(t *testing.T) {
+	srv := newFakeServer(t, map[string]string{"TYPE nope": "+none\r\n", "TTL nope": ":-2\r\n",
+		"SELECT 3": "+OK\r\n"})
+	for _, tc := range []struct {
+		name    string
+		values  map[string]any
+		profile string
+		tunnel  plugin.Tunnel
+		sf      plugin.Surface
+		want    string
+	}{
+		{"no profile", map[string]any{}, "", plugin.TunnelNone, plugin.SurfaceCLI,
+			"rta redis key list <pattern> --address " + srv.addr()},
+		{"a profile reached directly", map[string]any{}, "prod", plugin.TunnelNone, plugin.SurfaceCLI,
+			"rta redis key list <pattern> --profile prod --address " + srv.addr()},
+		{"a profile through a forward", map[string]any{}, "prod", plugin.TunnelKube, plugin.SurfaceCLI,
+			"rta redis key list <pattern> --profile prod`"},
+		{"as a user, in a database", map[string]any{"username": "reader", "db": 3}, "", plugin.TunnelNone,
+			plugin.SurfaceCLI, "rta redis key list <pattern> --address " + srv.addr() + " --username reader --db 3"},
+		{"an agent through a profile", map[string]any{"db": 3}, "prod", plugin.TunnelNone, plugin.SurfaceMCP,
+			`redis_key_list {"pattern":"<pattern>","profile":"prod"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			values := tc.values
+			values["address"], values["key"] = srv.addr(), "nope"
+			r := req(t, "redis.key.get", values).WithProfile(tc.profile, tc.tunnel).WithSurface(tc.sf)
+			c, verr := connect(context.Background(), r)
+			if verr != nil {
+				t.Fatal(verr)
+			}
+			defer c.Close()
+			_, err := keyGetView(context.Background(), c, r)
+			if ve := view.AsError(err, "x"); ve.Code != "redis.key.notfound" || !strings.Contains(ve.Hint, tc.want) {
+				t.Errorf("%s %q, want redis.key.notfound offering %q", ve.Code, ve.Hint, tc.want)
 			}
 		})
 	}

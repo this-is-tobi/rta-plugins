@@ -313,7 +313,8 @@ func keyGetView(ctx context.Context, c *client, req plugin.Request) (view.View, 
 	switch typ.text() {
 	case "none":
 		return nil, view.Errorf("redis.key.notfound", "no key %q on %s", key, c.addr).
-			WithHint("`" + c.sf.Call("redis.key.list", plugin.Arg{Name: "pattern", Value: "<pattern>", Positional: true}) +
+			WithHint("`" + c.sf.Call("redis.key.list", append([]plugin.Arg{
+				{Name: "pattern", Value: "<pattern>", Positional: true}}, reachArgs(req)...)...) +
 				"` shows what exists")
 	case "string":
 		r, err := c.do(ctx, "GET", key)
