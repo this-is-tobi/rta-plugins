@@ -93,6 +93,9 @@ type selection struct {
 	// sf is the surface the call came through, so a failure reading the
 	// cluster names what to call next the way its reader calls it.
 	sf plugin.Surface
+	// profile is the operator's profile the call came through (Request.Profile),
+	// "" for none, which a call named next gives again (callArgs).
+	profile string
 }
 
 func selectionOf(req plugin.Request) (selection, *view.Error) {
@@ -101,6 +104,7 @@ func selectionOf(req plugin.Request) (selection, *view.Error) {
 		namespace:    strings.TrimSpace(req.String("namespace")),
 		allNamespace: req.Bool("all-namespaces"),
 		sf:           req.Surface(),
+		profile:      req.Profile(),
 	}
 	if verr := checkName("context", s.context); verr != nil {
 		return selection{}, verr
@@ -170,6 +174,15 @@ func (s selection) args(rest ...string) []string {
 // cluster found anywhere else is not there — the hint sends its reader to a
 // "not found". Over MCP the context is left out: it is Local, so an agent
 // cannot give one, and its call reads the operator's own, the one s read.
+//
+// **And the profile s came through, on every surface, whenever there was
+// one.** The operator's own context is the one s read only when no profile
+// named another: an agent's call through a profile was handed a call without
+// it, which read the current context — another cluster, where the backup it
+// was told to watch is not. The profile is what reaches the same one again,
+// as Request.Profile says of every line naming a connection once a call is
+// over; at a terminal it stands beside the context, which names the same
+// cluster.
 func (s selection) callArgs(namespace string) []plugin.Arg {
 	var out []plugin.Arg
 	if namespace != "" {
@@ -177,6 +190,9 @@ func (s selection) callArgs(namespace string) []plugin.Arg {
 	}
 	if s.context != "" && s.sf != plugin.SurfaceMCP {
 		out = append(out, plugin.Arg{Name: "context", Value: s.context})
+	}
+	if s.profile != "" {
+		out = append(out, plugin.Arg{Name: "profile", Value: s.profile})
 	}
 	return out
 }
