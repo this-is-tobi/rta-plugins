@@ -126,8 +126,7 @@ func connect(ctx context.Context, req plugin.Request) (*session, *view.Error) {
 	secret := req.String("client-secret")
 	if secret == "" {
 		return nil, view.Errorf("keycloak.secret.missing", "no client secret").
-			WithHint("the secret is read from $" + plugin.LocalEnvVar("keycloak.overview", "client-secret") +
-				" or " + req.Surface().SettingName("client-secret") + ", or mapped from the store in a profile's secrets:")
+			WithHint("the secret is read from " + secretSources(req))
 	}
 	client, verr := httpClient(req)
 	if verr != nil {
@@ -305,6 +304,32 @@ func plaintextServerName(req plugin.Request, base string) *view.Error {
 		" the name its certificate is checked for")
 }
 
+// secretSources names where this call's client secret is read from, for a
+// refusal that has to say where one goes: the variable the host reads, the
+// setting, and the store a profile's secrets: maps from.
+//
+// **The variable is the profile's own while a profile is in play.** The host
+// reads RTA_PROFILE_<PROFILE>_CLIENT_SECRET for one (plugin.ProfileEnvVar),
+// and $RTA_KEYCLOAK_CLIENT_SECRET not at all — plugin.Resolve switches the
+// namespace-wide layer off whenever a profile is active — so a refusal that
+// named the latter sent the reader to export a variable this call would never
+// read. A labeled instance, profile/label, has no variable: the host derives
+// none for one, since a spelling like that could be forged by naming another
+// profile carefully, and its credential comes from secrets: alone.
+func secretSources(req plugin.Request) string {
+	sf := req.Surface()
+	profile := req.Profile()
+	switch {
+	case profile == "":
+		return "$" + plugin.LocalEnvVar("keycloak.overview", "client-secret") + " or " +
+			sf.SettingName("client-secret") + ", or mapped from the store in a profile's secrets:"
+	case strings.Contains(profile, "/"):
+		return sf.SettingName("client-secret") + ", or mapped from the store in profile " + profile + "'s secrets:"
+	}
+	return "$" + plugin.ProfileEnvVar(profile, "client-secret") + " or " + sf.SettingName("client-secret") +
+		", or mapped from the store in profile " + profile + "'s secrets:"
+}
+
 // segment escapes one caller-supplied value into a path segment.
 func segment(v string) string { return url.PathEscape(v) }
 
@@ -324,8 +349,8 @@ func (s *session) classifyToken(code int, body []byte) *view.Error {
 				"lives in; the issuer URL's last segment is its name")
 	case code == http.StatusUnauthorized, code == http.StatusBadRequest && oauthErr == "invalid_client":
 		return view.Errorf("keycloak.auth.failed", "%s refused the client credentials: %s", s.base, firstOf(desc, oauthErr)).
-			WithHint(sf.SettingName("client-id") + " names a confidential client with service accounts enabled, and $" +
-				plugin.LocalEnvVar("keycloak.overview", "client-secret") + " is its secret")
+			WithHint(sf.SettingName("client-id") + " names a confidential client with service accounts enabled, " +
+				"and its secret is read from " + secretSources(s.req))
 	case code == http.StatusBadRequest && oauthErr == "unauthorized_client":
 		return view.Errorf("keycloak.auth.grant", "%s: %s", s.base, firstOf(desc, oauthErr)).
 			WithHint("the client needs \"Service accounts roles\" (client credentials grant) enabled")

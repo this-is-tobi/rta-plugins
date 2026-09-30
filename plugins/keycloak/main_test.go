@@ -453,6 +453,40 @@ func TestARefusedSecretIsNamedAsSuch(t *testing.T) {
 	}
 }
 
+// Through a profile the host reads the profile's own variable for the
+// secret, and the plugin-wide one not at all, so a refusal naming the latter
+// sent the reader to export a variable the call would never read. A labeled
+// instance has no variable, only its secrets: block.
+func TestARefusedSecretNamesTheVariableTheCallRead(t *testing.T) {
+	f := newFakeKeycloak(t)
+	for _, tc := range []struct {
+		profile, want, not string
+	}{
+		{"", "its secret is read from $RTA_KEYCLOAK_CLIENT_SECRET or --client-secret", "RTA_PROFILE_"},
+		{"lab", "its secret is read from $RTA_PROFILE_LAB_CLIENT_SECRET or --client-secret, or mapped from " +
+			"the store in profile lab's secrets:", "RTA_KEYCLOAK_CLIENT_SECRET"},
+		{"lab/eu", "its secret is read from --client-secret, or mapped from the store in profile lab/eu's " +
+			"secrets:", "$"},
+	} {
+		r := reqAt(t, f, "keycloak.overview", map[string]any{}).With(map[string]any{"client-secret": "wrong"}).
+			WithProfile(tc.profile, plugin.TunnelNone)
+		_, err := capability(t, "keycloak.overview").Run(context.Background(), r)
+		verr := view.AsError(err, "")
+		if verr == nil || verr.Code != "keycloak.auth.failed" {
+			t.Fatalf("profile %q: error = %v, want keycloak.auth.failed", tc.profile, err)
+		}
+		if !strings.Contains(verr.Hint, tc.want) || strings.Contains(verr.Hint, tc.not) {
+			t.Errorf("profile %q: hint = %q, want %q in it and no %q", tc.profile, verr.Hint, tc.want, tc.not)
+		}
+	}
+	_, verr := connect(context.Background(), req(t, "keycloak.overview", map[string]any{}).
+		WithProfile("lab", plugin.TunnelNone))
+	if verr == nil || verr.Code != "keycloak.secret.missing" ||
+		!strings.Contains(verr.Hint, "the secret is read from $RTA_PROFILE_LAB_CLIENT_SECRET") {
+		t.Errorf("no secret through a profile: %v, want the profile's variable named", verr)
+	}
+}
+
 func TestAMissingRealmAtTheTokenEndpointIsNamed(t *testing.T) {
 	f := newFakeKeycloak(t)
 	r := reqAt(t, f, "keycloak.overview", map[string]any{})
