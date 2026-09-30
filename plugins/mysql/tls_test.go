@@ -251,6 +251,21 @@ func TestWhatTheServerSaysAboutTLSIsNamedAsThat(t *testing.T) {
 	if required.Code != "mysql.tls.required" || !strings.Contains(required.Hint, "--tls true connects over it") {
 		t.Errorf("3159 = %s: %s, want mysql.tls.required naming --tls true", required.Code, required.Hint)
 	}
+
+	// Through a forward, tls true given by the caller opens no forward, and
+	// the call goes to the default host instead: the forward is named as
+	// what carries no TLS, and the way on is a direct connection.
+	forwarded := classify(&mysql.MySQLError{Number: 3159, Message: "Connections using insecure transport are prohibited"},
+		req(t, "mysql.status", map[string]any{"host": "127.0.0.1", "port": 54321, "tls": "false"}).
+			WithProfile("prod", plugin.TunnelKube))
+	if forwarded.Code != "mysql.tls.required" ||
+		!strings.Contains(forwarded.Message, "the kube: forward profile prod opened carries none") {
+		t.Errorf("3159 through a forward = %s: %s, want the forward named", forwarded.Code, forwarded.Message)
+	}
+	if !strings.Contains(forwarded.Hint, "by a profile with no kube: or ssh: coordinate") ||
+		strings.Contains(forwarded.Hint, "--tls") {
+		t.Errorf("hint = %q, want a direct connection named and no tls to give", forwarded.Hint)
+	}
 }
 
 // A CA named that did not issue the server's certificate is said to be
