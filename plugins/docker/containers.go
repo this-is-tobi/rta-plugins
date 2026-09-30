@@ -356,7 +356,8 @@ func runRemove(ctx context.Context, req plugin.Request) (view.View, error) {
 		return nil, view.Errorf("docker.container.running",
 			"%s is running, and this removes stopped containers only", found.Names).
 			WithHint("stop it first: `" + req.Surface().Call("docker.container.stop",
-				plugin.Arg{Name: "container", Value: found.Names, Positional: true}) + "`")
+				append([]plugin.Arg{{Name: "container", Value: found.Names, Positional: true}},
+					c.callArgs()...)...) + "`")
 	}
 	if req.DryRun {
 		return view.Text{Body: fmt.Sprintf(
