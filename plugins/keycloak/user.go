@@ -153,8 +153,8 @@ func (s *session) user(ctx context.Context, name string) (userRep, *view.Error) 
 		}
 	}
 	return userRep{}, view.Errorf("keycloak.user.unknown", "no user %q in realm %s", name, s.realm).
-		WithHint("`" + s.req.Surface().Call("keycloak.user.list", plugin.Arg{Name: "search", Value: name, Positional: true}) +
-			"` searches by username, email and name")
+		WithHint(nextCall(s.req, "keycloak.user.list", plugin.Arg{Name: "search", Value: name, Positional: true}) +
+			" searches by username, email and name")
 }
 
 func userProfile(u userRep) view.View {

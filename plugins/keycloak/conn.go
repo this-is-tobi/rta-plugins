@@ -330,6 +330,53 @@ func secretSources(req plugin.Request) string {
 		", or mapped from the store in profile " + profile + "'s secrets:"
 }
 
+// reachArgs points a call this one hands its reader at the Keycloak and the
+// realm it read, as the calls s3's and qdrant's messages name are: the
+// profile it came through whenever there was one, since the secret it used
+// may be the profile's and no other layer holds it, and url only when the
+// host opened no forward (Request.Tunnel) — through one, url was 127.0.0.1
+// and a port that closed with the call, and the profile is what reaches the
+// same server again. Then the realm read and the client read as, which a
+// forward does not fill and which may be ones typed over the profile's, and
+// ca-file and tls-server-name when named, which decide what the certificate
+// was checked against.
+//
+// **Without them, the call named reached another realm.** Pasted, it read
+// whatever url and realm the configuration there named: a user "not found"
+// was searched for in a realm it was never in. Over MCP the call gives the
+// profile alone: the rest are Local, and the bridge drops one an agent sends.
+func reachArgs(req plugin.Request) []plugin.Arg {
+	var args []plugin.Arg
+	if profile := req.Profile(); profile != "" {
+		args = append(args, plugin.Arg{Name: "profile", Value: profile})
+	}
+	if req.Surface() == plugin.SurfaceMCP {
+		return args
+	}
+	if req.Tunnel() == plugin.TunnelNone {
+		args = append(args, plugin.Arg{Name: "url", Value: req.String("url")})
+	}
+	for _, name := range []string{"realm", "auth-realm", "client-id", "ca-file", "tls-server-name"} {
+		if v := strings.TrimSpace(req.String(name)); v != "" {
+			args = append(args, plugin.Arg{Name: name, Value: v})
+		}
+	}
+	return args
+}
+
+// nextCall names capability id called with args and reachArgs, for a hint
+// that sends its reader to it next, quoted for the sentence around it — or by
+// its name alone when there is nothing to give, which reads better to an
+// agent than a tool beside an empty object.
+func nextCall(req plugin.Request, id string, args ...plugin.Arg) string {
+	sf := req.Surface()
+	args = append(args, reachArgs(req)...)
+	if len(args) == 0 {
+		return sf.CapabilityName(id)
+	}
+	return "`" + sf.Call(id, args...) + "`"
+}
+
 // segment escapes one caller-supplied value into a path segment.
 func segment(v string) string { return url.PathEscape(v) }
 

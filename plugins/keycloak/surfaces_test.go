@@ -42,7 +42,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 	}{
 		{
 			name: "a flow that is not there",
-			cli:  "`rta keycloak flow list` shows the aliases",
+			cli:  "`rta keycloak flow list --url " + f.URL + " --realm demo --client-id rta-audit` shows the aliases",
 			mcp:  "the `keycloak_flow_list` tool shows the aliases",
 			say: func(sf plugin.Surface) string {
 				return refusal(sf, "keycloak.flow.show", map[string]any{"flow": "nope"})
@@ -50,8 +50,9 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name: "a user that is not there",
-			cli:  "`rta keycloak user list nobody` searches by username, email and name",
-			mcp:  "`keycloak_user_list {\"search\":\"nobody\"}` searches by username, email and name",
+			cli: "`rta keycloak user list nobody --url " + f.URL + " --realm demo --client-id rta-audit` " +
+				"searches by username, email and name",
+			mcp: "`keycloak_user_list {\"search\":\"nobody\"}` searches by username, email and name",
 			say: func(sf plugin.Surface) string {
 				return refusal(sf, "keycloak.user.show", map[string]any{"user": "nobody"})
 			},
@@ -171,6 +172,44 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			}
 			if strings.Contains(said, tc.cli) {
 				t.Errorf("an agent reads the CLI's %q", tc.cli)
+			}
+		})
+	}
+}
+
+// The search a missing user offers reads the Keycloak and the realm the
+// lookup read, never whatever the configuration where it is pasted points
+// at: through a profile it names the profile, whose secret the lookup may have
+// used; reached directly, the URL too, which may be one typed over the
+// profile's; through a forward the host opened, not the URL, which was the
+// forward's end on 127.0.0.1; and the realm and the client every time, which
+// no forward fills. An agent gives the profile and nothing Local.
+func TestTheSearchAMissingUserOffersReadsTheRealmTheLookupRead(t *testing.T) {
+	f := newFakeKeycloak(t)
+	f.admin = true
+	for _, tc := range []struct {
+		name    string
+		profile string
+		tunnel  plugin.Tunnel
+		sf      plugin.Surface
+		want    string
+	}{
+		{"no profile", "", plugin.TunnelNone, plugin.SurfaceCLI,
+			"`rta keycloak user list nobody --url " + f.URL + " --realm demo --client-id rta-audit`"},
+		{"a profile reached directly", "lab", plugin.TunnelNone, plugin.SurfaceCLI,
+			"`rta keycloak user list nobody --profile lab --url " + f.URL + " --realm demo --client-id rta-audit`"},
+		{"a profile through a forward", "lab", plugin.TunnelKube, plugin.SurfaceCLI,
+			"`rta keycloak user list nobody --profile lab --realm demo --client-id rta-audit`"},
+		{"an agent through a profile", "lab", plugin.TunnelNone, plugin.SurfaceMCP,
+			"`keycloak_user_list {\"profile\":\"lab\",\"search\":\"nobody\"}`"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := reqAt(t, f, "keycloak.user.show", map[string]any{"user": "nobody"}).
+				WithProfile(tc.profile, tc.tunnel).WithSurface(tc.sf)
+			_, err := capability(t, "keycloak.user.show").Run(context.Background(), r)
+			verr := view.AsError(err, "")
+			if verr == nil || verr.Code != "keycloak.user.unknown" || !strings.Contains(verr.Hint, tc.want) {
+				t.Errorf("%v, want keycloak.user.unknown offering %s", verr, tc.want)
 			}
 		})
 	}
