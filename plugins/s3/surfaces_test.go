@@ -130,11 +130,11 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "a destination already taken",
-			cli:     "rta s3 object rm reports/q1.csv --bucket shop",
+			cli:     "rta s3 object rm reports/q1.csv --bucket shop --endpoint s3.internal:9000",
 			other:   `s3_object_rm {"key":"reports/q1.csv"}`,
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
-				return rmCall(sf, "shop", "reports/q1.csv")
+				return rmCall(r(sf), "shop", "reports/q1.csv")
 			},
 		},
 		{
@@ -189,6 +189,44 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			}
 			if strings.Contains(said, tc.cli) {
 				t.Errorf("%s reads the CLI's %q", tc.surface, tc.cli)
+			}
+		})
+	}
+}
+
+// The removal a taken destination offers runs against the server the copy
+// reached, never whatever the configuration where it is pasted points at:
+// through a profile it names the profile, whose credentials the copy may have
+// used; reached directly, the endpoint too, which may be one typed over the
+// profile's, and how it was reached when that was protected; through a
+// forward the host opened, the profile alone, since the endpoint was the
+// forward's end on 127.0.0.1. An agent gives the profile and nothing Local.
+func TestTheRemovalOfATakenDestinationReachesTheServerTheCopyReached(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		values  map[string]any
+		profile string
+		tunnel  plugin.Tunnel
+		sf      plugin.Surface
+		want    string
+	}{
+		{"no profile", map[string]any{"endpoint": "s3.internal:9000"}, "", plugin.TunnelNone, plugin.SurfaceCLI,
+			"rta s3 object rm reports/q1.csv --bucket shop --endpoint s3.internal:9000"},
+		{"a profile reached directly", map[string]any{"endpoint": "s3.internal:9000"}, "prod", plugin.TunnelNone,
+			plugin.SurfaceCLI, "rta s3 object rm reports/q1.csv --bucket shop --profile prod --endpoint s3.internal:9000"},
+		{"a profile through a forward", map[string]any{"endpoint": "127.0.0.1:54321"}, "prod", plugin.TunnelKube,
+			plugin.SurfaceCLI, "rta s3 object rm reports/q1.csv --bucket shop --profile prod"},
+		{"over TLS", map[string]any{"endpoint": "s3.internal:9000", "tls": true, "ca-file": "~/ca.pem",
+			"tls-server-name": "minio.svc"}, "", plugin.TunnelNone, plugin.SurfaceCLI,
+			"rta s3 object rm reports/q1.csv --bucket shop --endpoint s3.internal:9000 --tls " +
+				"--ca-file '~/ca.pem' --tls-server-name minio.svc"},
+		{"an agent through a profile", map[string]any{"endpoint": "s3.internal:9000", "tls": true}, "prod",
+			plugin.TunnelNone, plugin.SurfaceMCP, `s3_object_rm {"key":"reports/q1.csv","profile":"prod"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := req(t, "s3.object.copy", tc.values).WithProfile(tc.profile, tc.tunnel).WithSurface(tc.sf)
+			if got := rmCall(r, "shop", "reports/q1.csv"); got != tc.want {
+				t.Errorf("removal = %q, want %q", got, tc.want)
 			}
 		})
 	}
