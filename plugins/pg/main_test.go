@@ -443,6 +443,38 @@ func TestAnEmptySSLRootCertIsOmitted(t *testing.T) {
 	}
 }
 
+// A pg_hba.conf that takes a connection only over TLS answers 28000, as a
+// rejected password does, and the reader was sent to check a password
+// nothing had checked. It is named as what it is; through a forward, whose
+// disable is every call's, the forward is named as what carries no TLS, and
+// no sslmode is offered, since given by the caller one opens no forward.
+func TestAConnectionTakenOnlyOverTLSIsNotAPasswordRefused(t *testing.T) {
+	hba := &pgconn.PgError{Code: "28000",
+		Message: `no pg_hba.conf entry for host "172.17.0.1", user "app", database "app", no encryption`}
+	values := map[string]any{"host": "127.0.0.1", "port": 54321, "sslmode": "disable"}
+
+	direct := classify(hba, req(t, values))
+	if direct.Code != "pg.tls.required" || !strings.Contains(direct.Hint, "--sslmode verify-full connects over it") {
+		t.Errorf("directly: %s %q, want pg.tls.required naming verify-full", direct.Code, direct.Hint)
+	}
+	forwarded := classify(hba, req(t, values).WithProfile("prod", plugin.TunnelKube))
+	if forwarded.Code != "pg.tls.required" ||
+		!strings.Contains(forwarded.Message, "the kube: forward profile prod opened carries none") {
+		t.Errorf("through a forward: %s %q, want the forward named", forwarded.Code, forwarded.Message)
+	}
+	if !strings.Contains(forwarded.Hint, "by a profile with no kube: or ssh: coordinate") ||
+		strings.Contains(forwarded.Hint, "--sslmode") {
+		t.Errorf("hint = %q, want a direct connection named and no sslmode to give", forwarded.Hint)
+	}
+
+	for _, other := range []*pgconn.PgError{{Code: "28000", Message: "role \"app\" is not permitted to log in"},
+		{Code: "28P01", Message: "password authentication failed for user \"app\""}} {
+		if verr := classify(other, req(t, values)); verr.Code != "pg.auth.failed" {
+			t.Errorf("%s %q = %s, want pg.auth.failed as before", other.Code, other.Message, verr.Code)
+		}
+	}
+}
+
 // Every classified failure has to say what to do next. These are the errors
 // people stare at without knowing the next move, which is the whole reason
 // pg is the plugin that proves the contract.
