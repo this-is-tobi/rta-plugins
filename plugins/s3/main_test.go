@@ -208,6 +208,29 @@ func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
 	}
 }
 
+// A certificate's names are the server's to choose, and a verdict quotes
+// them: one valid for "connection refused" or "no route to host" alone, or
+// a revoked one the system names so, is still a certificate that does not
+// verify — never a port nothing listens on or a host no route reaches, as
+// the dial's words, read first, would have had it.
+func TestACertificatesOwnNamesAreNeverReadAsTheDialsFailure(t *testing.T) {
+	r := req(t, "s3.overview", map[string]any{"endpoint": "minio.internal:9000"})
+	open, closing := string(rune(0x201c)), string(rune(0x201d))
+	for _, verdict := range []error{
+		x509.HostnameError{Certificate: &x509.Certificate{DNSNames: []string{syscall.ECONNREFUSED.Error()}},
+			Host: "minio.internal"},
+		x509.HostnameError{Certificate: &x509.Certificate{DNSNames: []string{syscall.EHOSTUNREACH.Error()}},
+			Host: "minio.internal"},
+		errors.New("x509: " + open + syscall.ECONNREFUSED.Error() + closing + " certificate is revoked"),
+	} {
+		err := &url.Error{Op: "Get", URL: "https://minio.internal:9000/",
+			Err: &tls.CertificateVerificationError{Err: verdict}}
+		if got := classify(err, r); got.Code != "s3.tls.rejected" {
+			t.Errorf("%v: classified %s %q, want s3.tls.rejected", verdict, got.Code, got.Message)
+		}
+	}
+}
+
 // timeoutError satisfies net.Error's Timeout() so *url.Error.Timeout()
 // (which asks its wrapped error) reports true, the same shape a real
 // deadline exceeded error from the underlying transport has.

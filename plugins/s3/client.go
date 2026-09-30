@@ -223,35 +223,15 @@ func classify(err error, req plugin.Request) *view.Error {
 		return view.Errorf("s3.host.unknown", "no address for %q", hostOnly(where)).
 			WithHint(sf.DNSHint(hostOnly(where)))
 	}
-	// Short of the host, before the port: a dial that found no way there
-	// reached nothing that could refuse it, and read as refused, an endpoint
-	// behind a VPN that is down, or at an address of another network's, was
-	// "nothing is listening" about a port no packet reached.
+	// The certificate before the dial. A verdict on one is typed, so read
+	// first it answers for nothing else; the dial's questions
+	// (plugin.DialUnroutable, plugin.DialRefused) read an error's words when
+	// it carries no errno, as no verdict does, and a verdict's words hold the
+	// certificate's own names, which are the server's to choose. Read after
+	// them, a certificate valid for "connection refused", or on macOS a
+	// revoked one named so, was nothing listening, on a port that had
+	// answered with a certificate.
 	//
-	// Each read by the operating system's own error (plugin.DialUnroutable,
-	// plugin.DialRefused), never by the *net.OpError around it, which every
-	// failed dial is: read that way, a dial that was reset was "nothing is
-	// listening" too, and one that timed out never reached the timeout below.
-	if plugin.DialUnroutable(err) {
-		reason := err
-		var netErr *stdnet.OpError
-		if errors.As(err, &netErr) {
-			reason = netErr.Err
-		}
-		return view.Errorf("s3.conn.unreachable", "%s cannot be reached from this machine: %v", where, reason).
-			WithHint("no route leads there from here — a VPN or tunnel the server sits behind that is " +
-				"down looks exactly like this, and so does " + sf.SettingName("endpoint") + " naming " +
-				"an address on a network this machine is not on")
-	}
-	if plugin.DialRefused(err) {
-		return view.Errorf("s3.conn.refused", "nothing is listening on %s", where).
-			WithHint("is the server up, and is " + sf.SettingName("endpoint") + " right?")
-	}
-	var urlErr *url.Error
-	if errors.As(err, &urlErr) && urlErr.Timeout() {
-		return view.Errorf("s3.conn.timeout", "%s did not answer in time", where).
-			WithHint("a firewall that drops rather than refuses looks exactly like this")
-	}
 	// The CA, and never TLS off. A server that got as far as presenting a
 	// certificate speaks only TLS on that port — a MinIO given a certs
 	// directory serves HTTPS alone — so turning tls off reaches nothing, and
@@ -294,6 +274,35 @@ func classify(err error, req plugin.Request) *view.Error {
 		return view.Errorf("s3.tls.rejected", "%s presented a certificate that does not verify: %v", where, verifyErr.Err).
 			WithHint("a certificate is checked for " + checked +
 				", its dates and the use it was issued for, as well as for who issued it")
+	}
+	// Short of the host, before the port: a dial that found no way there
+	// reached nothing that could refuse it, and read as refused, an endpoint
+	// behind a VPN that is down, or at an address of another network's, was
+	// "nothing is listening" about a port no packet reached.
+	//
+	// Each read by the operating system's own error (plugin.DialUnroutable,
+	// plugin.DialRefused), never by the *net.OpError around it, which every
+	// failed dial is: read that way, a dial that was reset was "nothing is
+	// listening" too, and one that timed out never reached the timeout below.
+	if plugin.DialUnroutable(err) {
+		reason := err
+		var netErr *stdnet.OpError
+		if errors.As(err, &netErr) {
+			reason = netErr.Err
+		}
+		return view.Errorf("s3.conn.unreachable", "%s cannot be reached from this machine: %v", where, reason).
+			WithHint("no route leads there from here — a VPN or tunnel the server sits behind that is " +
+				"down looks exactly like this, and so does " + sf.SettingName("endpoint") + " naming " +
+				"an address on a network this machine is not on")
+	}
+	if plugin.DialRefused(err) {
+		return view.Errorf("s3.conn.refused", "nothing is listening on %s", where).
+			WithHint("is the server up, and is " + sf.SettingName("endpoint") + " right?")
+	}
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) && urlErr.Timeout() {
+		return view.Errorf("s3.conn.timeout", "%s did not answer in time", where).
+			WithHint("a firewall that drops rather than refuses looks exactly like this")
 	}
 	return view.Errorf("s3.conn.failed", "could not reach %s: %v", where, err).
 		WithHint(sf.SettingsHint("s3.overview"))
