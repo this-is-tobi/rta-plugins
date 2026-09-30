@@ -178,6 +178,29 @@ func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
 	}
 }
 
+// A certificate's names are the server's to choose, and a verdict quotes
+// them: one valid for "connection refused" or "no route to host" alone, or
+// a revoked one the system names so, is still a certificate that does not
+// verify — never a port nothing listens on or a host no route reaches, as
+// the dial's words, read first, would have had it.
+func TestACertificatesOwnNamesAreNeverReadAsTheDialsFailure(t *testing.T) {
+	r := req(t, "vault.seal.status", map[string]any{"address": "https://vault.internal:8200"})
+	open, closing := string(rune(0x201c)), string(rune(0x201d))
+	for _, verdict := range []error{
+		x509.HostnameError{Certificate: &x509.Certificate{DNSNames: []string{syscall.ECONNREFUSED.Error()}},
+			Host: "vault.internal"},
+		x509.HostnameError{Certificate: &x509.Certificate{DNSNames: []string{syscall.EHOSTUNREACH.Error()}},
+			Host: "vault.internal"},
+		errors.New("x509: " + open + syscall.ECONNREFUSED.Error() + closing + " certificate is revoked"),
+	} {
+		err := &url.Error{Op: "Get", URL: "https://vault.internal:8200/v1/sys/seal-status",
+			Err: &tls.CertificateVerificationError{Err: verdict}}
+		if got := classify(err, r); got.Code != "vault.tls.rejected" {
+			t.Errorf("%v: classified %s %q, want vault.tls.rejected", verdict, got.Code, got.Message)
+		}
+	}
+}
+
 // A name DNS cannot resolve is that, and not a port nothing listens on. The
 // HTTP client wraps a failed lookup in a *net.OpError inside a *url.Error,
 // and the refused-dial check, read first, answered "nothing is listening on
