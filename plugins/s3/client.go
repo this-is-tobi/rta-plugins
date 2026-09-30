@@ -357,17 +357,57 @@ func ctxErr(ctx context.Context, req plugin.Request) *view.Error {
 }
 
 // rmCall is the removal that clears the destination a copy or a move found
-// taken, spelled for the surface that will make it. The bucket is Local on
-// s3.object.rm, so an agent's call carries the key alone and runs against
-// the bucket the operator configured — the only one an agent's copy can have
-// written to, since the destination bucket is Local too and defaults to the
-// source's.
-func rmCall(sf plugin.Surface, bucket, key string) string {
+// taken, spelled for the surface that will make it, and pointed at the server
+// the copy reached (reachArgs). The bucket is Local on s3.object.rm, so an
+// agent's call carries the key alone and runs against the bucket the operator
+// configured — the only one an agent's copy can have written to, since the
+// destination bucket is Local too and defaults to the source's.
+func rmCall(req plugin.Request, bucket, key string) string {
+	sf := req.Surface()
 	args := []plugin.Arg{{Name: "key", Value: key, Positional: true}}
 	if sf != plugin.SurfaceMCP {
 		args = append(args, plugin.Arg{Name: "bucket", Value: bucket})
 	}
-	return sf.Call("s3.object.rm", args...)
+	return sf.Call("s3.object.rm", append(args, reachArgs(req)...)...)
+}
+
+// reachArgs points a call this one hands its reader at the server it reached:
+// the profile it came through whenever there was one, since the credentials
+// it used may be the profile's and no other layer holds them, and the
+// endpoint only when the host opened no forward (Request.Tunnel) — through
+// one, the endpoint was 127.0.0.1 and a port that closed with the call, and
+// the profile is what reaches the same server again. Reached directly, the
+// endpoint stays, since it may be one typed over the profile's, and with it
+// how it was reached when that was protected: tls when on, ca-file and
+// tls-server-name when named, as qdrant's restore line carries them.
+//
+// **Without them, the removal reached another server.** A copy made through
+// --profile, or with --endpoint typed, was handed a removal naming neither,
+// and pasted it ran against whatever endpoint the configuration named — a
+// delete on a server the copy never touched, of an object that may well be
+// there under the same name. Over MCP the call gives the profile alone: the
+// rest are Local, and the bridge drops one an agent sends.
+func reachArgs(req plugin.Request) []plugin.Arg {
+	var args []plugin.Arg
+	if profile := req.Profile(); profile != "" {
+		args = append(args, plugin.Arg{Name: "profile", Value: profile})
+	}
+	if req.Surface() == plugin.SurfaceMCP {
+		return args
+	}
+	if req.Tunnel() == plugin.TunnelNone {
+		args = append(args, plugin.Arg{Name: "endpoint", Value: req.String("endpoint")})
+	}
+	if req.Bool("tls") {
+		args = append(args, plugin.Arg{Name: "tls", Value: true})
+	}
+	if ca := req.String("ca-file"); ca != "" {
+		args = append(args, plugin.Arg{Name: "ca-file", Value: ca})
+	}
+	if name := serverName(req); name != "" {
+		args = append(args, plugin.Arg{Name: "tls-server-name", Value: name})
+	}
+	return args
 }
 
 // outHint says how to have an object too large to print written to a file

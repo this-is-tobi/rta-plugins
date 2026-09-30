@@ -59,7 +59,7 @@ func copyFields(bucketHelp, keyHelp string) []plugin.Field {
 func refuseIfTaken(ctx context.Context, client *minio.Client, verb, bucket, key string, req plugin.Request) *view.Error {
 	if _, err := client.StatObject(ctx, bucket, key, minio.StatObjectOptions{}); err == nil {
 		return view.Errorf("s3."+verb+".taken", "%s/%s already exists", bucket, key).
-			WithHint("writing over it would destroy what it holds — remove it first: " + rmCall(req.Surface(), bucket, key))
+			WithHint("writing over it would destroy what it holds — remove it first: " + rmCall(req, bucket, key))
 	} else if minio.ToErrorResponse(err).StatusCode != 404 {
 		// Anything other than "not there" is not permission to proceed: a 403
 		// on the destination means the credentials cannot see it, not that it
