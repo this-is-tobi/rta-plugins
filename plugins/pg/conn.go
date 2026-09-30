@@ -335,6 +335,17 @@ func classify(err error, req plugin.Request) *view.Error {
 	if errors.As(err, &pgErr) {
 		switch pgErr.Code {
 		case "28P01", "28000": // invalid_password, invalid_authorization
+			// **A pg_hba.conf that takes this connection only over TLS is not
+			// a password refused.** It answers 28000 as a rejected password
+			// does, and read as one the reader was sent to check a password
+			// nothing had checked — through a forward, whose disable is every
+			// call's, on every call. By the server's own words for it, which
+			// end "no encryption" in the English a server speaks unless its
+			// lc_messages says otherwise; in another language it is read as
+			// it always was.
+			if pgErr.Code == "28000" && strings.HasSuffix(pgErr.Message, "no encryption") {
+				return tlsRequired(where, req)
+			}
 			// Where the password comes from rather than a verb telling the
 			// reader to set one: pg.status and the reads beside it answer an
 			// agent too, which has no host environment to set and no password
@@ -444,6 +455,36 @@ func classify(err error, req plugin.Request) *view.Error {
 	}
 	return view.Errorf("pg.conn.failed", "could not connect to %s: %v", where, err).
 		WithHint(sf.SettingsHint("pg.status"))
+}
+
+// tlsRequired is pg.tls.required: the server at where takes this connection
+// only over TLS, and it was made without.
+//
+// **Through a forward, not the sslmode that would verify it.** The forward
+// sets disable, and nothing turns TLS back on over one: the host refuses
+// sslmode and sslrootcert beside a kube: or ssh: coordinate, and sslmode
+// given by the caller is an input the forward fills, so the host opens no
+// forward at all and the call goes to the host config or the default
+// names — measured through a kube: profile, "nothing is listening on
+// localhost:5432". A server that insists on TLS is reached directly.
+func tlsRequired(where string, req plugin.Request) *view.Error {
+	sf := req.Surface()
+	if req.Tunnel() == plugin.TunnelNone {
+		return view.Errorf("pg.tls.required", "%s accepts this connection over TLS only", where).
+			WithHint(sf.SettingTo("sslmode", "verify-full") + " connects over it, with " + sf.SettingName("sslrootcert") +
+				" naming the CA if the server's certificate is from one of its own")
+	}
+	// What the hop off this machine runs inside, which is why the forward
+	// turns TLS off in the first place (plugin.EndpointTLS).
+	carrier := "the SSH connection it rides"
+	if req.Tunnel() == plugin.TunnelKube {
+		carrier = "the API server's TLS"
+	}
+	return view.Errorf("pg.tls.required", "%s accepts this connection over TLS only, and the %s: forward "+
+		"profile %s opened carries none", where, req.Tunnel(), req.Profile()).
+		WithHint("a forward runs the connection in the clear, the hop off this machine inside " + carrier +
+			", and TLS never runs through one here — the server is reached over TLS directly, by a profile " +
+			"with no kube: or ssh: coordinate")
 }
 
 // address is host and port as one address, an IPv6 literal bracketed, for
