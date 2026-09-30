@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -532,6 +533,71 @@ func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
 		if got.Code == "qdrant.tls.rejected" && !strings.Contains(got.Message, tc.err.Error()) {
 			t.Errorf("%s: %q does not quote the verdict", tc.name, got.Message)
 		}
+	}
+}
+
+// A Qdrant that speaks only TLS answers a plain-HTTP request with the alert
+// that refuses it, which Go's client quotes as a malformed response: the
+// answer names the scheme, and where it is chosen — tls at the endpoint, and
+// through a forward the profile's tunnelTLS, since the host turns tls off
+// there unless the connection says its far end speaks TLS.
+func TestPlainHTTPToAPortThatSpeaksOnlyTLSNamesTheScheme(t *testing.T) {
+	// What Go's client makes of the alert a TLS-only Qdrant answers a
+	// plain-HTTP request with: the record's bytes, quoted as a response line.
+	alert := strconv.Quote(string([]byte{0x15, 0x03, 0x03, 0x00, 0x02, 0x02, 0x50}))
+	err := &url.Error{Op: "Get", URL: "http://127.0.0.1:54321/collections",
+		Err: errors.New("net/http: HTTP/1.x transport connection broken: malformed HTTP response " + alert)}
+	for _, tc := range []struct {
+		name    string
+		profile string
+		tunnel  plugin.Tunnel
+		sf      plugin.Surface
+		hint    string
+	}{
+		{"reached directly", "", plugin.TunnelNone, plugin.SurfaceCLI, "--tls turns TLS on"},
+		{"reached directly, by an agent", "", plugin.TunnelNone, plugin.SurfaceMCP,
+			"the operator's `tls` setting turns TLS on"},
+		{"through a forward", "lab", plugin.TunnelKube, plugin.SurfaceCLI, "tunnelTLS: true on that connection"},
+	} {
+		r := req(t, "qdrant.overview", map[string]any{"endpoint": "127.0.0.1:54321"}).
+			WithProfile(tc.profile, tc.tunnel).WithSurface(tc.sf)
+		got := classify(err, r)
+		if got.Code != "qdrant.tls.expected" || !strings.Contains(got.Hint, tc.hint) {
+			t.Errorf("%s: %s %q / %q, want qdrant.tls.expected naming %q", tc.name, got.Code, got.Message,
+				got.Hint, tc.hint)
+		}
+	}
+	// With TLS on the answer was never plain HTTP's, whatever it quotes.
+	r := req(t, "qdrant.overview", map[string]any{"endpoint": "127.0.0.1:54321", "tls": true})
+	if got := classify(err, r); got.Code == "qdrant.tls.expected" {
+		t.Errorf("a call over TLS was told it spoke plain HTTP: %q", got.Message)
+	}
+}
+
+// The same, from the real client: a listener that answers whatever it is sent
+// with a TLS alert record, as rustls does a plain-HTTP request, is read as the
+// scheme, so the words Go's client quotes the alert in are the ones matched.
+func TestAnAlertForAPlainHTTPRequestIsReadAsTheScheme(t *testing.T) {
+	l, err := stdnet.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = l.Close() }()
+	go func() {
+		for {
+			c, err := l.Accept()
+			if err != nil {
+				return
+			}
+			_, _ = c.Read(make([]byte, 4096))
+			_, _ = c.Write([]byte{0x15, 0x03, 0x03, 0x00, 0x02, 0x02, 0x32})
+			_ = c.Close()
+		}
+	}()
+	_, verr := collectionTable(context.Background(), req(t, "qdrant.collection.list",
+		map[string]any{"endpoint": l.Addr().String()}))
+	if verr == nil || verr.Code != "qdrant.tls.expected" {
+		t.Fatalf("got %+v, want qdrant.tls.expected", verr)
 	}
 }
 

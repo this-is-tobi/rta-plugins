@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -176,12 +177,7 @@ func slowCall(ctx context.Context, req plugin.Request, method, path string, body
 func newRequest(ctx context.Context, req plugin.Request, method, path string,
 	body io.Reader) (*http.Request, *view.Error) {
 	base := "http://"
-	// ca-file only means anything over TLS, so setting it turns TLS on the
-	// same way etcd's own ca-file does — the alternative is a value that
-	// silently does nothing until --tls is also typed. tls-server-name, for
-	// the same reason: through a forward the host turns tls off, and a name
-	// given in the profile beside it was a plain-HTTP call to a TLS port.
-	if req.Bool("tls") || req.String("ca-file") != "" || serverName(req) != "" {
+	if tlsOn(req) {
 		base = "https://"
 	}
 	base += req.String("endpoint")
@@ -247,6 +243,36 @@ func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 // serverName is the name the certificate is checked for in place of the
 // endpoint's host, or "" for the host.
 func serverName(req plugin.Request) string { return strings.TrimSpace(req.String("tls-server-name")) }
+
+// tlsOn reports whether a call speaks TLS: tls, or anything that only means
+// something over it. ca-file turns it on the same way etcd's own ca-file
+// does — the alternative is a value that silently does nothing until --tls is
+// also typed. tls-server-name, for the same reason: through a forward the
+// host turns tls off, and a name given in the profile beside it was a
+// plain-HTTP call to a TLS port.
+func tlsOn(req plugin.Request) bool {
+	return req.Bool("tls") || req.String("ca-file") != "" || serverName(req) != ""
+}
+
+// tlsAlert is how Go's HTTP client quotes the start of a TLS alert record,
+// the answer a Qdrant that speaks only TLS gives a plain-HTTP request: the
+// client reads it as a response line, and says it is malformed.
+var tlsAlert = "malformed HTTP response " + strings.TrimSuffix(strconv.Quote(string([]byte{0x15, 0x03})), `"`)
+
+// tlsExpected is the refusal for a plain-HTTP call to a port that speaks only
+// TLS. Through a forward that is the host's doing — it turns tls off unless
+// the profile's connection says its far end speaks TLS — so the way out is
+// named there, where an endpoint or a tls typed over the forward's would
+// have named nothing the operator could change.
+func tlsExpected(req plugin.Request) *view.Error {
+	refusal := view.Errorf("qdrant.tls.expected", "this call spoke plain HTTP to a Qdrant that speaks only TLS (%s)",
+		reached(req))
+	if req.Tunnel() != plugin.TunnelNone {
+		return refusal.WithHint("a forward carries plain HTTP unless the profile's connection says its far end " +
+			"speaks TLS: tunnelTLS: true on that connection")
+	}
+	return refusal.WithHint(req.Surface().SettingName("tls") + " turns TLS on")
+}
 
 // maxResponseBytes bounds one response. Points carry payloads and vectors, and
 // a scroll over a collection of documents is genuinely large — this is a
@@ -409,6 +435,15 @@ func classify(err error, req plugin.Request) *view.Error {
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
 		return view.Errorf("qdrant.timeout", "%s did not answer in time", where).
 			WithHint("a firewall that drops rather than refuses looks exactly like this")
+	}
+	// A TLS alert where a response line belongs: plain HTTP to a Qdrant that
+	// speaks only TLS, which a forward carries unless the profile says its far
+	// end does. Read as the failure it quoted, it was "could not reach" a
+	// server that had answered, in bytes, with the page of every input for a
+	// hint. Only for a call that spoke plain HTTP: over TLS no alert reaches
+	// the client as a response line.
+	if !tlsOn(req) && strings.Contains(err.Error(), tlsAlert) {
+		return tlsExpected(req)
 	}
 	return view.Errorf("qdrant.conn.failed", "could not reach %s: %v", where, err).
 		WithHint(sf.SettingsHint("qdrant.overview"))
