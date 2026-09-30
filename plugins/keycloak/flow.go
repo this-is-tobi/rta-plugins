@@ -104,7 +104,7 @@ func (s *session) executions(ctx context.Context, alias string) ([]executionRep,
 	if verr := s.get(ctx, "authentication/flows/"+segment(strings.TrimSpace(alias))+"/executions", nil, &execs); verr != nil {
 		if verr.Code == "keycloak.notfound" {
 			return nil, view.Errorf("keycloak.flow.unknown", "no flow %q in realm %s", alias, s.realm).
-				WithHint(s.req.Surface().CapabilityName("keycloak.flow.list") + " shows the aliases")
+				WithHint(nextCall(s.req, "keycloak.flow.list") + " shows the aliases")
 		}
 		return nil, verr
 	}
