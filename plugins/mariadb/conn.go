@@ -352,7 +352,10 @@ func classify(err error, req plugin.Request) *view.Error {
 			// query that failed: nothing was queried, and the answer is a
 			// setting, not the page of every input. false is what a tunnel
 			// forces, so this is where a server started with
-			// require_secure_transport meets one.
+			// require_secure_transport meets one (tlsThroughForward).
+			if req.Tunnel() != plugin.TunnelNone {
+				return tlsThroughForward(where, req)
+			}
 			return view.Errorf("mariadb.tls.required", "%s accepts connections over TLS only", where).
 				WithHint(req.Surface().SettingTo("tls", "true") + " connects over it, with " +
 					req.Surface().SettingName("ca-file") + " naming the CA if the server's certificate is from one of its own")
@@ -502,6 +505,30 @@ func nameRefusal(where string, cert *x509.Certificate, req plugin.Request) *view
 		where, strings.Join(names, ", "), host).
 		WithHint(sf.SettingName("host") + " is the name the certificate is checked against — reach the " +
 			"server by one it carries, or have it reissued with " + host + " among its subject alternative names")
+}
+
+// tlsThroughForward is mariadb.tls.required for a server reached through
+// the forward a kube: or ssh: profile opened, at where, its local end.
+//
+// **Not tls true, the way on for a direct connection.** The forward turns tls
+// off, and nothing turns it back on over one: the host refuses tls and
+// ca-file beside a coordinate, and tls given by the caller is an input the
+// forward fills, so the host opens no forward at all and the call goes to
+// the host config or the default names. Measured through a kube: profile:
+// the call the hint handed over was "nothing is listening on
+// localhost:3306". A server that insists on TLS is reached directly.
+func tlsThroughForward(where string, req plugin.Request) *view.Error {
+	// What the hop off this machine runs inside, which is why the forward
+	// turns TLS off in the first place (plugin.EndpointTLS).
+	carrier := "the SSH connection it rides"
+	if req.Tunnel() == plugin.TunnelKube {
+		carrier = "the API server's TLS"
+	}
+	return view.Errorf("mariadb.tls.required", "%s accepts connections over TLS only, and the %s: forward "+
+		"profile %s opened carries none", where, req.Tunnel(), req.Profile()).
+		WithHint("a forward runs the connection in the clear, the hop off this machine inside " + carrier +
+			", and TLS never runs through one here — the server is reached over TLS directly, by a profile " +
+			"with no kube: or ssh: coordinate")
 }
 
 // reachHint asks whether the server is up and its address right, naming the
