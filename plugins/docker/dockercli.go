@@ -80,6 +80,9 @@ type connection struct {
 	// sf is the surface the request came through, so a failure names what
 	// to call next the way its reader calls it.
 	sf plugin.Surface
+	// profile is the operator's profile the call came through
+	// (Request.Profile), "" for none.
+	profile string
 }
 
 func connectionOf(req plugin.Request) (connection, *view.Error) {
@@ -87,6 +90,7 @@ func connectionOf(req plugin.Request) (connection, *view.Error) {
 		Host:    strings.TrimSpace(req.String("host")),
 		Context: strings.TrimSpace(req.String("context")),
 		sf:      req.Surface(),
+		profile: req.Profile(),
 	}
 	if verr := checkName("context", c.Context); verr != nil {
 		return connection{}, verr
@@ -109,6 +113,31 @@ func (c connection) args(rest ...string) []string {
 		out = append(out, "--context="+c.Context)
 	}
 	return append(out, rest...)
+}
+
+// callArgs points a call a message hands its reader at the daemon c reached:
+// the host and the context it was given, and the profile the call came
+// through, whenever there was one — the only one of the three an agent can
+// give, the other two being Local, which the bridge drops.
+//
+// Without them the call ran against the daemon the configuration where it
+// was pasted names, and a container there may well share the name: a removal
+// through --host or a profile, refused because its container was running,
+// offered a stop that stopped another machine's.
+func (c connection) callArgs() []plugin.Arg {
+	var out []plugin.Arg
+	if c.sf != plugin.SurfaceMCP {
+		if c.Host != "" {
+			out = append(out, plugin.Arg{Name: "host", Value: c.Host})
+		}
+		if c.Context != "" {
+			out = append(out, plugin.Arg{Name: "context", Value: c.Context})
+		}
+	}
+	if c.profile != "" {
+		out = append(out, plugin.Arg{Name: "profile", Value: c.profile})
+	}
+	return out
 }
 
 // run executes docker and returns its stdout.
