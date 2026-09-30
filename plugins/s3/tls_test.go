@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
@@ -55,11 +56,22 @@ func TestCAFileTrustsATunneledServersOwnCertificate(t *testing.T) {
 	if !strings.Contains(verr.Hint, "--ca-file") || strings.Contains(verr.Hint, "false") {
 		t.Errorf("hint = %q, want the CA named in --ca-file and no TLS off", verr.Hint)
 	}
+	// Plain HTTP to it is Go's listener refusing, MinIO's among them, and the
+	// answer names the scheme rather than quoting the refusal as the server's.
 	_, err = runOverview(context.Background(), req(t, "s3.overview", map[string]any{
 		"endpoint": endpoint, "tls": false,
 	}))
-	if verr, ok := err.(*view.Error); !ok || verr.Code != "s3.request.failed" {
-		t.Fatalf("plain HTTP against a TLS server answered %v, want the server's refusal", err)
+	if verr, ok := err.(*view.Error); !ok || verr.Code != "s3.tls.expected" || !strings.Contains(verr.Hint, "--tls") {
+		t.Fatalf("plain HTTP against a TLS server answered %v, want s3.tls.expected naming --tls", err)
+	}
+	// Through a forward the host turned tls off, and the way out is the
+	// profile's: tunnelTLS on its connection.
+	_, err = runOverview(context.Background(), req(t, "s3.overview", map[string]any{
+		"endpoint": endpoint, "tls": false,
+	}).WithProfile("lab", plugin.TunnelKube))
+	if verr, ok := err.(*view.Error); !ok || verr.Code != "s3.tls.expected" ||
+		!strings.Contains(verr.Hint, "tunnelTLS: true on that connection") {
+		t.Fatalf("plain HTTP through a forward answered %v, want s3.tls.expected naming tunnelTLS", err)
 	}
 
 	// With ca-file naming the server's own certificate: the handshake
