@@ -471,6 +471,31 @@ func classifyDial(err error, addr string, req plugin.Request) *view.Error {
 				req.Surface().SettingName("ca-file", "tls-server-name") + " each turn TLS on over the forward, " +
 				"and the name is the one the certificate is checked for, since the forward ends at " + hostOnly(addr))
 	}
+	// **A port on this machine with nothing on it is a forward that exited**
+	// far more often than a server that is down, and "a server bound to
+	// localhost only answers from its own host", classify's hint for a
+	// refusal, is no question to ask about one. Through a forward the host
+	// opened, the port was that forward's end, opened for this call and gone
+	// before the call reached it; without one, a loopback address is a server
+	// on this machine or a port-forward the operator runs, as pg's refusal
+	// says.
+	if plugin.DialRefused(err) {
+		switch {
+		case req.Tunnel() != plugin.TunnelNone:
+			behind := "the pod behind it restarts"
+			if req.Tunnel() == plugin.TunnelSSH {
+				behind = "the SSH connection it rides drops"
+			}
+			return view.Errorf("redis.conn.refused", "nothing is listening on %s, where profile %s's %s: forward ends",
+				addr, req.Profile(), req.Tunnel()).
+				WithHint("a local port with nothing on it is a port-forward that exited — this one was opened for " +
+					"this call and was gone before the call reached it, as a forward is when " + behind)
+		case loopback(hostOnly(addr)):
+			return view.Errorf("redis.conn.refused", "nothing is listening on %s", addr).
+				WithHint("redis listens on 6379 by default, and a local port with nothing on it is a server not " +
+					"running on this machine or a port-forward that exited — check the terminal running it")
+		}
+	}
 	if ca := plugin.ExpandHome(req.String("ca-file")); ca != "" && plugin.CertUntrusted(err) {
 		return view.Errorf("redis.tls.untrusted", "%s presented a certificate nothing here trusts", addr).
 			WithHint(ca + ", which " + req.Surface().SettingName("ca-file") + " names, does not hold the CA that " +
@@ -557,6 +582,16 @@ func forwardName(req plugin.Request, nameErr x509.HostnameError) *view.Error {
 			"answers as instead: " + req.Surface().SettingName("tls-server-name") + ", which the profile can " +
 			"hold beside its forward, names it — one the certificate is for — and it is checked as strictly " +
 			"as the host it replaces")
+}
+
+// loopback reports whether host names this machine, by parse and by name:
+// an operator writes "localhost" about as often as "127.0.0.1".
+func loopback(host string) bool {
+	if host == "localhost" {
+		return true
+	}
+	ip := stdnet.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 func hostOnly(addr string) string {

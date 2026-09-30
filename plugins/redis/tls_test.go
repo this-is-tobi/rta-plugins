@@ -360,6 +360,44 @@ func TestAHangUpThroughAForwardIsNotSentToTLS(t *testing.T) {
 	}
 }
 
+// A port on this machine with nothing on it is a forward that exited far more
+// often than a server that is down. Through the host's forward it is said to
+// be that forward's end, gone before the call reached it; reached directly,
+// a loopback address is a server not running here or a port-forward the
+// operator runs; elsewhere the refusal is the server's port.
+func TestARefusalOnThisMachineIsAForwardThatExited(t *testing.T) {
+	ln, err := stdnet.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	closed := ln.Addr().String()
+	_ = ln.Close()
+	values := map[string]any{"address": closed}
+
+	_, verr := connect(context.Background(), req(t, "redis.overview", values).WithProfile("prod", plugin.TunnelKube))
+	if verr == nil || verr.Code != "redis.conn.refused" {
+		t.Fatalf("through a forward: %v, want redis.conn.refused", verr)
+	}
+	if want := "where profile prod's kube: forward ends"; !strings.Contains(verr.Message, want) {
+		t.Errorf("message = %q, want %q in it", verr.Message, want)
+	}
+	if want := "a port-forward that exited — this one was opened for this call"; !strings.Contains(verr.Hint, want) {
+		t.Errorf("hint = %q, want %q in it", verr.Hint, want)
+	}
+
+	_, verr = connect(context.Background(), req(t, "redis.overview", values))
+	if verr == nil || verr.Code != "redis.conn.refused" || !strings.Contains(verr.Hint, "a port-forward that exited — "+
+		"check the terminal running it") {
+		t.Errorf("a loopback address reached directly: %v, want the forward the operator runs named", verr)
+	}
+
+	far := classifyDial(&stdnet.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)},
+		"10.0.0.1:6379", req(t, "redis.overview", nil))
+	if far.Code != "redis.conn.refused" || strings.Contains(far.Hint, "port-forward") {
+		t.Errorf("another machine's refusal: %s %q, want no forward in it", far.Code, far.Hint)
+	}
+}
+
 // A failed dial is read by the operating system's own error, never by the
 // *net.OpError around it, which every broken socket call is: a server behind
 // a VPN that was down, and one that reset the connection, were each "nothing
