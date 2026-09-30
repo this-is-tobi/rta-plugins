@@ -374,36 +374,16 @@ func (s *session) classifyTransport(err error) *view.Error {
 		return view.Errorf("keycloak.host.unknown", "no address for %q", s.host()).
 			WithHint(s.req.Surface().DNSHint(s.host()))
 	}
-	// Short of the host, before the port: a dial that found no way there
-	// reached nothing that could refuse it, and read as refused, a Keycloak
-	// behind a VPN that is down, or at an address of another network's, was
-	// "nothing is listening" about a port no packet reached.
-	//
-	// Each read by the operating system's own error (plugin.DialUnroutable,
-	// plugin.DialRefused), never by the *net.OpError around it, which every
-	// failed dial is: read that way, a dial that was reset was "nothing is
-	// listening" too, and one that timed out never reached the timeout below.
 	sf := s.req.Surface()
-	if plugin.DialUnroutable(err) {
-		reason := err
-		var netErr *stdnet.OpError
-		if errors.As(err, &netErr) {
-			reason = netErr.Err
-		}
-		return view.Errorf("keycloak.conn.unreachable", "%s cannot be reached from this machine: %v", s.base, reason).
-			WithHint("no route leads there from here — a VPN or tunnel the server sits behind that is " +
-				"down looks exactly like this, and so does " + sf.SettingName("url") + " naming " +
-				"an address on a network this machine is not on")
-	}
-	if plugin.DialRefused(err) {
-		return view.Errorf("keycloak.conn.refused", "nothing is listening on %s", s.base).
-			WithHint("is the server up, and is " + sf.SettingName("url") + " right?")
-	}
-	var urlErr *url.Error
-	if errors.As(err, &urlErr) && urlErr.Timeout() {
-		return view.Errorf("keycloak.timeout", "%s did not answer in time", s.base).
-			WithHint("a firewall that drops rather than refuses looks exactly like this")
-	}
+	// The certificate before the dial. A verdict on one is typed, so read
+	// first it answers for nothing else; the dial's questions
+	// (plugin.DialUnroutable, plugin.DialRefused) read an error's words when
+	// it carries no errno, as no verdict does, and a verdict's words hold the
+	// certificate's own names, which are the server's to choose. Read after
+	// them, a certificate valid for "connection refused", or on macOS a
+	// revoked one named so, was nothing listening, on a port that had
+	// answered with a certificate.
+	//
 	// The CA named as where it belongs, not as something to pass: over MCP
 	// ca-file is the operator's setting, Local, and an agent told to pass it
 	// has no such argument to give and would read this refusal again. Only for
@@ -442,6 +422,35 @@ func (s *session) classifyTransport(err error) *view.Error {
 		return view.Errorf("keycloak.tls.rejected", "%s presented a certificate that does not verify: %v", s.base, verifyErr.Err).
 			WithHint("a certificate is checked for " + checked +
 				", its dates and the use it was issued for, as well as for who issued it")
+	}
+	// Short of the host, before the port: a dial that found no way there
+	// reached nothing that could refuse it, and read as refused, a Keycloak
+	// behind a VPN that is down, or at an address of another network's, was
+	// "nothing is listening" about a port no packet reached.
+	//
+	// Each read by the operating system's own error (plugin.DialUnroutable,
+	// plugin.DialRefused), never by the *net.OpError around it, which every
+	// failed dial is: read that way, a dial that was reset was "nothing is
+	// listening" too, and one that timed out never reached the timeout below.
+	if plugin.DialUnroutable(err) {
+		reason := err
+		var netErr *stdnet.OpError
+		if errors.As(err, &netErr) {
+			reason = netErr.Err
+		}
+		return view.Errorf("keycloak.conn.unreachable", "%s cannot be reached from this machine: %v", s.base, reason).
+			WithHint("no route leads there from here — a VPN or tunnel the server sits behind that is " +
+				"down looks exactly like this, and so does " + sf.SettingName("url") + " naming " +
+				"an address on a network this machine is not on")
+	}
+	if plugin.DialRefused(err) {
+		return view.Errorf("keycloak.conn.refused", "nothing is listening on %s", s.base).
+			WithHint("is the server up, and is " + sf.SettingName("url") + " right?")
+	}
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) && urlErr.Timeout() {
+		return view.Errorf("keycloak.timeout", "%s did not answer in time", s.base).
+			WithHint("a firewall that drops rather than refuses looks exactly like this")
 	}
 	return view.Errorf("keycloak.conn.failed", "could not reach %s: %v", s.base, err).
 		WithHint(sf.SettingsHint("keycloak.overview"))
