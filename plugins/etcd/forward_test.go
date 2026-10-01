@@ -175,3 +175,25 @@ func TestTheServerNameTurnsTLSOn(t *testing.T) {
 		t.Errorf("got %s %q, want the handshake's own verdict", verr.Code, verr.Message)
 	}
 }
+
+// A port that takes the connection and answers nothing etcd's client reads
+// is, among other things, a client port serving TLS to a plaintext client.
+// Through a forward the way on is not tls, which the host turns off for the
+// forward and refuses beside one, but what turns TLS on over it: a CA file,
+// or the name the certificate is checked for.
+func TestThroughAForwardAPortThatAnswersNothingNamesWhatTurnsTLSOn(t *testing.T) {
+	plain := target{addr: "127.0.0.1:2379", reachable: true}
+	for _, c := range []struct {
+		tunnel       plugin.Tunnel
+		want, unwant string
+	}{
+		{plugin.TunnelKube, "--ca-file", "without --tls"},
+		{plugin.TunnelNone, "without --tls on", "--ca-file"},
+	} {
+		r := req(t, "etcd.overview", nil).WithProfile("lab", c.tunnel)
+		verr := wrongPort(r, plain)
+		if !strings.Contains(verr.Hint, c.want) || strings.Contains(verr.Hint, c.unwant) {
+			t.Errorf("%q: hint %q, want %q and not %q", c.tunnel, verr.Hint, c.want, c.unwant)
+		}
+	}
+}
