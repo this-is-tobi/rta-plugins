@@ -99,7 +99,7 @@ func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
 		{"sealed", &vaultapi.ResponseError{StatusCode: 412}, "vault.sealed"},
 		{"server error", &vaultapi.ResponseError{StatusCode: 500, Errors: []string{"internal error"}}, "vault.request.failed"},
 		{"kv secret missing", vaultapi.ErrSecretNotFound, "vault.notfound"},
-		{"refused", &net.OpError{Op: "dial", Err: errors.New("connection refused")}, "vault.conn.refused"},
+		{"refused", &net.OpError{Op: "dial", Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)}, "vault.conn.refused"},
 		// A dial is read by the operating system's error it carries, never by
 		// the *net.OpError every failed dial is: a reset refused nothing, a
 		// dial that timed out is a timeout, and a host no route reaches was
