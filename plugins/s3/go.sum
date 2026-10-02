@@ -122,8 +122,8 @@ github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXl
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/stretchr/testify v1.12.0 h1:K6Mr6jO9JICuend/5xzTM03ydSV3vdNRYAdPSukj8uI=
 github.com/stretchr/testify v1.12.0/go.mod h1:bOYBZb5qJ00vPzWfIqBUZPaxK8jWiXc6d3ErP4Ca9Gw=
-github.com/this-is-tobi/rta v0.32.0 h1:sOSmK43wKsOZMZ25H0+r6R8kNZ5ZmNPNhtVH0v8NXL4=
-github.com/this-is-tobi/rta v0.32.0/go.mod h1:4Lj2ZIh4UXKDDDtsqqgVUZPI+Tt6NYon5K18Hi88XIs=
+github.com/this-is-tobi/rta v0.33.0 h1:o5eK/MIRayS+NOIrBloukmEjt6IGEGMlmB3G9BzpbmY=
+github.com/this-is-tobi/rta v0.33.0/go.mod h1:4Lj2ZIh4UXKDDDtsqqgVUZPI+Tt6NYon5K18Hi88XIs=
 github.com/tinylib/msgp v1.6.4 h1:mOwYbyYDLPj35mkA2BjjYejgJk9BuHxDdvRnb6v2ZcQ=
 github.com/tinylib/msgp v1.6.4/go.mod h1:RSp0LW9oSxFut3KzESt5Voq4GVWyS+PSulT77roAqEA=
 github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e h1:JVG44RsyaB9T2KIHavMF/ppJZNG9ZpyihvCd0w101no=
