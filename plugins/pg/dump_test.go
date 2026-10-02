@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"errors"
+	"net"
+	"os"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -209,7 +212,7 @@ func TestAnIdentifierCarryingAQuoteIsEscapedRatherThanClosing(t *testing.T) {
 // would have turned every connection failure into a bare message.
 func TestADriverErrorIsStillClassified(t *testing.T) {
 	r := reqFor(t, "pg.query", map[string]any{"host": "db.internal", "port": 5432})
-	got := classify(errors.New("dial tcp: connection refused"), r)
+	got := classify(&net.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)}, r)
 	if got.Code != "pg.conn.refused" {
 		t.Fatalf("code = %q, want pg.conn.refused", got.Code)
 	}

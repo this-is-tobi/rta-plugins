@@ -134,7 +134,7 @@ func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
 		{"bad signature", minio.ErrorResponse{Code: minio.SignatureDoesNotMatch}, "s3.auth.failed"},
 		{"bucket exists", minio.ErrorResponse{Code: minio.BucketAlreadyExists, BucketName: "b"}, "s3.bucket.exists"},
 		{"other s3 error", minio.ErrorResponse{Code: "SomeOtherCode", Message: "m"}, "s3.request.failed"},
-		{"refused", &net.OpError{Op: "dial", Err: errors.New("connection refused")}, "s3.conn.refused"},
+		{"refused", &net.OpError{Op: "dial", Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)}, "s3.conn.refused"},
 		// A dial is read by the operating system's error it carries, never by
 		// the *net.OpError every failed dial is: a reset refused nothing, and
 		// a host no route reaches was sent to check a port.

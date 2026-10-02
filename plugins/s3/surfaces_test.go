@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/minio/minio-go/v7"
@@ -88,7 +89,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			other:   "is the server up, and is the operator's `endpoint` setting right?",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
-				return refusal(classify(&net.OpError{Op: "dial", Err: errors.New("connection refused")}, r(sf)))
+				return refusal(classify(&net.OpError{Op: "dial", Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)}, r(sf)))
 			},
 		},
 		{

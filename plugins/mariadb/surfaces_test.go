@@ -5,8 +5,10 @@ import (
 	"crypto/x509"
 	"errors"
 	stdnet "net"
+	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/go-sql-driver/mysql"
@@ -55,7 +57,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			other:   "is the server up, and are the operator's `host` and `port` settings right?",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
-				return refusal(classify(&stdnet.OpError{Op: "dial", Net: "tcp", Err: errors.New("connection refused")},
+				return refusal(classify(&stdnet.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)},
 					req(t, "mariadb.overview", nil).WithSurface(sf)))
 			},
 		},

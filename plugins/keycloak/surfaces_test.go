@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -111,7 +112,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			mcp:  "is the server up, and is the operator's `url` setting right?",
 			say: func(sf plugin.Surface) string {
 				s := &session{req: req(t, "keycloak.overview", nil).WithSurface(sf), base: "http://127.0.0.1:1"}
-				verr := s.classifyTransport(&stdnet.OpError{Op: "dial", Net: "tcp", Err: errors.New("connection refused")})
+				verr := s.classifyTransport(&stdnet.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)})
 				return verr.Message + "\n" + verr.Hint
 			},
 		},

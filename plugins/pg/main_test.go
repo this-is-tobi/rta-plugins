@@ -488,7 +488,7 @@ func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
 		{"bad password", &pgconn.PgError{Code: "28P01"}, "pg.auth.failed"},
 		{"no such database", &pgconn.PgError{Code: "3D000"}, "pg.database.missing"},
 		{"not permitted", &pgconn.PgError{Code: "42501"}, "pg.denied"},
-		{"refused", &net.OpError{Op: "dial", Err: errors.New("connection refused")}, "pg.conn.refused"},
+		{"refused", &net.OpError{Op: "dial", Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)}, "pg.conn.refused"},
 		{"unknown host", &net.DNSError{Err: "no such host", Name: "db.internal"}, "pg.host.unknown"},
 		{"timed out", context.DeadlineExceeded, "pg.conn.timeout"},
 		{"no TLS", errors.New("server does not support SSL"), "pg.tls.unsupported"},
