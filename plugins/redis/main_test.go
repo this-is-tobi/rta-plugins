@@ -406,6 +406,43 @@ func TestKeyGetMasksTheValueAndRefusesAMissingKey(t *testing.T) {
 	}
 }
 
+// What the descriptions say about a stored value is what the result does with
+// it. rta masks every field a plugin marks redacted, on every surface and for a
+// caller holding a grant too, and redis.config.get told its reader that
+// `requirepass` and `masterauth` "come back in clear": they come back as
+// bullets, and redis.key.get promised the value at a key and returned them
+// for it as well. If either is ever returned, this fails and the description
+// has to follow.
+func TestTheDescriptionsSayWhatComesBackMasked(t *testing.T) {
+	srv := newFakeServer(t, map[string]string{
+		"TYPE session:1": "+string\r\n", "TTL session:1": ":300\r\n", "GET session:1": bulk("tok-secret"),
+	})
+	v, err := run(t, "redis.key.get", srv, map[string]any{"key": "session:1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	masked := map[string]bool{"redis.key.get": len(v.(view.KeyValue).Redacted) > 0}
+	configured := view.KeyValue{}
+	for name := range secretDirectives {
+		configured.Redacted = append(configured.Redacted, name)
+	}
+	masked["redis.config.get"] = len(configured.Redacted) > 0
+
+	for _, c := range Plugin().Capabilities {
+		want, checked := masked[c.ID]
+		if !checked {
+			continue
+		}
+		if said := strings.Contains(c.Description, "masked (••••••), on every surface"); said != want {
+			t.Errorf("%s: masks = %v, and its description says so = %v", c.ID, want, said)
+		}
+		delete(masked, c.ID)
+	}
+	for id := range masked {
+		t.Errorf("%s is not declared", id)
+	}
+}
+
 // The asymmetry this test used to miss: string and hash mask their own
 // value, and list, set and sorted set — the identical kind of stored value,
 // one member per row — reached the screen in the clear.

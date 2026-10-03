@@ -27,11 +27,11 @@ func configGetCapability() plugin.Capability {
 		Safety:     plugin.Write,
 		Idempotent: true,
 		Description: "CONFIG GET for a pattern, as a table. Nothing here mutates.\n\n" +
-			"**Classified write for what it discloses.** `requirepass` and `masterauth` come " +
-			"back in clear beside everything else, and no pattern reliably excludes every " +
-			"credential-shaped directive across versions and modules — so the whole command " +
-			"is a write rather than a denylist pretending to be a wall. The two are masked on " +
-			"human surfaces regardless.\n\n" +
+			"**Classified write for what it discloses.** `requirepass`, `masterauth`, `masteruser` " +
+			"and `tls-key-file-pass` come back masked (••••••), on every surface, but no list of " +
+			"credential-shaped directives is complete across versions and modules — so any other " +
+			"one comes back in clear, and the whole command is a write rather than a denylist " +
+			"pretending to be a wall.\n\n" +
 			"The overview already grades the directives that matter most — maxmemory, its " +
 			"policy, persistence — without this.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
