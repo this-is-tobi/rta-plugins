@@ -144,6 +144,25 @@ func (c connection) notFound(name string) *view.Error {
 	return view.Errorf("docker.notfound", "%s", message).WithHint(c.listHint() + " shows what is there")
 }
 
+// startLine is the docker command that starts the container names again, on
+// the daemon c reached, for a person to paste into a shell.
+//
+// **The daemon and every value as one word.** Bare, `docker start web` ran
+// against the daemon of the shell it was pasted into, and a container of the
+// same name there is another container; and a host such as tcp://[::1]:2375
+// holds brackets a shell reads as a pattern. When a container has several
+// names docker lists them joined at commas, and the first is the one to start.
+func (c connection) startLine(names string) string {
+	first, _, _ := strings.Cut(names, ",")
+	args := c.args("start", strings.TrimSpace(first))
+	words := make([]string, 0, len(args)+1)
+	words = append(words, "docker")
+	for _, arg := range args {
+		words = append(words, plugin.ShellWord(arg))
+	}
+	return strings.Join(words, " ")
+}
+
 // listHint is the call that lists every container, stopped ones included, on
 // the daemon c reached.
 func (c connection) listHint() string {
