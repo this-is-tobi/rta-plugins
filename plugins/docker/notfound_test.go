@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
@@ -124,5 +127,38 @@ func TestAnUnreachableDaemonNamesTheProfileThatChoseIt(t *testing.T) {
 		if verr == nil || verr.Code != "docker.unreachable" || !strings.Contains(verr.Hint, tc.hint) {
 			t.Errorf("profile %q: %+v, want docker.unreachable with %q in the hint", tc.profile, verr, tc.hint)
 		}
+	}
+}
+
+// The question a daemon that does not answer is asked again with is
+// `docker info`, and pasted bare it asks the daemon of the shell it lands in,
+// which answers: the line carries the daemon the call reached.
+func TestTheCheckADaemonThatDoesNotAnswerOffersAsksThatDaemon(t *testing.T) {
+	scriptedDocker(t, "echo 'Error response from daemon: boom' >&2\nexit 1\n")
+	r := capReq(t, "docker.overview", map[string]any{"host": "tcp://[::1]:2375", "context": "prod"})
+	c, verr := connectionOf(r)
+	if verr != nil {
+		t.Fatal(verr)
+	}
+	const want = "`docker '--host=tcp://[::1]:2375' --context=prod info`"
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+	if got := classify(ctx, errors.New("signal: killed"), "", nil, c); !strings.Contains(got.Hint, want) {
+		t.Errorf("timeout hint = %q, want %s in it", got.Hint, want)
+	}
+
+	v, err := runOverview(t.Context(), r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var check string
+	for _, p := range v.(view.KeyValue).Pairs {
+		if p.Key == "what to check" {
+			check = p.Value
+		}
+	}
+	if !strings.Contains(check, want) {
+		t.Errorf("what to check = %q, want %s in it", check, want)
 	}
 }
