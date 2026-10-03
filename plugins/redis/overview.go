@@ -391,11 +391,18 @@ func clusterCapability() plugin.Capability {
 		Summary:    "The cluster as this node sees it: state, slots, and every node's role and health",
 		Safety:     plugin.Read,
 		Idempotent: true,
-		Description: "CLUSTER INFO and CLUSTER NODES from one node. A node that is not in a " +
-			"cluster says so rather than failing.\n\n" +
+		Description: "CLUSTER INFO, CLUSTER NODES and CLUSTER SHARDS from one node. A node that " +
+			"is not in a cluster says so rather than failing.\n\n" +
 			"The state row is the one that matters: `fail` means some slot has no reachable " +
 			"primary and the cluster refuses writes to it, which is the outage the per-node " +
-			"rows below explain.",
+			"rows below explain.\n\n" +
+			"Each node's replication offset, and how many bytes each replica is behind its " +
+			"primary, come from CLUSTER SHARDS (redis 7.0 and later; an ACL user needs " +
+			"`+cluster|shards`). They are what the nodes learned of each other from the " +
+			"cluster bus, a heartbeat old, so a few bytes is noise and a replica that is " +
+			"thousands behind is the finding; `redis.overview` against a primary reads the " +
+			"acknowledged offsets exactly. Where the subcommand is not available the table " +
+			"is printed without those columns and says why.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withClient(ctx, req, func(ctx context.Context, c *client) (view.View, error) {
 				return clusterView(ctx, c, req)
@@ -439,20 +446,28 @@ func clusterView(ctx context.Context, c *client, req plugin.Request) (view.View,
 	if err != nil {
 		return nil, classify(err, c.addr, c.sf)
 	}
-	p.Put("nodes", nodesTable(nodesReply.text()))
+	positions, why := clusterPositions(ctx, c)
+	p.Put("nodes", nodesTable(nodesReply.text(), positions))
+	if why != "" {
+		p.Put("offsets", view.Text{Body: why})
+	}
 	return p.View(), nil
 }
 
 // nodesTable reads CLUSTER NODES: one line per node, space-separated —
 // id, address, flags, primary id, ping sent, pong received, epoch, link
-// state, then the slot ranges.
-func nodesTable(raw string) view.Table {
+// state, then the slot ranges. Where CLUSTER SHARDS answered, each node's
+// offset and a replica's distance behind its primary sit beside them, and a
+// node it reports loading is not "ok".
+func nodesTable(raw string, positions map[string]position) view.Table {
 	t := view.Table{Columns: []view.Column{
 		{Name: "ID"},
 		{Name: "Address"},
 		{Name: "Role"},
 		{Name: "Health", Kind: view.KindStatus},
 		{Name: "Replica of"},
+		{Name: "Offset", Kind: view.KindNumber},
+		{Name: "Behind", Kind: view.KindBytes},
 		{Name: "Slots"},
 	}}
 	for _, line := range strings.Split(strings.TrimSpace(raw), "\n") {
@@ -462,6 +477,7 @@ func nodesTable(raw string) view.Table {
 		}
 		flags := strings.Split(f[2], ",")
 		role, health := "replica", "ok"
+		myself := false
 		for _, fl := range flags {
 			switch fl {
 			case "master":
@@ -471,11 +487,27 @@ func nodesTable(raw string) view.Table {
 			case "fail?":
 				health = "pending — suspected failed"
 			case "myself":
-				role += " (this node)"
+				myself = true
 			}
+		}
+		// After the loop, because the flags come as "myself,master": marking
+		// the role where `myself` was read lost the mark to the `master` after
+		// it, so no primary was ever shown as the node being asked.
+		if myself {
+			role += " (this node)"
 		}
 		if f[7] != "connected" {
 			health = "down — link " + f[7]
+		}
+		offset, behind := "-", "-"
+		if pos, ok := positions[f[0]]; ok {
+			offset = strconv.FormatInt(pos.offset, 10)
+			if pos.replica && pos.behind >= 0 {
+				behind = format.Bytes(pos.behind)
+			}
+			if health == "ok" && pos.health == "loading" {
+				health = "pending — loading its dataset"
+			}
 		}
 		replicaOf := "-"
 		if f[3] != "-" {
@@ -486,7 +518,7 @@ func nodesTable(raw string) view.Table {
 			slots = strings.Join(f[8:], " ")
 		}
 		addr, _, _ := strings.Cut(f[1], "@")
-		t.Rows = append(t.Rows, []string{f[0][:min(8, len(f[0]))], addr, role, health, replicaOf, slots})
+		t.Rows = append(t.Rows, []string{f[0][:min(8, len(f[0]))], addr, role, health, replicaOf, offset, behind, slots})
 	}
 	t.Total = len(t.Rows)
 	return t
