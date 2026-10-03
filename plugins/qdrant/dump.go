@@ -215,16 +215,7 @@ func restoreCommand(req plugin.Request, collection, path string) string {
 	args := append([]plugin.Arg{
 		{Name: "file", Value: path, Positional: true},
 		{Name: "collection", Value: collection},
-	}, req.ReachArgs(plugin.Arg{Name: "endpoint", Value: req.String("endpoint")})...)
-	if req.Bool("tls") {
-		args = append(args, plugin.Arg{Name: "tls", Value: true})
-	}
-	if ca := req.String("ca-file"); ca != "" {
-		args = append(args, plugin.Arg{Name: "ca-file", Value: ca})
-	}
-	if name := serverName(req); name != "" {
-		args = append(args, plugin.Arg{Name: "tls-server-name", Value: name})
-	}
+	}, reachArgs(req)...)
 	return req.Surface().Call("qdrant.restore", args...)
 }
 
