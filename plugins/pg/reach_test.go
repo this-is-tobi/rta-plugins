@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -46,6 +47,29 @@ func TestWhatIsWrittenAboutAServerNamesItAsTheReaderReachesItAgain(t *testing.T)
 			}).WithProfile(tc.profile, tc.tunnel), "public", nil, dropped{})
 			if want := `schema "public" of ` + tc.want; !strings.Contains(header, want) {
 				t.Errorf("schema header = %q, want %q in it", firstLines(header, 1), want)
+			}
+		})
+	}
+}
+
+// A refusal the server gave names the server as the reader reaches it again.
+// Through a forward the address the driver dialled is 127.0.0.1 and a port that
+// closed with the call, and "127.0.0.1:54321 rejected the credentials" named
+// nothing the reader could change.
+func TestARefusalTheServerGaveNamesTheProfileAndNotTheEndOfItsForward(t *testing.T) {
+	values := map[string]any{"host": "127.0.0.1", "port": 54321, "user": "app", "database": "shop"}
+	for name, pgErr := range map[string]*pgconn.PgError{
+		"credentials": {Code: "28P01", Message: "password authentication failed"},
+		"no database": {Code: "3D000", Message: "database does not exist"},
+		"certificate": {Code: "28000", Message: "connection requires a valid client certificate"},
+		"wrong role":  {Code: "28000", Message: `certificate authentication failed for user "app"`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			req := reqFor(t, "pg.status", values).WithProfile("prod", plugin.TunnelKube)
+			got := classify(pgErr, req)
+			if !strings.Contains(got.Message, "profile prod (through its kube: forward)") ||
+				strings.Contains(got.Message, "54321") {
+				t.Errorf("message = %q, want the profile and its forward, not the forward's end", got.Message)
 			}
 		})
 	}

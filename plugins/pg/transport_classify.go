@@ -67,7 +67,7 @@ func tlsAlert(text, where string, req plugin.Request) *view.Error {
 // system, and a file that changed between the two.
 func childTLS(stderr string, req plugin.Request) *view.Error {
 	t, sf := transportOf(req), req.Surface()
-	where := address(req)
+	where := req.Reached(address(req))
 	line := func(needles ...string) string {
 		if l := lineMatching(stderr, needles...); l != "" {
 			return l
