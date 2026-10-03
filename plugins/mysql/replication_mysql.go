@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-	"database/sql"
 	"strconv"
 	"strings"
 
@@ -18,11 +16,15 @@ import (
 
 func versionString(raw string) string { return raw }
 
-const capabilitySummary = "Replication in one place: role, lag, positions and connected replicas"
+const capabilitySummary = "Replication and Group Replication state in one place: role, lag, positions, replicas, group"
 
 // clusterNote is what the description adds for a clustering layer this plugin
-// reads. MySQL's group replication is not read.
-const clusterNote = ""
+// reads.
+const clusterNote = "\n\nOn a Group Replication member it adds the group as this server sees it: each " +
+	"member's state, role and applier queue, and whether this server still has a majority — a member " +
+	"that has lost it keeps answering SELECT while the group stops committing writes. The group's tables " +
+	"take SELECT on performance_schema, asked only of a server configured for a group, with the grant " +
+	"named when it is missing."
 
 // MySQL renamed the replication statements in two steps, and removed the old
 // spelling in 8.4: SHOW REPLICA STATUS and SHOW REPLICAS arrived in 8.0.22,
@@ -65,18 +67,27 @@ func variablesStatement() string {
 // one a replica's own account holds — so an account that may monitor and not
 // see its replicas is common and is what this names.
 func privilegeFor(s section, _ serverVersion) string {
-	if s == sectionHosts {
+	switch s {
+	case sectionHosts:
 		return "REPLICATION SLAVE"
+	case sectionCluster:
+		return "SELECT"
 	}
 	return "REPLICATION CLIENT"
 }
 
 func privilegeNote(section) string { return "" }
 
-// grantScope is what a grant is made ON. Every privilege here is global.
-func grantScope(section) string { return "*.*" }
+// grantScope is what a grant is made ON. The replication privileges are
+// global; the group's tables are read with a SELECT on the schema they are in.
+func grantScope(s section) string {
+	if s == sectionCluster {
+		return "performance_schema.*"
+	}
+	return "*.*"
+}
 
-const standaloneDetail = "not replicating from anything, not part of a cluster, and no replica is connected"
+const standaloneDetail = "not replicating from anything, not in a replication group, and no replica is connected"
 
 func vendorPairs(vars map[string]string) []view.Pair {
 	var pairs []view.Pair
@@ -122,5 +133,3 @@ func gtidOf(row map[string]string) gtidState {
 	}
 	return g
 }
-
-func clusterOf(context.Context, *sql.DB) clusterPart { return clusterPart{} }
