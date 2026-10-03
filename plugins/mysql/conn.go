@@ -332,10 +332,10 @@ func classify(err error, req plugin.Request) *view.Error {
 				WithHint("the credentials are valid but not granted on this database — check SHOW GRANTS")
 		case 1049: // ER_BAD_DB_ERROR
 			return view.Errorf("mysql.database.notfound", "%s has no database %q", where, req.String("database")).
-				WithHint(req.Surface().CapabilityName("mysql.database.list") + " shows what is there")
+				WithHint(nextCall(req, "mysql.database.list") + " shows what is there")
 		case 1146: // ER_NO_SUCH_TABLE
 			return view.Errorf("mysql.table.notfound", "%s", myErr.Message).
-				WithHint(req.Surface().CapabilityName("mysql.table.list") + " shows what is there")
+				WithHint(nextCall(req, "mysql.table.list") + " shows what is there")
 		case 1142, 1143: // ER_TABLEACCESS_DENIED_ERROR, ER_COLUMNACCESS_DENIED_ERROR
 			return view.Errorf("mysql.denied", "%s", myErr.Message).
 				WithHint("the credentials are valid but not authorized for this — check SHOW GRANTS")
