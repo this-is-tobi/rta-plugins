@@ -9,6 +9,25 @@ import (
 	"github.com/this-is-tobi/rta/pkg/plugin"
 )
 
+// The snapshot and restore refusals the Vault gave, as the status ones are,
+// name the Vault as the reader reaches it again and not the end of a forward.
+func TestASnapshotRefusalNamesTheProfileAndNotTheEndOfItsForward(t *testing.T) {
+	r := req(t, "vault.snapshot", map[string]any{"address": "http://127.0.0.1:41233"}).
+		WithProfile("prod", plugin.TunnelKube)
+	notFound := &vaultapi.ResponseError{StatusCode: 404}
+	mismatch := &vaultapi.ResponseError{StatusCode: 400, Errors: []string{"could not verify hash file"}}
+	for name, got := range map[string]string{
+		"incomplete":           classifySnapshot(vaultapi.ErrIncompleteSnapshot, r).Message,
+		"snapshot unsupported": classifySnapshot(notFound, r).Message,
+		"restore unsupported":  classifyRestore(notFound, r).Message,
+		"restore mismatch":     classifyRestore(mismatch, r).Message,
+	} {
+		if !strings.Contains(got, "profile prod (through its kube: forward)") || strings.Contains(got, "41233") {
+			t.Errorf("%s: message = %q, want the profile and its forward, not the forward's end", name, got)
+		}
+	}
+}
+
 // A refusal the Vault itself gave names the Vault as the reader reaches it
 // again, and the status check it offers reaches that Vault too. Through a
 // profile's forward the address is 127.0.0.1 and a port that closed with the
