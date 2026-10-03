@@ -49,7 +49,7 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 
 func compactOverview(req plugin.Request, buckets []minio.BucketInfo) view.View {
 	return view.KeyValue{Pairs: []view.Pair{
-		{Key: "endpoint", Value: req.String("endpoint")},
+		{Key: "endpoint", Value: req.Reached(req.String("endpoint"))},
 		{Key: "buckets", Value: strconv.Itoa(len(buckets))},
 	}}
 }
