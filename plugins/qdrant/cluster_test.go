@@ -86,12 +86,12 @@ func TestAnOverviewOfAClusterShowsEveryPeerAndWhichReplicasServe(t *testing.T) {
 		t.Fatalf("peers = %v", peers)
 	}
 	// This peer's own consensus state, in full.
-	if r := peers[0]; r[2] != "leader" || r[3] != "1" || r[4] != "38" || r[5] != "0" || r[6] != "ok" {
+	if r := peers[0]; r[2] != "leader" || r[4] != "1" || r[5] != "38" || r[6] != "0" || r[7] != "ok" {
 		t.Errorf("this peer = %v", r)
 	}
 	// The others: a role from the leader this peer names, and blank numbers,
 	// which are theirs to report.
-	if r := peers[1]; r[0] != "dbwp-oth-qd2" || r[2] != "follower" || r[3] != "-" || r[4] != "-" {
+	if r := peers[1]; r[0] != "dbwp-oth-qd2" || r[2] != "follower" || r[4] != "-" || r[5] != "-" {
 		t.Errorf("another peer = %v", r)
 	}
 
@@ -112,12 +112,12 @@ func TestAPeerIsGradedByWhetherItIsFailingNotByWhetherItEverFailed(t *testing.T)
 	failedAt := time.Date(2026, 10, 3, 0, 31, 4, 516454383, time.UTC)
 
 	now := peersTable(cs, failedAt.Add(2*time.Second)).Rows[2]
-	if !strings.HasPrefix(now[6], "fail — cannot be messaged: 18 failed messages to it, the last: The service is currently unavailable: Failed to connect, error: transport error") {
-		t.Errorf("failing now = %q", now[6])
+	if !strings.HasPrefix(now[7], "fail — cannot be messaged: 18 failed messages to it, the last: The service is currently unavailable: Failed to connect, error: transport error") {
+		t.Errorf("failing now = %q", now[7])
 	}
 	past := peersTable(cs, failedAt.Add(2*time.Hour)).Rows[2]
-	if past[6] != "ok — 18 failed messages in the past, the last 2h ago" {
-		t.Errorf("failed in the past = %q", past[6])
+	if past[7] != "ok — 18 failed messages in the past, the last 2h ago" {
+		t.Errorf("failed in the past = %q", past[7])
 	}
 
 	// A server that does not date its failures: the safer reading.
@@ -127,7 +127,7 @@ func TestAPeerIsGradedByWhetherItIsFailingNotByWhetherItEverFailed(t *testing.T)
 		LatestError string `json:"latest_error"`
 		At          string `json:"latest_error_timestamp"`
 	}{"http://dbwp-oth-qd3:6335/": {Count: 1, LatestError: "transport error"}}
-	if got := peersTable(undated, failedAt).Rows[2][6]; got != "warn — 1 failed message to it, the last: transport error" {
+	if got := peersTable(undated, failedAt).Rows[2][7]; got != "warn — 1 failed message to it, the last: transport error" {
 		t.Errorf("undated = %q", got)
 	}
 }
@@ -136,10 +136,10 @@ func TestAPeerIsGradedByWhetherItIsFailingNotByWhetherItEverFailed(t *testing.T)
 // and keeps the numbers on the follower's own: each peer describes itself.
 func TestAFollowerDescribesItselfAndNamesTheLeader(t *testing.T) {
 	rows := peersTable(stateOf(t, fxClusterFollower), time.Now()).Rows
-	if len(rows) != 2 || rows[0][0] != "dbwp-oth-qd2 (this peer)" || rows[0][2] != "follower" || rows[0][4] != "6" {
+	if len(rows) != 2 || rows[0][0] != "dbwp-oth-qd2 (this peer)" || rows[0][2] != "follower" || rows[0][5] != "6" {
 		t.Errorf("this peer = %v", rows)
 	}
-	if rows[1][0] != "dbwp-oth-qd1" || rows[1][2] != "leader" || rows[1][4] != "-" {
+	if rows[1][0] != "dbwp-oth-qd1" || rows[1][2] != "leader" || rows[1][5] != "-" {
 		t.Errorf("the leader = %v", rows[1])
 	}
 
@@ -150,7 +150,7 @@ func TestAFollowerDescribesItselfAndNamesTheLeader(t *testing.T) {
 	cs.info.PeerID = 5204490162315831
 	cs.info.RaftInfo.Role = "Follower"
 	third := peersTable(cs, time.Now()).Rows[2]
-	if third[0] != "dbwp-oth-qd3" || !strings.HasPrefix(third[6], "info — a follower messages only the leader") {
+	if third[0] != "dbwp-oth-qd3" || !strings.HasPrefix(third[7], "info — a follower messages only the leader") {
 		t.Errorf("a peer a follower cannot see = %v", third)
 	}
 }
@@ -174,7 +174,7 @@ func TestThePeerAskedGradesItsOwnConsensus(t *testing.T) {
 	} {
 		cs := stateOf(t, fxClusterHealthy)
 		tc.change(&cs.info)
-		if got := peersTable(cs, time.Now()).Rows[0][6]; got != tc.want {
+		if got := peersTable(cs, time.Now()).Rows[0][7]; got != tc.want {
 			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)
 		}
 	}
