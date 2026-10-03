@@ -112,7 +112,7 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 		{Key: "format", Value: describeRestore(req, format)},
 		{Key: "took", Value: time.Since(started).Round(time.Millisecond).String()},
 		{Key: "guarantee", Value: restoreGuarantee(req)},
-		{Key: "target", Value: src.describe(req.Surface())},
+		{Key: "target", Value: src.describe(req)},
 	}}, nil
 }
 

@@ -627,7 +627,16 @@ func TestHintsOnlyNameCapabilitiesThatExist(t *testing.T) {
 			if j := strings.IndexAny(tail, "`\n"); j >= 0 {
 				tail = tail[:j]
 			}
-			id := "pg." + strings.Join(strings.Fields(tail), ".")
+			// The capability's words, up to the flags a call that reaches the
+			// same server carries after them.
+			var words []string
+			for _, w := range strings.Fields(tail) {
+				if strings.HasPrefix(w, "-") {
+					break
+				}
+				words = append(words, w)
+			}
+			id := "pg." + strings.Join(words, ".")
 			if !declared[id] {
 				t.Errorf("a hint names `rta pg %s`, which would be %s — this plugin declares no such capability:\n  %s",
 					tail, id, hint)

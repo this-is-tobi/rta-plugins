@@ -156,6 +156,74 @@ func childHost(req plugin.Request) (host, hostaddr string) {
 	return host, ""
 }
 
+// reachArgs points a call this one hands its reader at the server it reached
+// (Request.ReachArgs): the profile whenever there was one, since the password
+// may be the profile's and no other layer holds it, and the host and port only
+// when the host opened no forward — through one they were 127.0.0.1 and a port
+// that closed with the call, and the profile reaches the server again. Then
+// the role and the database, which decide what the call may see, and how the
+// connection was protected, that being what the server may insist on: over a
+// forward what turned TLS on there (the CA, the name, the client pair), since
+// the mode is the host's and forced and a line spelling it would be refused
+// beside the profile; reached directly, the mode when it insists on TLS, the CA
+// beside it, the name, the client pair by the settings that named it, and
+// ssl-home when that is what found them, since a call that searches the home
+// of the shell it is pasted into presents whatever it finds there. Never the
+// password. To an agent the profile alone: the rest is Local, and the bridge
+// drops what an agent sends.
+//
+// **Without them, the call named reached another server.** Pasted, it ran
+// against whatever the configuration there names, and a database "not found"
+// was looked for again somewhere it was never going to be.
+func reachArgs(req plugin.Request) []plugin.Arg {
+	if req.Surface() == plugin.SurfaceMCP {
+		return req.ReachArgs()
+	}
+	args := req.ReachArgs(plugin.Arg{Name: "host", Value: req.String("host")},
+		plugin.Arg{Name: "port", Value: req.Int("port")})
+	args = append(args, plugin.Arg{Name: "user", Value: req.String("user")},
+		plugin.Arg{Name: "database", Value: req.String("database")})
+	t := transportOf(req)
+	namedRoot := t.rootCert != "" && !t.fromHome.root
+	switch {
+	case req.Tunnel() != plugin.TunnelNone:
+		if namedRoot {
+			args = append(args, plugin.Arg{Name: "sslrootcert", Value: t.rootCert})
+		}
+	case verifiesOrRequires(t.mode):
+		args = append(args, plugin.Arg{Name: "sslmode", Value: t.mode})
+		if namedRoot {
+			args = append(args, plugin.Arg{Name: "sslrootcert", Value: t.rootCert})
+		}
+	}
+	if t.serverName != "" {
+		args = append(args, plugin.Arg{Name: "tls-server-name", Value: t.serverName})
+	}
+	if t.mode != "disable" {
+		if t.clientCert != "" && !t.fromHome.client {
+			args = append(args, plugin.Arg{Name: "sslcert", Value: t.clientCert},
+				plugin.Arg{Name: "sslkey", Value: t.clientKey})
+		}
+		if req.Bool("ssl-home") {
+			args = append(args, plugin.Arg{Name: "ssl-home", Value: true})
+		}
+	}
+	return args
+}
+
+// nextCall names capability id called with args and reachArgs, for a hint
+// that sends its reader to it next, quoted for the sentence around it — or by
+// its name alone when there is nothing to give, which reads better to an
+// agent than a tool beside an empty object.
+func nextCall(req plugin.Request, id string, args ...plugin.Arg) string {
+	sf := req.Surface()
+	args = append(args, reachArgs(req)...)
+	if len(args) == 0 {
+		return sf.CapabilityName(id)
+	}
+	return "`" + sf.Call(id, args...) + "`"
+}
+
 // pasteEnv is the PG* assignments, each one word of a shell line, that make a
 // libpq command pasted into a shell connect the way this call did: the mode
 // when it insists on TLS, the files the call used however it found them, and
