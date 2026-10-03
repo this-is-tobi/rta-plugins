@@ -466,8 +466,8 @@ func classifyDial(err error, addr string, req plugin.Request) *view.Error {
 	// checked for, in place of the forward's end.
 	if req.Tunnel() != plugin.TunnelNone && errors.Is(err, io.EOF) {
 		return view.Errorf("redis.conn.closed", "%s closed the connection", addr).
-			WithHint("a TLS server answers a plaintext client by hanging up, and plaintext is what the " +
-				string(req.Tunnel()) + ": forward profile " + req.Profile() + " opened asks for — " +
+			WithHint("a TLS server answers a plaintext client by hanging up, and plaintext is what " +
+				req.Reached(addr) + " asks for — " +
 				req.Surface().SettingName("ca-file", "tls-server-name") + " each turn TLS on over the forward, " +
 				"and the name is the one the certificate is checked for, since the forward ends at " + hostOnly(addr))
 	}
@@ -486,8 +486,8 @@ func classifyDial(err error, addr string, req plugin.Request) *view.Error {
 			if req.Tunnel() == plugin.TunnelSSH {
 				behind = "the SSH connection it rides drops"
 			}
-			return view.Errorf("redis.conn.refused", "nothing is listening on %s, where profile %s's %s: forward ends",
-				addr, req.Profile(), req.Tunnel()).
+			return view.Errorf("redis.conn.refused", "nothing is listening on %s, the end of %s",
+				addr, req.Reached(addr)).
 				WithHint("a local port with nothing on it is a port-forward that exited — this one was opened for " +
 					"this call and was gone before the call reached it, as a forward is when " + behind)
 		case loopback(hostOnly(addr)):
@@ -542,15 +542,15 @@ func nameRefusal(addr string, nameErr x509.HostnameError, req plugin.Request) *v
 	if checked == "" {
 		checked = hostOnly(addr)
 	}
-	names := certNames(nameErr.Certificate)
-	if len(names) == 0 {
+	cert := nameErr.Certificate
+	if cert == nil || len(cert.DNSNames)+len(cert.IPAddresses) == 0 {
 		return view.Errorf("redis.tls.name", "%s presented a certificate that names no host, %s or any other",
 			addr, checked).
 			WithHint("a certificate with no subject alternative names verifies as no host at all — it reaches " +
 				"the server once it is reissued with " + checked + " among them")
 	}
 	refusal := view.Errorf("redis.tls.name", "%s presented a certificate for %s, not %s",
-		addr, strings.Join(names, ", "), checked)
+		addr, plugin.CertNames(cert), checked)
 	if serverName(req) != "" {
 		return refusal.WithHint(sf.SettingName("tls-server-name") + " is the name the certificate is checked " +
 			"against — name one it carries, or have it reissued with " + checked + " among its subject " +
@@ -558,25 +558,6 @@ func nameRefusal(addr string, nameErr x509.HostnameError, req plugin.Request) *v
 	}
 	return refusal.WithHint(sf.SettingName("address") + " is the name the certificate is checked against — reach " +
 		"the server by one it carries, or have it reissued with " + checked + " among its subject alternative names")
-}
-
-// certNames is the names cert is for, as a refusal lists them: its subject
-// alternative names, DNS and address, since those are all a verifier
-// reads. Four at most: a certificate for a fleet can carry dozens, and the
-// reader needs to see the one checked is not among them, not the whole
-// list.
-func certNames(cert *x509.Certificate) []string {
-	if cert == nil {
-		return nil
-	}
-	names := append([]string(nil), cert.DNSNames...)
-	for _, ip := range cert.IPAddresses {
-		names = append(names, ip.String())
-	}
-	if len(names) > 4 {
-		names = append(names[:4:4], fmt.Sprintf("%d more", len(names)-4))
-	}
-	return names
 }
 
 // reachArgs points a call this one hands its reader at the server it reached,
@@ -598,16 +579,10 @@ func certNames(cert *x509.Certificate) []string {
 // the call gives the profile alone: the rest are Local, and the bridge drops
 // one an agent sends.
 func reachArgs(req plugin.Request) []plugin.Arg {
-	var args []plugin.Arg
-	if profile := req.Profile(); profile != "" {
-		args = append(args, plugin.Arg{Name: "profile", Value: profile})
-	}
 	if req.Surface() == plugin.SurfaceMCP {
-		return args
+		return req.ReachArgs()
 	}
-	if req.Tunnel() == plugin.TunnelNone {
-		args = append(args, plugin.Arg{Name: "address", Value: req.String("address")})
-	}
+	args := req.ReachArgs(plugin.Arg{Name: "address", Value: req.String("address")})
 	if req.Bool("tls") {
 		args = append(args, plugin.Arg{Name: "tls", Value: true})
 	}
@@ -637,12 +612,8 @@ func serverName(req plugin.Request) string { return strings.TrimSpace(req.String
 // checks less: this plugin has no mode that checks the chain alone, which
 // would accept any certificate the CA ever signed.
 func forwardName(req plugin.Request, nameErr x509.HostnameError) *view.Error {
-	names := "no name a check reads"
-	if sans := certNames(nameErr.Certificate); len(sans) > 0 {
-		names = strings.Join(sans, ", ")
-	}
-	return view.Errorf("redis.tls.forward", "the certificate behind profile %s's %s: forward is for %s, not for %s, "+
-		"where the forward ends", req.Profile(), req.Tunnel(), names, nameErr.Host).
+	return view.Errorf("redis.tls.forward", "the certificate behind %s is for %s, not for %s, "+
+		"where the forward ends", req.Reached(req.String("address")), plugin.CertNames(nameErr.Certificate), nameErr.Host).
 		WithHint("a forward always ends at 127.0.0.1, so the certificate is checked for the name the server " +
 			"answers as instead: " + req.Surface().SettingName("tls-server-name") + ", which the profile can " +
 			"hold beside its forward, names it — one the certificate is for — and it is checked as strictly " +

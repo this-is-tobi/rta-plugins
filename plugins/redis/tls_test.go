@@ -215,7 +215,7 @@ func TestThroughAForwardTheCertificateIsCheckedForTheNameGiven(t *testing.T) {
 	if verr == nil || verr.Code != "redis.tls.forward" {
 		t.Fatalf("through a forward with no name: %v, want redis.tls.forward", verr)
 	}
-	if want := "the certificate behind profile prod's kube: forward is for cache.internal, cache.prod.svc, " +
+	if want := "the certificate behind profile prod (through its kube: forward) is for cache.internal, cache.prod.svc, " +
 		"not for 127.0.0.1, where the forward ends"; !strings.Contains(verr.Message, want) {
 		t.Errorf("message = %q, want %q in it", verr.Message, want)
 	}
@@ -349,7 +349,7 @@ func TestAHangUpThroughAForwardIsNotSentToTLS(t *testing.T) {
 	if verr == nil || verr.Code != "redis.conn.closed" {
 		t.Fatalf("through a forward: %v, want redis.conn.closed", verr)
 	}
-	for _, want := range []string{"the kube: forward profile prod opened asks for — --ca-file and " +
+	for _, want := range []string{"profile prod (through its kube: forward) asks for — --ca-file and " +
 		"--tls-server-name each turn TLS on over the forward", "since the forward ends at 127.0.0.1"} {
 		if !strings.Contains(verr.Hint, want) {
 			t.Errorf("hint = %q, want %q in it", verr.Hint, want)
@@ -378,7 +378,7 @@ func TestARefusalOnThisMachineIsAForwardThatExited(t *testing.T) {
 	if verr == nil || verr.Code != "redis.conn.refused" {
 		t.Fatalf("through a forward: %v, want redis.conn.refused", verr)
 	}
-	if want := "where profile prod's kube: forward ends"; !strings.Contains(verr.Message, want) {
+	if want := "the end of profile prod (through its kube: forward)"; !strings.Contains(verr.Message, want) {
 		t.Errorf("message = %q, want %q in it", verr.Message, want)
 	}
 	if want := "a port-forward that exited — this one was opened for this call"; !strings.Contains(verr.Hint, want) {
