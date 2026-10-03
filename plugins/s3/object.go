@@ -136,14 +136,12 @@ func s3ObjectGetCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID: "s3.object.get", Summary: "Download an object's content", Safety: plugin.Write, Idempotent: true,
 		NeedsGrant: true, Scope: "key",
-		Description: "Writes an object that is text to stdout with no framing, and one that is not as a " +
-			"hex dump of its first 256 bytes; for the byte-exact copy, or " +
-			"anything binary, `out` writes it to a file (0600) instead — a person's input only, " +
-			"since a grant authorizes revealing the content, not choosing where on this machine " +
-			"it lands. Without `out`, text up to 1 MiB is printed in full and a larger object is " +
-			"refused rather than cut short, and an MCP caller gets the same answer in the response. " +
-			"`out` never overwrites: a destination that already exists is refused, and a download " +
-			"that fails partway removes what it wrote.",
+		Description: "An object that is text comes back as it is, up to 1 MiB — a larger one is refused " +
+			"rather than cut short — and one that is not comes back as a hex dump of its first 256 bytes. " +
+			"A person at a terminal also has `out`, which writes the byte-exact content to a file (0600) " +
+			"instead: never over a file that exists, and a download that fails partway removes what it " +
+			"wrote. It is a person's input only, since a grant authorizes revealing the content, not " +
+			"choosing where on this machine it lands.\n\n" + boundBucketNote,
 		Run: runObjectGet,
 	}, boundBucketField("bucket the object is in"), keyField("object to reveal"),
 		plugin.Field{Name: "out", Type: plugin.Path, Local: true, Help: "write the content to this file instead of printing it (refused if it exists)"})
@@ -253,7 +251,7 @@ func s3ObjectSetCapability() plugin.Capability {
 		NeedsGrant: true, Scope: "key",
 		Description: "The content is the value given, or a file's; PutObject handles " +
 			"large files with multipart upload internally, so there is no separate multipart " +
-			"capability to reach for.",
+			"capability to reach for.\n\n" + boundBucketNote,
 		Run: runObjectSet,
 	}, boundBucketField("bucket to write to"), keyField("object to set"),
 		plugin.Field{Name: "value", Type: plugin.Text, Positional: true, Help: "content to upload"},
@@ -381,10 +379,10 @@ func s3ObjectRemoveCapability() plugin.Capability {
 		// — every object in every bucket. The single irreversible call in this
 		// plugin was the single one that could not be narrowed.
 		Scope: "key",
-		Description: "No history, no backup, no undo — the same loss `kv rm` is. S3's DELETE is " +
+		Description: "No history, no backup, no undo. S3's DELETE is " +
 			"idempotent: removing a key that is already gone is not an error, on this or the real " +
 			"call — a dry run does not probe for existence first, since that would report a " +
-			"failure the real call would not.",
+			"failure the real call would not.\n\n" + boundBucketNote,
 		Run: runObjectRemove,
 	}, boundBucketField("bucket the object is in"), keyField("object to delete"))
 }

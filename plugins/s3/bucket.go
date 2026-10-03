@@ -22,6 +22,16 @@ func bucketField(help string) plugin.Field {
 // scope authorize the identical key name in a bucket the grant never named —
 // the same hole copy.go's dest-bucket is already Local to close, one level in
 // from the destination side.
+//
+// What an agent is told about it is boundBucketNote, because the schema says
+// nothing: a Local input is in no tool's schema, and the bridge drops one an
+// agent sends. Without the sentence, s3.object.list on one bucket and
+// s3.object.get on the next read as the same bucket, and a key found in one
+// is fetched from the operator's — the call succeeds, on the wrong object, or
+// refuses with a name that is in the listing the agent just read.
+const boundBucketNote = "The bucket is the operator's `bucket` setting: an agent cannot name one, and " +
+	"the \"bucket\" argument of s3.object.list does not carry over to this call."
+
 func boundBucketField(help string) plugin.Field {
 	f := bucketField(help)
 	f.Local = true

@@ -129,6 +129,8 @@ Regular files only: a symlink refuses the whole upload by name — a link pointi
 
 Copies server-side; the content never passes through this process. Refuses if the destination key already exists rather than writing over it: a grant covers both keys' names and says nothing about the object it would replace.
 
+The bucket is the operator's `bucket` setting: an agent cannot name one, and the "bucket" argument of s3.object.list does not carry over to this call.
+
 | Field                 | Value                                                                                                                                                                                                                                                                                 |
 |-----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | id                    | s3.object.copy                                                                                                                                                                                                                                                                        |
@@ -154,7 +156,9 @@ Copies server-side; the content never passes through this process. Refuses if th
 
 ## s3.object.get
 
-Writes an object that is text to stdout with no framing, and one that is not as a hex dump of its first 256 bytes; for the byte-exact copy, or anything binary, `out` writes it to a file (0600) instead — a person's input only, since a grant authorizes revealing the content, not choosing where on this machine it lands. Without `out`, text up to 1 MiB is printed in full and a larger object is refused rather than cut short, and an MCP caller gets the same answer in the response. `out` never overwrites: a destination that already exists is refused, and a download that fails partway removes what it wrote.
+An object that is text comes back as it is, up to 1 MiB — a larger one is refused rather than cut short — and one that is not comes back as a hex dump of its first 256 bytes. A person at a terminal also has `out`, which writes the byte-exact content to a file (0600) instead: never over a file that exists, and a download that fails partway removes what it wrote. It is a person's input only, since a grant authorizes revealing the content, not choosing where on this machine it lands.
+
+The bucket is the operator's `bucket` setting: an agent cannot name one, and the "bucket" argument of s3.object.list does not carry over to this call.
 
 | Field                 | Value                                                                                                                                                                                                                                             |
 |-----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -211,6 +215,8 @@ Bounded: a bucket can hold millions of keys, so this returns `limit` of them and
 
 The URL itself is a credential: anyone who has it can act on the object until `ttl` expires, with no further authentication and no further grant check — this call is the one gated moment, not each use of the link. A `method` of put grants write access to a caller-chosen key instead of read access to an existing one.
 
+The bucket is the operator's `bucket` setting: an agent cannot name one, and the "bucket" argument of s3.object.list does not carry over to this call.
+
 | Field                 | Value                                                                                                                                                                                                                                                                       |
 |-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | id                    | s3.object.presign                                                                                                                                                                                                                                                           |
@@ -238,6 +244,8 @@ The URL itself is a credential: anyone who has it can act on the object until `t
 
 S3 has no native rename — this copies server-side, then removes the source. If the copy succeeds and the remove fails, the object exists in both places and the failure says so rather than reporting success.
 
+The bucket is the operator's `bucket` setting: an agent cannot name one, and the "bucket" argument of s3.object.list does not carry over to this call.
+
 | Field                 | Value                                                                                                                                                                                                                                                                                   |
 |-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | id                    | s3.object.rename                                                                                                                                                                                                                                                                        |
@@ -263,7 +271,9 @@ S3 has no native rename — this copies server-side, then removes the source. If
 
 ## s3.object.rm
 
-No history, no backup, no undo — the same loss `kv rm` is. S3's DELETE is idempotent: removing a key that is already gone is not an error, on this or the real call — a dry run does not probe for existence first, since that would report a failure the real call would not.
+No history, no backup, no undo. S3's DELETE is idempotent: removing a key that is already gone is not an error, on this or the real call — a dry run does not probe for existence first, since that would report a failure the real call would not.
+
+The bucket is the operator's `bucket` setting: an agent cannot name one, and the "bucket" argument of s3.object.list does not carry over to this call.
 
 | Field                 | Value                                                                                                                                                                                                                          |
 |-----------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -289,6 +299,8 @@ No history, no backup, no undo — the same loss `kv rm` is. S3's DELETE is idem
 ## s3.object.set
 
 The content is the value given, or a file's; PutObject handles large files with multipart upload internally, so there is no separate multipart capability to reach for.
+
+The bucket is the operator's `bucket` setting: an agent cannot name one, and the "bucket" argument of s3.object.list does not carry over to this call.
 
 | Field                 | Value                                                                                                                                                                                                                                                                                                                   |
 |-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|

@@ -25,7 +25,7 @@ func s3ObjectPresignCapability() plugin.Capability {
 		Description: "The URL itself is a credential: anyone who has it can act on the object " +
 			"until `ttl` expires, with no further authentication and no further grant check — " +
 			"this call is the one gated moment, not each use of the link. A `method` of put grants " +
-			"write access to a caller-chosen key instead of read access to an existing one.",
+			"write access to a caller-chosen key instead of read access to an existing one.\n\n" + boundBucketNote,
 		Run: runObjectPresign,
 	}, boundBucketField("bucket the object is in"), keyField("object to presign"),
 		plugin.Field{Name: "method", Type: plugin.String, Default: "get", Options: []string{"get", "put"},

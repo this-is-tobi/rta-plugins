@@ -98,7 +98,7 @@ func s3ObjectCopyCapability() plugin.Capability {
 		ScopeAlso: []string{"dest-key"},
 		Description: "Copies server-side; the content never passes through this process. " +
 			"Refuses if the destination key already exists rather than writing over it: a grant covers " +
-			"both keys' names and says nothing about the object it would replace.",
+			"both keys' names and says nothing about the object it would replace.\n\n" + boundBucketNote,
 		Run: runObjectCopy,
 	}, copyFields("source bucket", "object to copy")...)
 }
@@ -140,7 +140,7 @@ func s3ObjectRenameCapability() plugin.Capability {
 		ScopeAlso: []string{"dest-key"},
 		Description: "S3 has no native rename — this copies server-side, then removes the " +
 			"source. If the copy succeeds and the remove fails, the object exists in both " +
-			"places and the failure says so rather than reporting success.",
+			"places and the failure says so rather than reporting success.\n\n" + boundBucketNote,
 		Run: runObjectRename,
 	}, copyFields("source bucket", "object to move")...)
 }

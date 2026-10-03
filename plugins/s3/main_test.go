@@ -135,6 +135,32 @@ func TestAMissingObjectIsNamedWhenTheServerDoesNotNameIt(t *testing.T) {
 	}
 }
 
+// A tool that acts in the operator's bucket says so. The bucket is Local, so
+// it is in no tool's schema and an agent that sends one has it dropped: with
+// nothing in the description, s3.object.list on bucket A and s3.object.get on
+// the next call read as one bucket, and the object found in the first is
+// fetched from the operator's.
+func TestEveryToolActingInTheOperatorsBucketSaysSo(t *testing.T) {
+	bound := 0
+	for _, c := range Plugin().Capabilities {
+		if c.HumanOnly {
+			continue
+		}
+		for _, f := range c.Inputs {
+			if f.Name != "bucket" || !f.Local {
+				continue
+			}
+			bound++
+			if !strings.Contains(c.Description, "the operator's `bucket` setting") {
+				t.Errorf("%s acts in the operator's bucket and its description never says so", c.ID)
+			}
+		}
+	}
+	if bound == 0 {
+		t.Error("no capability binds the bucket — the check found nothing to check")
+	}
+}
+
 // Every classified failure has to say what to do next — the same bar
 // plugins/pg and plugins/vault's own classify hold themselves to, against
 // S3's error shapes.
