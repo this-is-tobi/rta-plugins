@@ -77,6 +77,13 @@ func connect(req plugin.Request) (*vaultapi.Client, *view.Error) {
 		return nil, classify(cfg.Error, req)
 	}
 	cfg.Address = req.String("address")
+	// One attempt. The client retries a refused connection or a 5xx twice,
+	// a second or more apart, so a call to a Vault that was down answered
+	// four seconds late with the refusal it would have had at once, and the
+	// overview, which reads twice, took eight. Every call here is one an
+	// agent or an operator can simply make again, and a write that a 5xx
+	// answered is not one to repeat on their behalf.
+	cfg.MaxRetries = 0
 	// DefaultConfig's own ReadEnvironment already pulled in whatever
 	// VAULT_CACERT/VAULT_CLIENT_CERT/VAULT_SKIP_VERIFY/etc. happen to be set
 	// in this shell — harmless for Address, overwritten the line above, but
