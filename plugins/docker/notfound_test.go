@@ -113,12 +113,14 @@ func TestAnUnreachableDaemonNamesTheProfileThatChoseIt(t *testing.T) {
 	scriptedDocker(t, "echo 'Cannot connect to the Docker daemon at tcp://prod:2375. Is the docker daemon running?' >&2\nexit 1\n")
 	for _, tc := range []struct {
 		profile, hint string
+		surface       plugin.Surface
 	}{
-		{"", "point this at the right daemon with the host input"},
-		{"prod", "fix where profile prod points"},
+		{"", "point this at the right daemon with --host and --context", plugin.SurfaceCLI},
+		{"", "point this at the right daemon with the operator's `host` and `context` settings", plugin.SurfaceMCP},
+		{"prod", "fix where profile prod points", plugin.SurfaceCLI},
 	} {
 		r := capReq(t, "docker.container.list", map[string]any{"host": "tcp://prod:2375"}).
-			WithProfile(tc.profile, plugin.TunnelNone)
+			WithProfile(tc.profile, plugin.TunnelNone).WithSurface(tc.surface)
 		c, verr := connectionOf(r)
 		if verr != nil {
 			t.Fatal(verr)
