@@ -325,12 +325,18 @@ func rlsOf(ctx context.Context, q querier, rel relation) *view.Error {
 // few lines up are refused: a dump that is not the table's contents is a
 // different answer wearing the right shape, and a view.Table has nowhere to
 // say which one it is holding.
+//
+// The query it offers is for the table this call dumped, schema included, with
+// both names as the SQL literals they are: a table called it's, or one that
+// shares its name with another schema's, was a query that failed or listed
+// somebody else's policies.
 func rlsRefusal(rel relation, enabled, forced bool) *view.Error {
 	if !enabled {
 		return nil
 	}
 	hint := "either the table is empty or a policy filtered every row away, and this cannot tell " +
-		"which — `select * from pg_policies where tablename = '" + rel.name + "'` names the policies, " +
+		"which — `select * from pg_policies where schemaname = " + sqlLiteral(rel.schema) +
+		" and tablename = " + sqlLiteral(rel.name) + "` names the policies, " +
 		"and a role they admit dumps what they admit"
 	if forced {
 		hint += ". FORCE ROW LEVEL SECURITY is set, so the policies apply to the table's owner too"
@@ -384,3 +390,7 @@ func primaryKeyOf(ctx context.Context, q querier, oid uint32) ([]string, error) 
 	}
 	return out, rows.Err()
 }
+
+// sqlLiteral is s as a standard-conforming string literal, for a query a hint
+// hands to a reader to paste.
+func sqlLiteral(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
