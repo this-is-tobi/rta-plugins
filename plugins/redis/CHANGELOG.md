@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.2.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.21...plugins/redis/v0.2.0) (2026-10-03)
+
+
+### Features
+
+* **redis:** the cluster view shows every node's offset and each replica's distance behind ([6df39a7](https://github.com/this-is-tobi/rta-plugins/commit/6df39a78aff6b7b78ef5ef6f12ca1d3c29bdd711))
+* **redis:** the overview says how far behind each replica is and whether it can resume ([33e7e48](https://github.com/this-is-tobi/rta-plugins/commit/33e7e4814ddd82e5e7eb16b10898836d79447662))
+* **redis:** tls-server-name checks a forwarded server's certificate for its own name ([0aa32c1](https://github.com/this-is-tobi/rta-plugins/commit/0aa32c1d325d91289966c60ca24e7ae30daad9e6))
+
+
+### Bug Fixes
+
+* **redis:** a certificate for another name is named as that, not as out of reach ([9dc30ae](https://github.com/this-is-tobi/rta-plugins/commit/9dc30ae8305b4d328fa2e387f98c45ebb98158da))
+* **redis:** a certificate is answered with the CA to name by the SDK's reading of its issuer ([1ed032a](https://github.com/this-is-tobi/rta-plugins/commit/1ed032a75d520fcce714a49ba2c117fde96a5c3e))
+* **redis:** a name refused through a forward is said to be the forward's, with what gets through ([1a0d255](https://github.com/this-is-tobi/rta-plugins/commit/1a0d2557dad1ecd019aee471aded09a13ab20d09))
+* **redis:** a refusal on this machine is named as the port-forward that exited ([e7de3ef](https://github.com/this-is-tobi/rta-plugins/commit/e7de3ef8eb3ede4759a5ecece8dfbcbe5087d0f7))
+* **redis:** a setting and its value are spelled by the SDK's naming on every surface ([9732411](https://github.com/this-is-tobi/rta-plugins/commit/9732411553170a1dd30100bcc5b67294969b9f2b))
+* **redis:** a TLS server that hangs up through a forward is sent to ca-file, not to tls ([286be7d](https://github.com/this-is-tobi/rta-plugins/commit/286be7d53186e6eb50198651c2e6a9a3cdf21feb))
+* **redis:** the listing a missing key offers reaches the server the lookup reached ([84624de](https://github.com/this-is-tobi/rta-plugins/commit/84624de29a7424aa3ffa6b671ce5baf6ff2142f1))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.33.0 ([52132bb](https://github.com/this-is-tobi/rta-plugins/commit/52132bb83099d3ff1b2299150ce8249b8e345f3e))
+
 ## [0.1.21](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.20...plugins/redis/v0.1.21) (2026-09-29)
 
 

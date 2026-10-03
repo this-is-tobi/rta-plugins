@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.8](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.4.7...plugins/kube/v0.4.8) (2026-10-03)
+
+
+### Code Refactoring
+
+* **kube:** the grant a provision is sent to name is spelled by rta's SDK ([6c03166](https://github.com/this-is-tobi/rta-plugins/commit/6c03166ec10b8427e444b8ae83e4f4fc4e0ed589))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.33.0 ([52132bb](https://github.com/this-is-tobi/rta-plugins/commit/52132bb83099d3ff1b2299150ce8249b8e345f3e))
+
 ## [0.4.7](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.4.6...plugins/kube/v0.4.7) (2026-09-29)
 
 

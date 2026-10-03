@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.23](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.2.22...plugins/docker/v0.2.23) (2026-10-03)
+
+
+### Bug Fixes
+
+* **docker:** the stop a running container's removal offers reaches the daemon it read ([e881f44](https://github.com/this-is-tobi/rta-plugins/commit/e881f443390ee595e33aead889c3f6e4c2d55dac))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.33.0 ([52132bb](https://github.com/this-is-tobi/rta-plugins/commit/52132bb83099d3ff1b2299150ce8249b8e345f3e))
+
 ## [0.2.22](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.2.21...plugins/docker/v0.2.22) (2026-09-29)
 
 

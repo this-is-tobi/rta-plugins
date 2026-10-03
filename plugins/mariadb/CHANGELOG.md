@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.4.0...plugins/mariadb/v0.5.0) (2026-10-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* **mariadb:** mariadb.galera.status is removed; mariadb.replication.status answers it, with the same verdicts as grade words and the cluster state uuid, last committed sequence, members and queues beside them. A grant or tool entry naming the old capability no longer matches.
+
+### Features
+
+* **mariadb:** replication.status carries role, lag, GTID positions, replicas and Galera state ([b786602](https://github.com/this-is-tobi/rta-plugins/commit/b786602e955cf9e6f79f31b38394b20fe80b10d0))
+
+
+### Bug Fixes
+
+* **mariadb:** a client that found no route to the server is named as that, not as refused ([6bcc618](https://github.com/this-is-tobi/rta-plugins/commit/6bcc618b9943b1342109e7b1716b64fb68904c94))
+* **mariadb:** a dump's restore line reaches the server again by its profile, not a closed forward ([1c8474a](https://github.com/this-is-tobi/rta-plugins/commit/1c8474ac4689be58120b0cc82c9ee1d0f2793da2))
+* **mariadb:** a server that insists on TLS through a forward is not sent to tls, which opens none ([c575d69](https://github.com/this-is-tobi/rta-plugins/commit/c575d69b606258154e7975c12b14c9f8ee9c8d4c))
+* **mariadb:** a setting, an input and its value are spelled by the SDK's naming on every surface ([4dbcfe5](https://github.com/this-is-tobi/rta-plugins/commit/4dbcfe5755cbacc4facf231c114363051979bc07))
+* **mariadb:** only a certificate from an unknown issuer is answered with the CA to name ([d84bbc6](https://github.com/this-is-tobi/rta-plugins/commit/d84bbc6fc2f1ec5c66e3a16e647a8c52b4eb1e8f))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.33.0 ([52132bb](https://github.com/this-is-tobi/rta-plugins/commit/52132bb83099d3ff1b2299150ce8249b8e345f3e))
+
 ## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.3.19...plugins/mariadb/v0.4.0) (2026-09-29)
 
 

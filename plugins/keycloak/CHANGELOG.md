@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.2.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.1.13...plugins/keycloak/v0.2.0) (2026-10-03)
+
+
+### Features
+
+* **keycloak:** tls-server-name checks a forwarded server's certificate for its own name ([44e244b](https://github.com/this-is-tobi/rta-plugins/commit/44e244b54b06abd70ec9734210c62086c93e5c15))
+
+
+### Bug Fixes
+
+* **keycloak:** a certificate is read before the dial, whatever names the certificate holds ([a41a347](https://github.com/this-is-tobi/rta-plugins/commit/a41a347e2c67b615fe86f0a23e43d4911708955c))
+* **keycloak:** a hang-up on plain HTTP names the scheme and where it is changed ([675b385](https://github.com/this-is-tobi/rta-plugins/commit/675b385a105e3b4d4e3ca07e90412ec2f83cb8fc))
+* **keycloak:** a listing a refusal offers reads the realm the call read ([f3e2c6c](https://github.com/this-is-tobi/rta-plugins/commit/f3e2c6c6e60af7a02421b3ad7ed71456880e5dde))
+* **keycloak:** a refused or missing secret names the variable the call read it from ([2136791](https://github.com/this-is-tobi/rta-plugins/commit/21367916854b043384634c9f8efd8c4472d3fbf3))
+* **keycloak:** only a certificate no CA here vouches for is answered with the CA file to name ([61a7718](https://github.com/this-is-tobi/rta-plugins/commit/61a771830bbae034975c8b3225edd8e7263c7c3d))
+
+
+### Code Refactoring
+
+* **keycloak:** hints name settings, the explain page and a DNS lookup in the SDK's words ([04e7c5d](https://github.com/this-is-tobi/rta-plugins/commit/04e7c5d6eec2fa6f90be3d856a43a29cb82eb478))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.33.0 ([52132bb](https://github.com/this-is-tobi/rta-plugins/commit/52132bb83099d3ff1b2299150ce8249b8e345f3e))
+
 ## [0.1.13](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.1.12...plugins/keycloak/v0.1.13) (2026-09-29)
 
 
