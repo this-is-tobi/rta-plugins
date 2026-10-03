@@ -119,7 +119,7 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 
 	p := plugin.NewPage(ctx, req)
 	p.Put("status", view.KeyValue{Pairs: []view.Pair{
-		{Key: "endpoint", Value: req.String("endpoint")},
+		{Key: "endpoint", Value: req.Reached(req.String("endpoint"))},
 		{Key: "title", Value: root.Title},
 		{Key: "version", Value: root.Version},
 		{Key: "cluster", Value: cs.modeText()},
