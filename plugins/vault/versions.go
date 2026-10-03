@@ -169,7 +169,7 @@ func kvDeleteCapability() plugin.Capability {
 			"secret going away.",
 		Run: runKVDelete,
 	}, mountField(), pathField("the secret's path within the mount"),
-		versionsField(false, "version numbers, as vault.kv.history lists them; none means the current version"))
+		versionsField(false, "version numbers written as text, [\"2\", \"3\"], as vault.kv.history lists them; none means the current version"))
 }
 
 func runKVDelete(ctx context.Context, req plugin.Request) (view.View, error) {
@@ -211,7 +211,7 @@ func kvUndeleteCapability() plugin.Capability {
 			"vault.kv.history says which is which before you ask.",
 		Run: runKVUndelete,
 	}, mountField(), pathField("the secret's path within the mount"),
-		versionsField(true, "version numbers, as vault.kv.history lists them"))
+		versionsField(true, "version numbers written as text, [\"2\", \"3\"], as vault.kv.history lists them"))
 }
 
 func runKVUndelete(ctx context.Context, req plugin.Request) (view.View, error) {
@@ -248,7 +248,7 @@ func kvDestroyCapability() plugin.Capability {
 			"costs. vault.kv.history shows what you are about to lose.",
 		Run: runKVDestroy,
 	}, mountField(), pathField("the secret's path within the mount"),
-		versionsField(true, "version numbers, as vault.kv.history lists them"))
+		versionsField(true, "version numbers written as text, [\"2\", \"3\"], as vault.kv.history lists them"))
 }
 
 func runKVDestroy(ctx context.Context, req plugin.Request) (view.View, error) {
