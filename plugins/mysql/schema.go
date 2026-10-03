@@ -40,8 +40,22 @@ func schemaOf(req plugin.Request) (string, *view.Error) {
 	if s := req.String("database"); s != "" {
 		return s, nil
 	}
-	return "", view.Errorf("mysql.schema.unset", "no database named").
-		WithHint("pass one as the argument, or set `database` in this plugin's config section")
+	return "", noDatabase("this call has no database to look in", req, "name one with "+req.Surface().InputName("schema"))
+}
+
+// noDatabase is the refusal for a call that reached the server with no
+// database to work in, wherever that is noticed: before the call, when a
+// schema has to be named, or by the server, when a statement leaves the
+// tables unqualified. The one code and one hint, so the two cannot send a
+// reader to different places.
+//
+// how is what the caller can do. The setting is the operator's — a `database`
+// is an input no caller may give, and a hint naming it as one is an argument
+// the bridge drops.
+func noDatabase(message string, req plugin.Request, how string) *view.Error {
+	return view.Errorf("mysql.schema.unset", "%s", message).
+		WithHint(how + " — " + nextCall(req, "mysql.database.list") + " shows what is there, and " +
+			req.Surface().SettingName("database") + " selects one for every call")
 }
 
 func tableListCapability() plugin.Capability {

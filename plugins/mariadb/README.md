@@ -153,6 +153,8 @@ Runs inside a READ ONLY transaction, so the server refuses any statement that wo
 
 Over `limit` rows it is refused rather than shortened: a truncated result set is a different answer wearing the right shape.
 
+Name a table as `database.table` unless the operator's connection selects a database — without one the server answers an unqualified name with "No database selected".
+
 | Field                 | Value                                                                                                                                                                                                                                                                                           |
 |-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | id                    | mariadb.query                                                                                                                                                                                                                                                                                   |

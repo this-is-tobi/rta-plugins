@@ -356,6 +356,16 @@ func classify(err error, req plugin.Request) *view.Error {
 		case 1049: // ER_BAD_DB_ERROR
 			return view.Errorf("mariadb.database.notfound", "%s has no database %q", req.Reached(where), req.String("database")).
 				WithHint(nextCall(req, "mariadb.database.list") + " shows what is there")
+		case 1046: // ER_NO_DB_ERROR
+			return noDatabase("no database is selected for this statement", req,
+				"name the table as database.table in the statement")
+		case 1792: // ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION
+			// Said as the design it is. This is the one refusal an agent is
+			// sure to meet, because it will try a write, and the generic
+			// answer below sent it to the operator to change a setting.
+			return view.Errorf("mariadb.query.readonly", "%s", myErr.Message).
+				WithHint("every statement here runs in a READ ONLY transaction, so the server refuses " +
+					"one that writes — by design, whatever the account may do")
 		case 1146: // ER_NO_SUCH_TABLE
 			return view.Errorf("mariadb.table.notfound", "%s", myErr.Message).
 				WithHint(nextCall(req, "mariadb.table.list") + " shows what is there")
