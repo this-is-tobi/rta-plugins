@@ -87,6 +87,13 @@ func connFields() []plugin.Field {
 // connection is up.
 const dialTimeout = 10 * time.Second
 
+// tlsRequested is whether any setting asks for TLS: the switch itself, or a
+// file or a name that only means something over it.
+func tlsRequested(req plugin.Request) bool {
+	return req.Bool("tls") || req.String("ca-file") != "" || req.String("cert-file") != "" ||
+		serverName(req) != ""
+}
+
 func connect(ctx context.Context, req plugin.Request) (*clientv3.Client, *view.Error) {
 	return connectWithin(ctx, req, dialTimeout)
 }
@@ -103,8 +110,7 @@ func connectWithin(ctx context.Context, req plugin.Request, within time.Duration
 	}
 
 	var tlsCfg *tls.Config
-	if req.Bool("tls") || req.String("ca-file") != "" || req.String("cert-file") != "" ||
-		serverName(req) != "" {
+	if tlsRequested(req) {
 		var verr *view.Error
 		if tlsCfg, verr = tlsConfig(req); verr != nil {
 			return nil, verr

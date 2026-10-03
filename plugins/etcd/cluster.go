@@ -20,16 +20,27 @@ func overviewCapability() plugin.Capability {
 		Summary:    "Whether this cluster is healthy, and what it is made of",
 		Safety:     plugin.Read,
 		Idempotent: true,
-		Detailed:   true,
-		Description: "The endpoint's own status — version, who it thinks the leader is, and how " +
-			"far behind its raft log is — with its storage and the member list beside it.\n\n" +
+		Description: "The endpoint's own status — version, who it thinks the leader is, its raft " +
+			"term, committed and applied index and revision — with its storage, and every member " +
+			"beside it: role, term, index, how many entries it is behind the leader, revision, " +
+			"database size and health, each read from the member itself.\n\n" +
 			"The storage row is the one to watch. etcd raises NOSPACE when the database file " +
 			"reaches its quota and then refuses every write while continuing to answer reads, " +
 			"which looks like a working cluster from anywhere except here. The use column is " +
 			"graded against that quota, and a server older than 3.6 does not report one, so " +
 			"the column is blank there rather than guessed.\n\n" +
-			"`detail` adds every member's own view, which is how a split is visible: members that " +
-			"disagree about who the leader is are not a cluster.",
+			"The members table is how a split is visible: members that disagree about who the " +
+			"leader is, or about the term, are not a cluster. A member 5000 entries behind the " +
+			"leader or more is graded, because etcd keeps no more log than that after a " +
+			"snapshot and sends a member further back the whole snapshot instead. Members are " +
+			"asked together and not at one instant, so a few entries either way is the cost of " +
+			"asking. The quorum line says how many voting members answered and how many a write " +
+			"needs.\n\n" +
+			"Each member is asked at the client URL it advertises, and a published port or a " +
+			"forward rarely reaches those names: through a kube: or ssh: forward only the " +
+			"endpoint's own member is asked, and a member this machine cannot reach says why " +
+			"instead of reading as down. A username without TLS asks no other member, so a " +
+			"credential is never sent to an address the member list supplied.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withClient(ctx, req, func(ctx context.Context, c *clientv3.Client) (view.View, error) {
 				return overviewView(ctx, c, req)
@@ -45,6 +56,17 @@ func overviewView(ctx context.Context, c *clientv3.Client, req plugin.Request) (
 		return nil, classify(err, req)
 	}
 
+	rows, err := askMembers(ctx, c, req, st)
+	if err != nil {
+		return nil, err
+	}
+	lead := leaderView{id: st.Leader}
+	for _, r := range rows {
+		if r.id == st.Leader {
+			lead.st = r.st
+		}
+	}
+
 	pairs := []view.Pair{
 		{Key: "endpoint", Value: endpoint},
 		{Key: "version", Value: st.Version},
@@ -52,6 +74,15 @@ func overviewView(ctx context.Context, c *clientv3.Client, req plugin.Request) (
 		{Key: "leader", Value: leaderText(st)},
 		{Key: "raft term", Value: strconv.FormatUint(st.RaftTerm, 10)},
 		{Key: "raft index", Value: strconv.FormatUint(st.RaftIndex, 10)},
+		{Key: "applied index", Value: appliedText(st)},
+		{Key: "revision", Value: strconv.FormatInt(st.Header.Revision, 10)},
+	}
+	if text, ok := quorumText(rows, st.Leader); ok {
+		pairs = append(pairs, view.Pair{Key: "quorum", Value: text})
+	}
+	if len(rows) == 1 && rows[0].learner && rows[0].name == "" {
+		pairs = append(pairs, view.Pair{Key: "members", Value: "only this one is shown: a learner is not served the " +
+			"member list, so point " + req.Surface().SettingName("endpoint") + " at a voting member to see the rest"})
 	}
 	// Alarms are the reason this capability is worth running. A cluster over
 	// its quota answers reads normally and refuses every write, which is
@@ -68,19 +99,7 @@ func overviewView(ctx context.Context, c *clientv3.Client, req plugin.Request) (
 	p.Put("status", view.KeyValue{Pairs: pairs})
 	p.Put("storage", storageTable(st))
 
-	members, err := memberTable(ctx, c, req)
-	if err != nil {
-		return nil, err
-	}
-	p.Put("members", members)
-
-	if req.Bool("detail") {
-		health, err := memberHealthTable(ctx, c, req)
-		if err != nil {
-			return nil, err
-		}
-		p.Put("health", health)
-	}
+	p.Put("members", membersTable(rows, lead))
 	return p.View(), nil
 }
 
@@ -194,21 +213,6 @@ func hexID(id uint64) string { return fmt.Sprintf("%x", id) }
 // of as a two's complement only this one printed.
 func leaseID(id int64) string { return fmt.Sprintf("%016x", id) }
 
-// memberList is the member list as the endpoint holds it, read without asking
-// the cluster to agree on it.
-//
-// **A linearizable read, which is the default, needs a quorum, and the one
-// time this view is opened in earnest is when there is not one.** Against a
-// cluster that has lost its majority the call waits for an answer no member
-// can give until its context ends: the overview hung for as long as the
-// caller let it, on exactly the outage it exists to explain, and the
-// endpoint's own status, which does answer, was never shown. The list is
-// membership, which changes only by an operator's own command, so a member's
-// own copy is as good as the cluster's.
-func memberList(ctx context.Context, c *clientv3.Client) (*clientv3.MemberListResponse, error) {
-	return c.MemberList(ctx, clientv3.WithSerializable())
-}
-
 func memberListCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "etcd.member.list",
@@ -267,59 +271,6 @@ func joinURLs(urls []string) string {
 		out += ", " + u
 	}
 	return out
-}
-
-// memberHealthTable asks every member for its own view, which is the only way
-// a split is visible. Members that disagree about the leader or the raft term
-// are not a cluster, and no single endpoint's status can show that.
-func memberHealthTable(ctx context.Context, c *clientv3.Client, req plugin.Request) (view.Table, error) {
-	resp, err := memberList(ctx, c)
-	if err != nil {
-		return view.Table{}, classify(err, req)
-	}
-	t := view.Table{Columns: []view.Column{
-		{Name: "Member"},
-		{Name: "Endpoint"},
-		{Name: "Leader"},
-		{Name: "Term", Kind: view.KindNumber},
-		{Name: "Size", Kind: view.KindBytes},
-		{Name: "Quota", Kind: view.KindBytes},
-		{Name: "Use %", Kind: view.KindUsage},
-		{Name: "Health", Kind: view.KindStatus},
-	}}
-	for _, m := range resp.Members {
-		if len(m.ClientURLs) == 0 {
-			t.Rows = append(t.Rows, []string{hexID(m.ID), "-", "-", "-", "-", "-", "-", "unstarted"})
-			continue
-		}
-		// Bounded per member: one unreachable member must not make this call
-		// hang for as long as every other member's timeout combined.
-		mctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		st, err := c.Status(mctx, m.ClientURLs[0])
-		cancel()
-		if err != nil {
-			// Reported, not fatal. A member that cannot be reached is the
-			// answer somebody came here for, and ending the walk at the first
-			// one would turn "here is which member is down" into nothing.
-			t.Rows = append(t.Rows, []string{
-				hexID(m.ID), m.ClientURLs[0], "-", "-", "-", "-", "-", "unreachable",
-			})
-			continue
-		}
-		health := "ok"
-		if st.Leader == 0 {
-			health = "no leader"
-		} else if len(st.Errors) > 0 {
-			health = "alarm"
-		}
-		t.Rows = append(t.Rows, []string{
-			hexID(m.ID), m.ClientURLs[0], hexID(st.Leader),
-			strconv.FormatUint(st.RaftTerm, 10), format.Bytes(st.DbSize),
-			quotaBytes(st.DbSizeQuota), quotaCell(st.DbSize, st.DbSizeQuota), health,
-		})
-	}
-	t.Total = len(t.Rows)
-	return t, nil
 }
 
 func leaseListCapability() plugin.Capability {
