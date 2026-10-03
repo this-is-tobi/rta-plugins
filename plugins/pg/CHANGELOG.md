@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.4.0...plugins/pg/v0.5.0) (2026-10-03)
+
+
+### Features
+
+* **pg:** pg.replication shows where every member is and how far behind it is ([fc82dfa](https://github.com/this-is-tobi/rta-plugins/commit/fc82dfad9a65bccfc4e2c9d0f1992fee064d1a6e))
+* **pg:** the compact overview carries one line of replication ([27611be](https://github.com/this-is-tobi/rta-plugins/commit/27611be63d738310a6195ee1eca4830451a30f4a))
+
+
+### Bug Fixes
+
+* **pg:** a dump's restore line reaches the server again by its profile, not a closed forward ([bd844e7](https://github.com/this-is-tobi/rta-plugins/commit/bd844e709e429d22a3070d7b19c1caaeeb060932))
+* **pg:** a server that takes a connection over TLS only is named as that, not as a bad password ([b2ac6c0](https://github.com/this-is-tobi/rta-plugins/commit/b2ac6c0fbedfcaeeb2e272224fb744ac563a5895))
+* **pg:** a setting, an input and its value are spelled by the SDK's naming on every surface ([2a29f5e](https://github.com/this-is-tobi/rta-plugins/commit/2a29f5e7005ac7423c321813849c115223e9bedc))
+* **pg:** only a certificate from an unknown issuer is answered with the CA to name ([ba092bc](https://github.com/this-is-tobi/rta-plugins/commit/ba092bc10b7786997026f42f1a7d16e39f216c5a))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.33.0 ([52132bb](https://github.com/this-is-tobi/rta-plugins/commit/52132bb83099d3ff1b2299150ce8249b8e345f3e))
+
 ## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.3.19...plugins/pg/v0.4.0) (2026-09-29)
 
 

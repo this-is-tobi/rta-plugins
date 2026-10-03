@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.4.3...plugins/s3/v0.5.0) (2026-10-03)
+
+
+### Features
+
+* **s3:** tls-server-name checks a forwarded server's certificate for its own name ([0e4099e](https://github.com/this-is-tobi/rta-plugins/commit/0e4099e7e17a6429cbc38c5bbf59a472559c80b6))
+
+
+### Bug Fixes
+
+* **s3:** a certificate is read before the dial, whatever names the certificate holds ([48afa8d](https://github.com/this-is-tobi/rta-plugins/commit/48afa8ddc6ff45504e7e5b16f405f19de1583c26))
+* **s3:** a connection failure is read by rta's SDK, a revoked certificate never as untrusted ([5d80ec0](https://github.com/this-is-tobi/rta-plugins/commit/5d80ec066e0a28f5ac094c5347212390cd354cf0))
+* **s3:** ca-file resolves a leading ~, as the other paths do ([dbe3fa0](https://github.com/this-is-tobi/rta-plugins/commit/dbe3fa0cc660c12daacc9147c248dbfc97c23209))
+* **s3:** plain HTTP to a server that speaks only HTTPS is named as the scheme to change ([c448ae2](https://github.com/this-is-tobi/rta-plugins/commit/c448ae26ae0fb9909c1ce9f1f7367cbe2878743c))
+* **s3:** the removal a taken destination offers reaches the server the copy reached ([bea142e](https://github.com/this-is-tobi/rta-plugins/commit/bea142ef1df6d4993ef2332bd59a580f461f82db))
+
+
+### Code Refactoring
+
+* **s3:** hints name settings, the explain page and a DNS lookup in the SDK's words ([38a5de6](https://github.com/this-is-tobi/rta-plugins/commit/38a5de64e160503123968c7e2c48b8a2e9c9b06e))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.33.0 ([52132bb](https://github.com/this-is-tobi/rta-plugins/commit/52132bb83099d3ff1b2299150ce8249b8e345f3e))
+
 ## [0.4.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.4.2...plugins/s3/v0.4.3) (2026-09-29)
 
 

@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.4.0...plugins/mysql/v0.5.0) (2026-10-03)
+
+
+### Features
+
+* **mysql:** replication.status reads group replication membership and the majority ([ab8a10e](https://github.com/this-is-tobi/rta-plugins/commit/ab8a10eabc001d0fccb11e6b2e5e4b2c18d6ce69))
+* **mysql:** replication.status shows role, lag, positions and replicas in one view ([732026a](https://github.com/this-is-tobi/rta-plugins/commit/732026a0b73d25ac3048c74e3729d9e3badd90b9))
+
+
+### Bug Fixes
+
+* **mysql:** a client that found no route to the server is named as that, not as refused ([266f969](https://github.com/this-is-tobi/rta-plugins/commit/266f969a47a751cec09f8bb892788ad5fed1f34f))
+* **mysql:** a dump's restore line reaches the server again by its profile, not a closed forward ([338737c](https://github.com/this-is-tobi/rta-plugins/commit/338737c9c608adb63ae86045154a180ea35693d7))
+* **mysql:** a server that insists on TLS through a forward is not sent to tls, which opens none ([fadb0c2](https://github.com/this-is-tobi/rta-plugins/commit/fadb0c2b51146a5b7153207df9d55f2456ad682d))
+* **mysql:** a setting, an input and its value are spelled by the SDK's naming on every surface ([bb247c0](https://github.com/this-is-tobi/rta-plugins/commit/bb247c0c63f95994b0a8c93102d6d73ffc733bed))
+* **mysql:** only a certificate from an unknown issuer is answered with the CA to name ([9da93ac](https://github.com/this-is-tobi/rta-plugins/commit/9da93ac0167759c30968bb2f58d0679227182a84))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.33.0 ([52132bb](https://github.com/this-is-tobi/rta-plugins/commit/52132bb83099d3ff1b2299150ce8249b8e345f3e))
+
 ## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.3.19...plugins/mysql/v0.4.0) (2026-09-29)
 
 

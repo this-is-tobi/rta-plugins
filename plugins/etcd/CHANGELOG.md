@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.3.20...plugins/etcd/v0.4.0) (2026-10-03)
+
+
+### Features
+
+* **etcd:** the overview shows every member's role, index and distance behind the leader ([923e60f](https://github.com/this-is-tobi/rta-plugins/commit/923e60f8d337c35b51cf24467797f3803e46a064))
+* **etcd:** tls-server-name checks a forwarded member's certificate for the member's own name ([9de2243](https://github.com/this-is-tobi/rta-plugins/commit/9de2243c3cbffca1f6520b9e8f5a68e6e8c96c8c))
+
+
+### Bug Fixes
+
+* **etcd:** a refused password or a missing permission is named, not read as an unreachable endpoint ([577c936](https://github.com/this-is-tobi/rta-plugins/commit/577c93681d1be02880d5bcc9e6a64d1a65b0129d))
+* **etcd:** a snapshot's receipt names the member's profile, never a forward's end ([6962f1e](https://github.com/this-is-tobi/rta-plugins/commit/6962f1ef80cc783e09991375b58db99d22e8b257))
+* **etcd:** only a certificate no CA here vouches for is answered with the CA file to name ([8867025](https://github.com/this-is-tobi/rta-plugins/commit/88670251b851bc7019c1bfd301d87d6be7955968))
+* **etcd:** the overview and the member list answer from a cluster that has lost quorum ([dd04dad](https://github.com/this-is-tobi/rta-plugins/commit/dd04dad513313db71cce9c1e5b8540d83be14e72))
+* **etcd:** through a forward, a port that answers nothing names what turns TLS on over it ([3d9ce57](https://github.com/this-is-tobi/rta-plugins/commit/3d9ce5719942d965a02d08a846c075f706f499d0))
+
+
+### Code Refactoring
+
+* **etcd:** hints name settings, the explain page and a DNS lookup in the SDK's words ([427d599](https://github.com/this-is-tobi/rta-plugins/commit/427d599c5656da4e89ce583d92c9209d2119e2db))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.33.0 ([52132bb](https://github.com/this-is-tobi/rta-plugins/commit/52132bb83099d3ff1b2299150ce8249b8e345f3e))
+
 ## [0.3.20](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.3.19...plugins/etcd/v0.3.20) (2026-09-29)
 
 

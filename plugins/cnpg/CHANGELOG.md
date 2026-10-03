@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.23](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.2.22...plugins/cnpg/v0.2.23) (2026-10-03)
+
+
+### Bug Fixes
+
+* **cnpg:** a call a receipt or a hint names carries the profile its call came through ([4631484](https://github.com/this-is-tobi/rta-plugins/commit/46314844eaf658b932c29d530bc3bf74b606e812))
+
+
+### Code Refactoring
+
+* **cnpg:** a method hint gives the method as rta's SDK spells an input and its value ([4494b02](https://github.com/this-is-tobi/rta-plugins/commit/4494b02cead152f8eb1574fc1211d209376c8867))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.33.0 ([52132bb](https://github.com/this-is-tobi/rta-plugins/commit/52132bb83099d3ff1b2299150ce8249b8e345f3e))
+
 ## [0.2.22](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.2.21...plugins/cnpg/v0.2.22) (2026-09-29)
 
 

@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.4.18...plugins/vault/v0.5.0) (2026-10-03)
+
+
+### Features
+
+* **vault:** tls-server-name checks a forwarded Vault's certificate for its own name ([d33b9e7](https://github.com/this-is-tobi/rta-plugins/commit/d33b9e7a7c9def911009ac7c27a52efac7f14564))
+
+
+### Bug Fixes
+
+* **vault:** a certificate is read before the dial, whatever names the certificate holds ([c9dd9d8](https://github.com/this-is-tobi/rta-plugins/commit/c9dd9d853a7a22451cca0286520586607affee5c))
+* **vault:** a connection failure is read by rta's SDK, a revoked certificate never as untrusted ([9efc9cd](https://github.com/this-is-tobi/rta-plugins/commit/9efc9cd6710c3e4186e949a287d40185955c4b9a))
+* **vault:** a snapshot's restore line and receipts name the profile, never a forward's end ([5a8a244](https://github.com/this-is-tobi/rta-plugins/commit/5a8a244bb9c27c4802399a2c1c0c82afb7384357))
+* **vault:** ca-file resolves a leading ~, as the other paths do ([42294d5](https://github.com/this-is-tobi/rta-plugins/commit/42294d56300c125b9039b87f2b54191e817a20b4))
+
+
+### Code Refactoring
+
+* **vault:** hints name settings, the explain page and a DNS lookup in the SDK's words ([7849199](https://github.com/this-is-tobi/rta-plugins/commit/7849199be52ffe4e727bcaa7463b06edc80ff3a6))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.33.0 ([52132bb](https://github.com/this-is-tobi/rta-plugins/commit/52132bb83099d3ff1b2299150ce8249b8e345f3e))
+
 ## [0.4.18](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.4.17...plugins/vault/v0.4.18) (2026-09-29)
 
 

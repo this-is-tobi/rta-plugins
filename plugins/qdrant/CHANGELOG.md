@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.20...plugins/qdrant/v0.4.0) (2026-10-03)
+
+
+### Features
+
+* **qdrant:** the overview shows each peer's consensus state and whether every replica serves ([04f7045](https://github.com/this-is-tobi/rta-plugins/commit/04f7045d3835a7a8727f3f1caaaf901ed38d4a77))
+* **qdrant:** tls-server-name checks a forwarded instance's certificate for its own name ([2655449](https://github.com/this-is-tobi/rta-plugins/commit/2655449b059ce25a96feceb5749e81264b319b31))
+
+
+### Bug Fixes
+
+* **qdrant:** a 403 says the credential's access is short, not that the key was rejected ([9ce8bc2](https://github.com/this-is-tobi/rta-plugins/commit/9ce8bc2629f7a605c835d05aa8a1a35678fab8d8))
+* **qdrant:** a certificate is read before the dial, whatever names the certificate holds ([361415b](https://github.com/this-is-tobi/rta-plugins/commit/361415baaad797b74fdb07dcc667f063ab9ffde7))
+* **qdrant:** a connection failure is read by rta's SDK, a revoked certificate never as untrusted ([29b1ee1](https://github.com/this-is-tobi/rta-plugins/commit/29b1ee17515d4e7c9601bc83a6867d9f2ae6d242))
+* **qdrant:** a dump's restore line and receipts name the profile, never a forward's end ([e086793](https://github.com/this-is-tobi/rta-plugins/commit/e0867935d72f03c34c47d58190261baf5439415d))
+* **qdrant:** ca-file resolves a leading ~, as the other paths do ([6c927b1](https://github.com/this-is-tobi/rta-plugins/commit/6c927b167352863a1510692b9b0d568d674989c2))
+* **qdrant:** plain HTTP to a Qdrant that speaks only TLS is named as the scheme to change ([c50d9f6](https://github.com/this-is-tobi/rta-plugins/commit/c50d9f6d22c5dba04bf128922d4b185aa35dfd25))
+
+
+### Code Refactoring
+
+* **qdrant:** hints name settings, the explain page and a DNS lookup in the SDK's words ([20c0efc](https://github.com/this-is-tobi/rta-plugins/commit/20c0efcddaa31716c2ea718af1c249d363c37b3f))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.33.0 ([52132bb](https://github.com/this-is-tobi/rta-plugins/commit/52132bb83099d3ff1b2299150ce8249b8e345f3e))
+
 ## [0.3.20](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.19...plugins/qdrant/v0.3.20) (2026-09-29)
 
 
