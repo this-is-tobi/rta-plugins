@@ -9,6 +9,24 @@ import (
 	"github.com/this-is-tobi/rta/pkg/plugin"
 )
 
+// A refusal the server gave names the server as the reader reaches it again.
+// Through a forward the address the driver dialled is 127.0.0.1 and a port
+// that closed with the call, and "127.0.0.1:54321 rejected user" named nothing
+// the reader could change.
+func TestARefusalTheServerGaveNamesTheProfileAndNotTheEndOfItsForward(t *testing.T) {
+	r := plugin.NewRequest(map[string]any{"host": "127.0.0.1", "port": 54321, "user": "app", "database": "shop"},
+		false, false).WithProfile("prod", plugin.TunnelKube)
+	for name, number := range map[string]uint16{"credentials": 1045, "no database": 1049, "host": 1130} {
+		t.Run(name, func(t *testing.T) {
+			got := classify(&mysql.MySQLError{Number: number, Message: "server text"}, r)
+			if !strings.Contains(got.Message, "profile prod (through its kube: forward)") ||
+				strings.Contains(got.Message, "54321") {
+				t.Errorf("message = %q, want the profile and its forward, not the forward's end", got.Message)
+			}
+		})
+	}
+}
+
 // The listing a refusal offers is a call, and it reaches the server the
 // refused call reached: through a profile's forward the host and port were
 // 127.0.0.1 and a port that closed with the call, so the profile is what names
