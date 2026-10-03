@@ -30,8 +30,14 @@ func TestARootCertificateSSLHomeFoundIsHeldToTheSameRulesAndNamesSSLHome(t *test
 	}
 
 	prefer := checkRootCert(reqFor(t, "pg.status", map[string]any{"sslmode": "prefer", "ssl-home": true}))
-	if prefer == nil || prefer.Code != "pg.tls.ca.unused" || !strings.Contains(prefer.Message, "--ssl-home") {
-		t.Errorf("prefer beside a found CA: %v, want pg.tls.ca.unused naming --ssl-home", prefer)
+	if prefer == nil || prefer.Code != "pg.tls.ca.unused" ||
+		!strings.Contains(prefer.Message, "--ssl-home found the CA "+root+", and --sslmode prefer never verifies") ||
+		!strings.Contains(prefer.Hint, "or drop --ssl-home, which stops the file being read, and name the client pair with --sslcert and --sslkey") {
+		t.Errorf("prefer beside a found CA: %v, want pg.tls.ca.unused naming --ssl-home, the file and the way out", prefer)
+	}
+	if named := checkRootCert(reqFor(t, "pg.status", map[string]any{"sslmode": "prefer", "sslrootcert": root})); named == nil ||
+		!strings.Contains(named.Message, "--sslrootcert names a CA, and") || strings.Contains(named.Hint, "ssl-home") {
+		t.Errorf("prefer beside a named CA: %v, want the setting that named it and no ssl-home", named)
 	}
 	if got := checkRootCert(reqFor(t, "pg.status", map[string]any{"sslmode": "verify-ca", "ssl-home": true})); got != nil {
 		t.Errorf("verify-ca with the CA found under the home directory was refused: %s: %s", got.Code, got.Message)
