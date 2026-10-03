@@ -258,7 +258,7 @@ var version = "dev"
 func Plugin() plugin.Plugin {
 	return plugin.Plugin{
 		Name:    "pg",
-		Summary: "PostgreSQL: connection health, schema, rows and activity",
+		Summary: "PostgreSQL: connection health, replication, schema, rows and activity",
 		Version: version,
 		Capabilities: []plugin.Capability{
 			cap(plugin.Capability{
@@ -596,16 +596,54 @@ func Plugin() plugin.Plugin {
 					Help: "how many sessions to show"}),
 
 			cap(plugin.Capability{
+				ID:         "pg.replication",
+				Summary:    "Where every member of the replication is, and how far behind",
+				Safety:     plugin.Read,
+				Idempotent: true,
+				Description: "One page for the question a person asks of a replicated PostgreSQL: is it " +
+					"healthy, where is every member, and how far behind is each one — without writing " +
+					"a query. On a primary: its timeline, the WAL position it has reached and the file " +
+					"it is writing, then a row per connected standby with its state, sync state and " +
+					"priority, the sent, write, flush and replay positions, the three lags and the one " +
+					"figure that makes drift obvious, how many bytes of the primary's WAL its replay has " +
+					"not reached; then the replication slots with the WAL each holds back and how close " +
+					"PostgreSQL is to giving up on it. On a standby: its upstream, received and replayed " +
+					"positions, and how far behind its upstream it is. On a server that replicates to and " +
+					"from nothing, one line that says so.\n\n" +
+					"**Graded, and the grade is a reading rather than a verdict.** A standby that is not " +
+					"streaming, behind by 64 MiB or 30 seconds (warn) or a gigabyte or five minutes " +
+					"(fail), a slot nobody reads or that holds that much WAL, a slot PostgreSQL has " +
+					"given up on, a paused replay, and synchronous commit with no synchronous standby " +
+					"to commit to, are collected in an attention list; a healthy replication has none, " +
+					"and the page says so by leaving it out.\n\n" +
+					"Positions and states only, never a stored value, which is why it is in the read " +
+					"tier. A role without `pg_monitor` sees a standby's row and nothing in it — state, " +
+					"positions and lags are NULL to it — and is told that, naming the role that would " +
+					"show them, rather than shown blanks that read as zero. A lag that reads `-` was not " +
+					"measured: PostgreSQL clears one once a standby has been caught up and idle for a " +
+					"while. Reads PostgreSQL 14 and newer. Through a profile it needs nothing the " +
+					"other pg capabilities do not: the connection reaches one server, so it sees a " +
+					"primary's whole replication from the primary and a standby's own position from " +
+					"the standby.",
+				Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
+					return withConn(ctx, req, func(ctx context.Context, conn *pgx.Conn) (view.View, error) {
+						return replicationView(ctx, conn, req)
+					})
+				},
+			}),
+
+			cap(plugin.Capability{
 				ID:         "pg.overview",
 				Summary:    "Everything about this connection at a glance",
 				Safety:     plugin.Read,
 				Idempotent: true,
 				Detailed:   true,
 				Description: "The compact form is four figures worth a glance: role, size, active " +
-					"queries, cache hit ratio. The full page (`detail`) adds replication, the " +
-					"largest tables and current activity — everything pg.status, pg.table.list " +
-					"and pg.activity would otherwise take three calls to assemble, through the " +
-					"one connection this call already opened.",
+					"queries, cache hit ratio. The full page (`detail`) " +
+					"adds the whole replication page (`pg.replication`: positions, standbys with their " +
+					"lag, slots, what needs attention), the largest tables and current activity — " +
+					"everything pg.status, pg.replication, pg.table.list and pg.activity would otherwise " +
+					"take four calls to assemble, through the one connection this call already opened.",
 				Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 					return withConn(ctx, req, func(ctx context.Context, conn *pgx.Conn) (view.View, error) {
 						if req.Bool("detail") {

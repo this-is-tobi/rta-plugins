@@ -95,8 +95,9 @@ func detailedOverview(ctx context.Context, conn *pgx.Conn, req plugin.Request) (
 	v, err := statusView(ctx, conn, req)
 	put("status", v, err)
 
-	v, err = replicationView(ctx, conn, req)
-	put("replication", v, err)
+	if err := addReplication(ctx, p, conn, req); err != nil {
+		p.Warn(view.AsError(err, "page.section.failed"))
+	}
 
 	v, err = cacheView(ctx, conn, req)
 	put("cache", v, err)
@@ -135,55 +136,6 @@ func roleOf(ctx context.Context, conn *pgx.Conn) (string, error) {
 		return "standby", nil
 	}
 	return "primary", nil
-}
-
-// replicationView answers the question a role alone does not: a standby
-// says how far behind it is, and a primary lists who is connected to it.
-// The two shapes differ because the two questions differ — a standby has
-// exactly one upstream and one lag figure, a primary has zero or more
-// downstreams — and view.View exists precisely so a section can be
-// whichever shape answers its own question honestly.
-//
-// A primary with no connected standbys renders as a table with headers and
-// no rows, the same as pg.table.list on a fresh database: checked, and
-// there is nothing there, which is a different fact from "could not check".
-func replicationView(ctx context.Context, conn *pgx.Conn, req plugin.Request) (view.View, error) {
-	role, err := roleOf(ctx, conn)
-	if err != nil {
-		return nil, classify(err, req)
-	}
-	if role == "standby" {
-		var lagSeconds int
-		err := conn.QueryRow(ctx,
-			`select coalesce(extract(epoch from now() - pg_last_xact_replay_timestamp())::int, 0)`).
-			Scan(&lagSeconds)
-		if err != nil {
-			return nil, classify(err, req)
-		}
-		return view.KeyValue{Pairs: []view.Pair{
-			{Key: "role", Value: "standby"},
-			{Key: "replay lag", Value: fmt.Sprintf("%ds", lagSeconds)},
-		}}, nil
-	}
-
-	rows, err := conn.Query(ctx, `
-		select application_name, coalesce(client_addr::text, 'local'), state,
-		       coalesce(extract(epoch from replay_lag)::int, 0)
-		from pg_stat_replication
-		order by application_name`)
-	if err != nil {
-		return nil, classify(err, req)
-	}
-	defer rows.Close()
-	t, err := rowsToTable(rows, maxRows)
-	if err != nil {
-		return nil, classify(err, req)
-	}
-	t.Columns = []view.Column{
-		{Name: "Standby"}, {Name: "Client"}, {Name: "State", Kind: view.KindStatus},
-		{Name: "Lag", Kind: view.KindDuration},
-	}
-	return t, nil
 }
 
 // cacheView renders pg_statio's buffer cache hit ratio, the textbook first

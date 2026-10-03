@@ -67,6 +67,12 @@ var expected = map[string]grading{
 	"pg.table.list": {mcp: "read", bound: "caller"},
 	"pg.overview":   {mcp: "read"},
 
+	// Positions, states and byte counts: an LSN says where a log has got to
+	// and a state word says what a link is doing, and neither is a value
+	// anybody stored. Read is only honest while every column is one of those,
+	// which replication_view_test.go holds the SQL to.
+	"pg.replication": {mcp: "read"},
+
 	// Rows, of whatever the caller asked for. It was Read on the reasoning
 	// that a READ ONLY transaction mutates nothing — true, and the wrong
 	// axis, the one the safety model opens by rejecting.
@@ -271,7 +277,7 @@ func TestTheOverviewFormNeverSelectsTheQueryText(t *testing.T) {
 // that tier is a deliberate edit here and not a default.
 func TestOnlyDescribingCapabilitiesAreInTheReadTier(t *testing.T) {
 	describes := []string{"pg.status", "pg.database.list", "pg.table.list",
-		"pg.schema.dump", "pg.overview"}
+		"pg.schema.dump", "pg.overview", "pg.replication"}
 	for _, c := range Plugin().Capabilities {
 		if c.Safety != plugin.Read {
 			continue
