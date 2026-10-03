@@ -166,7 +166,7 @@ func runStorage(ctx context.Context, req plugin.Request) (view.View, error) {
 	if name == "" {
 		return nil, view.Errorf("cnpg.storage.nocluster", "no cluster named").
 			WithHint("pass " + req.Surface().InputName("cluster") + ", or set plugins.cnpg.cluster in the config or a profile; " +
-				req.Surface().CapabilityName("cnpg.list") + " shows what is there")
+				s.caller().listEverywhere() + " shows what is there")
 	}
 	var list pvcList
 	// The label selector goes to the API server rather than being filtered
@@ -180,7 +180,7 @@ func runStorage(ctx context.Context, req plugin.Request) (view.View, error) {
 	if len(list.Items) == 0 {
 		return view.Text{Body: "No volumes labelled " + pvcSelector + "=" + name +
 			" in " + s.where() + ".\n\n" +
-			req.Surface().CapabilityName("cnpg.list") + " shows which clusters exist, and in which namespace."}, nil
+			s.caller().listEverywhere() + " shows which clusters exist, and in which namespace."}, nil
 	}
 
 	t := view.Table{Columns: []view.Column{

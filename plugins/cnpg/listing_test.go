@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os/exec"
 	"strings"
 	"testing"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
+	"github.com/this-is-tobi/rta/pkg/view"
 )
 
 // The listing a cluster not found offers is a call, and it reaches the cluster
@@ -44,5 +46,33 @@ func TestTheListingAClusterNotFoundOffersReachesTheClusterItWasLookedFor(t *test
 				t.Errorf("hint = %q, want %q in it", got.Hint, tc.want)
 			}
 		})
+	}
+}
+
+// The same listing, from the capabilities that were asked about no cluster at
+// all: they name the cluster in a context a call chose, and the listing they
+// point at read the current one.
+func TestTheListingACallWithNoClusterOffersReachesTheContextItWasMadeIn(t *testing.T) {
+	fakeKubectl(t, `echo '{"items":[]}'`)
+	values := map[string]any{"context": "kind", "cluster": ""}
+	want := "`rta cnpg list --all-namespaces --context kind`"
+	for name, run := range map[string]func(context.Context, plugin.Request) (view.View, error){
+		"backup request": runBackupRequest, "storage": runStorage,
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := run(context.Background(), req(values).WithSurface(plugin.SurfaceCLI))
+			var verr *view.Error
+			if !errors.As(err, &verr) || !strings.Contains(verr.Hint, want) {
+				t.Errorf("err = %v, want a hint naming %s", err, want)
+			}
+		})
+	}
+	v, err := runStorage(context.Background(), req(map[string]any{"context": "kind", "cluster": "shop"}).
+		WithSurface(plugin.SurfaceCLI))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body := v.(view.Text).Body; !strings.Contains(body, want) {
+		t.Errorf("body = %q, want %s in it", body, want)
 	}
 }

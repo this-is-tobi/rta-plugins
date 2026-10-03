@@ -388,7 +388,7 @@ func runBackupRequest(ctx context.Context, req plugin.Request) (view.View, error
 	}
 	if name == "" {
 		return nil, view.Errorf("cnpg.backup.nocluster", "no cluster named").
-			WithHint(req.Surface().CapabilityName("cnpg.list") + " shows what is there")
+			WithHint(s.caller().listEverywhere() + " shows what is there")
 	}
 
 	// The cluster is read before anything is written, and it earns its round
