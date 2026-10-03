@@ -638,6 +638,16 @@ func TestACertificatesOwnNamesAreNeverReadAsTheDialsFailure(t *testing.T) {
 // actually hit, and it fails the same way as a wrong key.
 func TestHTTPFailuresAreClassified(t *testing.T) {
 	r := req(t, "qdrant.overview", map[string]any{"endpoint": "qdrant.internal:6333"})
+	forwarded := req(t, "qdrant.overview", map[string]any{"endpoint": "127.0.0.1:41233"}).
+		WithProfile("prod", plugin.TunnelKube)
+	for _, code := range []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound,
+		http.StatusTooManyRequests, http.StatusServiceUnavailable, http.StatusInternalServerError} {
+		got := classifyStatus(code, []byte(`{"status":{"error":"detail here"}}`), forwarded)
+		if !strings.Contains(got.Message, "profile prod (through its kube: forward)") ||
+			strings.Contains(got.Message, "41233") {
+			t.Errorf("%d: message = %q, want the profile and its forward, not the forward's end", code, got.Message)
+		}
+	}
 	cases := []struct {
 		code int
 		want string
