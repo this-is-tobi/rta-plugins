@@ -290,10 +290,21 @@ func classifyStatus(code int, body []byte, req plugin.Request) *view.Error {
 	detail := qdrantErrorText(body)
 
 	switch code {
-	case http.StatusUnauthorized, http.StatusForbidden:
+	case http.StatusUnauthorized:
 		return view.Errorf("qdrant.auth.failed", "%s rejected the credentials", where).
 			WithHint("set $" + plugin.LocalEnvVar("qdrant.overview", "api-key") +
 				" — an instance started without an API key refuses one that is sent, too")
+	case http.StatusForbidden:
+		// A 401 is a key or token the instance does not know, and the hint above
+		// is for it. A 403 is one it knows and will not let do this: a read-only
+		// key asked to write, or a token scoped to collections asked for the
+		// cluster's own state, which wants global access. Sent to set the key
+		// again, somebody with the right key and the wrong access changed
+		// nothing and read the same refusal.
+		return view.Errorf("qdrant.denied", "%s: %s", where, detail).
+			WithHint("the credentials are valid but their access does not cover this: the read-only API key " +
+				"reads everything and writes nothing, and a JWT scoped to collections cannot read the cluster's " +
+				"own state, which needs global access")
 	case http.StatusNotFound:
 		return view.Errorf("qdrant.notfound", "%s: %s", where, detail).
 			WithHint(req.Surface().CapabilityName("qdrant.collection.list") + " shows what is there")

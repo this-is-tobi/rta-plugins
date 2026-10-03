@@ -634,7 +634,7 @@ func TestHTTPFailuresAreClassified(t *testing.T) {
 		want string
 	}{
 		{http.StatusUnauthorized, "qdrant.auth.failed"},
-		{http.StatusForbidden, "qdrant.auth.failed"},
+		{http.StatusForbidden, "qdrant.denied"},
 		{http.StatusNotFound, "qdrant.notfound"},
 		{http.StatusTooManyRequests, "qdrant.ratelimited"},
 		{http.StatusServiceUnavailable, "qdrant.unavailable"},
@@ -648,6 +648,23 @@ func TestHTTPFailuresAreClassified(t *testing.T) {
 		if strings.TrimSpace(got.Hint) == "" {
 			t.Errorf("%d has no hint — the code alone does not say what to do next", c.code)
 		}
+	}
+}
+
+// What Qdrant 1.19 answers a JWT scoped to one collection when it asks for the
+// cluster's own state: the credential is known, so telling its holder to set
+// the key again sends them round a loop.
+func TestAForbiddenTokenIsNotToldToSetItsKeyAgain(t *testing.T) {
+	r := req(t, "qdrant.overview", map[string]any{"endpoint": "qdrant.internal:6333"})
+	got := classifyStatus(http.StatusForbidden, []byte(`{"status":{"error":"Forbidden: Global access is required"},"time":0.000027625}`), r)
+	if got.Code != "qdrant.denied" || !strings.Contains(got.Message, "Global access is required") {
+		t.Errorf("403 = %s %q", got.Code, got.Message)
+	}
+	if strings.Contains(got.Hint, "api-key") || !strings.Contains(got.Hint, "global access") {
+		t.Errorf("hint = %q", got.Hint)
+	}
+	if rejected := classifyStatus(http.StatusUnauthorized, []byte(`Invalid API key or JWT`), r); rejected.Code != "qdrant.auth.failed" {
+		t.Errorf("401 = %s", rejected.Code)
 	}
 }
 
