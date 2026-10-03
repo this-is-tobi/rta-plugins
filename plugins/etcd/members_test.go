@@ -325,11 +325,16 @@ func TestTheOtherMembersAreNotAskedWhereAskingWouldBeWrong(t *testing.T) {
 	auth := req(t, "etcd.overview", map[string]any{"username": "monitor"})
 	cli := whyNotAsked(auth.WithSurface(plugin.SurfaceCLI))
 	mcp := whyNotAsked(auth.WithSurface(plugin.SurfaceMCP))
-	if !strings.Contains(cli, "(--tls) to ask them") {
+	if !strings.Contains(cli, "an https:// endpoint, or --tls, --ca-file and --tls-server-name, turns TLS on") {
 		t.Errorf("cli = %q", cli)
 	}
-	if strings.Contains(mcp, "--tls") || !strings.Contains(mcp, "operator's `tls` set to true") {
+	if strings.Contains(mcp, "--tls") || !strings.Contains(mcp, "the operator's `tls`, `ca-file` and `tls-server-name` settings") {
 		t.Errorf("mcp = %q", mcp)
+	}
+
+	secured := req(t, "etcd.overview", map[string]any{"username": "monitor", "endpoint": "https://etcd.internal:2379"})
+	if got := whyNotAsked(secured); got != "" {
+		t.Errorf("a username over an https:// endpoint is not asked: %q", got)
 	}
 
 	tls := req(t, "etcd.overview", map[string]any{"username": "monitor", "tls": true})
