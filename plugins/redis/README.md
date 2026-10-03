@@ -229,9 +229,11 @@ MEMORY STATS as a table of where the bytes are — dataset, overhead, clients, r
 
 ## redis.overview
 
-INFO, read once and graded: memory against maxmemory and what happens at the ceiling, when the last RDB was written and how many writes it does not cover, whether AOF is on and whether its last rewrite succeeded, the replication role and every replica's link, and each database's key count.
+INFO, read once and graded: memory against maxmemory and what happens at the ceiling, when the last RDB was written and how many writes it does not cover, whether AOF is on and whether its last rewrite succeeded, the replication role with every link it has, and each database's key count.
 
 The memory row is the one to watch. A server at maxmemory with `noeviction` refuses every write while answering reads, which looks like a working cache from anywhere except here; one with an eviction policy quietly loses keys instead, and the evicted count is where that shows.
+
+Against a primary, the replication table has a row per replica: its acknowledged offset, how many bytes of the stream it has not acknowledged, and whether a reconnect now could still resume. A replica that has fallen behind the replication backlog is graded, because its next dropped connection costs a full copy of the dataset; one that has not answered for 10 seconds is graded at the lag a primary configured with min-replicas-to-write refuses writes at. Against a replica it shows the link and, for a replica rebuilding itself, the progress of the full sync — the distance behind the primary is the primary's to say, and is read there. The stream section holds the replication id, which every member of one history shares and a promotion changes, and what the backlog holds. Reading it needs only INFO.
 
 `detail` adds the raw INFO sections, for the field this page does not show.
 
