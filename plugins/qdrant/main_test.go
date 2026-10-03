@@ -718,6 +718,26 @@ func TestAForbiddenTokenIsNotToldToSetItsKeyAgain(t *testing.T) {
 	}
 }
 
+// A rejected key is answered with where it is read from, not with a verb. The
+// hint said `set $RTA_QDRANT_API_KEY`, which a reader with a host environment
+// can do and an agent, which has none and passes no key, cannot; pg and mysql
+// settled this the other way and qdrant kept the old form.
+func TestARejectedKeyNamesWhereItIsReadFromForEverySurface(t *testing.T) {
+	for _, tc := range []struct {
+		surface plugin.Surface
+		want    string
+	}{
+		{plugin.SurfaceCLI, "the API key is read from $RTA_QDRANT_API_KEY or --api-key —"},
+		{plugin.SurfaceMCP, "the API key is read from $RTA_QDRANT_API_KEY or the operator's `api-key` setting —"},
+	} {
+		r := req(t, "qdrant.overview", map[string]any{"endpoint": "qdrant.internal:6333"}).WithSurface(tc.surface)
+		got := classifyStatus(http.StatusUnauthorized, []byte(`Invalid API key or JWT`), r)
+		if !strings.Contains(got.Hint, tc.want) {
+			t.Errorf("%s: hint = %q, want %q in it", tc.surface, got.Hint, tc.want)
+		}
+	}
+}
+
 // Qdrant puts the reason in the body and it is usually the useful half, but
 // some of these run to kilobytes.
 func TestErrorDetailIsExtractedAndBounded(t *testing.T) {
