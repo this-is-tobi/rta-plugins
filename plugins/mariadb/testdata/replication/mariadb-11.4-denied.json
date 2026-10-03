@@ -1,0 +1,165 @@
+{
+  "note": "MariaDB 11.4 source read by an account with no replication privilege",
+  "statements": {
+    "SELECT VERSION()": {
+      "columns": [
+        "VERSION()"
+      ],
+      "rows": [
+        [
+          "11.4.13-MariaDB-ubu2404-log"
+        ]
+      ]
+    },
+    "SHOW ALL REPLICAS STATUS": {
+      "error": {
+        "number": 1227,
+        "message": "Access denied; you need (at least one of) the SLAVE MONITOR privilege(s) for this operation"
+      }
+    },
+    "SHOW ALL SLAVES STATUS": {
+      "error": {
+        "number": 1227,
+        "message": "Access denied; you need (at least one of) the SLAVE MONITOR privilege(s) for this operation"
+      }
+    },
+    "SHOW BINLOG STATUS": {
+      "error": {
+        "number": 1227,
+        "message": "Access denied; you need (at least one of) the BINLOG MONITOR privilege(s) for this operation"
+      }
+    },
+    "SHOW GLOBAL STATUS LIKE 'wsrep_%'": {
+      "columns": [
+        "Variable_name",
+        "Value"
+      ],
+      "rows": [
+        [
+          "wsrep_applier_thread_count",
+          "0"
+        ],
+        [
+          "wsrep_cluster_capabilities",
+          ""
+        ],
+        [
+          "wsrep_cluster_conf_id",
+          "18446744073709551615"
+        ],
+        [
+          "wsrep_cluster_size",
+          "0"
+        ],
+        [
+          "wsrep_cluster_state_uuid",
+          ""
+        ],
+        [
+          "wsrep_cluster_status",
+          "Disconnected"
+        ],
+        [
+          "wsrep_connected",
+          "OFF"
+        ],
+        [
+          "wsrep_local_bf_aborts",
+          "0"
+        ],
+        [
+          "wsrep_local_index",
+          "18446744073709551615"
+        ],
+        [
+          "wsrep_provider_capabilities",
+          ""
+        ],
+        [
+          "wsrep_provider_name",
+          ""
+        ],
+        [
+          "wsrep_provider_vendor",
+          ""
+        ],
+        [
+          "wsrep_provider_version",
+          ""
+        ],
+        [
+          "wsrep_ready",
+          "OFF"
+        ],
+        [
+          "wsrep_rollbacker_thread_count",
+          "0"
+        ],
+        [
+          "wsrep_thread_count",
+          "0"
+        ]
+      ]
+    },
+    "SHOW GLOBAL VARIABLES WHERE Variable_name IN ('server_id','read_only','log_bin','gtid_domain_id','gtid_binlog_pos','gtid_current_pos','gtid_slave_pos')": {
+      "columns": [
+        "Variable_name",
+        "Value"
+      ],
+      "rows": [
+        [
+          "gtid_binlog_pos",
+          "0-1-4"
+        ],
+        [
+          "gtid_current_pos",
+          "0-1-4"
+        ],
+        [
+          "gtid_domain_id",
+          "0"
+        ],
+        [
+          "gtid_slave_pos",
+          ""
+        ],
+        [
+          "log_bin",
+          "ON"
+        ],
+        [
+          "read_only",
+          "OFF"
+        ],
+        [
+          "server_id",
+          "1"
+        ]
+      ]
+    },
+    "SHOW MASTER STATUS": {
+      "error": {
+        "number": 1227,
+        "message": "Access denied; you need (at least one of) the BINLOG MONITOR privilege(s) for this operation"
+      }
+    },
+    "SHOW REPLICA HOSTS": {
+      "error": {
+        "number": 1227,
+        "message": "Access denied; you need (at least one of) the REPLICATION MASTER ADMIN privilege(s) for this operation"
+      }
+    },
+    "SHOW SLAVE HOSTS": {
+      "error": {
+        "number": 1227,
+        "message": "Access denied; you need (at least one of) the REPLICATION MASTER ADMIN privilege(s) for this operation"
+      }
+    },
+    "SHOW SLAVE STATUS": {
+      "error": {
+        "number": 1227,
+        "message": "Access denied; you need (at least one of) the SLAVE MONITOR privilege(s) for this operation"
+      }
+    }
+  }
+}

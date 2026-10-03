@@ -280,7 +280,7 @@ func (s source) describe(sf plugin.Surface) string {
 		where += fmt.Sprintf(" — **a Galera node whose cluster status is %s, not Primary**: "+
 			"this node has lost quorum and is serving its own side of a partition, so this "+
 			"dump is a backup of that side. %s has the whole picture",
-			s.galeraStatus, sf.CapabilityName("mariadb.galera.status"))
+			s.galeraStatus, sf.CapabilityName("mariadb.replication.status"))
 	}
 	return where
 }

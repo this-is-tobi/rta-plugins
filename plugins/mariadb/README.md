@@ -1,37 +1,36 @@
 # mariadb
 
-MariaDB: connection health, schema, rows, activity and cluster state
+MariaDB: connection health, schema, rows, activity, replication and cluster state
 
 ## Capabilities
 
-| Capability                 | Safety      | Summary                                                                   |
-|----------------------------|-------------|---------------------------------------------------------------------------|
-| mariadb.activity           | write       | What every connected session is doing right now                           |
-| mariadb.database.list      | read        | List databases on this server, with their sizes                           |
-| mariadb.dump               | write       | Back up one database to a SQL file, for a person at a terminal            |
-| mariadb.galera.status      | read        | Galera cluster state: size, health, and whether this node is really in it |
-| mariadb.overview           | read        | Everything about this connection at a glance                              |
-| mariadb.query              | write       | Run a read-only query                                                     |
-| mariadb.replication.status | read        | Whether this replica is running, and how far behind it is                 |
-| mariadb.restore            | destructive | Restore a mariadb.dump file into a database, for a person at a terminal   |
-| mariadb.schema             | read        | Describe a database's tables, columns and keys — no values                |
-| mariadb.status             | read        | Whether the database answers, and what it is                              |
-| mariadb.table.list         | read        | List tables with their row estimates and sizes                            |
+| Capability                 | Safety      | Summary                                                                            |
+|----------------------------|-------------|------------------------------------------------------------------------------------|
+| mariadb.activity           | write       | What every connected session is doing right now                                    |
+| mariadb.database.list      | read        | List databases on this server, with their sizes                                    |
+| mariadb.dump               | write       | Back up one database to a SQL file, for a person at a terminal                     |
+| mariadb.overview           | read        | Everything about this connection at a glance                                       |
+| mariadb.query              | write       | Run a read-only query                                                              |
+| mariadb.replication.status | read        | Replication and Galera state in one place: role, lag, positions, replicas, cluster |
+| mariadb.restore            | destructive | Restore a mariadb.dump file into a database, for a person at a terminal            |
+| mariadb.schema             | read        | Describe a database's tables, columns and keys — no values                         |
+| mariadb.status             | read        | Whether the database answers, and what it is                                       |
+| mariadb.table.list         | read        | List tables with their row estimates and sizes                                     |
 
 ## Configuration
 
 Under `plugins: mariadb:` in rta's configuration, or in a profile's `set:`. An installed plugin's section is pinned to the artifact — `plugins: mariadb@<digest>:` — and `rta doctor` prints the exact line. The caller always wins, so a configured value is a default, never a lock.
 
-| Key          | Read by                                                                                                                                                                                                        | Help                                                                                                                                  |
-|--------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
-| ca-file      | mariadb.activity, mariadb.database.list, mariadb.dump, mariadb.galera.status, mariadb.overview, mariadb.query, mariadb.replication.status, mariadb.restore, mariadb.schema, mariadb.status, mariadb.table.list | PEM bundle to verify the server against — read when tls is true or verify-ca, and overridden along with tls under a kube:/ssh: tunnel |
-| database     | mariadb.activity, mariadb.database.list, mariadb.dump, mariadb.galera.status, mariadb.overview, mariadb.query, mariadb.replication.status, mariadb.restore, mariadb.schema, mariadb.status, mariadb.table.list | database to select (optional — the server is reachable without one)                                                                   |
-| dump.include | mariadb.dump                                                                                                                                                                                                   | what to put in the file                                                                                                               |
-| host         | mariadb.activity, mariadb.database.list, mariadb.dump, mariadb.galera.status, mariadb.overview, mariadb.query, mariadb.replication.status, mariadb.restore, mariadb.schema, mariadb.status, mariadb.table.list | database host                                                                                                                         |
-| limit        | mariadb.activity, mariadb.database.list, mariadb.query, mariadb.schema, mariadb.table.list                                                                                                                     | how many sessions to show                                                                                                             |
-| port         | mariadb.activity, mariadb.database.list, mariadb.dump, mariadb.galera.status, mariadb.overview, mariadb.query, mariadb.replication.status, mariadb.restore, mariadb.schema, mariadb.status, mariadb.table.list | database port                                                                                                                         |
-| tls          | mariadb.activity, mariadb.database.list, mariadb.dump, mariadb.galera.status, mariadb.overview, mariadb.query, mariadb.replication.status, mariadb.restore, mariadb.schema, mariadb.status, mariadb.table.list | TLS negotiation mode — verify-ca checks the chain against ca-file and not the name                                                    |
-| user         | mariadb.activity, mariadb.database.list, mariadb.dump, mariadb.galera.status, mariadb.overview, mariadb.query, mariadb.replication.status, mariadb.restore, mariadb.schema, mariadb.status, mariadb.table.list | user to connect as                                                                                                                    |
+| Key          | Read by                                                                                                                                                                                 | Help                                                                                                                                  |
+|--------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
+| ca-file      | mariadb.activity, mariadb.database.list, mariadb.dump, mariadb.overview, mariadb.query, mariadb.replication.status, mariadb.restore, mariadb.schema, mariadb.status, mariadb.table.list | PEM bundle to verify the server against — read when tls is true or verify-ca, and overridden along with tls under a kube:/ssh: tunnel |
+| database     | mariadb.activity, mariadb.database.list, mariadb.dump, mariadb.overview, mariadb.query, mariadb.replication.status, mariadb.restore, mariadb.schema, mariadb.status, mariadb.table.list | database to select (optional — the server is reachable without one)                                                                   |
+| dump.include | mariadb.dump                                                                                                                                                                            | what to put in the file                                                                                                               |
+| host         | mariadb.activity, mariadb.database.list, mariadb.dump, mariadb.overview, mariadb.query, mariadb.replication.status, mariadb.restore, mariadb.schema, mariadb.status, mariadb.table.list | database host                                                                                                                         |
+| limit        | mariadb.activity, mariadb.database.list, mariadb.query, mariadb.schema, mariadb.table.list                                                                                              | how many sessions to show                                                                                                             |
+| port         | mariadb.activity, mariadb.database.list, mariadb.dump, mariadb.overview, mariadb.query, mariadb.replication.status, mariadb.restore, mariadb.schema, mariadb.status, mariadb.table.list | database port                                                                                                                         |
+| tls          | mariadb.activity, mariadb.database.list, mariadb.dump, mariadb.overview, mariadb.query, mariadb.replication.status, mariadb.restore, mariadb.schema, mariadb.status, mariadb.table.list | TLS negotiation mode — verify-ca checks the chain against ca-file and not the name                                                    |
+| user         | mariadb.activity, mariadb.database.list, mariadb.dump, mariadb.overview, mariadb.query, mariadb.replication.status, mariadb.restore, mariadb.schema, mariadb.status, mariadb.table.list | user to connect as                                                                                                                    |
 
 ## mariadb.activity
 
@@ -116,35 +115,9 @@ Created with O_EXCL at 0600, never over an existing file; a failed run takes its
 | input:password | secret, local (never offered to MCP callers), from $RTA_MARIADB_PASSWORD — password for the user                                                                                                                                                                                                |
 | dashboard      | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                                                                                                    |
 
-## mariadb.galera.status
-
-A Galera node that has lost quorum still accepts connections and still answers SELECT — it just stops being part of the cluster. That is the failure this exists for, because nothing else about the server looks wrong while it is happening.
-
-Reports cluster size, the node's own state, whether it is receiving writes, and how much flow control is being applied. Every value comes from the server's own wsrep status variables — numbers it publishes about itself, never a value anybody stored, which is what keeps this in the read tier.
-
-Says so plainly when the server is not clustered at all, rather than returning an empty table that reads like a broken cluster.
-
-| Field          | Value                                                                                                                                                                                                                                                                                           |
-|----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id             | mariadb.galera.status                                                                                                                                                                                                                                                                           |
-| summary        | Galera cluster state: size, health, and whether this node is really in it                                                                                                                                                                                                                       |
-| safety         | read                                                                                                                                                                                                                                                                                            |
-| idempotent     | true                                                                                                                                                                                                                                                                                            |
-| cli            | rta mariadb galera status \[--host \<string>\] \[--port \<int>\] \[--user \<string>\] \[--database \<string>\] \[--tls \<string>\] \[--ca-file \<string>\] \[--password \<secret>\]                                                                                                             |
-| mcp-tool       | mariadb_galera_status                                                                                                                                                                                                                                                                           |
-| profiles       | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow mariadb --profile \<name>\`                                                                                                                                                           |
-| input:host     | string, default localhost, local (never offered to MCP callers), from config plugins.mariadb.host, filled by a profile's tunnel (the forward's host) — database host                                                                                                                            |
-| input:port     | int, default 3306, a value from 1 to 65535, local (never offered to MCP callers), from config plugins.mariadb.port, filled by a profile's tunnel (the forward's port) — database port                                                                                                           |
-| input:user     | string, default root, local (never offered to MCP callers), from config plugins.mariadb.user — user to connect as                                                                                                                                                                               |
-| input:database | string, default , local (never offered to MCP callers), from config plugins.mariadb.database — database to select (optional — the server is reachable without one)                                                                                                                              |
-| input:tls      | string, default preferred, one of: false\|preferred\|true\|skip-verify\|verify-ca, local (never offered to MCP callers), from config plugins.mariadb.tls, filled by a profile's tunnel (the forward's tls) — TLS negotiation mode — verify-ca checks the chain against ca-file and not the name |
-| input:ca-file  | string, default , local (never offered to MCP callers), from config plugins.mariadb.ca-file — PEM bundle to verify the server against — read when tls is true or verify-ca, and overridden along with tls under a kube:/ssh: tunnel                                                             |
-| input:password | secret, local (never offered to MCP callers), from $RTA_MARIADB_PASSWORD — password for the user                                                                                                                                                                                                |
-| dashboard      | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add mariadb.galera.status\`, or + on it in the TUI, puts it there, re-run every few seconds                                                                                                                        |
-
 ## mariadb.overview
 
-What server this is, how long it has been up, how much of its connection budget is in use, and the largest databases on it.
+What server this is, how long it has been up, how much of its connection budget is in use, one line on whether replication is healthy (mariadb.replication.status has the rest), and the largest databases on it.
 
 `detail` adds what every session is doing, without the statement text — state, time and command, which answers "is anything stuck" and hands back nothing anybody stored. The statement text is mariadb.activity, and it is a write for exactly that reason.
 
@@ -198,16 +171,22 @@ Over `limit` rows it is refused rather than shortened: a truncated result set is
 
 ## mariadb.replication.status
 
-Replica threads, error state, and seconds behind the primary.
+Answers "is replication healthy, where is this server in it, and how far behind is it" without a query: what this server is (a replica, a source with replicas, both, or neither), each replication thread's state, seconds behind, the position read against the one applied, the transactions received and not yet applied, and the replicas connected to it.
 
-The lag figure is the one worth understanding: it measures the replica's own progress through the relay log, so it reads 0 both when a replica is caught up and when it has stopped receiving anything at all. The thread states beside it are what tell those two apart, which is why they are in the same answer.
+Each replica is graded. A stopped thread is a failure, named with the error number the server recorded; a running replica warns at a minute behind and fails at ten, beyond any delay it keeps. The lag figure alone is never the answer — it reads 0 both when caught up and when receiving nothing — so it is never shown without the thread states.
 
-Says so plainly when the server is not a replica, rather than returning an empty table that reads like a broken one.
+One connection sees one server: the source's own position is what the same call against the source says, so run it on each member and compare. The connected replicas are the source's own list: a replica that went away stays on it until the source next fails to send it something.
+
+A server with no replication says so rather than returning an empty table. Every part is read on its own: an account that may read the replica threads and not the connected replicas gets the first, with the privilege that adds the second named.
+
+Positions and states only: the text of a replication error is the failing statement with its row values, so only its number is returned. The message is what `mariadb.query` returns for SHOW REPLICA STATUS, behind its grant.
+
+On a Galera node it adds the cluster's own view of the node: the cluster size and state, whether this node is in the primary component, caught up and in step with the cluster's state, and how much flow control is holding it back. A node that has lost quorum still accepts connections and still answers SELECT — it just stops being part of the cluster, and nothing else about the server looks wrong while that happens.
 
 | Field          | Value                                                                                                                                                                                                                                                                                           |
 |----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | id             | mariadb.replication.status                                                                                                                                                                                                                                                                      |
-| summary        | Whether this replica is running, and how far behind it is                                                                                                                                                                                                                                       |
+| summary        | Replication and Galera state in one place: role, lag, positions, replicas, cluster                                                                                                                                                                                                              |
 | safety         | read                                                                                                                                                                                                                                                                                            |
 | idempotent     | true                                                                                                                                                                                                                                                                                            |
 | cli            | rta mariadb replication status \[--host \<string>\] \[--port \<int>\] \[--user \<string>\] \[--database \<string>\] \[--tls \<string>\] \[--ca-file \<string>\] \[--password \<secret>\]                                                                                                        |
