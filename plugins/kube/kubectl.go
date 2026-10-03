@@ -304,6 +304,13 @@ func classify(ctx context.Context, err error, stderr string, args []string, sf p
 		strings.Contains(low, "no such file or directory") && strings.Contains(low, "kube"):
 		return view.Errorf("kube.noconfig", "there is no kubeconfig on this machine").
 			WithHint("`kubectl config get-contexts` is the same question; this reads what it reads")
+	case strings.Contains(low, "current-context is not set"):
+		// A kubeconfig that exists and names no current context: the one
+		// failure here that fell to kube.failed with the cluster's own words
+		// and no hint, when the two calls that fix it are this plugin's own.
+		return view.Errorf("kube.context.none", "no context is current in this machine's kubeconfig").
+			WithHint(sf.CapabilityName("kube.context.list") + " shows the contexts this machine has, and " +
+				sf.CapabilityName("kube.context.set") + " makes one current")
 	case strings.Contains(low, "context") && strings.Contains(low, "does not exist"),
 		strings.Contains(low, "context was not found"):
 		return view.Errorf("kube.context.unknown", "%s", msg).
