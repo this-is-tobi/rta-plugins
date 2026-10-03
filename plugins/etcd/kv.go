@@ -353,7 +353,8 @@ func kvGetView(ctx context.Context, c *clientv3.Client, req plugin.Request) (vie
 	}
 	if len(resp.Kvs) == 0 {
 		return nil, view.Errorf("etcd.key.notfound", "no key %q", key).
-			WithHint("`" + req.Surface().Call("etcd.kv.list", plugin.Arg{Name: "prefix", Value: key, Positional: true}) +
+			WithHint("`" + req.Surface().Call("etcd.kv.list",
+				append([]plugin.Arg{{Name: "prefix", Value: key, Positional: true}}, reachArgs(req)...)...) +
 				"` shows what is there — this is an exact match, not a prefix")
 	}
 	kv := resp.Kvs[0]

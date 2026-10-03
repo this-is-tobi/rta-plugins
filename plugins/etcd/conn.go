@@ -645,6 +645,32 @@ func reached(req plugin.Request) string {
 	}
 }
 
+// reachArgs points a call this one hands its reader at the cluster it read
+// (Request.ReachArgs), with what else decided how it was reached: the
+// settings that turned TLS on and what the certificate was checked against,
+// and the user it authenticated as, whose roles decide which keys it may see.
+// Over MCP the call gives the profile alone, since the rest are Local and the
+// bridge drops one an agent sends.
+//
+// **Without them, the call named reached another cluster.** Pasted, it read
+// whatever endpoint the configuration there named, and a key "not found" was
+// looked for again somewhere it was never going to be.
+func reachArgs(req plugin.Request) []plugin.Arg {
+	if req.Surface() == plugin.SurfaceMCP {
+		return req.ReachArgs()
+	}
+	args := req.ReachArgs(plugin.Arg{Name: "endpoint", Value: req.String("endpoint")})
+	if req.Bool("tls") {
+		args = append(args, plugin.Arg{Name: "tls", Value: true})
+	}
+	for _, name := range []string{"ca-file", "tls-server-name", "cert-file", "key-file", "username"} {
+		if v := strings.TrimSpace(req.String(name)); v != "" {
+			args = append(args, plugin.Arg{Name: name, Value: v})
+		}
+	}
+	return args
+}
+
 func hostOnly(endpoint string) string {
 	// An http:// or https:// endpoint is one etcd's client takes as readily
 	// as a bare host:port, and split as host:port whole it is not one: a name
