@@ -89,7 +89,7 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 	if req.DryRun {
 		return view.Text{Body: fmt.Sprintf("would run %s %s\nrestoring a %s-format dump into %s on %s",
 			filepath.Base(tool), strings.Join(args, " "), format,
-			req.String("database"), address(req))}, nil
+			req.String("database"), req.Reached(address(req)))}, nil
 	}
 
 	// Ask the server what it is before writing into it — the dump's
@@ -108,7 +108,7 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 
 	return view.KeyValue{Pairs: []view.Pair{
 		{Key: "restored", Value: path},
-		{Key: "into", Value: req.String("database") + " on " + address(req)},
+		{Key: "into", Value: req.String("database") + " on " + req.Reached(address(req))},
 		{Key: "format", Value: describeRestore(req, format)},
 		{Key: "took", Value: time.Since(started).Round(time.Millisecond).String()},
 		{Key: "guarantee", Value: restoreGuarantee(req)},
@@ -309,7 +309,7 @@ func checkTarget(ctx context.Context, req plugin.Request, format dumpFormat) (so
 	s.role = role
 	if s.standby() {
 		return source{}, view.Errorf("pg.restore.standby",
-			"%s is a replica, and a replica cannot be written", address(req)).
+			"%s is a replica, and a replica cannot be written", req.Reached(address(req))).
 			WithHint("restore on the primary — the replica replays it from there, which is " +
 				"the only path that keeps the two the same database")
 	}
