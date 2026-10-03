@@ -237,7 +237,12 @@ func classify(err error, req plugin.Request) *view.Error {
 				WithHint("the credentials are valid but not authorized for this — check the bucket policy or IAM")
 		case minio.InvalidAccessKeyID, minio.SignatureDoesNotMatch:
 			return view.Errorf("s3.auth.failed", "%s rejected the credentials", answered).
-				WithHint("set $" + plugin.LocalEnvVar("s3.overview", "secret-key") + ", or check " + sf.SettingName("access-key"))
+				// Where the secret comes from rather than a verb telling the
+				// reader to set one: these reads answer an agent too, which has
+				// no host environment to set and no secret to pass, since the
+				// bridge drops a Local input given.
+				WithHint("the secret key is read from $" + plugin.LocalEnvVar("s3.overview", "secret-key") + " or " +
+					sf.SettingName("secret-key") + " — check it, and " + sf.SettingName("access-key"))
 		case minio.BucketAlreadyExists, minio.BucketAlreadyOwnedByYou:
 			return view.Errorf("s3.bucket.exists", "%q already exists", bucket).
 				WithHint(nextCall(req, "s3.bucket.list") + " shows who owns what this plugin can see")
