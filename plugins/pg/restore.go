@@ -77,7 +77,7 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 		return nil, verr
 	}
 	// runFullDump's reason: the dry run connects to nothing.
-	if verr := checkRootCert(req); verr != nil {
+	if verr := checkTransport(req); verr != nil {
 		return nil, verr
 	}
 	tool, verr := lookupRestoreTool(format)
@@ -211,8 +211,9 @@ func lookupRestoreTool(format dumpFormat) (string, *view.Error) {
 // restoreArgs builds the child's argv — never a shell string, and never the
 // password, which travels through childEnv exactly as it does for the dump.
 func restoreArgs(req plugin.Request, format dumpFormat, path string) []string {
+	host, _ := childHost(req)
 	args := []string{
-		"--host=" + req.String("host"),
+		"--host=" + host,
 		"--port=" + strconv.Itoa(req.Int("port")),
 		"--username=" + req.String("user"),
 		"--dbname=" + req.String("database"),

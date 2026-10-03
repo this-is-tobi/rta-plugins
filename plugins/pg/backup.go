@@ -85,7 +85,7 @@ func runFullDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	// Here and not only in connect, so the dry run, which connects to
 	// nothing, refuses the pair the real run would, rather than describing a
 	// child that would carry it.
-	if verr := checkRootCert(req); verr != nil {
+	if verr := checkTransport(req); verr != nil {
 		return nil, verr
 	}
 
@@ -433,8 +433,9 @@ func sizeOnDisk(path string) int64 {
 // its own DSN rather than a URL is the reason this builds a slice rather
 // than a command line.
 func dumpArgs(req plugin.Request) []string {
+	host, _ := childHost(req)
 	args := []string{
-		"--host=" + req.String("host"),
+		"--host=" + host,
 		"--port=" + strconv.Itoa(req.Int("port")),
 		"--username=" + req.String("user"),
 		"--dbname=" + req.String("database"),
@@ -520,10 +521,17 @@ func childEnv(req plugin.Request) []string {
 	if pw := req.String("password"); pw != "" {
 		env = append(env, "PGPASSWORD="+pw)
 	}
-	if mode := req.String("sslmode"); mode != "" {
-		env = append(env, "PGSSLMODE="+mode)
+	t := transportOf(req)
+	if t.mode != "" {
+		env = append(env, "PGSSLMODE="+t.mode)
 	}
-	if ca := rootCert(req); ca != "" && req.String("sslmode") != "disable" {
+	// The name the certificate is checked for, given the way libpq takes one:
+	// the child's host is that name (childHost) and this is the address it
+	// connects to.
+	if _, hostaddr := childHost(req); hostaddr != "" {
+		env = append(env, "PGHOSTADDR="+hostaddr)
+	}
+	if ca := t.rootCert; ca != "" && t.mode != "disable" {
 		// The same keyword dsn() writes into the in-process driver's
 		// connection string, carried the only way a subprocess reads it —
 		// pg_dump has no connection-string argument for a single value like
@@ -736,11 +744,23 @@ func restoreCommand(req plugin.Request, path string) string {
 			plugin.Arg{Name: "port", Value: req.Int("port")})...)
 	args = append(args, plugin.Arg{Name: "user", Value: req.String("user")},
 		plugin.Arg{Name: "database", Value: req.String("database")})
-	if mode := req.String("sslmode"); verifiesOrRequires(mode) {
-		args = append(args, plugin.Arg{Name: "sslmode", Value: mode})
-		if ca := rootCert(req); ca != "" {
-			args = append(args, plugin.Arg{Name: "sslrootcert", Value: ca})
+	// Over a forward the mode is the host's, forced, and a line spelling it
+	// would be refused by the host beside the profile: what travels is what
+	// turned TLS on there, the CA and the name.
+	t := transportOf(req)
+	switch {
+	case req.Tunnel() != plugin.TunnelNone:
+		if t.rootCert != "" {
+			args = append(args, plugin.Arg{Name: "sslrootcert", Value: t.rootCert})
 		}
+	case verifiesOrRequires(t.mode):
+		args = append(args, plugin.Arg{Name: "sslmode", Value: t.mode})
+		if t.rootCert != "" {
+			args = append(args, plugin.Arg{Name: "sslrootcert", Value: t.rootCert})
+		}
+	}
+	if t.serverName != "" {
+		args = append(args, plugin.Arg{Name: "tls-server-name", Value: t.serverName})
 	}
 	if n := req.Int("jobs"); n > 1 {
 		args = append(args, plugin.Arg{Name: "jobs", Value: n})
