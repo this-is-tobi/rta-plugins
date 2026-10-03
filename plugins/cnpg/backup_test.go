@@ -341,6 +341,18 @@ func TestTheReceiptsWatchLineIsACallTheListingTakes(t *testing.T) {
 	}
 }
 
+// selected is the selection a call with these values reads, as the handler
+// builds it, so the calls it names carry what the SDK says reaches the same
+// cluster again.
+func selected(t *testing.T, values map[string]any, sf plugin.Surface) selection {
+	t.Helper()
+	s, verr := selectionOf(req(values).WithSurface(sf))
+	if verr != nil {
+		t.Fatal(verr)
+	}
+	return s
+}
+
 // A call a hint names on the cluster a call read is pointed where that cluster
 // is: the namespace it was found in, and the context, when there was one.
 // Without them the call reads the context's own namespace in the current
@@ -363,7 +375,7 @@ func TestACallAHintNamesReadsTheClusterWhereItWasFound(t *testing.T) {
 			"`cnpg_status {\"cluster\":\"shop\",\"namespace\":\"prod\"}`",
 			"`cnpg_backup_list {\"cluster\":\"shop\",\"namespace\":\"prod\"}`"},
 	} {
-		body := emptyBackupBody("shop", selection{context: "kind", namespace: "prod", sf: tc.sf})
+		body := emptyBackupBody("shop", selected(t, map[string]any{"context": "kind", "namespace": "prod"}, tc.sf))
 		if !strings.Contains(body, tc.empty) {
 			t.Errorf("%s: an empty listing reads %q, want %q in it", tc.sf, body, tc.empty)
 		}
@@ -388,8 +400,8 @@ func TestACallAReceiptNamesCarriesTheProfileItCameThrough(t *testing.T) {
 		sf    plugin.Surface
 		watch string
 	}{
-		{plugin.SurfaceCLI, "`rta cnpg backup list --cluster shop --namespace prod --context kind --profile staging`"},
-		{plugin.SurfaceTUI, "`cnpg.backup.list cluster=shop namespace=prod context=kind profile=staging`"},
+		{plugin.SurfaceCLI, "`rta cnpg backup list --cluster shop --namespace prod --profile staging --context kind`"},
+		{plugin.SurfaceTUI, "`cnpg.backup.list cluster=shop namespace=prod profile=staging context=kind`"},
 		{plugin.SurfaceMCP, "`cnpg_backup_list {\"cluster\":\"shop\",\"namespace\":\"prod\",\"profile\":\"staging\"}`"},
 	} {
 		recordingKubectl(t, mustJSON(t, aCluster("shop", "prod")))

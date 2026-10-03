@@ -42,7 +42,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			cli:  "`rta cnpg status --cluster shop --namespace prod` says whether anything is configured to take one",
 			mcp:  "`cnpg_status {\"cluster\":\"shop\",\"namespace\":\"prod\"}` says whether anything is configured to take one",
 			say: func(sf plugin.Surface) string {
-				return emptyBackupBody("shop", selection{namespace: "prod", sf: sf})
+				return emptyBackupBody("shop", selected(t, map[string]any{"namespace": "prod"}, sf))
 			},
 		},
 		{
