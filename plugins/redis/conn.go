@@ -501,6 +501,28 @@ func classifyDial(err error, addr string, req plugin.Request) *view.Error {
 			WithHint(ca + ", which " + req.Surface().SettingName("ca-file") + " names, does not hold the CA that " +
 				"issued it — a self-signed certificate is its own CA")
 	}
+	// Every other verdict on a certificate is its own reason, quoted in the
+	// verifier's words — the system's, for one macOS gives untyped — and
+	// never "could not reach", which sent its reader to the page of every
+	// input about a server that had answered with a certificate. The one
+	// classify reads as an issuer nothing vouches for is left to it.
+	var verifyErr *tls.CertificateVerificationError
+	if errors.As(err, &verifyErr) && !plugin.CertUntrusted(err) {
+		checked := "the host in " + req.Surface().SettingName("address")
+		if serverName(req) != "" {
+			checked = "the name in " + req.Surface().SettingName("tls-server-name")
+		}
+		rejected := view.Errorf("redis.tls.rejected", "%s presented a certificate that does not verify: %v", addr, verifyErr.Err)
+		// A rule of macOS's own, which the verdict's words do not name: a
+		// ten-year certificate, the usual one for a server of one's own, is
+		// "not standards compliant" there, and the hint below would have
+		// sent its reader to check dates that were fine.
+		if hint := plugin.CertPolicyHint(err); hint != "" {
+			return rejected.WithHint(hint)
+		}
+		return rejected.WithHint("a certificate is checked for " + checked +
+			", its dates and the use it was issued for, as well as for who issued it")
+	}
 	return classify(err, addr, req.Surface())
 }
 
