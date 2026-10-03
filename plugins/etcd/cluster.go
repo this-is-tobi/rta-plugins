@@ -39,8 +39,9 @@ func overviewCapability() plugin.Capability {
 			"Each member is asked at the client URL it advertises, and a published port or a " +
 			"forward rarely reaches those names: through a kube: or ssh: forward only the " +
 			"endpoint's own member is asked, and a member this machine cannot reach says why " +
-			"instead of reading as down. A username without TLS asks no other member, so a " +
-			"credential is never sent to an address the member list supplied.",
+			"instead of reading as down. A username without TLS asks no other member, and with it " +
+			"asks only those that advertise an https:// URL, so a credential is never sent in the " +
+			"clear to an address the member list supplied.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withClient(ctx, req, func(ctx context.Context, c *clientv3.Client) (view.View, error) {
 				return overviewView(ctx, c, req)
