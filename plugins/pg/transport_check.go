@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/pem"
 	"os"
+	"path/filepath"
 	"runtime"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -24,7 +25,42 @@ func checkTransport(req plugin.Request) *view.Error {
 	if verr := checkServerName(req); verr != nil {
 		return verr
 	}
+	if verr := checkRevocation(req); verr != nil {
+		return verr
+	}
 	return checkClientPair(req)
+}
+
+// checkRevocation refuses ssl-home beside a revocation list under ~/.postgresql
+// when the connection verifies the server, because nothing here would read it.
+//
+// libpq reads ~/.postgresql/root.crl unasked and refuses a certificate it
+// revokes. pgx has no way to read one, and the children are pointed away from
+// the file (PGSSLCRL, transport) so that they and the pre-flight judge a
+// certificate by the same rules: a list read by one client alone is a child
+// that refuses what the pre-flight accepted. ssl-home asks for libpq's own
+// files, so an operator who has a list there is relying on it, and a
+// connection that accepted a certificate the list revokes, with no word,
+// would be the worst way to find out. It fails closed, before anything dials.
+func checkRevocation(req plugin.Request) *view.Error {
+	t := transportOf(req)
+	if !req.Bool("ssl-home") || (t.mode != "verify-ca" && t.mode != "verify-full") {
+		return nil
+	}
+	dir := libpqDir()
+	if dir == "" {
+		return nil
+	}
+	list := filepath.Join(dir, "root.crl")
+	if !exists(list) {
+		return nil
+	}
+	sf := req.Surface()
+	return view.Errorf("pg.tls.crl.unsupported", "%s asks for libpq's own files, and %s is a revocation list that "+
+		"nothing here reads", sf.SettingName("ssl-home"), list).
+		WithHint("pgx has no way to check a certificate against one, so a certificate it revokes would be " +
+			"accepted — move it aside, or drop " + sf.SettingName("ssl-home") + " and name the files with " +
+			sf.SettingName("sslrootcert", "sslcert", "sslkey") + ", which are read and nothing else is")
 }
 
 // checkServerName refuses tls-server-name beside a connection that would not

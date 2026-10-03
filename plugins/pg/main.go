@@ -44,9 +44,9 @@
 // every tool the same paths. The trade is that a file you did not name is a
 // file that can change what a connection proves — a `root.crt` there turns
 // `sslmode: require` into a verifying one, a `postgresql.crt` presents a
-// certificate to every server — and a revocation list there is not read by
-// anything, since the driver has no way to and a tool that did would refuse a
-// connection the pre-flight had made.
+// certificate to every server — and a revocation list there is refused, since
+// the driver has no way to read one and a tool that did would refuse a
+// connection the pre-flight had made, so nothing could honour it.
 //
 // Through `kubectl port-forward`, leave TLS off, which is what the host does
 // for a forward. PostgreSQL TLS kills a forward on the first clean disconnect
