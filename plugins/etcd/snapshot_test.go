@@ -242,6 +242,14 @@ func TestTheRestoreLinePastesAsTheCommandItReadsAs(t *testing.T) {
 		// A tab, which the receipt would print as blank space, spelled as the
 		// escape the shell turns back into it.
 		{"/backups/a" + string(rune(0x09)) + "b.snap", "`etcdutl snapshot restore $'/backups/a\\011b.snap' --data-dir"},
+		// Characters that count as printable and draw as nothing: a Hangul
+		// filler and a Braille blank. A path holding one was quoted and
+		// carried as it was, and the receipt is printed through a renderer
+		// that cleans what it prints, so what was pasted named another file.
+		{"/backups/a" + string(rune(0x3164)) + "b.snap",
+			"`etcdutl snapshot restore $'/backups/a\\343\\205\\244b.snap' --data-dir"},
+		{"/backups/a" + string(rune(0x2800)) + "b.snap",
+			"`etcdutl snapshot restore $'/backups/a\\342\\240\\200b.snap' --data-dir"},
 	} {
 		kv := snapshotReceipt(tc.path, 1, time.Millisecond, src, "3.6.0", "sha256 abc")
 		var line string
