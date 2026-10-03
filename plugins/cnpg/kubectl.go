@@ -94,8 +94,13 @@ type selection struct {
 	// cluster names what to call next the way its reader calls it.
 	sf plugin.Surface
 	// profile is the operator's profile the call came through (Request.Profile),
-	// "" for none, which a call named next gives again (callArgs).
+	// "" for none.
 	profile string
+	// reach is what a call named next gives to reach the same cluster again
+	// (callArgs): the profile, and the context at a terminal, as
+	// Request.ReachArgs spells them. An agent is given the profile alone, the
+	// context being Local.
+	reach []plugin.Arg
 }
 
 func selectionOf(req plugin.Request) (selection, *view.Error) {
@@ -105,6 +110,12 @@ func selectionOf(req plugin.Request) (selection, *view.Error) {
 		allNamespace: req.Bool("all-namespaces"),
 		sf:           req.Surface(),
 		profile:      req.Profile(),
+	}
+	switch {
+	case s.sf == plugin.SurfaceMCP || s.context == "":
+		s.reach = req.ReachArgs()
+	default:
+		s.reach = req.ReachArgs(plugin.Arg{Name: "context", Value: s.context})
 	}
 	if verr := checkName("context", s.context); verr != nil {
 		return selection{}, verr
@@ -188,13 +199,7 @@ func (s selection) callArgs(namespace string) []plugin.Arg {
 	if namespace != "" {
 		out = append(out, plugin.Arg{Name: "namespace", Value: namespace})
 	}
-	if s.context != "" && s.sf != plugin.SurfaceMCP {
-		out = append(out, plugin.Arg{Name: "context", Value: s.context})
-	}
-	if s.profile != "" {
-		out = append(out, plugin.Arg{Name: "profile", Value: s.profile})
-	}
-	return out
+	return append(out, s.reach...)
 }
 
 // where names what was read, for a message that has to say which cluster.
