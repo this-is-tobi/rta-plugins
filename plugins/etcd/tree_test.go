@@ -199,7 +199,7 @@ func TestAKeyThatIsAlsoAPrefixKeepsItsChildren(t *testing.T) {
 // broke nothing at all.
 func TestListingsNeverAskTheClusterForValues(t *testing.T) {
 	for _, prefix := range []string{"", "/registry/"} {
-		key, opts := keyFetchOptions(prefix, 200)
+		key, opts := keyFetchOptions(prefix, "", 200)
 		op := clientv3.OpGet(key, opts...)
 		if !op.IsKeysOnly() {
 			t.Errorf("prefix %q: the request would pull every value over the wire", prefix)
@@ -215,7 +215,7 @@ func TestListingsNeverAskTheClusterForValues(t *testing.T) {
 // a smaller answer — it is a different range. An empty prefix must range from
 // the start of the keyspace; a named one must be bounded to that prefix.
 func TestTheRangeFormMatchesWhatWasAsked(t *testing.T) {
-	key, opts := keyFetchOptions("", 10)
+	key, opts := keyFetchOptions("", "", 10)
 	op := clientv3.OpGet(key, opts...)
 	if !op.IsOptsWithFromKey() {
 		t.Error("an empty prefix did not range from the start of the keyspace")
@@ -224,7 +224,7 @@ func TestTheRangeFormMatchesWhatWasAsked(t *testing.T) {
 		t.Error("an empty prefix was sent as a prefix range — etcd has no `everything` prefix")
 	}
 
-	key, opts = keyFetchOptions("/registry/", 10)
+	key, opts = keyFetchOptions("/registry/", "", 10)
 	op = clientv3.OpGet(key, opts...)
 	if !op.IsOptsWithPrefix() {
 		t.Error("a named prefix was not sent as a prefix range")

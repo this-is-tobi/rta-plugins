@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 
 	"github.com/this-is-tobi/rta/pkg/format"
@@ -56,7 +57,8 @@ func kvListCapability() plugin.Capability {
 			"carries no length field, so the only way to report a size would be to fetch every " +
 			"value and decline to print it, which has already read the thing.\n\n" +
 			"Bounded, and it says when it stopped. A listing that quietly ended at a thousand " +
-			"reads exactly like a keyspace with a thousand keys in it.",
+			"reads exactly like a keyspace with a thousand keys in it. A page that stopped names " +
+			"the last key it shows, and `after` with that key is the next page.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withClient(ctx, req, func(ctx context.Context, c *clientv3.Client) (view.View, error) {
 				return kvListView(ctx, c, req)
@@ -64,7 +66,9 @@ func kvListCapability() plugin.Capability {
 		},
 	}, prefixField(),
 		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 200, Min: 1, Max: maxKeys,
-			Help: "how many keys to return"})
+			Help: "how many keys to return"},
+		plugin.Field{Name: "after", Type: plugin.String,
+			Help: "continue after this key — the one the last page ended at"})
 }
 
 // fetchKeys is the one request both the listing and the tree are built from.
@@ -74,8 +78,11 @@ func kvListCapability() plugin.Capability {
 // into this process and then discard them. The values would never be shown,
 // and they would still have been read, logged by the cluster, and held in
 // memory here.
+//
+// `after` is declared by the listing alone: the tree is one request by design
+// and has no next page, so for it the input reads as empty.
 func fetchKeys(ctx context.Context, c *clientv3.Client, req plugin.Request, limit int) (*clientv3.GetResponse, *view.Error) {
-	key, opts := keyFetchOptions(req.String("prefix"), limit)
+	key, opts := keyFetchOptions(req.String("prefix"), req.String("after"), limit)
 	resp, err := c.Get(ctx, key, opts...)
 	if err != nil {
 		return nil, classify(err, req)
@@ -87,7 +94,12 @@ func fetchKeys(ctx context.Context, c *clientv3.Client, req plugin.Request, limi
 // without a cluster. WithKeysOnly is the one that has to be right, and its
 // absence is invisible from the output: the values would arrive, be discarded,
 // and the answer would look identical.
-func keyFetchOptions(prefix string, limit int) (string, []clientv3.OpOption) {
+//
+// A page after the first starts at the first key that sorts after `after`,
+// which is `after` with a zero byte appended — the smallest key greater than
+// it — and runs to the end of the prefix. An `after` that sorts before the
+// prefix starts the prefix's own range instead of widening it.
+func keyFetchOptions(prefix, after string, limit int) (string, []clientv3.OpOption) {
 	opts := []clientv3.OpOption{
 		clientv3.WithKeysOnly(),
 		clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend),
@@ -96,14 +108,24 @@ func keyFetchOptions(prefix string, limit int) (string, []clientv3.OpOption) {
 		// rest" and "there is more" cannot be guessed from a count.
 		clientv3.WithLimit(int64(limit) + 1),
 	}
+	start := prefix
+	if after != "" && after >= prefix {
+		start = after + "\x00"
+	}
 	if prefix == "" {
 		// etcd has no "everything" prefix. The convention is to range from the
 		// zero byte, which sorts before every printable key. WithFromKey and
 		// WithPrefix are mutually exclusive, which is why this picks one here
 		// rather than adding to a list that already holds the other.
-		return "\x00", append(opts, clientv3.WithFromKey())
+		if start == "" {
+			start = "\x00"
+		}
+		return start, append(opts, clientv3.WithFromKey())
 	}
-	return prefix, append(opts, clientv3.WithPrefix())
+	if start == prefix {
+		return prefix, append(opts, clientv3.WithPrefix())
+	}
+	return start, append(opts, clientv3.WithRange(clientv3.GetPrefixRangeEnd(prefix)))
 }
 
 func kvListView(ctx context.Context, c *clientv3.Client, req plugin.Request) (view.View, error) {
@@ -112,7 +134,12 @@ func kvListView(ctx context.Context, c *clientv3.Client, req plugin.Request) (vi
 	if verr != nil {
 		return nil, verr
 	}
+	return kvListTable(resp.Kvs, limit, req.Surface()), nil
+}
 
+// kvListTable is split from the fetch so what a stopped page says is
+// assertable without a cluster.
+func kvListTable(kvs []*mvccpb.KeyValue, limit int, sf plugin.Surface) view.Table {
 	// No size column, and that is a limit rather than an omission. etcd's
 	// KeyValue carries no length field, so the only way to report a size is to
 	// fetch the value — which is precisely what this capability exists not to
@@ -125,23 +152,34 @@ func kvListView(ctx context.Context, c *clientv3.Client, req plugin.Request) (vi
 		{Name: "Version", Kind: view.KindNumber},
 		{Name: "Lease"},
 	}}
-	for i, kv := range resp.Kvs {
+	last := ""
+	for i, kv := range kvs {
 		if i == limit {
-			t.Page = &view.Cursor{Next: string(resp.Kvs[i-1].Key)}
+			t.Page = &view.Cursor{Next: last}
+			// The cursor alone is a bare string with no input named beside
+			// it, which left an agent with a key it could neither pass back
+			// nor tell was a continuation. Said where it reads the table.
+			t.Warnings = append(t.Warnings, view.Error{
+				Code:    "etcd.kv.list.partial",
+				Message: fmt.Sprintf("stopped after %s; more keys follow %q", format.CountOf(limit, "key"), last),
+				Hint: "pass " + sf.InputTo("after", last) + " for the next page, or narrow it with " +
+					sf.ArgumentName("prefix") + " or raise " + sf.InputName("limit"),
+			})
 			break
 		}
 		lease := "-"
 		if kv.Lease != 0 {
 			lease = leaseID(kv.Lease)
 		}
+		last = string(kv.Key)
 		t.Rows = append(t.Rows, []string{
-			string(kv.Key),
+			last,
 			strconv.FormatInt(kv.Version, 10),
 			lease,
 		})
 	}
 	t.Total = len(t.Rows)
-	return t, nil
+	return t
 }
 
 func kvTreeCapability() plugin.Capability {
