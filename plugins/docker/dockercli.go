@@ -271,8 +271,11 @@ func classify(ctx context.Context, err error, stderr string, args []string, c co
 				WithHint("start Docker, or fix where profile " + c.profile + " points: the host and context it " +
 					"sets choose the daemon")
 		}
+		// Spelled for the surface reading it: host and context are Local, so
+		// to an agent they are the operator's settings and "the host input"
+		// named an argument the bridge drops.
 		return view.Errorf("docker.unreachable", "%s", msg).
-			WithHint("start Docker, or point this at the right daemon with the host input")
+			WithHint("start Docker, or point this at the right daemon with " + c.sf.SettingName("host", "context"))
 	case strings.Contains(low, "permission denied"):
 		return view.Errorf("docker.denied", "%s", msg).
 			WithHint("this account cannot reach the daemon's socket")
