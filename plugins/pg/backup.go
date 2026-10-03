@@ -88,6 +88,9 @@ func runFullDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr := checkTransport(req); verr != nil {
 		return nil, verr
 	}
+	if verr := checkChildForward(req); verr != nil {
+		return nil, verr
+	}
 
 	tool, err := lookupDumpTool()
 	if err != nil {
