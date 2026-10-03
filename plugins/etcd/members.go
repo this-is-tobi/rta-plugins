@@ -83,8 +83,11 @@ func memberList(ctx context.Context, c *clientv3.Client) (*clientv3.MemberListRe
 // plaintext is a token that would be handed, with each call, to whatever
 // host a member's list names — a member list is data the cluster supplies,
 // and a compromised member could point it anywhere. Over TLS the certificate
-// has to vouch for the host first, which is what makes the same dial safe.
-// Both say so in the member's row rather than leaving it to read as down.
+// has to vouch for the host first, which is what makes the same dial safe,
+// for a member that advertises an https:// URL: one that advertises http://
+// is dialled in the clear whatever the connection was (tokenSafeAt), and is
+// not asked while a username is in play. All three say so in the member's row
+// rather than leaving it to read as down.
 //
 // A member this machine cannot reach, for whatever reason — advertised
 // names are the cluster's own, and a published port rarely reaches them —
@@ -118,6 +121,9 @@ func askMembers(ctx context.Context, c *clientv3.Client, req plugin.Request, sel
 			r.why = "has not started: no client URL yet"
 		case skip != "":
 			r.notAsked, r.why = true, skip
+		case !tokenSafeAt(req, r.clientURLs[0]):
+			r.notAsked, r.why = true, "advertises "+r.clientURLs[0]+", which is not https://, so the credentials "+
+				"are not sent to it"
 		default:
 			wg.Add(1)
 			go func() {
@@ -155,7 +161,29 @@ func whyNotAsked(req plugin.Request) string {
 // endpoint, the usual secured cluster, was refused the other members as if its
 // token travelled in the clear.
 func overTLS(req plugin.Request) bool {
-	return tlsRequested(req) || strings.HasPrefix(req.String("endpoint"), "https://")
+	endpoint := strings.ToLower(req.String("endpoint"))
+	switch {
+	case strings.HasPrefix(endpoint, "https://"):
+		return true
+	case strings.HasPrefix(endpoint, "http://"):
+		return false
+	}
+	return tlsRequested(req)
+}
+
+// tokenSafeAt is whether a member advertised at url may be handed this call's
+// token: always without a username, and with one only at an https:// URL.
+//
+// **The scheme is the member's to choose, and the client obeys it.** etcd's
+// client dials an http:// endpoint in the clear whatever TLS the connection
+// that fetched the list was given, and attaches the auth token to every call
+// it makes on any connection (measured: a client built with TLS and a token
+// sent that token to an http:// address in the clear). The member list is data
+// the cluster supplies, so the check that makes asking the others safe over
+// TLS, the certificate vouching for the host, only exists for a URL that
+// speaks TLS.
+func tokenSafeAt(req plugin.Request, url string) bool {
+	return req.String("username") == "" || strings.HasPrefix(strings.ToLower(url), "https://")
 }
 
 // unreachableWhy is the shortest true reason a member's own status could not
