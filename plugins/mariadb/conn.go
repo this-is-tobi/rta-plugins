@@ -96,14 +96,31 @@ func connFields() []plugin.Field {
 		// unwritten way tls gets its value. false is left to stand: it
 		// negotiates nothing a CA could verify, and it is what a tunnel forces.
 		//
-		// TLSAdjacent for that last fact — see pg's sslrootcert, the other
-		// input beside a mode a tunnel turns off. The host then refuses a
-		// profile that sets this beside a forward instead of letting it sit
-		// inert.
+		// **Over a kube: or ssh: forward it is one of the two things that can
+		// ask for TLS.** The host forces tls to false there (EndpointTLS) and
+		// refuses a caller's own, so the elevation declined above is not the
+		// operator's to decline: nothing else on the line says TLS. A CA, or a
+		// name to check (tls-server-name), turns it on at true (tlsMode), as
+		// plugins/pg's sslrootcert and tls-server-name do, and so this is not
+		// TLSAdjacent: a profile may hold it beside its forward.
 		{Name: "ca-file", Type: plugin.String, Default: "", Config: "ca-file",
-			Local: true, TLSAdjacent: true,
-			Help: "PEM bundle to verify the server against — read when tls is true or verify-ca, and " +
-				"overridden along with tls under a kube:/ssh: tunnel"},
+			Local: true,
+			Help: "PEM bundle to verify the server against — read when tls is true or verify-ca; under a " +
+				"kube:/ssh: forward it turns TLS on, at true"},
+		// The name the certificate is checked for when it is not the host
+		// dialled — above all through a kube: or ssh: forward, whose end is
+		// 127.0.0.1 whatever the server is called, and which its certificate
+		// names only by luck. Checked as strictly as the host would have been:
+		// it moves the check, never loosens it, so it is read at true alone
+		// (checkServerName). Local for the reason tls is: what a certificate
+		// has to prove is the operator's to say.
+		//
+		// Not TLSAdjacent, for ca-file's reason: over a forward it is what turns
+		// TLS on.
+		{Name: "tls-server-name", Type: plugin.String, Default: "", Config: "tls-server-name",
+			Local: true,
+			Help: "name to check the server's certificate for, in place of the host's — tls true only; under a " +
+				"kube:/ssh: forward it turns TLS on, at true"},
 		{Name: "password", Type: plugin.Secret, Local: true, EnvFallback: true,
 			Help: "password for the user"},
 	}
@@ -131,7 +148,7 @@ func driverConfig(req plugin.Request) (*mysql.Config, *view.Error) {
 	c.User = req.String("user")
 	c.Passwd = req.String("password")
 	c.DBName = req.String("database")
-	c.TLSConfig = req.String("tls")
+	c.TLSConfig = tlsMode(req)
 	// Nil, and the driver builds the tls.Config TLSConfig spells, unless
 	// ca-file names a CA. Set, it outranks TLSConfig, and the driver still
 	// takes the name to verify from the address, as it does for true. Always
@@ -211,8 +228,14 @@ func open(ctx context.Context, req plugin.Request, cfg *mysql.Config) (*sql.DB, 
 // for a name they control, so a chain that ends there and a name nobody
 // checks accept all of them — a check that could pass for any server at all.
 func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
-	path, sf, mode := caFile(req), req.Surface(), req.String("tls")
+	path, sf, mode := caFile(req), req.Surface(), tlsMode(req)
+	if verr := checkServerName(req); verr != nil {
+		return nil, verr
+	}
 	if path == "" {
+		if name := serverName(req); name != "" {
+			return &tls.Config{ServerName: name, MinVersion: tls.VersionTLS12}, nil
+		}
 		if mode == "verify-ca" {
 			return nil, view.Errorf("mariadb.tls.ca.missing", "%s checks the server's chain against the CA %s names, "+
 				"and it names none", sf.SettingTo("tls", mode), sf.SettingName("ca-file")).
@@ -249,7 +272,7 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 			WithHint(sf.SettingName("ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
 				"server's own — and a private key or a DER-encoded certificate is not one")
 	}
-	cfg := &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}
+	cfg := &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12, ServerName: serverName(req)}
 	if mode == "verify-ca" {
 		// Go's verifier checks the name whenever it verifies, so it is
 		// turned off and the chain checked here instead, as pgx builds its
@@ -352,7 +375,7 @@ func classify(err error, req plugin.Request) *view.Error {
 			// forces, so this is where a server started with
 			// require_secure_transport meets one (tlsThroughForward).
 			if req.Tunnel() != plugin.TunnelNone {
-				return tlsThroughForward(where, req)
+				return tlsThroughForward(req)
 			}
 			return view.Errorf("mariadb.tls.required", "%s accepts connections over TLS only", req.Reached(where)).
 				WithHint(req.Surface().SettingTo("tls", "true") + " connects over it, with " +
@@ -387,6 +410,10 @@ func classify(err error, req plugin.Request) *view.Error {
 	// followed the hint connected to the server the check had caught. It
 	// keeps the system's words below, with no way round.
 	if cert, ok := misnamed(err); ok && !plugin.CertRevoked(err) {
+		if req.Tunnel() != plugin.TunnelNone && serverName(req) == "" && cert != nil &&
+			len(cert.DNSNames)+len(cert.IPAddresses) > 0 {
+			return forwardName(req, cert)
+		}
 		return nameRefusal(req.Reached(where), cert, req)
 	}
 
@@ -509,43 +536,50 @@ func misnamed(err error) (*x509.Certificate, bool) {
 // carry dozens, and the reader needs to see that the one dialled is not
 // among them, not the whole list.
 func nameRefusal(where string, cert *x509.Certificate, req plugin.Request) *view.Error {
-	host, sf := req.String("host"), req.Surface()
+	host, sf := checkedName(req), req.Surface()
 	if cert == nil || len(cert.DNSNames)+len(cert.IPAddresses) == 0 {
-		return view.Errorf("mariadb.tls.name", "%s presented a certificate that names no host, %s or any other",
-			where, host).
-			WithHint("a certificate with no subject alternative names, as the one MariaDB generates for itself " +
-				"is, verifies as no host at all — " + sf.SettingTo("tls", "verify-ca") + " checks it against the " +
-				"CA in " + sf.SettingName("ca-file") + " without a name, and " + sf.SettingTo("tls", "true") +
-				" reaches the server once its certificate is reissued with " + host + " among them")
+		refusal := view.Errorf("mariadb.tls.name", "%s presented a certificate that names no host, %s or any other",
+			where, host)
+		if req.Tunnel() != plugin.TunnelNone {
+			return refusal.WithHint("a certificate with no subject alternative names, as the one MariaDB generates " +
+				"for itself has, verifies as no host at all, and nothing a forward can be given checks a chain and " +
+				"no name — it reaches the server once it is reissued with " + host + " among them")
+		}
+		return refusal.WithHint("a certificate with no subject alternative names, as the one MariaDB generates for itself " +
+			"is, verifies as no host at all — " + sf.SettingTo("tls", "verify-ca") + " checks it against the " +
+			"CA in " + sf.SettingName("ca-file") + " without a name, and " + sf.SettingTo("tls", "true") +
+			" reaches the server once its certificate is reissued with " + host + " among them")
 	}
 	return view.Errorf("mariadb.tls.name", "%s presented a certificate for %s, not %s",
 		where, plugin.CertNames(cert), host).
-		WithHint(sf.SettingName("host") + " is the name the certificate is checked against — reach the " +
+		WithHint(nameSetting(req) + " is the name the certificate is checked against — reach the " +
 			"server by one it carries, or have it reissued with " + host + " among its subject alternative names")
 }
 
 // tlsThroughForward is mariadb.tls.required for a server reached through
-// the forward a kube: or ssh: profile opened, at where, its local end.
+// the forward a kube: or ssh: profile opened.
 //
 // **Not tls true, the way on for a direct connection.** The forward turns tls
-// off, and nothing turns it back on over one: the host refuses tls and
-// ca-file beside a coordinate, and tls given by the caller is an input the
-// forward fills, so the host opens no forward at all and the call goes to
-// the host config or the default names. Measured through a kube: profile:
-// the call the hint handed over was "nothing is listening on
-// localhost:3306". A server that insists on TLS is reached directly.
-func tlsThroughForward(where string, req plugin.Request) *view.Error {
+// off, and tls given by the caller is an input the forward fills, so the host
+// opens no forward at all and the call goes to the host config or the default
+// names. Measured through a kube: profile: the call the hint handed over was
+// "nothing is listening on localhost:3306". What turns TLS on over a forward
+// is a CA or a name to check (tlsMode), which a profile holds beside it, and
+// the name is the one the certificate is for, since the forward ends at
+// 127.0.0.1; without it, the refusal for a certificate for another name
+// (forwardName) says so.
+func tlsThroughForward(req plugin.Request) *view.Error {
 	// What the hop off this machine runs inside, which is why the forward
 	// turns TLS off in the first place (plugin.EndpointTLS).
 	carrier := "the SSH connection it rides"
 	if req.Tunnel() == plugin.TunnelKube {
 		carrier = "the API server's TLS"
 	}
-	return view.Errorf("mariadb.tls.required", "%s accepts connections over TLS only, and %s "+
-		"carries none", where, req.Reached(where)).
+	return view.Errorf("mariadb.tls.required", "%s accepts connections over TLS only, and the forward "+
+		"carries none", req.Reached(address(req))).
 		WithHint("a forward runs the connection in the clear, the hop off this machine inside " + carrier +
-			", and TLS never runs through one here — the server is reached over TLS directly, by a profile " +
-			"with no kube: or ssh: coordinate")
+			" — " + req.Surface().SettingName("ca-file", "tls-server-name") + " each turn TLS on over it, with " +
+			"the name the certificate is for in " + req.Surface().SettingName("tls-server-name"))
 }
 
 // reachHint asks whether the server is up and its address right, naming the
