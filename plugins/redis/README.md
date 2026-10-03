@@ -61,9 +61,11 @@ CLIENT LIST as a table: address, name, age, idle time, the last command and the 
 
 ## redis.cluster
 
-CLUSTER INFO and CLUSTER NODES from one node. A node that is not in a cluster says so rather than failing.
+CLUSTER INFO, CLUSTER NODES and CLUSTER SHARDS from one node. A node that is not in a cluster says so rather than failing.
 
 The state row is the one that matters: `fail` means some slot has no reachable primary and the cluster refuses writes to it, which is the outage the per-node rows below explain.
+
+Each node's replication offset, and how many bytes each replica is behind its primary, come from CLUSTER SHARDS (redis 7.0 and later; an ACL user needs `+cluster|shards`). They are what the nodes learned of each other from the cluster bus, a heartbeat old, so a few bytes is noise and a replica that is thousands behind is the finding; `redis.overview` against a primary reads the acknowledged offsets exactly. Where the subcommand is not available the table is printed without those columns and says why.
 
 | Field                 | Value                                                                                                                                                                                                                                    |
 |-----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
