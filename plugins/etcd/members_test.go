@@ -296,6 +296,13 @@ func TestWhyAMemberWasNotReadIsTheShortestTrueReason(t *testing.T) {
 			`connection error: desc = "transport: Error while dialing: dial tcp 127.0.0.1:32372: connect: connection refused"`),
 			"connection refused"},
 		{"no route", noRoute, "no route from here"},
+		// A member that was reached and refused its certificate, whose names
+		// are the server's to choose: a dial's words only when it was a dial.
+		{"a certificate valid for a name that spells a refusal", status.Error(codes.Unavailable,
+			`connection error: desc = "transport: authentication handshake failed: tls: failed to verify certificate: `+
+				`x509: certificate is valid for connection refused, no route to host, not 10.0.0.9"`),
+			`unavailable: connection error: desc = "transport: authentication handshake failed: tls: failed to verify certificate: ` +
+				`x509: certificate is valid for connection refused, no route to host, not 10.0.0.9"`},
 		{"a name nothing resolves", &stdnet.DNSError{Err: "no such host", Name: "eh2", IsNotFound: true}, "the name does not resolve from here"},
 		{"another status", status.Error(codes.Unavailable, "etcdserver: no leader"), "unavailable: etcdserver: no leader"},
 		{"anything else", errors.New("boom"), "boom"},
