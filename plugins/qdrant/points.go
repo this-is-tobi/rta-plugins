@@ -85,6 +85,10 @@ func pointsScrollCapability() plugin.Capability {
 		Scope:      "collection",
 		Idempotent: true,
 		Description: "Points from one collection, with their payloads.\n\n" +
+			"**Payload and vector values come back masked (••••••), on every surface.** rta masks " +
+			"every column a plugin marks as secret and this one marks them all, so what the result " +
+			"tells you is which points exist, their ids and the names of their payload fields — " +
+			"not what they hold. `offset` continues from the next point's id.\n\n" +
 			"**Classified write for what it discloses, not what it changes.** The payloads are " +
 			"whatever was indexed — for most deployments, chunks of documents.\n\n" +
 			"**Vectors are off by default even here.** An embedding is not a hash: it is a " +
@@ -194,9 +198,9 @@ func runPointsScroll(ctx context.Context, req plugin.Request) (view.View, error)
 }
 
 // vectorSummary renders a vector as its dimensions and first few components
-// rather than as several thousand floats. The whole thing is still available
-// in the JSON output for anybody who asked for it; what this avoids is a
-// terminal filling with numbers nobody can read.
+// rather than as several thousand floats. It is the cell on every surface — a
+// view carries the summary, never the whole vector — and the column is masked
+// besides; what this avoids is a terminal filling with numbers nobody can read.
 func vectorSummary(raw json.RawMessage) string {
 	if len(raw) == 0 {
 		return "-"
