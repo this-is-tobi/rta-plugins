@@ -482,17 +482,19 @@ func TestAPartialProvisionNamesTheRevokeItsReaderCanRun(t *testing.T) {
 	for _, tc := range []struct {
 		sf      plugin.Surface
 		context string
+		profile string
 		want    string
 	}{
-		{plugin.SurfaceCLI, "", "`rta kube serviceaccount revoke agent-x --namespace team-a` cleans up whatever it left behind"},
-		{plugin.SurfaceTUI, "", "`kube.serviceaccount.revoke name=agent-x namespace=team-a` cleans up whatever it left behind"},
-		{plugin.SurfaceCLI, "kind", "`rta kube serviceaccount revoke agent-x --namespace team-a --context kind` cleans up"},
-		{plugin.SurfaceTUI, "kind", "`kube.serviceaccount.revoke name=agent-x namespace=team-a context=kind` cleans up"},
+		{plugin.SurfaceCLI, "", "", "`rta kube serviceaccount revoke agent-x --namespace team-a` cleans up whatever it left behind"},
+		{plugin.SurfaceTUI, "", "", "`kube.serviceaccount.revoke name=agent-x namespace=team-a` cleans up whatever it left behind"},
+		{plugin.SurfaceCLI, "kind", "", "`rta kube serviceaccount revoke agent-x --namespace team-a --context kind` cleans up"},
+		{plugin.SurfaceTUI, "kind", "", "`kube.serviceaccount.revoke name=agent-x namespace=team-a context=kind` cleans up"},
+		{plugin.SurfaceCLI, "kind", "prod", "`rta kube serviceaccount revoke agent-x --namespace team-a --profile prod --context kind` cleans up"},
 	} {
 		r := plugin.NewRequest(map[string]any{
 			"name": "agent-x", "namespace": "team-a", "ttl": "1h", "grant": []string{"kube.pod.list"},
 			"context": tc.context,
-		}, false, false).WithSurface(tc.sf)
+		}, false, false).WithProfile(tc.profile, plugin.TunnelNone).WithSurface(tc.sf)
 		_, err := runServiceAccountProvision(context.Background(), r)
 		var verr *view.Error
 		if !errors.As(err, &verr) {
