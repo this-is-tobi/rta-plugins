@@ -478,7 +478,7 @@ func TestAConnectionTakenOnlyOverTLSIsNotAPasswordRefused(t *testing.T) {
 	}
 	forwarded := classify(hba, req(t, values).WithProfile("prod", plugin.TunnelKube))
 	if forwarded.Code != "pg.tls.required" ||
-		!strings.Contains(forwarded.Message, "profile prod (through its kube: forward) carries none") {
+		!strings.Contains(forwarded.Message, "profile prod (through its kube: forward) accepts this connection over TLS only, and the forward carries none") {
 		t.Errorf("through a forward: %s %q, want the forward named", forwarded.Code, forwarded.Message)
 	}
 	if !strings.Contains(forwarded.Hint, "--sslrootcert and --tls-server-name each turn TLS on over it") ||

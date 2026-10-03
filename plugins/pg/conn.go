@@ -419,7 +419,7 @@ func classify(err error, req plugin.Request) *view.Error {
 			// lc_messages says otherwise; in another language it is read as
 			// it always was.
 			if pgErr.Code == "28000" && strings.HasSuffix(pgErr.Message, "no encryption") {
-				return tlsRequired(where, req)
+				return tlsRequired(req)
 			}
 			// **A server that wants a client certificate answers a connection
 			// without a good one in the same code**, 28000, and read as a
@@ -519,7 +519,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	}
 	if strings.Contains(err.Error(), "SSL is not enabled") ||
 		strings.Contains(err.Error(), "server does not support SSL") {
-		return view.Errorf("pg.tls.unsupported", "%s does not offer TLS", where).
+		return view.Errorf("pg.tls.unsupported", "%s does not offer TLS", req.Reached(where)).
 			WithHint(sf.SettingTo("sslmode", "disable") + " if that is expected on this network")
 	}
 	// Only verify-ca and verify-full get here: prefer and require without a
@@ -538,7 +538,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	// pg.conn.failed, and the hint that sends somebody to name a CA says what
 	// naming one costs (CAHint).
 	if plugin.CertUntrusted(err) {
-		refused := view.Errorf("pg.tls.untrusted", "%s presented a certificate nothing here trusts", where)
+		refused := view.Errorf("pg.tls.untrusted", "%s presented a certificate nothing here trusts", req.Reached(where))
 		t := transportOf(req)
 		switch ca := t.rootCert; ca {
 		case "":
@@ -564,7 +564,7 @@ func classify(err error, req plugin.Request) *view.Error {
 		if req.Tunnel() != plugin.TunnelNone && serverName(req) == "" {
 			return forwardName(req, hostErr)
 		}
-		return nameRefusal(where, hostErr, req)
+		return nameRefusal(req.Reached(where), hostErr, req)
 	}
 	// An alert about the client's certificate, as Go's TLS reports one the
 	// server sent: the server saw the certificate and did not take it.
@@ -579,7 +579,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	var verifyErr *tls.CertificateVerificationError
 	if errors.As(err, &verifyErr) {
 		rejected := view.Errorf("pg.tls.rejected", "%s presented a certificate that does not verify: %v",
-			where, verifyErr.Err)
+			req.Reached(where), verifyErr.Err)
 		// A rule of macOS's own, which the verdict's words do not name: a
 		// ten-year certificate, the usual one for a server of one's own, is
 		// "not standards compliant" there.
@@ -648,8 +648,8 @@ func nameRefusal(where string, hostErr x509.HostnameError, req plugin.Request) *
 		"the server by one it carries, or have it reissued with " + checked + " among its subject alternative names")
 }
 
-// tlsRequired is pg.tls.required: the server at where takes this connection
-// only over TLS, and it was made without.
+// tlsRequired is pg.tls.required: the server takes this connection only over
+// TLS, and it was made without.
 //
 // **Through a forward, not the sslmode that would verify it.** The forward
 // sets disable, and sslmode given by the caller is an input the forward
@@ -660,10 +660,10 @@ func nameRefusal(where string, hostErr x509.HostnameError, req plugin.Request) *
 // forward. The name is the one the certificate is for, since the forward ends
 // at 127.0.0.1; without it, the refusal for a certificate for another name
 // (forwardName) says so.
-func tlsRequired(where string, req plugin.Request) *view.Error {
-	sf := req.Surface()
+func tlsRequired(req plugin.Request) *view.Error {
+	sf, server := req.Surface(), req.Reached(address(req))
 	if req.Tunnel() == plugin.TunnelNone {
-		return view.Errorf("pg.tls.required", "%s accepts this connection over TLS only", where).
+		return view.Errorf("pg.tls.required", "%s accepts this connection over TLS only", server).
 			WithHint(sf.SettingTo("sslmode", "verify-full") + " connects over it, with " + sf.SettingName("sslrootcert") +
 				" naming the CA if the server's certificate is from one of its own")
 	}
@@ -673,8 +673,8 @@ func tlsRequired(where string, req plugin.Request) *view.Error {
 	if req.Tunnel() == plugin.TunnelKube {
 		carrier = "the API server's TLS"
 	}
-	return view.Errorf("pg.tls.required", "%s accepts this connection over TLS only, and %s "+
-		"carries none", where, req.Reached(where)).
+	return view.Errorf("pg.tls.required", "%s accepts this connection over TLS only, and the forward "+
+		"carries none", server).
 		WithHint("a forward runs the connection in the clear, the hop off this machine inside " + carrier +
 			" — " + sf.SettingName("sslrootcert", "tls-server-name") + " each turn TLS on over it, at verify-full, " +
 			"with the name the certificate is for in " + sf.SettingName("tls-server-name"))
