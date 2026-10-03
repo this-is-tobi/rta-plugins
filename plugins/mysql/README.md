@@ -4,18 +4,18 @@ MySQL: connection health, schema, rows, activity and replication
 
 ## Capabilities
 
-| Capability               | Safety      | Summary                                                               |
-|--------------------------|-------------|-----------------------------------------------------------------------|
-| mysql.activity           | write       | What every connected session is doing right now                       |
-| mysql.database.list      | read        | List databases on this server, with their sizes                       |
-| mysql.dump               | write       | Back up one database to a SQL file, for a person at a terminal        |
-| mysql.overview           | read        | Everything about this connection at a glance                          |
-| mysql.query              | write       | Run a read-only query                                                 |
-| mysql.replication.status | read        | Replication in one place: role, lag, positions and connected replicas |
-| mysql.restore            | destructive | Restore a mysql.dump file into a database, for a person at a terminal |
-| mysql.schema             | read        | Describe a database's tables, columns and keys — no values            |
-| mysql.status             | read        | Whether the database answers, and what it is                          |
-| mysql.table.list         | read        | List tables with their row estimates and sizes                        |
+| Capability               | Safety      | Summary                                                                                     |
+|--------------------------|-------------|---------------------------------------------------------------------------------------------|
+| mysql.activity           | write       | What every connected session is doing right now                                             |
+| mysql.database.list      | read        | List databases on this server, with their sizes                                             |
+| mysql.dump               | write       | Back up one database to a SQL file, for a person at a terminal                              |
+| mysql.overview           | read        | Everything about this connection at a glance                                                |
+| mysql.query              | write       | Run a read-only query                                                                       |
+| mysql.replication.status | read        | Replication and Group Replication state in one place: role, lag, positions, replicas, group |
+| mysql.restore            | destructive | Restore a mysql.dump file into a database, for a person at a terminal                       |
+| mysql.schema             | read        | Describe a database's tables, columns and keys — no values                                  |
+| mysql.status             | read        | Whether the database answers, and what it is                                                |
+| mysql.table.list         | read        | List tables with their row estimates and sizes                                              |
 
 ## Configuration
 
@@ -179,10 +179,12 @@ A server with no replication says so rather than returning an empty table. Every
 
 Positions and states only: the text of a replication error is the failing statement with its row values, so only its number is returned. The message is what `mysql.query` returns for SHOW REPLICA STATUS, behind its grant.
 
+On a Group Replication member it adds the group as this server sees it: each member's state, role and applier queue, and whether this server still has a majority — a member that has lost it keeps answering SELECT while the group stops committing writes. The group's tables take SELECT on performance_schema, asked only of a server configured for a group, with the grant named when it is missing.
+
 | Field          | Value                                                                                                                                                                                                                                                                                         |
 |----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | id             | mysql.replication.status                                                                                                                                                                                                                                                                      |
-| summary        | Replication in one place: role, lag, positions and connected replicas                                                                                                                                                                                                                         |
+| summary        | Replication and Group Replication state in one place: role, lag, positions, replicas, group                                                                                                                                                                                                   |
 | safety         | read                                                                                                                                                                                                                                                                                          |
 | idempotent     | true                                                                                                                                                                                                                                                                                          |
 | cli            | rta mysql replication status \[--host \<string>\] \[--port \<int>\] \[--user \<string>\] \[--database \<string>\] \[--tls \<string>\] \[--ca-file \<string>\] \[--password \<secret>\]                                                                                                        |

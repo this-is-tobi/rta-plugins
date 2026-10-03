@@ -1,13 +1,25 @@
 {
-  "note": "MySQL 9 replica with its IO thread stopped by hand",
+  "note": "MySQL 8.4 group member, as a monitoring account with REPLICATION CLIENT only (no SELECT on performance_schema)",
   "statements": {
+    "SELECT MEMBER_HOST, MEMBER_PORT, MEMBER_STATE, MEMBER_ROLE, MEMBER_ID = @@server_uuid AS THIS_SERVER, MEMBER_ID FROM performance_schema.replication_group_members ORDER BY MEMBER_HOST, MEMBER_PORT": {
+      "error": {
+        "number": 1142,
+        "message": "SELECT command denied to user 'mon'@'172.21.0.1' for table 'replication_group_members'"
+      }
+    },
+    "SELECT MEMBER_ID, COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE FROM performance_schema.replication_group_member_stats": {
+      "error": {
+        "number": 1142,
+        "message": "SELECT command denied to user 'mon'@'172.21.0.1' for table 'replication_group_member_stats'"
+      }
+    },
     "SELECT VERSION()": {
       "columns": [
         "VERSION()"
       ],
       "rows": [
         [
-          "9.7.2"
+          "8.4.11"
         ]
       ]
     },
@@ -21,11 +33,11 @@
       ],
       "rows": [
         [
-          "binlog.000002",
-          "2999240",
+          "mysql-bin.000003",
+          "615",
           "",
           "",
-          "aaaa6140-bebe-11f1-afce-f23d9f28f274:1-16,\naab73fb6-bebe-11f1-8043-36fca0c05300:1-5"
+          "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:1-2,\ndecdd7f3-bec3-11f1-adff-02dc232be528:1-5"
         ]
       ]
     },
@@ -33,6 +45,16 @@
       "columns": [
         "Variable_name",
         "Value"
+      ],
+      "rows": [
+        [
+          "group_replication_group_name",
+          "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        ],
+        [
+          "group_replication_single_primary_mode",
+          "ON"
+        ]
       ]
     },
     "SHOW GLOBAL VARIABLES WHERE Variable_name IN ('server_id','server_uuid','read_only','super_read_only','log_bin','gtid_mode','gtid_executed')": {
@@ -43,7 +65,7 @@
       "rows": [
         [
           "gtid_executed",
-          "aaaa6140-bebe-11f1-afce-f23d9f28f274:1-16,\naab73fb6-bebe-11f1-8043-36fca0c05300:1-5"
+          "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:1-2,\ndecdd7f3-bec3-11f1-adff-02dc232be528:1-5"
         ],
         [
           "gtid_mode",
@@ -55,15 +77,15 @@
         ],
         [
           "read_only",
-          "ON"
+          "OFF"
         ],
         [
           "server_id",
-          "2"
+          "11"
         ],
         [
           "server_uuid",
-          "aab73fb6-bebe-11f1-8043-36fca0c05300"
+          "decdd7f3-bec3-11f1-adff-02dc232be528"
         ],
         [
           "super_read_only",
@@ -139,80 +161,13 @@
         "Source_public_key_path",
         "Get_Source_public_key",
         "Network_Namespace"
-      ],
-      "rows": [
-        [
-          "",
-          "dbwp-my-m9-p",
-          "repl",
-          "3306",
-          "60",
-          "mysql-bin.000003",
-          "3005",
-          "relay.000003",
-          "3222",
-          "mysql-bin.000003",
-          "No",
-          "Yes",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "0",
-          "",
-          "0",
-          "3005",
-          "2999768",
-          "None",
-          "",
-          "0",
-          "Yes",
-          "",
-          "",
-          "",
-          "",
-          "",
-          null,
-          "No",
-          "0",
-          "",
-          "0",
-          "",
-          "",
-          "1",
-          "aaaa6140-bebe-11f1-afce-f23d9f28f274",
-          "mysql.slave_master_info",
-          "0",
-          null,
-          "Replica has read all relay log; waiting for more updates",
-          "10",
-          "",
-          "",
-          "",
-          "",
-          "",
-          "aaaa6140-bebe-11f1-afce-f23d9f28f274:1-16",
-          "aaaa6140-bebe-11f1-afce-f23d9f28f274:1-16,\naab73fb6-bebe-11f1-8043-36fca0c05300:1-5",
-          "1",
-          "",
-          "",
-          "",
-          "",
-          "1",
-          ""
-        ]
       ]
     },
     "SHOW REPLICAS": {
-      "columns": [
-        "Server_Id",
-        "Host",
-        "Port",
-        "Source_Id",
-        "Replica_UUID"
-      ]
+      "error": {
+        "number": 1227,
+        "message": "Access denied; you need (at least one of) the REPLICATION SLAVE privilege(s) for this operation"
+      }
     },
     "SHOW SLAVE HOSTS": {
       "error": {

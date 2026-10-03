@@ -20,6 +20,12 @@
         "Executed_Gtid_Set"
       ]
     },
+    "SHOW GLOBAL VARIABLES WHERE Variable_name IN ('group_replication_group_name','group_replication_single_primary_mode')": {
+      "columns": [
+        "Variable_name",
+        "Value"
+      ]
+    },
     "SHOW GLOBAL VARIABLES WHERE Variable_name IN ('server_id','server_uuid','read_only','super_read_only','log_bin','gtid_mode','gtid_executed')": {
       "columns": [
         "Variable_name",
