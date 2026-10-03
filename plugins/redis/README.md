@@ -91,7 +91,7 @@ Each node's replication offset, and how many bytes each replica is behind its pr
 
 CONFIG GET for a pattern, as a table. Nothing here mutates.
 
-**Classified write for what it discloses.** `requirepass` and `masterauth` come back in clear beside everything else, and no pattern reliably excludes every credential-shaped directive across versions and modules — so the whole command is a write rather than a denylist pretending to be a wall. The two are masked on human surfaces regardless.
+**Classified write for what it discloses.** `requirepass`, `masterauth`, `masteruser` and `tls-key-file-pass` come back masked (••••••), on every surface, but no list of credential-shaped directives is complete across versions and modules — so any other one comes back in clear, and the whole command is a write rather than a denylist pretending to be a wall.
 
 The overview already grades the directives that matter most — maxmemory, its policy, persistence — without this.
 
@@ -120,6 +120,8 @@ The overview already grades the directives that matter most — maxmemory, its p
 ## redis.key.get
 
 The value at one key, whatever its type: a string as itself, a hash as its fields, a list, set or sorted set as its members — bounded, and it says when it stopped.
+
+**What it holds comes back masked (••••••), on every surface.** rta masks every field a plugin marks as secret and this one marks the value, a hash's field values and a collection's members, so what the result tells you is the key's type, ttl and size, and a hash's field names — not what is stored.
 
 **Classified write for what it discloses, not what it changes.** A session store keeps tokens and a cache keeps whatever the application cached, so reading an arbitrary key can be reading somebody's session. It needs a grant naming the key: `grant.allow` for `redis.key.get` and `user:42:session` is a consent somebody can read.
 
