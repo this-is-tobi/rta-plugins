@@ -146,7 +146,7 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	if database == "" {
 		return nil, view.Errorf("mariadb.dump.nodatabase", "say which database to dump").
 			WithHint(req.Surface().SettingTo("database", "<name>") + " — " +
-				req.Surface().CapabilityName("mariadb.database.list") + " shows what is there")
+				nextCall(req, "mariadb.database.list") + " shows what is there")
 	}
 	out := strings.TrimSpace(req.String("out"))
 	if out == "" {
@@ -510,7 +510,7 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 			WithHint("set $" + plugin.LocalEnvVar("mariadb.dump", "password") + ", or check " + req.Surface().SettingName("user"))
 	case strings.Contains(stderr, "Unknown database"):
 		return view.Errorf("mariadb.database.notfound", "%s", msg("Unknown database")).
-			WithHint(req.Surface().CapabilityName("mariadb.database.list") + " shows what is there")
+			WithHint(nextCall(req, "mariadb.database.list") + " shows what is there")
 	case strings.Contains(stderr, "Unknown MySQL server host"):
 		return view.Errorf("mariadb.host.unknown", "%s", msg("Unknown MySQL server host")).
 			WithHint(req.Surface().DNSHint(req.String("host")))
@@ -612,18 +612,50 @@ var errnoInLine = regexp.MustCompile(`\((\d+)\)`)
 // profile's and no other layer holds them; and the address beside it then,
 // since it may be one the caller typed over the profile's (Request.Profile).
 func restoreCommand(req plugin.Request, path string) string {
-	args := append([]plugin.Arg{{Name: "file", Value: path, Positional: true}},
-		req.ReachArgs(plugin.Arg{Name: "host", Value: req.String("host")},
-			plugin.Arg{Name: "port", Value: req.Int("port")})...)
-	args = append(args, plugin.Arg{Name: "user", Value: req.String("user")},
-		plugin.Arg{Name: "database", Value: req.String("database")})
+	args := append([]plugin.Arg{{Name: "file", Value: path, Positional: true}}, reachArgs(req)...)
+	return req.Surface().Call("mariadb.restore", args...)
+}
+
+// reachArgs points a call this one hands its reader at the server it reached
+// (Request.ReachArgs): the profile whenever there was one, the host and the
+// port only when no forward was open, then the account and the database, which
+// decide what the call may see, and the TLS it insisted on, that being what the
+// server may insist on in turn. To an agent the profile alone: the rest is
+// Local, and the bridge drops what an agent sends. Never the password.
+//
+// **Without them, the call named reached another server.** Pasted, it ran
+// against whatever the configuration there names, and a database "not found"
+// was looked for again somewhere it was never going to be.
+func reachArgs(req plugin.Request) []plugin.Arg {
+	if req.Surface() == plugin.SurfaceMCP {
+		return req.ReachArgs()
+	}
+	args := req.ReachArgs(plugin.Arg{Name: "host", Value: req.String("host")},
+		plugin.Arg{Name: "port", Value: req.Int("port")})
+	args = append(args, plugin.Arg{Name: "user", Value: req.String("user")})
+	if database := req.String("database"); database != "" {
+		args = append(args, plugin.Arg{Name: "database", Value: database})
+	}
 	if mode := req.String("tls"); mode == "true" || mode == "verify-ca" || mode == "skip-verify" {
 		args = append(args, plugin.Arg{Name: "tls", Value: mode})
 		if ca := caFile(req); mode != "skip-verify" && ca != "" {
 			args = append(args, plugin.Arg{Name: "ca-file", Value: ca})
 		}
 	}
-	return req.Surface().Call("mariadb.restore", args...)
+	return args
+}
+
+// nextCall names capability id called with args and reachArgs, for a hint
+// that sends its reader to it next, quoted for the sentence around it — or by
+// its name alone when there is nothing to give, which reads better to an
+// agent than a tool beside an empty object.
+func nextCall(req plugin.Request, id string, args ...plugin.Arg) string {
+	sf := req.Surface()
+	args = append(args, reachArgs(req)...)
+	if len(args) == 0 {
+		return sf.CapabilityName(id)
+	}
+	return "`" + sf.Call(id, args...) + "`"
 }
 
 func alreadyThere(path string) *view.Error {

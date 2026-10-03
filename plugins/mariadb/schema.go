@@ -116,7 +116,7 @@ func tableTable(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 			`SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?`, schema).
 			Scan(&exists); err == nil && exists == 0 {
 			return nil, view.Errorf("mariadb.database.notfound", "no database %q, or none this user may see", schema).
-				WithHint(req.Surface().CapabilityName("mariadb.database.list") + " shows what is there")
+				WithHint(nextCall(req, "mariadb.database.list") + " shows what is there")
 		}
 	}
 	return t, nil
@@ -212,11 +212,11 @@ func schemaTree(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 	if len(order) == 0 {
 		if only := req.String("table"); only != "" {
 			return nil, view.Errorf("mariadb.table.notfound", "no table %q in %q", only, schema).
-				WithHint("`" + req.Surface().Call("mariadb.table.list", plugin.Arg{Name: "schema", Value: schema, Positional: true}) +
-					"` shows what is there")
+				WithHint(nextCall(req, "mariadb.table.list", plugin.Arg{Name: "schema", Value: schema, Positional: true}) +
+					" shows what is there")
 		}
 		return nil, view.Errorf("mariadb.database.empty", "%q has no tables, or none this user may see", schema).
-			WithHint(req.Surface().CapabilityName("mariadb.database.list") + " shows what is there")
+			WithHint(nextCall(req, "mariadb.database.list") + " shows what is there")
 	}
 
 	limit := req.Int("limit")
