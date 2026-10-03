@@ -30,7 +30,15 @@ func runTokenStatus(ctx context.Context, req plugin.Request) (view.View, error) 
 	return withClient(req, func(client *vaultapi.Client) (view.View, error) {
 		secret, err := client.Auth().Token().LookupSelfWithContext(ctx)
 		if err != nil {
-			return nil, classify(err, req)
+			verr := classify(err, req)
+			if verr.Code == "vault.denied" {
+				// The hint every other refusal carries sends the reader here,
+				// to this call, which is the one that was just refused.
+				verr.Hint = "Vault refused the lookup of the token's own record, which a token it " +
+					"accepts can do — so this one is invalid or has expired, or was made without the " +
+					"default policy"
+			}
+			return nil, verr
 		}
 		kv := view.KeyValue{}
 		add := func(key, dataKey string) {
