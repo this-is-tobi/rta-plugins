@@ -313,6 +313,26 @@ func classify(ctx context.Context, err error, stderr string, args []string, by c
 		return view.Errorf("cnpg.notinstalled", "this cluster has no CloudNativePG operator").
 			WithHint("the CRD `" + clusterCRD + "` is not registered — `" + by.kubectlLine("get", "crd") + " | " +
 				"grep cnpg` confirms it, and this plugin reads nothing else")
+	// The failures plugins/kube places before it falls back to kubectl's own
+	// words, and which this plugin left to the fallback below: a cluster that
+	// does not answer and a kubeconfig with nothing to answer from. Told only
+	// that "that message is kubectl's", a reader has nothing to try, on the
+	// two failures that are most of what a first call meets.
+	//
+	// Ahead of "not found", whose word one of them contains: kubectl says
+	// `context was not found for specified context`, and a missing context is
+	// not a missing cluster.
+	case unreachable(s):
+		return view.Errorf("cnpg.unreachable", "%s", firstLine(s)).
+			WithHint("the API server did not answer — check the VPN, the context, and that the cluster is up; `" +
+				by.kubectlLine("cluster-info") + "` is the same question without this plugin in the way")
+	case strings.Contains(s, "current-context is not set"),
+		strings.Contains(s, "no configuration has been provided"),
+		strings.Contains(s, "context was not found"),
+		strings.Contains(s, "does not exist") && strings.Contains(s, "context"):
+		return view.Errorf("cnpg.context.none", "%s", firstLine(s)).
+			WithHint("kubectl has no context to ask — `kubectl config get-contexts` shows what this machine " +
+				"has, and the context this call used is the operator's to change")
 	case strings.Contains(s, "not found"):
 		return view.Errorf("cnpg.cluster.missing", "%s", firstLine(s)).
 			WithHint(by.listEverywhere() + " shows what is there")
@@ -323,6 +343,24 @@ func classify(ctx context.Context, err error, stderr string, args []string, by c
 	return view.Errorf("cnpg.kubectl.failed", "%s", firstLine(s)).
 		WithHint("that message is kubectl's; this plugin shells out to it so your cluster " +
 			"credentials keep working")
+}
+
+// unreachable reports whether stderr is the connection to the API server
+// failing: kubectl's own sentence for it, or the dial underneath.
+func unreachable(stderr string) bool {
+	for _, s := range []string{
+		"Unable to connect to the server",
+		"connection refused",
+		"no route to host",
+		"i/o timeout",
+		"TLS handshake timeout",
+		"dial tcp",
+	} {
+		if strings.Contains(stderr, s) {
+			return true
+		}
+	}
+	return false
 }
 
 // notAuthenticated reports whether stderr is about identity rather than
