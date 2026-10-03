@@ -137,14 +137,14 @@ func s3ObjectGetCapability() plugin.Capability {
 		ID: "s3.object.get", Summary: "Download an object's content", Safety: plugin.Write, Idempotent: true,
 		NeedsGrant: true, Scope: "key",
 		Description: "An object that is text comes back as it is, up to 1 MiB — a larger one is refused " +
-			"rather than cut short — and one that is not comes back as a hex dump of its first 256 bytes. " +
-			"A person at a terminal also has `out`, which writes the byte-exact content to a file (0600) " +
-			"instead: never over a file that exists, and a download that fails partway removes what it " +
-			"wrote. It is a person's input only, since a grant authorizes revealing the content, not " +
-			"choosing where on this machine it lands.\n\n" + boundBucketNote,
+			"rather than cut short — and one that is not comes back as a hex dump of its first 256 bytes.\n\n" +
+			boundBucketNote,
 		Run: runObjectGet,
 	}, boundBucketField("bucket the object is in"), keyField("object to reveal"),
-		plugin.Field{Name: "out", Type: plugin.Path, Local: true, Help: "write the content to this file instead of printing it (refused if it exists)"})
+		plugin.Field{Name: "out", Type: plugin.Path, Local: true,
+			Help: "write the byte-exact content to this file (0600) instead of printing it: refused if it exists, " +
+				"and a download that fails partway removes what it wrote. A person's input only — a grant " +
+				"authorizes revealing the content, not choosing where on this machine it lands"})
 }
 
 // maxInline mirrors http's maxBody: enough for anything worth printing to a
