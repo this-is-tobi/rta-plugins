@@ -323,7 +323,7 @@ func classify(err error, req plugin.Request) *view.Error {
 			// reader to set one: the reads here answer an agent too, which
 			// has no host environment to set and no password argument, since
 			// the bridge drops a Local input given.
-			return view.Errorf("mysql.auth.failed", "%s rejected user %q", where, req.String("user")).
+			return view.Errorf("mysql.auth.failed", "%s rejected user %q", req.Reached(where), req.String("user")).
 				WithHint("the password is read from $" + plugin.LocalEnvVar("mysql.overview", "password") + " or " +
 					req.Surface().SettingName("password") + " — check it, and " + req.Surface().SettingName("user"))
 		case 1044: // ER_DBACCESS_DENIED_ERROR
@@ -331,7 +331,7 @@ func classify(err error, req plugin.Request) *view.Error {
 				req.String("user"), req.String("database")).
 				WithHint("the credentials are valid but not granted on this database — check SHOW GRANTS")
 		case 1049: // ER_BAD_DB_ERROR
-			return view.Errorf("mysql.database.notfound", "%s has no database %q", where, req.String("database")).
+			return view.Errorf("mysql.database.notfound", "%s has no database %q", req.Reached(where), req.String("database")).
 				WithHint(nextCall(req, "mysql.database.list") + " shows what is there")
 		case 1146: // ER_NO_SUCH_TABLE
 			return view.Errorf("mysql.table.notfound", "%s", myErr.Message).
@@ -340,7 +340,7 @@ func classify(err error, req plugin.Request) *view.Error {
 			return view.Errorf("mysql.denied", "%s", myErr.Message).
 				WithHint("the credentials are valid but not authorized for this — check SHOW GRANTS")
 		case 1130: // ER_HOST_NOT_PRIVILEGED
-			return view.Errorf("mysql.host.denied", "%s will not accept connections from this machine", where).
+			return view.Errorf("mysql.host.denied", "%s will not accept connections from this machine", req.Reached(where)).
 				WithHint("MySQL authorizes on user@host — the grant has to name where you are connecting from")
 		case 1290: // ER_OPTION_PREVENTS_STATEMENT
 			return view.Errorf("mysql.readonly", "%s", myErr.Message).
@@ -354,7 +354,7 @@ func classify(err error, req plugin.Request) *view.Error {
 			if req.Tunnel() != plugin.TunnelNone {
 				return tlsThroughForward(where, req)
 			}
-			return view.Errorf("mysql.tls.required", "%s accepts connections over TLS only", where).
+			return view.Errorf("mysql.tls.required", "%s accepts connections over TLS only", req.Reached(where)).
 				WithHint(req.Surface().SettingTo("tls", "true") + " connects over it, with " +
 					req.Surface().SettingName("ca-file") + " naming the CA if the server's certificate is from one of its own")
 		}
@@ -366,7 +366,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	// own sentence for it came out as "could not reach", which the server
 	// was not: it answered, without the TLS that was asked for.
 	if errors.Is(err, mysql.ErrNoTLS) {
-		return view.Errorf("mysql.tls.unsupported", "%s does not offer TLS", where).
+		return view.Errorf("mysql.tls.unsupported", "%s does not offer TLS", req.Reached(where)).
 			WithHint(req.Surface().SettingTo("tls", "false") + " if that is expected on this network")
 	}
 
