@@ -6,12 +6,10 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"errors"
-	"fmt"
 	stdnet "net"
 	"net/url"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -507,19 +505,12 @@ func misnamed(err error) (*x509.Certificate, bool) {
 // does not name.
 //
 // The names are the subject alternative names, DNS and address, since those
-// are all a verifier reads. Four at most: a certificate for a fleet can
+// are all a verifier reads. Three at most (plugin.CertNames): a certificate for a fleet can
 // carry dozens, and the reader needs to see that the one dialled is not
 // among them, not the whole list.
 func nameRefusal(where string, cert *x509.Certificate, req plugin.Request) *view.Error {
 	host, sf := req.String("host"), req.Surface()
-	var names []string
-	if cert != nil {
-		names = append(names, cert.DNSNames...)
-		for _, ip := range cert.IPAddresses {
-			names = append(names, ip.String())
-		}
-	}
-	if len(names) == 0 {
+	if cert == nil || len(cert.DNSNames)+len(cert.IPAddresses) == 0 {
 		return view.Errorf("mysql.tls.name", "%s presented a certificate that names no host, %s or any other",
 			where, host).
 			WithHint("a certificate with no subject alternative names, as the one MySQL generates for itself " +
@@ -527,11 +518,8 @@ func nameRefusal(where string, cert *x509.Certificate, req plugin.Request) *view
 				"CA in " + sf.SettingName("ca-file") + " without a name, and " + sf.SettingTo("tls", "true") +
 				" reaches the server once its certificate is reissued with " + host + " among them")
 	}
-	if len(names) > 4 {
-		names = append(names[:4:4], fmt.Sprintf("%d more", len(names)-4))
-	}
 	return view.Errorf("mysql.tls.name", "%s presented a certificate for %s, not %s",
-		where, strings.Join(names, ", "), host).
+		where, plugin.CertNames(cert), host).
 		WithHint(sf.SettingName("host") + " is the name the certificate is checked against — reach the " +
 			"server by one it carries, or have it reissued with " + host + " among its subject alternative names")
 }
@@ -553,8 +541,8 @@ func tlsThroughForward(where string, req plugin.Request) *view.Error {
 	if req.Tunnel() == plugin.TunnelKube {
 		carrier = "the API server's TLS"
 	}
-	return view.Errorf("mysql.tls.required", "%s accepts connections over TLS only, and the %s: forward "+
-		"profile %s opened carries none", where, req.Tunnel(), req.Profile()).
+	return view.Errorf("mysql.tls.required", "%s accepts connections over TLS only, and %s "+
+		"carries none", where, req.Reached(where)).
 		WithHint("a forward runs the connection in the clear, the hop off this machine inside " + carrier +
 			", and TLS never runs through one here — the server is reached over TLS directly, by a profile " +
 			"with no kube: or ssh: coordinate")

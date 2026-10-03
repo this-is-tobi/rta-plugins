@@ -259,7 +259,7 @@ func TestWhatTheServerSaysAboutTLSIsNamedAsThat(t *testing.T) {
 		req(t, "mysql.status", map[string]any{"host": "127.0.0.1", "port": 54321, "tls": "false"}).
 			WithProfile("prod", plugin.TunnelKube))
 	if forwarded.Code != "mysql.tls.required" ||
-		!strings.Contains(forwarded.Message, "the kube: forward profile prod opened carries none") {
+		!strings.Contains(forwarded.Message, "profile prod (through its kube: forward) carries none") {
 		t.Errorf("3159 through a forward = %s: %s, want the forward named", forwarded.Code, forwarded.Message)
 	}
 	if !strings.Contains(forwarded.Hint, "by a profile with no kube: or ssh: coordinate") ||
