@@ -39,7 +39,7 @@ func queryCapability() plugin.Capability {
 			"it, which is the only place the enforcement is worth trusting.\n\n" +
 			"**Classified write for what it discloses, not what it changes.** It returns rows, and " +
 			"there is no table it may read by default because there is no table known to be safe. " +
-			"So it needs a grant a person issued (`grant.allow`, for `mysql.query`), which is the " +
+			"So it needs a grant a person issued, which is the " +
 			"operator saying that this agent may read this database's contents; the read tier below " +
 			"it describes the database and hands back nothing stored in it. Where the connection is " +
 			"a named profile, every call in this namespace needs one, the read tier included.\n\n" +

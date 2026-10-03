@@ -147,7 +147,7 @@ What server this is, how long it has been up, how much of its connection budget 
 
 Runs inside a READ ONLY transaction, so the server refuses any statement that would write. rta does not inspect the SQL and does not try to — MySQL enforces it, which is the only place the enforcement is worth trusting.
 
-**Classified write for what it discloses, not what it changes.** It returns rows, and there is no table it may read by default because there is no table known to be safe. So it needs a grant a person issued (`grant.allow`, for `mysql.query`), which is the operator saying that this agent may read this database's contents; the read tier below it describes the database and hands back nothing stored in it. Where the connection is a named profile, every call in this namespace needs one, the read tier included.
+**Classified write for what it discloses, not what it changes.** It returns rows, and there is no table it may read by default because there is no table known to be safe. So it needs a grant a person issued, which is the operator saying that this agent may read this database's contents; the read tier below it describes the database and hands back nothing stored in it. Where the connection is a named profile, every call in this namespace needs one, the read tier included.
 
 Over `limit` rows it is refused rather than shortened: a truncated result set is a different answer wearing the right shape.
 
