@@ -209,9 +209,26 @@ func (s selection) callArgs(namespace string) []plugin.Arg {
 type caller struct {
 	sf    plugin.Surface
 	reach []plugin.Arg
+	// context is the kubectl context the call read, for a kubectl command a
+	// message hands over to be pasted: bare it asks the context of the shell it
+	// lands in.
+	context string
 }
 
-func (s selection) caller() caller { return caller{sf: s.sf, reach: s.reach} }
+func (s selection) caller() caller { return caller{sf: s.sf, reach: s.reach, context: s.context} }
+
+// kubectlLine is the kubectl command rest names, on the context c read, each
+// value one shell word.
+func (c caller) kubectlLine(rest ...string) string {
+	words := []string{"kubectl"}
+	if c.context != "" {
+		words = append(words, plugin.ShellWord("--context="+c.context))
+	}
+	for _, word := range rest {
+		words = append(words, plugin.ShellWord(word))
+	}
+	return strings.Join(words, " ")
+}
 
 // listEverywhere is the listing of every cluster in every namespace, as a
 // call: on the cluster this one reached when there is a profile or a context
@@ -269,7 +286,7 @@ func classify(ctx context.Context, err error, stderr string, args []string, by c
 	s := strings.TrimSpace(stderr)
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return view.Errorf("cnpg.timeout", "kubectl did not answer within %s", timeout).
-			WithHint("the cluster may be unreachable — `kubectl cluster-info` is the same " +
+			WithHint("the cluster may be unreachable — `" + by.kubectlLine("cluster-info") + "` is the same " +
 				"question without this plugin in the way")
 	}
 	var exitErr *exec.ExitError
@@ -294,7 +311,7 @@ func classify(ctx context.Context, err error, stderr string, args []string, by c
 	case strings.Contains(s, "server doesn't have a resource type"),
 		strings.Contains(s, "the server could not find the requested resource"):
 		return view.Errorf("cnpg.notinstalled", "this cluster has no CloudNativePG operator").
-			WithHint("the CRD `" + clusterCRD + "` is not registered — `kubectl get crd | " +
+			WithHint("the CRD `" + clusterCRD + "` is not registered — `" + by.kubectlLine("get", "crd") + " | " +
 				"grep cnpg` confirms it, and this plugin reads nothing else")
 	case strings.Contains(s, "not found"):
 		return view.Errorf("cnpg.cluster.missing", "%s", firstLine(s)).

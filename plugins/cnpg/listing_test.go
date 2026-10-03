@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
@@ -42,6 +43,36 @@ func TestTheListingAClusterNotFoundOffersReachesTheClusterItWasLookedFor(t *test
 				t.Fatal(verr)
 			}
 			got := classify(context.Background(), &exec.ExitError{}, notFound, nil, s.caller())
+			if !strings.Contains(got.Hint, tc.want) {
+				t.Errorf("hint = %q, want %q in it", got.Hint, tc.want)
+			}
+		})
+	}
+}
+
+// The kubectl commands a failure hands over as "the same question" are asked
+// of the context the call read: bare they ask the context of the shell they
+// are pasted into, which may well answer.
+func TestTheKubectlCommandsAFailureOffersAskTheContextTheCallRead(t *testing.T) {
+	const kubeContext = "arn:aws:eks:eu-west-3:1234:cluster/prod"
+	s, verr := selectionOf(req(map[string]any{"context": kubeContext}).WithSurface(plugin.SurfaceCLI))
+	if verr != nil {
+		t.Fatal(verr)
+	}
+	flag := plugin.ShellWord("--context=" + kubeContext)
+	expired, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+	const missing = "error: the server doesn't have a resource type \"clusters\""
+	for name, tc := range map[string]struct {
+		ctx    context.Context
+		stderr string
+		want   string
+	}{
+		"timeout":     {expired, "", "`kubectl " + flag + " cluster-info`"},
+		"no operator": {context.Background(), missing, "`kubectl " + flag + " get crd | grep cnpg`"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := classify(tc.ctx, &exec.ExitError{}, tc.stderr, nil, s.caller())
 			if !strings.Contains(got.Hint, tc.want) {
 				t.Errorf("hint = %q, want %q in it", got.Hint, tc.want)
 			}
