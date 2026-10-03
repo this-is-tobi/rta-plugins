@@ -58,7 +58,7 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "a cluster that answers nothing",
-			cli:     "`rta etcd overview` shows whether the members can see each other",
+			cli:     "`rta etcd overview --endpoint 127.0.0.1:2379` shows whether the members can see each other",
 			other:   "the `etcd_overview` tool shows whether the members can see each other",
 			surface: plugin.SurfaceMCP,
 			refuse: func(sf plugin.Surface) *view.Error {
