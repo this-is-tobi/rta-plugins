@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 
 	vaultapi "github.com/hashicorp/vault/api"
@@ -379,12 +380,35 @@ func hostOf(address string) string {
 
 // joinErrors renders a ResponseError's Errors slice the way Vault's own CLI
 // does — one line, since a view.Error's Message is a line, not a list.
+//
+// Vault's own errors come in two shapes, and only one was a line. A rejected
+// token is answered as one error holding a hashicorp/go-multierror's text —
+// "2 errors occurred:", then each reason on a line of its own behind a tab and
+// an asterisk — which went into the message with its newlines and tabs, and
+// the first thing an agent read of a refused token was a list.
 func joinErrors(respErr *vaultapi.ResponseError) string {
 	if len(respErr.Errors) == 0 {
-		return respErr.Error()
+		// ResponseError's own text is a paragraph — the request, the URL and
+		// the code over several lines — for an answer that gave no reason.
+		return fmt.Sprintf("HTTP status %d, with no reason given", respErr.StatusCode)
 	}
-	return strings.Join(respErr.Errors, "; ")
+	var reasons []string
+	for _, e := range respErr.Errors {
+		if !multiError.MatchString(e) {
+			reasons = append(reasons, e)
+			continue
+		}
+		for _, line := range strings.Split(e, "\n")[1:] {
+			if reason := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "*")); reason != "" {
+				reasons = append(reasons, reason)
+			}
+		}
+	}
+	return strings.Join(reasons, "; ")
 }
+
+// multiError matches the first line of a go-multierror's text.
+var multiError = regexp.MustCompile(`^\d+ errors? occurred:\n`)
 
 // dataFields parses a repeated key=value input into a map, the shape every
 // KV-writing capability here needs — the same convention `kubectl create
