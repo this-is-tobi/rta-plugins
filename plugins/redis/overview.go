@@ -109,6 +109,25 @@ func fetchInfo(ctx context.Context, c *client) (info, *view.Error) {
 	return parseInfo(r.text()), nil
 }
 
+// versionText is the server's version as it names itself. Valkey keeps
+// redis_version at the 7.2.4 it forked from, for the clients that gate on one,
+// and puts its own in valkey_version.
+func versionText(in info) string {
+	if v := in.get("valkey_version"); v != "" {
+		return "valkey " + v + " (answers as redis " + in.get("redis_version") + ")"
+	}
+	return in.get("redis_version")
+}
+
+// modeText is standalone, sentinel or cluster, under the key redis gives it,
+// or under Valkey's own.
+func modeText(in info) string {
+	if m := in.get("redis_mode"); m != "" {
+		return m
+	}
+	return in.get("server_mode")
+}
+
 func overviewView(ctx context.Context, c *client, req plugin.Request) (view.View, error) {
 	in, verr := fetchInfo(ctx, c)
 	if verr != nil {
@@ -119,8 +138,8 @@ func overviewView(ctx context.Context, c *client, req plugin.Request) (view.View
 	p := plugin.NewPage(ctx, req)
 	p.Put("server", view.KeyValue{Pairs: []view.Pair{
 		{Key: "address", Value: c.addr},
-		{Key: "version", Value: in.get("redis_version")},
-		{Key: "mode", Value: in.get("redis_mode")},
+		{Key: "version", Value: versionText(in)},
+		{Key: "mode", Value: modeText(in)},
 		{Key: "uptime", Value: span(time.Duration(in.int("uptime_in_seconds")) * time.Second)},
 		{Key: "clients", Value: in.get("connected_clients") + " connected, " + in.get("blocked_clients") + " blocked"},
 		{Key: "ops/s", Value: in.get("instantaneous_ops_per_sec")},
