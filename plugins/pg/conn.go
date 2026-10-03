@@ -95,28 +95,44 @@ func connFields() []plugin.Field {
 		// anyone can verify what it signed.
 		//
 		// **Read by verify-ca and verify-full alone, and never a reason for
-		// sslmode to change.** checkRootCert refuses it beside the two modes
-		// below them rather than elevate either on the operator's behalf,
-		// which would be a second, unwritten way sslmode gets its value — the
-		// rule plugins/mysql's ca-file keeps beside its own tls. verify-ca
-		// needs one as a file: named nowhere, pgx checks the chain against
-		// this machine's own store instead, which checkRootCert refuses as it
-		// refuses system beside verify-ca. disable is left to stand: it
-		// negotiates nothing a CA could verify, and it is what a tunnel forces.
+		// sslmode to change on a direct connection.** checkRootCert refuses
+		// it beside the two modes below them rather than elevate either on
+		// the operator's behalf, which would be a second, unwritten way
+		// sslmode gets its value — the rule plugins/mysql's ca-file keeps
+		// beside its own tls. verify-ca needs one as a file: named nowhere,
+		// pgx checks the chain against this machine's own store instead,
+		// which checkRootCert refuses as it refuses system beside verify-ca.
+		// disable is left to stand: it negotiates nothing a CA could verify.
 		//
-		// TLSAdjacent for that last fact: under a tunnel, sslmode is forced
-		// to disable — EndpointTLS's own unconditional rule — and disable
-		// never attempts TLS at all, so a CA named here goes unread whatever
-		// sslmode said. Unlike plugins/etcd's ca-file, nothing in connect()
-		// below turns TLS back on when this is set: sslmode is a tier, not a
-		// bool, and picking one is exactly the elevation declined above.
-		// checkSet reads this flag to refuse the combination instead of
-		// leaving it silently inert.
+		// **Over a kube: or ssh: forward it is the one thing that can ask for
+		// TLS.** The host forces sslmode to disable there (EndpointTLS) and
+		// refuses a caller's own, so the elevation declined above is not the
+		// operator's to decline: nothing else on the line says TLS. A CA, or
+		// a name to check (tls-server-name), turns it on at verify-full, as
+		// plugins/etcd's ca-file turns on its tls, and so this is not
+		// TLSAdjacent: a profile may hold it beside its forward.
 		{Name: "sslrootcert", Type: plugin.String, Default: "", Config: "sslrootcert",
-			Local: true, TLSAdjacent: true,
+			Local: true,
 			Help: "CA bundle to verify the server against, or system for this machine's own store — " +
 				"needed by verify-ca and read by verify-full (system by verify-full alone), refused beside prefer " +
-				"and require, and overridden along with sslmode under a kube:/ssh: tunnel"},
+				"and require; under a kube:/ssh: forward it turns TLS on, at verify-full"},
+		// The name the certificate is checked for when it is not the host
+		// dialled — above all through a kube: or ssh: forward, whose end is
+		// 127.0.0.1 whatever the server is called, and which its certificate
+		// names only by luck. Checked as strictly as the host would have been:
+		// it moves the check, never loosens it, so it is read at verify-full
+		// alone (checkServerName). Local for the reason sslmode is: what a
+		// certificate has to prove is the operator's to say.
+		//
+		// Not TLSAdjacent, for sslrootcert's reason: over a forward it is what
+		// turns TLS on. A kube: forward ends the forward at the first clean
+		// disconnect of a TLS connection (the sslmode note above), so a call
+		// that connects twice, as a dump does for its pre-flight and then its
+		// child, finds the forward gone for the second.
+		{Name: "tls-server-name", Type: plugin.String, Default: "", Config: "tls-server-name",
+			Local: true,
+			Help: "name to check the server's certificate for, in place of the host's — verify-full only, and " +
+				"the host an address; under a kube:/ssh: forward it turns TLS on, at verify-full"},
 	}
 }
 
@@ -135,12 +151,13 @@ func dsn(req plugin.Request) string {
 	quote := func(s string) string {
 		return "'" + strings.NewReplacer(`\`, `\\`, `'`, `\'`).Replace(s) + "'"
 	}
+	t := transportOf(req)
 	parts := []string{
 		"host=" + quote(req.String("host")),
 		fmt.Sprintf("port=%d", req.Int("port")),
 		"user=" + quote(req.String("user")),
 		"dbname=" + quote(req.String("database")),
-		"sslmode=" + quote(req.String("sslmode")),
+		"sslmode=" + quote(t.mode),
 		// Emitted always, and empty on purpose. Leaving the key out does not
 		// mean "no passfile" — pgconn's defaultSettings fills it with
 		// $HOME/.pgpass and ParseConfig then loads a password from it whenever
@@ -173,8 +190,8 @@ func dsn(req plugin.Request) string {
 	// a connection that would never have used it, and given system it turns
 	// disable into verify-full. disable is what a tunnel forces, beside
 	// whatever the config names for connecting directly.
-	if ca := rootCert(req); ca != "" && req.String("sslmode") != "disable" {
-		parts = append(parts, "sslrootcert="+quote(ca))
+	if t.rootCert != "" && t.mode != "disable" {
+		parts = append(parts, "sslrootcert="+quote(t.rootCert))
 	}
 	return strings.Join(parts, " ")
 }
@@ -246,9 +263,10 @@ func rootCert(req plugin.Request) string {
 // it is there, which made verify-ca's CA one nobody named: it is named here,
 // as every other file this plugin reads is.
 func checkRootCert(req plugin.Request) *view.Error {
-	ca := req.String("sslrootcert")
+	t := transportOf(req)
+	ca := t.rootCert
 	if ca == "" {
-		if mode := req.String("sslmode"); mode == "verify-ca" {
+		if mode := t.mode; mode == "verify-ca" {
 			sf := req.Surface()
 			return view.Errorf("pg.tls.ca.missing", "%s checks the server's chain against the CA %s names, "+
 				"and it names none", sf.SettingTo("sslmode", mode), sf.SettingName("sslrootcert")).
@@ -259,14 +277,14 @@ func checkRootCert(req plugin.Request) *view.Error {
 		return nil
 	}
 	sf := req.Surface()
-	if mode := req.String("sslmode"); ca == "system" && mode != "verify-full" && mode != "disable" {
+	if mode := t.mode; ca == "system" && mode != "verify-full" && mode != "disable" {
 		return view.Errorf("pg.tls.ca.system", "%s trusts every CA this machine does, and is taken beside %s alone",
 			sf.SettingTo("sslrootcert", "system"), sf.SettingTo("sslmode", "verify-full")).
 			WithHint("a certificate from any of them is had for any name its holder controls, so only the " +
 				"mode that checks the name makes it mean anything. A CA of the server's own belongs in " +
 				sf.SettingName("sslrootcert") + " as a file, which verify-ca reads too")
 	}
-	switch mode := req.String("sslmode"); mode {
+	switch mode := t.mode; mode {
 	case "prefer":
 		return view.Errorf("pg.tls.ca.unused", "%s names a CA, and %s never verifies against one",
 			sf.SettingName("sslrootcert"), sf.SettingTo("sslmode", mode)).
@@ -289,7 +307,7 @@ func checkRootCert(req plugin.Request) *view.Error {
 	// instead of a certificate, came back as pg.conn.failed "could not
 	// connect", quoting the whole connection string, from a failure that
 	// never reached the network. The dry runs refuse it the same way.
-	path := rootCert(req)
+	path := ca
 	pem, err := os.ReadFile(path)
 	if err != nil {
 		return view.Errorf("pg.tls.ca.unreadable", "%v", err).
@@ -399,6 +417,18 @@ func classify(err error, req plugin.Request) *view.Error {
 	}
 	if plugin.DialRefused(err) {
 		refused := view.Errorf("pg.conn.refused", "nothing is listening on %s", where)
+		// TLS the settings asked for over a kube: forward, which that forward
+		// does not survive a first connection of: a call that connects twice,
+		// as a dump does for its pre-flight and again for its child, finds the
+		// forward gone for the second. Said as that, since the port the
+		// general hint below blames is the forward's own.
+		if req.Tunnel() == plugin.TunnelKube && transportOf(req).mode != "disable" {
+			return refused.WithHint("a kubectl port-forward carrying TLS ends at the first clean disconnect — " +
+				"PostgreSQL closes, the TLS layer's trailing close_notify reaches a socket already gone, and " +
+				"kubectl exits — so a call that connects twice finds it gone the second time. " +
+				sf.SettingName("sslrootcert", "tls-server-name") + " are what turned TLS on here; one connection " +
+				"per call (a query, a status) does not meet it")
+		}
 		if loopback(req.String("host")) {
 			// "Is the server up?" is the wrong question about a port on this
 			// machine, and it is the question the general hint asks. A
@@ -454,6 +484,20 @@ func classify(err error, req plugin.Request) *view.Error {
 				"the CA that issued it — a self-signed certificate is its own CA")
 		}
 	}
+	// A certificate for another name than the one checked. Through a forward
+	// the host dialled is 127.0.0.1 and a port of the host's own, which a
+	// server's certificate names only by luck, so the refusal names the
+	// forward and what the certificate is for and sends the reader to
+	// tls-server-name, which checks that name in the forward's end's place —
+	// never to anything that checks less. A name already given and not matched
+	// is the certificate's to explain, with the setting that gave it.
+	var hostErr x509.HostnameError
+	if errors.As(err, &hostErr) {
+		if req.Tunnel() != plugin.TunnelNone && serverName(req) == "" {
+			return forwardName(req, hostErr)
+		}
+		return nameRefusal(where, hostErr, req)
+	}
 	// Every other verdict on a certificate is its own reason, quoted in the
 	// verifier's words — the system's, for one macOS gives untyped, a revoked
 	// certificate among them — and never "could not connect": the server was
@@ -477,16 +521,72 @@ func classify(err error, req plugin.Request) *view.Error {
 		WithHint(sf.SettingsHint("pg.status"))
 }
 
+// forwardName is pg.tls.forward: the refusal for a certificate checked for
+// the end of a forward the host opened, 127.0.0.1, and not for the name the
+// server answers as, which the certificate names instead.
+//
+// **The way through is tls-server-name, never sslmode.** The forward has set
+// sslmode to disable already and the host refuses one given beside it, so a
+// hint naming sslmode sent its reader to a setting that opens no forward at
+// all. Nor anything that checks less: tls-server-name moves the check to a
+// name the certificate is for, and verify-ca, which skips the name, would
+// accept any certificate the CA ever signed.
+func forwardName(req plugin.Request, hostErr x509.HostnameError) *view.Error {
+	return view.Errorf("pg.tls.forward", "the certificate behind %s is for %s, not for %s, where the forward ends",
+		req.Reached(address(req)), plugin.CertNames(hostErr.Certificate), hostErr.Host).
+		WithHint("a forward always ends at 127.0.0.1, so the certificate is checked for the name the server " +
+			"answers as instead: " + req.Surface().SettingName("tls-server-name") + ", which the profile can " +
+			"hold beside its forward, names it — one the certificate is for — and it is checked as strictly " +
+			"as the host it replaces")
+}
+
+// nameRefusal is pg.tls.name: the certificate presented at where refused for
+// the name it was checked for, which it does not carry.
+//
+// The server answered, and "could not connect" misnamed it, with the page of
+// every input for a hint. What the reader needs is the names the certificate
+// does carry and the setting the name came from: tls-server-name when one was
+// given, otherwise the host. A host that is an address can be told to check
+// another name, and a host that is a name is itself the one to change. No
+// mode here checks the chain alone and keeps this check, so the ways on are
+// the name and the certificate.
+func nameRefusal(where string, hostErr x509.HostnameError, req plugin.Request) *view.Error {
+	sf := req.Surface()
+	checked := hostErr.Host
+	cert := hostErr.Certificate
+	if cert == nil || len(cert.DNSNames)+len(cert.IPAddresses) == 0 {
+		return view.Errorf("pg.tls.name", "%s presented a certificate that names no host, %s or any other", where, checked).
+			WithHint("a certificate with no subject alternative names verifies as no host at all — it reaches " +
+				"the server once it is reissued with " + checked + " among them")
+	}
+	refusal := view.Errorf("pg.tls.name", "%s presented a certificate for %s, not %s",
+		where, plugin.CertNames(cert), checked)
+	switch {
+	case serverName(req) != "":
+		return refusal.WithHint(sf.SettingName("tls-server-name") + " is the name the certificate is checked " +
+			"against — name one it carries, or have it reissued with " + checked + " among its subject " +
+			"alternative names")
+	case ipLiteral(req.String("host")):
+		return refusal.WithHint(sf.SettingName("tls-server-name") + " checks the certificate for a name it " +
+			"carries instead of the address in " + sf.SettingName("host") + ", or have it reissued with " +
+			checked + " among its subject alternative names")
+	}
+	return refusal.WithHint(sf.SettingName("host") + " is the name the certificate is checked against — reach " +
+		"the server by one it carries, or have it reissued with " + checked + " among its subject alternative names")
+}
+
 // tlsRequired is pg.tls.required: the server at where takes this connection
 // only over TLS, and it was made without.
 //
 // **Through a forward, not the sslmode that would verify it.** The forward
-// sets disable, and nothing turns TLS back on over one: the host refuses
-// sslmode and sslrootcert beside a kube: or ssh: coordinate, and sslmode
-// given by the caller is an input the forward fills, so the host opens no
-// forward at all and the call goes to the host config or the default
-// names — measured through a kube: profile, "nothing is listening on
-// localhost:5432". A server that insists on TLS is reached directly.
+// sets disable, and sslmode given by the caller is an input the forward
+// fills, so the host opens no forward at all and the call goes to the host
+// config or the default names — measured through a kube: profile, "nothing
+// is listening on localhost:5432". What turns TLS on over one is a CA or a
+// name to check (transportOf), and a profile holds either beside its
+// forward. The name is the one the certificate is for, since the forward ends
+// at 127.0.0.1; without it, the refusal for a certificate for another name
+// (forwardName) says so.
 func tlsRequired(where string, req plugin.Request) *view.Error {
 	sf := req.Surface()
 	if req.Tunnel() == plugin.TunnelNone {
@@ -503,8 +603,8 @@ func tlsRequired(where string, req plugin.Request) *view.Error {
 	return view.Errorf("pg.tls.required", "%s accepts this connection over TLS only, and %s "+
 		"carries none", where, req.Reached(where)).
 		WithHint("a forward runs the connection in the clear, the hop off this machine inside " + carrier +
-			", and TLS never runs through one here — the server is reached over TLS directly, by a profile " +
-			"with no kube: or ssh: coordinate")
+			" — " + sf.SettingName("sslrootcert", "tls-server-name") + " each turn TLS on over it, at verify-full, " +
+			"with the name the certificate is for in " + sf.SettingName("tls-server-name"))
 }
 
 // address is host and port as one address, an IPv6 literal bracketed, for
@@ -530,14 +630,40 @@ func loopback(host string) bool {
 
 // connect opens a connection, mapping any failure through classify.
 func connect(ctx context.Context, req plugin.Request) (*pgx.Conn, *view.Error) {
-	if verr := checkRootCert(req); verr != nil {
+	if verr := checkTransport(req); verr != nil {
 		return nil, verr
 	}
-	conn, err := pgx.Connect(ctx, dsn(req))
+	cfg, err := pgx.ParseConfig(dsn(req))
+	if err != nil {
+		return nil, classify(err, req)
+	}
+	checkAs(cfg, serverName(req))
+	conn, err := pgx.ConnectConfig(ctx, cfg)
 	if err != nil {
 		return nil, classify(err, req)
 	}
 	return conn, nil
+}
+
+// checkAs makes every TLS configuration of cfg check the server's certificate
+// for name, when one is given, in place of the host the driver dialled: the
+// ServerName is what Go's verifier checks a certificate for, and the SNI the
+// handshake sends. A connection string has no word for it, which is why it is
+// set on the parsed configuration, on the main one and on each fallback the
+// driver built for another host or another mode: left on one, the other
+// connected checking the host.
+func checkAs(cfg *pgx.ConnConfig, name string) {
+	if name == "" {
+		return
+	}
+	if cfg.TLSConfig != nil {
+		cfg.TLSConfig.ServerName = name
+	}
+	for _, fallback := range cfg.Fallbacks {
+		if fallback.TLSConfig != nil {
+			fallback.TLSConfig.ServerName = name
+		}
+	}
 }
 
 // readOnly runs fn inside a READ ONLY transaction.

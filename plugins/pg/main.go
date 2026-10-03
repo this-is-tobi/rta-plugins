@@ -34,12 +34,20 @@
 //	  tiles:
 //	    - id: pg.overview
 //
-// Through `kubectl port-forward`, set `sslmode: disable`. PostgreSQL TLS
-// kills a forward on the first clean disconnect — the trailing close_notify
-// reaches a socket PostgreSQL has already closed, kubectl reads the reset as
-// `lost connection to pod`, and exits. `psql --sslmode=require` does it too,
-// so it is the transport rather than this plugin, and nothing is lost by
-// turning it off: that hop is already inside the API server's TLS.
+// Through `kubectl port-forward`, leave TLS off, which is what the host does
+// for a forward. PostgreSQL TLS kills a forward on the first clean disconnect
+// — the trailing close_notify reaches a socket PostgreSQL has already closed,
+// kubectl reads the reset as `lost connection to pod`, and exits.
+// `psql --sslmode=require` does it too, so it is the transport rather than
+// this plugin, and nothing is lost by turning it off: that hop is already
+// inside the API server's TLS.
+//
+// A server that insists on TLS is the exception, and a CA (`sslrootcert`) or a
+// name to check (`tls-server-name`) in the profile turns it on over the
+// forward, at verify-full, with the certificate checked for that name: a
+// forward ends at 127.0.0.1, which a service's certificate does not name. A
+// call that makes one connection (a query, a status) is fine; a dump or a
+// restore connects twice, and a kube: forward does not survive the first.
 
 package main
 

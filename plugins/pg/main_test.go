@@ -462,9 +462,9 @@ func TestAConnectionTakenOnlyOverTLSIsNotAPasswordRefused(t *testing.T) {
 		!strings.Contains(forwarded.Message, "profile prod (through its kube: forward) carries none") {
 		t.Errorf("through a forward: %s %q, want the forward named", forwarded.Code, forwarded.Message)
 	}
-	if !strings.Contains(forwarded.Hint, "by a profile with no kube: or ssh: coordinate") ||
+	if !strings.Contains(forwarded.Hint, "--sslrootcert and --tls-server-name each turn TLS on over it") ||
 		strings.Contains(forwarded.Hint, "--sslmode") {
-		t.Errorf("hint = %q, want a direct connection named and no sslmode to give", forwarded.Hint)
+		t.Errorf("hint = %q, want what turns TLS on over a forward named and no sslmode to give", forwarded.Hint)
 	}
 
 	for _, other := range []*pgconn.PgError{{Code: "28000", Message: "role \"app\" is not permitted to log in"},
@@ -544,8 +544,6 @@ func TestOnlyAnUnknownIssuerIsAnsweredWithTheCA(t *testing.T) {
 		{"macOS, a policy it will not pass", verdict("certificate is not standards compliant"), "pg.tls.rejected"},
 		{"a revoked certificate named to look untrusted",
 			verdict("certificate is not trusted" + closing + " certificate is revoked"), "pg.tls.rejected"},
-		{"a certificate for another name", &tls.CertificateVerificationError{
-			Err: x509.HostnameError{Certificate: &x509.Certificate{}, Host: "db"}}, "pg.tls.rejected"},
 		{"a signature algorithm Go's verifier refuses", &tls.CertificateVerificationError{
 			Err: x509.InsecureAlgorithmError(x509.SHA1WithRSA)}, "pg.tls.rejected"},
 	} {
