@@ -380,7 +380,7 @@ func Plugin() plugin.Plugin {
 					"**Classified write for what it discloses, not what it changes.** It returns rows, " +
 					"and there is no table it may read by default because there is no table known to " +
 					"be safe — orders carry addresses, events carry payloads, application logs carry " +
-					"tokens. So it needs a grant a person issued (`grant.allow`, for `pg.query`), which " +
+					"tokens. So it needs a grant a person issued, which " +
 					"is the operator saying that this agent may read this database's contents; the read " +
 					"tier below it describes the database and hands back nothing stored in it. Where the " +
 					"connection is a named profile, every call in this namespace needs one, the read " +
@@ -471,34 +471,46 @@ func Plugin() plugin.Plugin {
 				// what keeps the read-only MCP tier coherent, since with
 				// --allow-read alone this plugin answers about health, shape
 				// and activity and hands over no bulk rows.
+				//
+				// **A capability whose blast radius cannot be named in a grant
+				// does not belong on the agent surface** — which is why
+				// keys.backup and kv.copy refuse MCP outright, and why there is
+				// no whole-database dump here: its single authorized use would
+				// be "everything". One table has a radius a person can consent
+				// to, so a grant (`grant.allow`, for `pg.table.dump` and
+				// `public.orders`) authorizes that relation and nothing beside
+				// it.
+				//
+				// That is not a claim the named table is the harmless one.
+				// Almost any table holds something you would not hand over, so
+				// the per-table scope is not sorting tables into safe and
+				// unsafe. It exists because "this one, now, for the next
+				// fifteen minutes" is the only thing a person can meaningfully
+				// consent to about a database, and the mechanism's job is to
+				// make sure that is the only table that moves.
+				//
+				// The grant gate matches the name byte-for-byte against the
+				// scope a person wrote, before anything looks in the
+				// catalogue, so a bare name would let one unexpired grant
+				// follow whichever schema resolved first — drop public.orders,
+				// create archive.orders, and the same grant reads a different
+				// table. `columns` is the caller minimising its own ask, not a
+				// control the operator holds, since a grant names a record and
+				// has no way to say "orders but not the email column".
 				Safety:     plugin.Write,
 				NeedsGrant: true,
 				Scope:      "table",
 				Idempotent: true,
-				Description: "One table, named in the grant. **A capability whose blast radius cannot be " +
-					"named in a grant does not belong on the agent surface** — which is why keys.backup " +
-					"and kv.copy refuse MCP outright, and why there is no whole-database dump here: its " +
-					"single authorized use would be \"everything\". One table has a radius a person can " +
-					"consent to, so a grant (`grant.allow`, for `pg.table.dump` and `public.orders`) " +
-					"authorizes that relation and nothing beside it.\n\n" +
-					"That is not a claim the named table is the harmless one. Almost any table holds " +
-					"something you would not hand over — orders carry addresses, events carry payloads, " +
-					"application logs carry tokens — so the per-table scope is not sorting tables into " +
-					"safe and unsafe. It exists because \"this one, now, for the next fifteen minutes\" " +
-					"is the only thing a person can meaningfully consent to about a database, and the " +
-					"mechanism's job is to make sure that is the only table that moves.\n\n" +
-					"Over MCP the name must already be qualified as schema.table. The grant gate matches " +
-					"the argument byte-for-byte against the scope a person wrote, before anything looks " +
-					"in the catalogue, so a bare name would let one unexpired grant follow whichever " +
-					"schema resolved first — drop public.orders, create archive.orders, and the same " +
-					"grant reads a different table. A person at a terminal keeps the short form, and an " +
-					"ambiguous name is refused rather than resolved by precedence.\n\n" +
+				Description: "One table, named in the grant: a grant authorizes that relation and " +
+					"nothing beside it, which is why there is no whole-database dump here — its single " +
+					"authorized use would be \"everything\".\n\n" +
+					"Over MCP the name must be qualified as schema.table: a grant is matched against it " +
+					"byte-for-byte, so a bare name would follow whichever schema resolved first. A " +
+					"person at a terminal keeps the short form.\n\n" +
 					"Bounded on rows and on bytes, and over either bound it is refused rather than " +
 					"shortened: a truncated dump is a different answer wearing the right shape. Ordered " +
 					"by primary key where there is one, so the first thousand rows are the same thousand " +
-					"next time. `columns` narrows what is read and can never widen it — useful, but it " +
-					"is the caller minimising its own ask, not a control the operator holds, since a " +
-					"grant names a record and has no way to say \"orders but not the email column\".",
+					"next time. `columns` narrows what is read and can never widen it.",
 				Run: runTableDump,
 			},
 				// No Config key, deliberately: a Scope input that config can
@@ -641,8 +653,8 @@ func Plugin() plugin.Plugin {
 				// else wrote.
 				Safety:     plugin.Write,
 				Idempotent: true,
-				Description: "Classified write for what it discloses rather than what it changes, the " +
-					"same reading kv.get gets: the query column carries whatever literals are in " +
+				Description: "Classified write for what it discloses rather than what it changes: the " +
+					"query column carries whatever literals are in " +
 					"the statements currently running. `pg.overview` with `detail` keeps the same rows " +
 					"without that column — state, duration and what each session is waiting on, which " +
 					"answers \"is anything stuck\" and is a value nobody stored — so the glanceable " +
