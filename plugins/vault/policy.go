@@ -10,6 +10,8 @@ import (
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
+// Policies stay Read the way builtin/kv's kv.recipients does (public keys, not
+// secrets): a policy names paths and capabilities, never a secret value.
 func policyListCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.policy.list",
@@ -17,8 +19,7 @@ func policyListCapability() plugin.Capability {
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "Names, not rules — vault.policy.get shows one policy's own document. A " +
-			"policy names paths and capabilities, not secret values, so listing and reading policy " +
-			"documents stays Read the way builtin/kv's kv.recipients (public keys, not secrets) does.",
+			"policy names paths and capabilities, not secret values, so neither call needs a grant.",
 		Run: runPolicyList,
 	})
 }

@@ -9,17 +9,19 @@ import (
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
+// vault.seal.status has the shape builtin/kv's kv.status has, for the same
+// reason: where the vault is and what it would take to open it, without
+// opening it or touching a secret.
 func sealStatusCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.seal.status",
 		Summary:    "Whether Vault is initialized, sealed, and what it takes to unseal it",
 		Safety:     plugin.Read,
 		Idempotent: true,
-		Description: "The same shape builtin/kv's kv.status has, for the same reason: where the " +
-			"vault is and what it would take to open it, without opening it or touching a single " +
-			"secret. Answerable before authentication even matters — a sealed Vault refuses every " +
-			"token, including a valid one, so this is the first thing worth checking when " +
-			"anything else here fails.",
+		Description: "Where the vault is and what it would take to open it, without opening it or " +
+			"touching a single secret. Answerable before authentication even matters — a sealed " +
+			"Vault refuses every token, including a valid one, so this is the first thing worth " +
+			"checking when anything else here fails.",
 		Run: runSealStatus,
 	})
 }

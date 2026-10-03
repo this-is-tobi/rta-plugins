@@ -49,11 +49,10 @@ func kvTreeCapability() plugin.Capability {
 		Summary:    "The whole shape of a KV mount in one call — names only",
 		Safety:     plugin.Read,
 		Idempotent: true,
-		Description: "`vault kv list` answers one level at a time, and a name ending in \"/\" is " +
+		Description: "vault.kv.list answers one level at a time, and a name ending in \"/\" is " +
 			"another path to list — so learning where anything lives in somebody else's Vault " +
-			"means retyping the path over and over. This walks it once and draws the shape.\n\n" +
-			"Names only, never values: the same Read/Write split vault.kv.list and vault.kv.get " +
-			"already draw, and the reason a listing is ungated while a read is not.\n\n" +
+			"means calling it over and over. This walks it once and draws the shape.\n\n" +
+			"Names only, never values: vault.kv.get is where a secret's data is.\n\n" +
 			"Bounded in both directions, and it says when it stopped. A folder the token may not " +
 			"list is marked and stepped over rather than ending the walk — a policy that grants " +
 			"part of a mount is the normal case, and the part you can see is still the answer " +

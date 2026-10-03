@@ -32,15 +32,17 @@ func pathField(help string) plugin.Field {
 		Live: true, Suggest: suggestPaths}
 }
 
+// vault.kv.list is Read for the line builtin/kv's kv.list and kv.get already
+// draw: names describe where secrets live, and only a read of a secret's data
+// is a disclosure.
 func kvListCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.kv.list",
 		Summary:    "List secret names at a path — never values",
 		Safety:     plugin.Read,
 		Idempotent: true,
-		Description: "The structured equivalent of `vault kv list`: names only, the same " +
-			"Read/Write split builtin/kv's kv.list and kv.get already draw. A name ending in " +
-			"\"/\" is itself a path, one level further to list.",
+		Description: "Names only, never values — vault.kv.get is where a secret's data is. A name " +
+			"ending in \"/\" is itself a path, one level further to list.",
 		Run: runKVList,
 	}, mountField(),
 		plugin.Field{Name: "path", Type: plugin.String, Positional: true, Default: "",
@@ -123,6 +125,9 @@ func runKVList(ctx context.Context, req plugin.Request) (view.View, error) {
 	})
 }
 
+// vault.kv.get is Write+NeedsGrant, the same as builtin/kv's kv.get and for the
+// same reason: revealing a secret's plaintext has blast radius even though
+// nothing here is modified, and the grant names the path it may read.
 func kvGetCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.kv.get",
@@ -131,10 +136,9 @@ func kvGetCapability() plugin.Capability {
 		NeedsGrant: true,
 		Scope:      "path",
 		Idempotent: true,
-		Description: "Write, the same as builtin/kv's kv.get, for the same reason: revealing a " +
-			"secret's plaintext has blast radius even though nothing here is modified. A deleted " +
-			"(but not destroyed) version reports which, rather than an empty secret that looks the " +
-			"same as one that was never there.",
+		Description: "Returns the secret's plaintext, which is why it needs a grant although nothing " +
+			"here is modified. A deleted (but not destroyed) version says so, rather than answering " +
+			"with an empty secret that looks the same as one that was never there.",
 		Run: runKVGet,
 	}, mountField(), pathField("the secret's path within the mount"),
 		plugin.Field{Name: "version", Type: plugin.Int, Default: 0, Min: 0,
@@ -174,6 +178,9 @@ func runKVGet(ctx context.Context, req plugin.Request) (view.View, error) {
 	})
 }
 
+// vault.kv.set carries the overwrite risk builtin/kv's kv.set does, and needs
+// the same grant. It always writes a new version rather than merging into the
+// current one, which is what makes the earlier one recoverable.
 func kvSetCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.kv.set",
@@ -182,10 +189,10 @@ func kvSetCapability() plugin.Capability {
 		NeedsGrant: true,
 		Scope:      "path",
 		Idempotent: false,
-		Description: "The same overwrite risk builtin/kv's kv.set carries, needing the same " +
-			"grant, and the same name: this always creates a brand new version rather than " +
-			"merging into the current one — vault.kv.list and vault.kv.get already show what is " +
-			"there before this replaces it.",
+		Description: "Always creates a new version holding exactly `data`: the fields of the current " +
+			"version are replaced, not merged into. vault.kv.get shows what is there before this " +
+			"replaces it, and the version it replaces is kept — read with vault.kv.get's `version` " +
+			"until the mount's version limit drops it.",
 		Run: runKVSet,
 	}, mountField(), pathField("the secret's path within the mount"),
 		// SecretSlice, not StringSlice: this is the operation of writing a

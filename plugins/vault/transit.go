@@ -24,18 +24,22 @@ func transitMountField() plugin.Field {
 		Local: true, Help: "the transit secrets engine's mount path", Live: true, Suggest: suggestMounts("transit")}
 }
 
+// vault.transit.encrypt is Write and needs no grant naming a key, and not
+// Read+NeedsGrant like vault.kv.get: nothing is revealed that the caller did
+// not hand over — the plaintext is theirs, only the ciphertext comes back —
+// but the key material is materially used to produce it, which is what keeps
+// this off Read. gpg.sign's design draws the same distinction for a
+// signature: no key exposure, real use.
 func transitEncryptCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.transit.encrypt",
 		Summary:    "Encrypt caller-supplied plaintext with a Vault-managed key",
 		Safety:     plugin.Write,
 		Idempotent: false,
-		Description: "Write, not Read+NeedsGrant like vault.kv.get: nothing here is revealed to " +
-			"the caller that they did not already hand over — the plaintext is theirs, only the " +
-			"ciphertext comes back — but the key material is materially used to produce it, which " +
-			"is what keeps this off Read (the same distinction gpg.sign's design draws for a " +
-			"signature: no key exposure, real use). The key itself never leaves Vault; that is the " +
-			"whole point of the transit engine.",
+		Description: "Nothing is revealed that the caller did not already hand over — the plaintext " +
+			"is theirs, only the ciphertext comes back — but the key is used to produce it, which " +
+			"is why this needs a grant. The key itself never leaves Vault. The ciphertext is the " +
+			"`vault:v1:...` text vault.transit.decrypt takes back.",
 		Run: runTransitEncrypt,
 	}, transitMountField(),
 		plugin.Field{Name: "key", Type: plugin.String, Positional: true, Required: true,
@@ -72,6 +76,9 @@ func runTransitEncrypt(ctx context.Context, req plugin.Request) (view.View, erro
 	})
 }
 
+// vault.transit.decrypt is the reveal half of transit, which is exactly
+// vault.kv.get's blast radius against a different store — the same
+// Write+NeedsGrant answer, scoped on the key.
 func transitDecryptCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.transit.decrypt",
@@ -80,9 +87,8 @@ func transitDecryptCapability() plugin.Capability {
 		NeedsGrant: true,
 		Scope:      "key",
 		Idempotent: true,
-		Description: "The reveal half of transit: whoever holds the ciphertext gets the " +
-			"plaintext back, which is exactly vault.kv.get's blast radius against a different " +
-			"store — same Write+NeedsGrant answer.",
+		Description: "The reveal half of transit: whoever holds the ciphertext gets the plaintext " +
+			"back, so it needs a grant, as vault.kv.get does.",
 		Run: runTransitDecrypt,
 	}, transitMountField(),
 		plugin.Field{Name: "key", Type: plugin.String, Positional: true, Required: true,
