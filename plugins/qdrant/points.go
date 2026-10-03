@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -102,7 +103,7 @@ func pointsScrollCapability() plugin.Capability {
 		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 10, Min: 1, Max: 1000,
 			Help: "how many points to return"},
 		plugin.Field{Name: "offset", Type: plugin.String, Default: "",
-			Help: "continue from the id the last page ended at"},
+			Help: "start at this point id — the next page's first, which the last page's `page.next` holds"},
 		plugin.Field{Name: "vectors", Type: plugin.Bool, Default: false,
 			Help: "include the raw vectors — a second decision, see the description"})
 }
@@ -182,7 +183,18 @@ func runPointsScroll(ctx context.Context, req plugin.Request) (view.View, error)
 	}
 	t.Total = len(t.Rows)
 	if out.NextPageOffset != nil {
-		t.Page = &view.Cursor{Next: fmt.Sprint(out.NextPageOffset)}
+		next := fmt.Sprint(out.NextPageOffset)
+		t.Page = &view.Cursor{Next: next}
+		// A bare cursor over MCP names no input to pass it to, and an agent
+		// holding it could not tell a continuation from an id. The id is the
+		// first of the next page, which is why the input is `offset` and not
+		// an "after".
+		sf := req.Surface()
+		t.Warnings = append(t.Warnings, view.Error{
+			Code:    "qdrant.points.scroll.partial",
+			Message: fmt.Sprintf("stopped after %s; the next page starts at %s", format.CountOf(len(t.Rows), "point"), next),
+			Hint:    "pass " + sf.InputTo("offset", next) + " for the next page, or raise " + sf.InputName("limit"),
+		})
 	}
 	// Every payload column carries stored data, so all of them are redacted
 	// and the id is not. Which points were read is what the record is for;
