@@ -342,16 +342,16 @@ func checkRootCert(req plugin.Request) *view.Error {
 	}
 	switch mode := t.mode; mode {
 	case "prefer":
-		return view.Errorf("pg.tls.ca.unused", "%s names a CA, and %s never verifies against one",
-			t.rootSetting(sf), sf.SettingTo("sslmode", mode)).
+		return view.Errorf("pg.tls.ca.unused", "%s, and %s never verifies against one",
+			t.caSubject(sf), sf.SettingTo("sslmode", mode)).
 			WithHint(sf.SettingTo("sslmode", "verify-full") + " verifies the server against it, its name " +
-				"included, and " + sf.SettingTo("sslmode", "verify-ca") + " its chain alone")
+				"included, and " + sf.SettingTo("sslmode", "verify-ca") + " its chain alone" + t.homeWayOut(sf))
 	case "require":
-		return view.Errorf("pg.tls.ca.implied", "%s names a CA, and %s verifies against one only because it is there",
-			t.rootSetting(sf), sf.SettingTo("sslmode", mode)).
+		return view.Errorf("pg.tls.ca.implied", "%s, and %s verifies against one only because it is there",
+			t.caSubject(sf), sf.SettingTo("sslmode", mode)).
 			WithHint(sf.SettingTo("sslmode", "verify-ca") + " is that same check under its own name, which does " +
 				"not stop the day the CA is dropped, and " + sf.SettingTo("sslmode", "verify-full") +
-				" checks the server's name as well")
+				" checks the server's name as well" + t.homeWayOut(sf))
 	case "disable":
 		return nil
 	}

@@ -147,6 +147,28 @@ func (t transport) rootSetting(sf plugin.Surface) string {
 	return sf.SettingName("sslrootcert")
 }
 
+// caSubject is what a refusal about a root certificate begins with: the setting
+// that named it, or, when it was found and nothing named it, ssl-home and the
+// file it found. "ssl-home names a CA" read as though the setting held one, to
+// a reader who had set it for the client pair alone and never saw the file.
+func (t transport) caSubject(sf plugin.Surface) string {
+	if t.fromHome.root {
+		return sf.SettingName("ssl-home") + " found the CA " + t.rootCert
+	}
+	return t.rootSetting(sf) + " names a CA"
+}
+
+// homeWayOut is the sentence a refusal of a root certificate ssl-home found
+// ends with: leaving ssl-home off stops the file being read at all, which is
+// the way out for a reader who wanted the client pair and not the CA.
+func (t transport) homeWayOut(sf plugin.Surface) string {
+	if !t.fromHome.root {
+		return ""
+	}
+	return " — or drop " + sf.SettingName("ssl-home") + ", which stops the file being read, and name the client " +
+		"pair with " + sf.SettingName("sslcert", "sslkey")
+}
+
 // clientSetting names the setting that put the client pair in place: sslcert
 // or sslkey, or ssl-home when the files were found under ~/.postgresql.
 func (t transport) clientSetting(sf plugin.Surface, setting string) string {
