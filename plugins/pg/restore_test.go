@@ -284,6 +284,37 @@ func TestTheCreatedbHintNamesNoAddressAForwardLent(t *testing.T) {
 	}
 }
 
+// The createdb line is pasted, so every value in it is one word as a shell
+// reads it: a database named with a space was two words, one named with a
+// command substitution ran it, and one opening on a dash was read as an
+// option. Names the shell reads as themselves stay bare.
+func TestTheCreatedbLineIsOneWordPerValue(t *testing.T) {
+	const missing = `connection to server failed: FATAL:  database "x" does not exist`
+	for _, tc := range []struct {
+		name   string
+		values map[string]any
+		want   string
+	}{
+		{"a space", map[string]any{"database": "my db", "host": "db.internal", "port": 5432, "user": "app"},
+			"`createdb --host=db.internal --port=5432 --username=app 'my db'` makes it"},
+		{"a command substitution", map[string]any{"database": "prod", "host": "db.internal", "port": 5432,
+			"user": "app$(touch pwned)"},
+			"--username='app$(touch pwned)' prod` makes it"},
+		{"a host that is no word", map[string]any{"database": "prod", "host": "db internal", "port": 5432, "user": "app"},
+			"--host='db internal' --port=5432"},
+		{"a dash", map[string]any{"database": "-prod", "host": "db.internal", "port": 5432, "user": "app"},
+			"--username=app -- -prod` makes it"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			verr := classifyRestore(errors.New("exit status 2"), missing,
+				reqFor(t, "pg.restore", tc.values), formatPlain, versions{})
+			if verr.Code != "pg.restore.nodatabase" || !strings.Contains(verr.Hint, tc.want) {
+				t.Errorf("%s %q, want pg.restore.nodatabase with %q", verr.Code, verr.Hint, tc.want)
+			}
+		})
+	}
+}
+
 // An interrupted single-transaction restore rolled back; an interrupted
 // parallel one may not have. The hint is the one thing the operator reads
 // next, so the two cases must not share it.

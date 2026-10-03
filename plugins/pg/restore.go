@@ -264,12 +264,24 @@ func restoreArgs(req plugin.Request, format dumpFormat, path string) []string {
 // closed when the restore did, and createdb, which has no profile to open
 // one again, was sent to a port nothing listens on. The server is named by
 // the profile instead, which createdb has to reach by a way of its own.
+//
+// **Every value is one word of the line, as a shell reads it
+// (plugin.ShellWord).** The line is pasted, and a database named `my db` was
+// two words, one named `$(id)` ran, and one opening on a dash was read as an
+// option; the names are the server's and the profile's to choose, not the
+// reader's. The dash is answered with `--`, which createdb takes as the end
+// of its options.
 func createdbHint(req plugin.Request) string {
-	if req.Tunnel() == plugin.TunnelNone {
-		return "`createdb --host=" + req.String("host") + " --port=" + strconv.Itoa(req.Int("port")) +
-			" --username=" + req.String("user") + " " + req.String("database") + "` makes it, then restore again"
+	name := plugin.ShellWord(req.String("database"))
+	if strings.HasPrefix(req.String("database"), "-") {
+		name = "-- " + name
 	}
-	return "`createdb --username=" + req.String("user") + " " + req.String("database") + "` makes it, run " +
+	user := "--username=" + plugin.ShellWord(req.String("user"))
+	if req.Tunnel() == plugin.TunnelNone {
+		return "`createdb --host=" + plugin.ShellWord(req.String("host")) + " --port=" + strconv.Itoa(req.Int("port")) +
+			" " + user + " " + name + "` makes it, then restore again"
+	}
+	return "`createdb " + user + " " + name + "` makes it, run " +
 		"against the server profile " + req.Profile() + " reaches — the " + string(req.Tunnel()) + ": forward " +
 		"this restore went through closed when it did, so createdb needs a way there of its own — then " +
 		"restore again"
