@@ -156,6 +156,10 @@ func TestSafetyClassesMatchWhatEachCapabilityDiscloses(t *testing.T) {
 		"mysql.database.list": plugin.Read,
 		"mysql.table.list":    plugin.Read,
 		"mysql.schema":        plugin.Read,
+		// Positions and states the server publishes about itself; the text of
+		// a replication error, which carries the failing statement, is not
+		// returned (see replication_test.go).
+		"mysql.replication.status": plugin.Read,
 		// Write: both return values stored by somebody. query returns rows;
 		// activity returns the statement text of everything running, and a
 		// WHERE clause is a place a value hides.
