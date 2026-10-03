@@ -228,6 +228,14 @@ func TestADriverErrorIsStillClassified(t *testing.T) {
 // with the right column headers and no rows has been told the table is
 // empty, when what happened is that a tenant-isolation policy keyed off a
 // session setting rta never sets filtered every row away.
+func TestThePolicyQueryARowLevelSecurityRefusalOffersIsForThisTableAlone(t *testing.T) {
+	verr := rlsRefusal(relation{oid: 7, schema: "tenant a", name: "it's"}, true, false)
+	const want = "select * from pg_policies where schemaname = 'tenant a' and tablename = 'it''s'`"
+	if verr == nil || !strings.Contains(verr.Hint, want) {
+		t.Errorf("hint = %+v, want the query %q in it", verr, want)
+	}
+}
+
 func TestAnEmptyDumpOfARowLevelSecurityTableSaysSo(t *testing.T) {
 	rel := relation{oid: 42, schema: "public", name: "orders"}
 
