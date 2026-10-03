@@ -500,8 +500,8 @@ func tlsRequired(where string, req plugin.Request) *view.Error {
 	if req.Tunnel() == plugin.TunnelKube {
 		carrier = "the API server's TLS"
 	}
-	return view.Errorf("pg.tls.required", "%s accepts this connection over TLS only, and the %s: forward "+
-		"profile %s opened carries none", where, req.Tunnel(), req.Profile()).
+	return view.Errorf("pg.tls.required", "%s accepts this connection over TLS only, and %s "+
+		"carries none", where, req.Reached(where)).
 		WithHint("a forward runs the connection in the clear, the hop off this machine inside " + carrier +
 			", and TLS never runs through one here — the server is reached over TLS directly, by a profile " +
 			"with no kube: or ssh: coordinate")
