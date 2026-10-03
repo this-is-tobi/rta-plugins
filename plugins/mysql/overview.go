@@ -159,14 +159,14 @@ func overviewView(ctx context.Context, db *sql.DB, req plugin.Request) (view.Vie
 		p.Warn(&warnings[i])
 	}
 
-	databases, err := databaseTable(ctx, db, req, 10)
+	databases, err := databaseTable(ctx, db, req, 10, false)
 	if err != nil {
 		return nil, err
 	}
 	p.Put("databases", databases)
 
 	if req.Bool("detail") {
-		activity, err := activityView(ctx, db, req, false)
+		activity, err := activityView(ctx, db, req, false, false)
 		if err != nil {
 			return nil, err
 		}
@@ -188,14 +188,14 @@ func databaseListCapability() plugin.Capability {
 			"a short list here means a narrow grant and not an empty server.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withDB(ctx, req, func(ctx context.Context, db *sql.DB) (view.View, error) {
-				return databaseTable(ctx, db, req, req.Int("limit"))
+				return databaseTable(ctx, db, req, req.Int("limit"), true)
 			})
 		},
 	}, plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 100, Min: 1, Max: 10000,
 		Help: "how many databases to show"})
 }
 
-func databaseTable(ctx context.Context, db *sql.DB, req plugin.Request, limit int) (view.Table, error) {
+func databaseTable(ctx context.Context, db *sql.DB, req plugin.Request, limit int, say bool) (view.Table, error) {
 	// Aggregated from INFORMATION_SCHEMA.TABLES rather than SHOW DATABASES,
 	// because the size is the column that makes this worth running and SHOW
 	// does not carry it. LEFT JOIN off SCHEMATA so a database holding no
@@ -209,7 +209,7 @@ func databaseTable(ctx context.Context, db *sql.DB, req plugin.Request, limit in
 		  LEFT JOIN INFORMATION_SCHEMA.TABLES t ON t.TABLE_SCHEMA = s.SCHEMA_NAME
 		 GROUP BY s.SCHEMA_NAME
 		 ORDER BY 3 DESC
-		 LIMIT ?`, limit)
+		 LIMIT ?`, limit+1)
 	if err != nil {
 		return view.Table{}, classify(err, req)
 	}
@@ -232,6 +232,7 @@ func databaseTable(ctx context.Context, db *sql.DB, req plugin.Request, limit in
 	if err := rows.Err(); err != nil {
 		return view.Table{}, classify(err, req)
 	}
+	t = cutAtLimit(t, limit, "database", say, req.Surface())
 	t.Total = len(t.Rows)
 	return t, nil
 }

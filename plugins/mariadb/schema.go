@@ -89,7 +89,7 @@ func tableTable(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 		  FROM INFORMATION_SCHEMA.TABLES
 		 WHERE TABLE_SCHEMA = ?
 		 ORDER BY 5 DESC
-		 LIMIT ?`, schema, req.Int("limit"))
+		 LIMIT ?`, schema, req.Int("limit")+1)
 	if err != nil {
 		return nil, classify(err, req)
 	}
@@ -121,6 +121,7 @@ func tableTable(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 	if err := rows.Err(); err != nil {
 		return nil, classify(err, req)
 	}
+	t = cutAtLimit(t, req.Int("limit"), "table", true, req.Surface())
 	t.Total = len(t.Rows)
 	if t.Total > 0 && !schemaFullyVisible(ctx, db, schema) {
 		t.Warnings = append(t.Warnings, partialListing("mariadb.table.partial", schema, "this list"))

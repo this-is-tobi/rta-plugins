@@ -146,7 +146,7 @@ func activityCapability() plugin.Capability {
 			"stored, so the glanceable form stays in the read tier.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withDB(ctx, req, func(ctx context.Context, db *sql.DB) (view.View, error) {
-				return activityView(ctx, db, req, true)
+				return activityView(ctx, db, req, true, true)
 			})
 		},
 	}, plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 50, Min: 1, Max: 1000,
@@ -158,7 +158,7 @@ func activityCapability() plugin.Capability {
 // function means the two can never drift into disagreeing about what a
 // session's state is called — and, more importantly, that the read-tier
 // caller physically cannot produce the column it is not allowed to show.
-func activityView(ctx context.Context, db *sql.DB, req plugin.Request, withStatements bool) (view.View, error) {
+func activityView(ctx context.Context, db *sql.DB, req plugin.Request, withStatements, say bool) (view.View, error) {
 	limit := req.Int("limit")
 	if limit == 0 {
 		limit = 50
@@ -172,7 +172,7 @@ func activityView(ctx context.Context, db *sql.DB, req plugin.Request, withState
 		  FROM INFORMATION_SCHEMA.PROCESSLIST
 		 WHERE COMMAND <> 'Sleep'
 		 ORDER BY TIME DESC
-		 LIMIT ?`, limit)
+		 LIMIT ?`, limit+1)
 	if err != nil {
 		return nil, classify(err, req)
 	}
@@ -210,6 +210,7 @@ func activityView(ctx context.Context, db *sql.DB, req plugin.Request, withState
 	if err := rows.Err(); err != nil {
 		return nil, classify(err, req)
 	}
+	t = cutAtLimit(t, limit, "session", say, req.Surface())
 	t.Total = len(t.Rows)
 	if hidden := hiddenSessions(ctx, db); hidden > 0 {
 		t.Warnings = append(t.Warnings, view.Error{
@@ -221,6 +222,31 @@ func activityView(ctx context.Context, db *sql.DB, req plugin.Request, withState
 		})
 	}
 	return t, nil
+}
+
+// cutAtLimit cuts a listing back to the bound it was asked for. The queries
+// ask one row past it, which is what tells a listing that ends on its bound
+// from one that was cut off — the difference between "that is all of them" and
+// "there are more" cannot be guessed from a count. A listing that quietly
+// ended at its bound reads exactly like a server with that many databases, or
+// tables, or sessions on it, which is the answer an agent would act on.
+//
+// say is false where the cut is the point: the overview's ten largest
+// databases are ten on purpose, and a warning there would name a `limit` the
+// overview does not take.
+func cutAtLimit(t view.Table, limit int, noun string, say bool, sf plugin.Surface) view.Table {
+	if len(t.Rows) <= limit {
+		return t
+	}
+	t.Rows = t.Rows[:limit]
+	if say {
+		t.Warnings = append(t.Warnings, view.Error{
+			Code:    "mariadb.list.partial",
+			Message: "stopped at " + format.CountOf(limit, noun) + "; there are more",
+			Hint:    "raise " + sf.InputName("limit"),
+		})
+	}
+	return t
 }
 
 // hiddenSessions reports how many of the server's connections this account
