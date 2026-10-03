@@ -454,7 +454,7 @@ func classify(err error, req plugin.Request) *view.Error {
 				WithHint("the credentials are valid but the role does not cover this: a key range for a read of keys, " +
 					"and for the cluster's own status, which etcd answers only to a user holding the root role")
 		case codes.Unavailable:
-			return view.Errorf("etcd.unavailable", "%s is not serving: %s", where, msg).
+			return view.Errorf("etcd.unavailable", "%s is not serving: %s", req.Reached(where), msg).
 				WithHint("a member that has lost quorum reports exactly this — check the others")
 		case codes.DeadlineExceeded:
 			return view.Errorf("etcd.timeout", "%s did not answer in time", where).
@@ -486,7 +486,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	// no revocation check, and connects. Every other verdict is quoted below
 	// in the system's own words.
 	if plugin.CertUntrusted(err) {
-		return view.Errorf("etcd.tls.untrusted", "%s presented a certificate nothing here trusts", where).
+		return view.Errorf("etcd.tls.untrusted", "%s presented a certificate nothing here trusts", req.Reached(where)).
 			WithHint("etcd clusters usually have their own CA: " + sf.CAHint("ca-file"))
 	}
 	// A certificate that is not for the end of a forward the host opened is
@@ -508,7 +508,7 @@ func classify(err error, req plugin.Request) *view.Error {
 		if serverName(req) != "" {
 			checked = "the name in " + sf.SettingName("tls-server-name")
 		}
-		rejected := view.Errorf("etcd.tls.rejected", "%s presented a certificate that does not verify: %v", where, verifyErr.Err)
+		rejected := view.Errorf("etcd.tls.rejected", "%s presented a certificate that does not verify: %v", req.Reached(where), verifyErr.Err)
 		// A rule of macOS's own, which the verdict's words do not name: a
 		// ten-year certificate, the usual one for a cluster of one's own, is
 		// "not standards compliant" there, and the hint below would have
@@ -521,7 +521,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	}
 	var hsErr handshakeError
 	if errors.As(err, &hsErr) {
-		return view.Errorf("etcd.tls.failed", "TLS with %s failed: %v", where, hsErr.err).
+		return view.Errorf("etcd.tls.failed", "TLS with %s failed: %v", req.Reached(where), hsErr.err).
 			WithHint("a client port serving plaintext hangs up on TLS: TLS is for a cluster whose client " +
 				"URLs are https://, and an https:// endpoint turns it on, as do " +
 				sf.SettingName("tls", "ca-file", "cert-file", "tls-server-name"))
