@@ -380,7 +380,15 @@ func classify(err error, req plugin.Request) *view.Error {
 	// carries none, only a CN, which no verifier reads, so true refuses it
 	// whatever ca-file holds. Ahead of untrusted for that reason: its hint
 	// sends the reader to ca-file, a detour that would only end here.
-	if cert, ok := misnamed(err); ok {
+	//
+	// **Never a certificate its issuer revoked (plugin.CertRevoked).** On
+	// macOS, with no ca-file, the system's verifier answers, and says
+	// "revoked" untyped: read by what it lacks, a revoked certificate with no
+	// names was answered with verify-ca, which runs Go's verifier in the
+	// system's place and checks no revocation at all — the operator who
+	// followed the hint connected to the server the check had caught. It
+	// keeps the system's words below, with no way round.
+	if cert, ok := misnamed(err); ok && !plugin.CertRevoked(err) {
 		return nameRefusal(where, cert, req)
 	}
 
