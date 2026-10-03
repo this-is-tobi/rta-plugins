@@ -133,7 +133,10 @@ func Plugin() plugin.Plugin {
 					"container's environment carries plaintext credentials by convention — every " +
 					"`-e` and every compose-file value — and deciding which of those are secret by " +
 					"their names is a guess, not a rule. rta would rather ask than guess wrong " +
-					"once.",
+					"once.\n\n" +
+					"**Environment values come back masked (••••••), on every surface.** The names " +
+					"are shown and every value is marked as secret, so what the result tells you is " +
+					"which variables a container sets, not what they are set to.",
 				// The kv.get precedent: a capability that reveals a secret's
 				// plaintext is Write even with no disk side effect at all.
 				// Env is why. Unlike net.info's masking, which

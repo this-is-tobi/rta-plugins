@@ -28,6 +28,8 @@ Under `plugins: docker:` in rta's configuration, or in a profile's `set:`. An in
 
 Image, command, state, restart policy, mounts, networks and environment. **Write rather than Read, and it needs a grant**, because a container's environment carries plaintext credentials by convention — every `-e` and every compose-file value — and deciding which of those are secret by their names is a guess, not a rule. rta would rather ask than guess wrong once.
 
+**Environment values come back masked (••••••), on every surface.** The names are shown and every value is marked as secret, so what the result tells you is which variables a container sets, not what they are set to.
+
 | Field                | Value                                                                                                                                                                 |
 |----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | id                   | docker.container.inspect                                                                                                                                              |
