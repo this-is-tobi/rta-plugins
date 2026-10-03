@@ -138,6 +138,31 @@ func TestDumpDryRunTouchesNothing(t *testing.T) {
 	}
 }
 
+// A dry run names the instance the way the reader reaches it again, which
+// through a forward is the profile and not the forward's end.
+func TestADryRunNamesTheProfileAndItsForward(t *testing.T) {
+	values := func(extra map[string]any) map[string]any {
+		extra["endpoint"], extra["collection"] = "127.0.0.1:54321", "docs"
+		return extra
+	}
+	dump, err := runDump(t.Context(), dryReq(t, "qdrant.dump",
+		values(map[string]any{"out": filepath.Join(t.TempDir(), "d.snapshot")})).WithProfile("prod", plugin.TunnelKube))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body := dump.(view.Text).Body; !strings.Contains(body, "would ask profile prod (through its kube: forward) to snapshot") {
+		t.Errorf("dump dry run = %q", body)
+	}
+	restore, err := runRestore(t.Context(), dryReq(t, "qdrant.restore",
+		values(map[string]any{"file": snapshotOnDisk(t, "bytes")})).WithProfile("prod", plugin.TunnelKube))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body := restore.(view.Text).Body; !strings.Contains(body, "to profile prod (through its kube: forward), recovering") {
+		t.Errorf("restore dry run = %q", body)
+	}
+}
+
 func TestDumpCreatesDownloadsAndDeletes(t *testing.T) {
 	snapshot := []byte("binary-snapshot-bytes\x00\x01\x02")
 	srv, calls := newSnapshotServer(t, map[string]http.HandlerFunc{
@@ -293,11 +318,11 @@ func TestAReceiptNamesTheProfileRatherThanAForwardsEnd(t *testing.T) {
 		{"no profile", "", "qdrant.internal:6333", "qdrant.internal:6333", plugin.TunnelNone},
 		{"a profile reached directly", "prod", "qdrant.internal:6333", "qdrant.internal:6333 (profile prod)",
 			plugin.TunnelNone},
-		{"a profile through a forward", "prod", "127.0.0.1:54321", "profile prod, through its kube: forward",
+		{"a profile through a forward", "prod", "127.0.0.1:54321", "profile prod (through its kube: forward)",
 			plugin.TunnelKube},
 	} {
 		r := req(t, "qdrant.dump", map[string]any{"endpoint": tc.endpoint}).WithProfile(tc.profile, tc.tunnel)
-		if got := reached(r); got != tc.want {
+		if got := r.Reached(r.String("endpoint")); got != tc.want {
 			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)
 		}
 	}
