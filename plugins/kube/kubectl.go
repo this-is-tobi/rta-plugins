@@ -103,6 +103,20 @@ type selection struct {
 	reach []plugin.Arg
 }
 
+// kubectlLine is the kubectl command rest names, on the context s read, each
+// value one shell word: for a message that hands a command over to be pasted,
+// which bare asks the context of the shell it lands in.
+func (s selection) kubectlLine(rest ...string) string {
+	words := []string{"kubectl"}
+	if s.Context != "" {
+		words = append(words, plugin.ShellWord("--context="+s.Context))
+	}
+	for _, word := range rest {
+		words = append(words, plugin.ShellWord(word))
+	}
+	return strings.Join(words, " ")
+}
+
 func selectionOf(req plugin.Request) (selection, *view.Error) {
 	s := selection{
 		Context:   strings.TrimSpace(req.String("context")),
