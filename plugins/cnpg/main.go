@@ -107,7 +107,7 @@ func nsFields() []plugin.Field {
 		// something a completion press asked for, never something typing
 		// caused. plugins/kube pins the same rule on its own namespace field.
 		{Name: "namespace", Type: plugin.String, Config: "namespace",
-			Help: "namespace to read — the context's own when omitted",
+			Help: "namespace to look in — the context's own when omitted",
 			Live: true, Suggest: suggestNamespaces},
 	}
 }
