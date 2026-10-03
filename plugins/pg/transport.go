@@ -43,6 +43,9 @@ type transport struct {
 	// serverName is the name the certificate is checked for in place of the
 	// host's, or "".
 	serverName string
+	// forwardTLS is true when TLS is on over a forward only because a setting
+	// asked for it: the host's disable stands under it otherwise.
+	forwardTLS bool
 	// fromHome says which files ssl-home supplied, for a refusal that has to
 	// name the setting that put a file there.
 	fromHome struct{ root, client bool }
@@ -68,7 +71,7 @@ func transportOf(req plugin.Request) transport {
 	// that is for another name (forwardName) has the setting that cures it.
 	if req.Tunnel() != plugin.TunnelNone &&
 		(t.serverName != "" || t.rootCert != "" || t.clientCert != "" || t.clientKey != "") {
-		t.mode = "verify-full"
+		t.mode, t.forwardTLS = "verify-full", true
 	}
 	if req.Bool("ssl-home") && t.mode != "disable" {
 		t.addHomeDefaults()

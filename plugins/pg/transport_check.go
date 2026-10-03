@@ -31,6 +31,30 @@ func checkTransport(req plugin.Request) *view.Error {
 	return checkClientPair(req)
 }
 
+// checkChildForward refuses a dump or a restore that would run its tool over a
+// TLS connection through a kube: forward, because the forward does not outlive
+// the first connection.
+//
+// **Measured against a real kubectl port-forward**, to a PostgreSQL 17 with
+// TLS: the first connection works and its clean close ends the forward
+// ("lost connection to pod", the pod-side read reset by a server that has
+// already gone), so the second finds nothing listening. A dump or a restore
+// connects twice, once for the pre-flight that says what the server is and once
+// for the tool, and the tool's was refused as "connection refused", which
+// rta then passed through unchanged for a reader to wonder at. Said here, before
+// either connects. An ssh: forward is a long-lived tunnel and does not do it,
+// and one with no TLS on it does not either (the default over a forward).
+func checkChildForward(req plugin.Request) *view.Error {
+	if req.Tunnel() != plugin.TunnelKube || !transportOf(req).forwardTLS {
+		return nil
+	}
+	return view.Errorf("pg.tls.client.forward", "a dump or a restore over TLS cannot run through %s",
+		req.Reached(address(req))).
+		WithHint("it connects twice, once to check the server and once for the tool, and a kube: forward ends " +
+			"when the first TLS connection closes — run it from where the server is reached directly or from " +
+			"inside the cluster. A call that connects once, a query or a schema, is fine through it")
+}
+
 // checkRevocation refuses ssl-home beside a revocation list under ~/.postgresql
 // when the connection verifies the server, because nothing here would read it.
 //
