@@ -294,6 +294,10 @@ func findContainer(rows []containerRow, want string) (containerRow, bool) {
 
 func runStop(ctx context.Context, req plugin.Request) (view.View, error) {
 	name := strings.TrimSpace(req.String("container"))
+	// The same connection mutate builds and refuses on first: the receipt
+	// below runs only after it has answered, so this one cannot be the invalid
+	// one, and is read for the daemon the line that starts it again names.
+	c, _ := connectionOf(req)
 	return mutate(ctx, req, "stop",
 		func(r containerRow) string {
 			if !strings.EqualFold(r.State, "running") {
@@ -306,7 +310,7 @@ func runStop(ctx context.Context, req plugin.Request) (view.View, error) {
 			return []view.Pair{
 				{Key: "stopped", Value: r.Names},
 				{Key: "image", Value: r.Image},
-				{Key: "reversible", Value: "yes — `docker start " + r.Names + "` brings it back unchanged"},
+				{Key: "reversible", Value: "yes — `" + c.startLine(r.Names) + "` brings it back unchanged"},
 			}
 		},
 		fmt.Sprintf("--time=%d", stopSeconds), name)
