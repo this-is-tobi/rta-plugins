@@ -112,6 +112,29 @@ func TestAMissingObjectPointsAtAListingTheCLITakes(t *testing.T) {
 	}
 }
 
+// A server's answer for a missing object does not always name it: real S3
+// puts the key in the XML body and not the bucket, and MinIO neither. The
+// refusal read `no object "" in ""` and its hint listed bucket "", so it
+// names what the call asked for where the answer is silent.
+func TestAMissingObjectIsNamedWhenTheServerDoesNotNameIt(t *testing.T) {
+	r := req(t, "s3.object.get", map[string]any{"bucket": "shop", "key": "invoices/1.pdf"})
+	verr := classify(minio.ErrorResponse{Code: minio.NoSuchKey}, r)
+	if want := `no object "invoices/1.pdf" in "shop"`; verr.Message != want {
+		t.Errorf("message = %q, want %q", verr.Message, want)
+	}
+	if want := "--bucket shop"; !strings.Contains(verr.Hint, want) {
+		t.Errorf("hint = %q, want the listing of bucket shop (%q)", verr.Hint, want)
+	}
+	verr = classify(minio.ErrorResponse{Code: minio.NoSuchBucket}, r)
+	if !strings.Contains(verr.Message, `"shop"`) {
+		t.Errorf("message = %q, want the bucket the call named", verr.Message)
+	}
+	verr = classify(minio.ErrorResponse{Code: minio.NoSuchKey, BucketName: "other", Key: "k"}, r)
+	if want := `no object "k" in "other"`; verr.Message != want {
+		t.Errorf("message = %q, want the server's own names to win: %q", verr.Message, want)
+	}
+}
+
 // Every classified failure has to say what to do next — the same bar
 // plugins/pg and plugins/vault's own classify hold themselves to, against
 // S3's error shapes.
