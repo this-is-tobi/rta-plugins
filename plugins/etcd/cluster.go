@@ -301,6 +301,19 @@ func leasesLeftOut(sf plugin.Surface, n int) []string {
 	return []string{"…", "-", "-", format.CountOf(n, "more lease") + "; raise " + sf.InputName("limit")}
 }
 
+// leaseTimes is a lease's granted ttl and what remains of it, in the form every
+// other duration here is written: format.Duration, "10m" and "1h30m", not
+// time.Duration's "10m0s" and "1h30m0s", which nobody types and which carry
+// a seconds figure that is never the answer. A lease the server reports no
+// time left on is expired.
+func leaseTimes(grantedSeconds, remainingSeconds int64) (granted, remaining string) {
+	granted = format.Duration(time.Duration(grantedSeconds) * time.Second)
+	if remainingSeconds <= 0 {
+		return granted, "expired"
+	}
+	return granted, format.Duration(time.Duration(remainingSeconds) * time.Second)
+}
+
 func leaseTable(ctx context.Context, c *clientv3.Client, req plugin.Request) (view.View, error) {
 	resp, err := c.Leases(ctx)
 	if err != nil {
@@ -331,13 +344,10 @@ func leaseTable(ctx context.Context, c *clientv3.Client, req plugin.Request) (vi
 		if err != nil {
 			return nil, classify(err, req)
 		}
-		remaining := "expired"
-		if ttl.TTL > 0 {
-			remaining = (time.Duration(ttl.TTL) * time.Second).String()
-		}
+		granted, remaining := leaseTimes(ttl.GrantedTTL, ttl.TTL)
 		t.Rows = append(t.Rows, []string{
 			leaseID(int64(l.ID)),
-			(time.Duration(ttl.GrantedTTL) * time.Second).String(),
+			granted,
 			remaining,
 			strconv.Itoa(len(ttl.Keys)),
 		})

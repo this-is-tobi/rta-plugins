@@ -103,6 +103,30 @@ func TestOneLeaseLeftOutIsCountedInTheSingular(t *testing.T) {
 	}
 }
 
+// A lease's times read the way a person types a window. time.Duration prints
+// ten minutes as "10m0s" and an hour and a half as "1h30m0s": accepted by
+// ParseDuration and typed by nobody, and the seconds figure is never the answer
+// to "how long does it have". The mysql plugin's uptime and the redis one's
+// spans read "10m" and "1h30m", and an agent comparing the three saw two
+// notations for one thing.
+func TestALeaseTimesReadTheWayAPersonTypesAWindow(t *testing.T) {
+	for _, tc := range []struct {
+		granted, remaining    int64
+		wantGranted, wantLeft string
+	}{
+		{600, 599, "10m", "9m59s"},
+		{5400, 3600, "1h30m", "1h"},
+		{30, 0, "30s", "expired"},
+		{30, -1, "30s", "expired"},
+	} {
+		granted, remaining := leaseTimes(tc.granted, tc.remaining)
+		if granted != tc.wantGranted || remaining != tc.wantLeft {
+			t.Errorf("leaseTimes(%d, %d) = %q, %q; want %q, %q", tc.granted, tc.remaining,
+				granted, remaining, tc.wantGranted, tc.wantLeft)
+		}
+	}
+}
+
 // And it names the limit the way its reader raises one: an agent has an
 // argument, not a flag.
 func TestTheLeasesLeftOutNameTheLimitAsTheirSurfaceGivesIt(t *testing.T) {
