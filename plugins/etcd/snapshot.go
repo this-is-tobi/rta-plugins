@@ -165,7 +165,7 @@ func runSnapshot(ctx context.Context, req plugin.Request) (view.View, error) {
 
 	if req.DryRun {
 		return view.Text{Body: "would write a snapshot of " +
-			reached(req) + " to " + path}, nil
+			req.Reached(endpointOf(req)) + " to " + path}, nil
 	}
 
 	return withClient(ctx, req, func(ctx context.Context, c *clientv3.Client) (view.View, error) {
@@ -207,7 +207,7 @@ func describeSource(ctx context.Context, c *clientv3.Client, req plugin.Request)
 		return source{}, classifySnapshot(err, req)
 	}
 	return source{
-		where:    reached(req),
+		where:    req.Reached(endpoint),
 		member:   hexID(st.Header.MemberId),
 		revision: st.Header.Revision,
 		version:  st.Version,
