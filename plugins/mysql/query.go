@@ -44,7 +44,9 @@ func queryCapability() plugin.Capability {
 			"it describes the database and hands back nothing stored in it. Where the connection is " +
 			"a named profile, every call in this namespace needs one, the read tier included.\n\n" +
 			"Over `limit` rows it is refused rather than shortened: a truncated result set is a " +
-			"different answer wearing the right shape.",
+			"different answer wearing the right shape.\n\n" +
+			"Name a table as `database.table` unless the operator's connection selects a database — " +
+			"without one the server answers an unqualified name with \"No database selected\".",
 		Run: runQuery,
 	}, plugin.Field{Name: "sql", Type: plugin.String, Positional: true, Required: true,
 		Help: "the statement to run"},
@@ -82,7 +84,7 @@ func queryView(ctx context.Context, db *sql.DB, req plugin.Request) (view.View, 
 
 	rows, err := tx.QueryContext(ctx, req.String("sql"))
 	if err != nil {
-		return nil, classify(err, req)
+		return nil, statementFailure(err, req)
 	}
 	defer func() { _ = rows.Close() }()
 
@@ -100,9 +102,26 @@ func queryView(ctx context.Context, db *sql.DB, req plugin.Request) (view.View, 
 			WithHint("select fewer columns, or fewer rows — a row bound is not a size bound, " +
 				"and one wide TEXT or BLOB column is usually what does this")
 	case err != nil:
-		return nil, classify(err, req)
+		return nil, statementFailure(err, req)
 	}
 	return t, nil
+}
+
+// statementFailure is classify for the one place the SQL is the caller's own.
+//
+// What classify cannot place falls to a hint that sends the reader to the
+// connection's settings, which is right for a server that answered oddly and
+// wrong for a statement the server understood and refused: a typo in the SQL
+// told an agent to ask the operator which settings exist. Whatever the number,
+// an error that came back for the caller's own statement is about that
+// statement.
+func statementFailure(err error, req plugin.Request) *view.Error {
+	verr := classify(err, req)
+	if verr.Code == "mysql.query.failed" {
+		verr.Hint = "the server rejected the statement as written, not the connection — what it says above is " +
+			"what to fix, and then the statement can be run again"
+	}
+	return verr
 }
 
 func activityCapability() plugin.Capability {

@@ -287,7 +287,7 @@ func TestSchemaRefusesRatherThanGuessing(t *testing.T) {
 	if verr == nil {
 		t.Fatal("no database named anywhere, and it did not refuse")
 	}
-	if !strings.Contains(verr.Hint, "config") {
+	if !strings.Contains(verr.Hint, "--schema") || !strings.Contains(verr.Hint, "--database") {
 		t.Errorf("refusal does not say how to fix it: %q", verr.Hint)
 	}
 
