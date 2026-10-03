@@ -272,7 +272,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	// answered untyped too, and the CA file is no cure for it but a way
 	// around the check that caught it.
 	if plugin.CertUntrusted(err) {
-		return view.Errorf("s3.tls.untrusted", "%s presented a certificate nothing here trusts", where).
+		return view.Errorf("s3.tls.untrusted", "%s presented a certificate nothing here trusts", answered).
 			WithHint(sf.CAHint("ca-file") + "; for a local MinIO that is its public.crt, and " +
 				"turning TLS off is no way round it, as the server refuses plain HTTP")
 	}
@@ -298,7 +298,7 @@ func classify(err error, req plugin.Request) *view.Error {
 		if serverName(req) != "" {
 			checked = "the name in " + sf.SettingName("tls-server-name")
 		}
-		rejected := view.Errorf("s3.tls.rejected", "%s presented a certificate that does not verify: %v", where, verifyErr.Err)
+		rejected := view.Errorf("s3.tls.rejected", "%s presented a certificate that does not verify: %v", answered, verifyErr.Err)
 		// A rule of macOS's own, which the verdict's words do not name: a
 		// ten-year certificate, the usual one for a MinIO of one's own, is
 		// "not standards compliant" there, and the hint below would have
