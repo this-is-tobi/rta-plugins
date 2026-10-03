@@ -34,6 +34,8 @@ Under `plugins: etcd:` in rta's configuration, or in a profile's `set:`. An inst
 
 The value stored at one key, with its version and lease.
 
+**The value comes back masked (••••••), on every surface.** rta masks every field a plugin marks as secret and this one marks `value`, so what the result tells you is that the key exists and its size, version, revisions and lease — not what it holds.
+
 **Classified write for what it discloses, not what it changes.** A Kubernetes cluster keeps its Secrets in etcd base64-encoded rather than encrypted, unless encryption at rest was turned on — so reading an arbitrary key here can be reading every secret in the cluster.
 
 It also needs a grant naming it. That is available because this names one key: `grant.allow` for `etcd.kv.get` and `/registry/services/endpoints/default/api` is a consent somebody can actually read, which a whole-namespace grant would not be.
