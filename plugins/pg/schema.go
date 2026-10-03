@@ -359,7 +359,7 @@ func readSchema(ctx context.Context, q querier, schema string, limit int) ([]sch
 // beats inventing one.
 func renderDDL(req plugin.Request, schema string, tables []schemaTable, om dropped) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "-- schema %q of %s on %s\n", schema, req.String("database"), address(req))
+	fmt.Fprintf(&b, "-- schema %q of %s on %s\n", schema, req.String("database"), req.Reached(address(req)))
 	b.WriteString("--\n")
 	b.WriteString("-- Structure only: no expression crosses this boundary, because an expression\n" +
 		"-- is a place a value can hide. Defaults, check constraints, view and routine\n" +
