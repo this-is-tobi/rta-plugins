@@ -111,6 +111,29 @@ func TestOnlySecretsUseEnvFallback(t *testing.T) {
 	}
 }
 
+// The bound on how many rows a capability returns is `limit` here as in every
+// other plugin. The slow log called it `count`, which is Redis's own word for
+// the argument of SLOWLOG GET: an agent that learned `limit` from the key
+// listing beside it passed it to the slow log and was refused as unknown.
+func TestEveryRowBoundIsCalledLimit(t *testing.T) {
+	bounds := 0
+	for _, c := range Plugin().Capabilities {
+		for _, f := range c.Inputs {
+			switch f.Name {
+			case "count", "max", "top", "n", "size":
+				if f.Type == plugin.Int && !f.Local {
+					t.Errorf("%s bounds its rows with `%s`, not `limit`", c.ID, f.Name)
+				}
+			case "limit":
+				bounds++
+			}
+		}
+	}
+	if bounds == 0 {
+		t.Error("no capability declares a `limit` — the check found nothing to check")
+	}
+}
+
 // The line through the plugin: everything that returns something somebody
 // stored is a write, and the one that names a single key needs a grant.
 func TestTheDisclosingCapabilitiesAreWrites(t *testing.T) {
