@@ -526,7 +526,7 @@ func TestOnlyAnUnknownIssuerIsAnsweredWithTheCA(t *testing.T) {
 	}
 	// The system's words for a chain to no anchor it holds are read as
 	// untrusted where the system gave them, and are nobody's words elsewhere.
-	notTrusted := "pg.conn.failed"
+	notTrusted := "pg.tls.rejected"
 	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		notTrusted = "pg.tls.untrusted"
 	}
@@ -540,14 +540,14 @@ func TestOnlyAnUnknownIssuerIsAnsweredWithTheCA(t *testing.T) {
 		{"the same, inside the driver's error", fmt.Errorf("tls error: %w",
 			&tls.CertificateVerificationError{Err: x509.UnknownAuthorityError{}}), "pg.tls.untrusted"},
 		{"macOS, a chain to no anchor it holds", verdict("certificate is not trusted"), notTrusted},
-		{"macOS, a revoked certificate", verdict("certificate is revoked"), "pg.conn.failed"},
-		{"macOS, a policy it will not pass", verdict("certificate is not standards compliant"), "pg.conn.failed"},
+		{"macOS, a revoked certificate", verdict("certificate is revoked"), "pg.tls.rejected"},
+		{"macOS, a policy it will not pass", verdict("certificate is not standards compliant"), "pg.tls.rejected"},
 		{"a revoked certificate named to look untrusted",
-			verdict("certificate is not trusted" + closing + " certificate is revoked"), "pg.conn.failed"},
+			verdict("certificate is not trusted" + closing + " certificate is revoked"), "pg.tls.rejected"},
 		{"a certificate for another name", &tls.CertificateVerificationError{
-			Err: x509.HostnameError{Certificate: &x509.Certificate{}, Host: "db"}}, "pg.conn.failed"},
+			Err: x509.HostnameError{Certificate: &x509.Certificate{}, Host: "db"}}, "pg.tls.rejected"},
 		{"a signature algorithm Go's verifier refuses", &tls.CertificateVerificationError{
-			Err: x509.InsecureAlgorithmError(x509.SHA1WithRSA)}, "pg.conn.failed"},
+			Err: x509.InsecureAlgorithmError(x509.SHA1WithRSA)}, "pg.tls.rejected"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			verr := classify(tc.err, r)
@@ -555,7 +555,12 @@ func TestOnlyAnUnknownIssuerIsAnsweredWithTheCA(t *testing.T) {
 				t.Fatalf("code = %q, want %q", verr.Code, tc.code)
 			}
 			if tc.code != "pg.tls.untrusted" {
-				if !strings.Contains(verr.Message, tc.err.Error()) {
+				words := tc.err.Error()
+				var handshake *tls.CertificateVerificationError
+				if errors.As(tc.err, &handshake) {
+					words = handshake.Err.Error()
+				}
+				if !strings.Contains(verr.Message, words) {
 					t.Errorf("message = %q, want the verifier's own words in it", verr.Message)
 				}
 				if strings.Contains(verr.Hint, "sslrootcert") {
