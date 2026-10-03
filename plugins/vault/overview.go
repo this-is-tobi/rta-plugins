@@ -84,7 +84,7 @@ func compactOverview(ctx context.Context, client *vaultapi.Client, req plugin.Re
 			add("token policies", cell(policies))
 		}
 		if ttl, ok := secret.Data["ttl"]; ok {
-			add("token ttl (seconds)", cell(ttl))
+			add("token ttl (seconds)", tokenTTL(ttl))
 		}
 	} else {
 		add("token", "unreadable — "+err.Error())

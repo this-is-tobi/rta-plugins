@@ -43,10 +43,23 @@ func runTokenStatus(ctx context.Context, req plugin.Request) (view.View, error) 
 		add("policies", "policies")
 		add("orphan", "orphan")
 		add("renewable", "renewable")
-		add("ttl (seconds)", "ttl")
+		if v, ok := secret.Data["ttl"]; ok {
+			kv.Pairs = append(kv.Pairs, view.Pair{Key: "ttl (seconds)", Value: tokenTTL(v)})
+		}
 		add("expire time", "expire_time")
 		return kv, nil
 	})
+}
+
+// tokenTTL is a token's ttl as a cell shows it. Vault reports 0 for a token
+// that never expires — the root token, or one made with no ttl and no period
+// — and a bare "0" under "ttl (seconds)" reads as a token already out of time,
+// which is the opposite fact and the one an agent would act on.
+func tokenTTL(v any) string {
+	if c := cell(v); c != "0" {
+		return c
+	}
+	return "0 — does not expire"
 }
 
 // vault.lease.show is the structured equivalent of `vault lease lookup`.
