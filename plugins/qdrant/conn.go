@@ -242,6 +242,49 @@ func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 // endpoint's host, or "" for the host.
 func serverName(req plugin.Request) string { return strings.TrimSpace(req.String("tls-server-name")) }
 
+// reachArgs points a call this one hands its reader at the instance it reached
+// (Request.ReachArgs): the profile whenever there was one, and the endpoint
+// only when the host opened no forward — through one it was 127.0.0.1 and a
+// port that closed with the call, and the profile reaches the instance again.
+// Reached directly the endpoint stays, with how it was reached when that was
+// protected: tls when on, the CA when named, and the name the certificate was
+// checked for, each of which turns TLS on by itself. Never the api-key. To an
+// agent the profile alone: the rest is Local, and the bridge drops what an
+// agent sends.
+//
+// **Without them, the call named reached another instance.** Pasted, it ran
+// against whatever endpoint the configuration there names, and a collection
+// "not found" was looked for again somewhere it was never going to be.
+func reachArgs(req plugin.Request) []plugin.Arg {
+	if req.Surface() == plugin.SurfaceMCP {
+		return req.ReachArgs()
+	}
+	args := req.ReachArgs(plugin.Arg{Name: "endpoint", Value: req.String("endpoint")})
+	if req.Bool("tls") {
+		args = append(args, plugin.Arg{Name: "tls", Value: true})
+	}
+	if ca := req.String("ca-file"); ca != "" {
+		args = append(args, plugin.Arg{Name: "ca-file", Value: ca})
+	}
+	if name := serverName(req); name != "" {
+		args = append(args, plugin.Arg{Name: "tls-server-name", Value: name})
+	}
+	return args
+}
+
+// nextCall names capability id called with args and reachArgs, for a hint
+// that sends its reader to it next, quoted for the sentence around it — or by
+// its name alone when there is nothing to give, which reads better to an
+// agent than a tool beside an empty object.
+func nextCall(req plugin.Request, id string, args ...plugin.Arg) string {
+	sf := req.Surface()
+	args = append(args, reachArgs(req)...)
+	if len(args) == 0 {
+		return sf.CapabilityName(id)
+	}
+	return "`" + sf.Call(id, args...) + "`"
+}
+
 // tlsOn reports whether a call speaks TLS: tls, or anything that only means
 // something over it. ca-file turns it on the same way etcd's own ca-file
 // does — the alternative is a value that silently does nothing until --tls is
@@ -300,7 +343,7 @@ func classifyStatus(code int, body []byte, req plugin.Request) *view.Error {
 				"own state, which needs global access")
 	case http.StatusNotFound:
 		return view.Errorf("qdrant.notfound", "%s: %s", where, detail).
-			WithHint(req.Surface().CapabilityName("qdrant.collection.list") + " shows what is there")
+			WithHint(nextCall(req, "qdrant.collection.list") + " shows what is there")
 	case http.StatusTooManyRequests:
 		return view.Errorf("qdrant.ratelimited", "%s is rate limiting: %s", where, detail).
 			WithHint("this is the instance's own limit, not rta's")

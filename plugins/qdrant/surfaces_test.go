@@ -34,7 +34,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 	}{
 		{
 			name:    "a collection that is not there",
-			cli:     "`rta qdrant collection list` shows what is there",
+			cli:     "`rta qdrant collection list --endpoint 127.0.0.1:6333` shows what is there",
 			other:   "the `qdrant_collection_list` tool shows what is there",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
