@@ -364,19 +364,16 @@ func runServiceAccountProvision(ctx context.Context, req plugin.Request) (view.V
 // Provision refuses MCP, so the reader is a person at a terminal or in the
 // TUI, and revoke's namespace being Local keeps nothing from them.
 //
-// The context too, whenever the provision had one. A revoke without it reads
-// the current context, which is another cluster whenever the provision was
-// pointed elsewhere — where the objects left behind are not, and where a
-// provisioned identity of the same name, carrying the label revoke checks
-// for, may well be.
+// The profile and the context too, whenever the provision had them
+// (Request.ReachArgs). A revoke without them reads the current context, which
+// is another cluster whenever the provision was pointed elsewhere — where the
+// objects left behind are not, and where a provisioned identity of the same
+// name, carrying the label revoke checks for, may well be.
 func revokeCall(s selection, name, namespace string) string {
-	args := []plugin.Arg{
+	args := append([]plugin.Arg{
 		{Name: "name", Value: name, Positional: true},
 		{Name: "namespace", Value: namespace},
-	}
-	if s.Context != "" {
-		args = append(args, plugin.Arg{Name: "context", Value: s.Context})
-	}
+	}, s.reach...)
 	return "`" + s.sf.Call("kube.serviceaccount.revoke", args...) + "`"
 }
 

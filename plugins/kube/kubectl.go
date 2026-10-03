@@ -97,6 +97,10 @@ type selection struct {
 	// sf is the surface the call came through, so a failure reading the
 	// cluster names what to call next the way its reader calls it.
 	sf plugin.Surface
+	// reach is what a call named next gives to reach the same cluster again:
+	// the profile whenever there was one, and the context beside it, which an
+	// agent cannot give (Request.ReachArgs).
+	reach []plugin.Arg
 }
 
 func selectionOf(req plugin.Request) (selection, *view.Error) {
@@ -105,6 +109,11 @@ func selectionOf(req plugin.Request) (selection, *view.Error) {
 		Namespace: strings.TrimSpace(req.String("namespace")),
 		AllNS:     req.Bool("all-namespaces"),
 		sf:        req.Surface(),
+	}
+	if s.Context == "" || s.sf == plugin.SurfaceMCP {
+		s.reach = req.ReachArgs()
+	} else {
+		s.reach = req.ReachArgs(plugin.Arg{Name: "context", Value: s.Context})
 	}
 	if verr := checkName("context", s.Context); verr != nil {
 		return selection{}, verr
