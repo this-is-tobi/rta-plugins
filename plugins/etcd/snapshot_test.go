@@ -268,7 +268,7 @@ func TestASnapshotNamesTheProfileRatherThanAForwardsEnd(t *testing.T) {
 		{"no profile", "", "etcd-0.internal:2379", "etcd-0.internal:2379", plugin.TunnelNone},
 		{"a profile reached directly", "prod", "etcd-0.internal:2379", "etcd-0.internal:2379 (profile prod)",
 			plugin.TunnelNone},
-		{"a profile through a forward", "prod", "127.0.0.1:54321", "profile prod, through its kube: forward",
+		{"a profile through a forward", "prod", "127.0.0.1:54321", "profile prod (through its kube: forward)",
 			plugin.TunnelKube},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -283,7 +283,7 @@ func TestASnapshotNamesTheProfileRatherThanAForwardsEnd(t *testing.T) {
 			if got, want := v.(view.Text).Body, "would write a snapshot of "+tc.want+" to "+out; got != want {
 				t.Errorf("dry run = %q, want %q", got, want)
 			}
-			if got := reached(r); got != tc.want {
+			if got := r.Reached(endpointOf(r)); got != tc.want {
 				t.Errorf("the receipt's source names %q, want %q", got, tc.want)
 			}
 		})

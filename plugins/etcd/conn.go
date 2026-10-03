@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"fmt"
 	stdnet "net"
 	"net/url"
 	"os"
@@ -564,32 +563,12 @@ func serverName(req plugin.Request) string { return strings.TrimSpace(req.String
 // forward the host opened — 127.0.0.1 — and not for the name the member
 // answers as, which the certificate names instead.
 func forwardName(req plugin.Request, hostErr x509.HostnameError) *view.Error {
-	return view.Errorf("etcd.tls.forward", "the certificate behind profile %s's %s: forward is for %s, not for %s, "+
-		"where the forward ends", req.Profile(), req.Tunnel(), certNames(hostErr.Certificate), hostErr.Host).
+	return view.Errorf("etcd.tls.forward", "the certificate behind %s is for %s, not for %s, "+
+		"where the forward ends", req.Reached(endpointOf(req)), plugin.CertNames(hostErr.Certificate), hostErr.Host).
 		WithHint("a forward always ends at 127.0.0.1, so the certificate is checked for the name the member " +
 			"answers as instead: " + req.Surface().SettingName("tls-server-name") + ", which the profile can " +
 			"hold beside its forward, names it — one the certificate is for — and it is checked as strictly " +
 			"as the host it replaces")
-}
-
-// certNames lists the names a certificate is for, the ones a check reads:
-// its DNS names and its IP addresses, never the subject's common name, which
-// Go's verifier ignores.
-func certNames(cert *x509.Certificate) string {
-	if cert == nil {
-		return "another name"
-	}
-	names := slices.Clone(cert.DNSNames)
-	for _, ip := range cert.IPAddresses {
-		names = append(names, ip.String())
-	}
-	switch {
-	case len(names) == 0:
-		return "no name a check reads"
-	case len(names) > 3:
-		return strings.Join(names[:3], ", ") + fmt.Sprintf(" and %d more", len(names)-3)
-	}
-	return strings.Join(names, ", ")
 }
 
 // clientPort is the port etcd serves its clients on.
@@ -632,24 +611,6 @@ func withPort(hostport string) string {
 		return hostport
 	}
 	return stdnet.JoinHostPort(host, clientPort)
-}
-
-// reached names the member this call reached the way its reader reaches it
-// again once the call is over: the endpoint, beside the profile that filled
-// the rest of the connection when there was one — and the profile alone when
-// the host reached the member through a forward it opened on that profile. A
-// forward's end is 127.0.0.1 and a port that closed with the call, and a
-// receipt naming it named a member nothing answers as any more.
-func reached(req plugin.Request) string {
-	endpoint := endpointOf(req)
-	switch profile := req.Profile(); {
-	case profile == "":
-		return endpoint
-	case req.Tunnel() == plugin.TunnelNone:
-		return endpoint + " (profile " + profile + ")"
-	default:
-		return "profile " + profile + ", through its " + string(req.Tunnel()) + ": forward"
-	}
 }
 
 // reachArgs points a call this one hands its reader at the cluster it read
