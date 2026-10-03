@@ -566,6 +566,15 @@ func TestPlainHTTPToAPortThatSpeaksOnlyTLSNamesTheScheme(t *testing.T) {
 			t.Errorf("%s: %s %q / %q, want qdrant.tls.expected naming %q", tc.name, got.Code, got.Message,
 				got.Hint, tc.hint)
 		}
+		// Where the call went, said once: the endpoint or the profile and its
+		// forward, never one wrapped in the parentheses of the other.
+		want := "this call spoke plain HTTP to 127.0.0.1:54321, which speaks only TLS"
+		if tc.profile != "" {
+			want = "this call spoke plain HTTP to profile lab (through its kube: forward), which speaks only TLS"
+		}
+		if got.Message != want {
+			t.Errorf("%s: message = %q, want %q", tc.name, got.Message, want)
+		}
 	}
 	// With TLS on the answer was never plain HTTP's, whatever it quotes.
 	r := req(t, "qdrant.overview", map[string]any{"endpoint": "127.0.0.1:54321", "tls": true})
