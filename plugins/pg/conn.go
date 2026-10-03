@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"database/sql/driver"
 	"errors"
@@ -452,6 +453,25 @@ func classify(err error, req plugin.Request) *view.Error {
 			return refused.WithHint(rootCert(req) + ", which " + sf.SettingName("sslrootcert") + " names, does not hold " +
 				"the CA that issued it — a self-signed certificate is its own CA")
 		}
+	}
+	// Every other verdict on a certificate is its own reason, quoted in the
+	// verifier's words — the system's, for one macOS gives untyped, a revoked
+	// certificate among them — and never "could not connect": the server was
+	// reached, and answered with a certificate. No setting is offered that
+	// checks less.
+	var verifyErr *tls.CertificateVerificationError
+	if errors.As(err, &verifyErr) {
+		rejected := view.Errorf("pg.tls.rejected", "%s presented a certificate that does not verify: %v",
+			where, verifyErr.Err)
+		// A rule of macOS's own, which the verdict's words do not name: a
+		// ten-year certificate, the usual one for a server of one's own, is
+		// "not standards compliant" there.
+		if hint := plugin.CertPolicyHint(err); hint != "" {
+			return rejected.WithHint(hint)
+		}
+		return rejected.WithHint("a certificate is checked for its dates and the use it was issued for, as " +
+			"well as for who issued it, and with " + sf.SettingTo("sslmode", "verify-full") + " for the host in " +
+			sf.SettingName("host") + " too")
 	}
 	return view.Errorf("pg.conn.failed", "could not connect to %s: %v", where, err).
 		WithHint(sf.SettingsHint("pg.status"))
