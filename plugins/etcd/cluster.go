@@ -194,6 +194,21 @@ func hexID(id uint64) string { return fmt.Sprintf("%x", id) }
 // of as a two's complement only this one printed.
 func leaseID(id int64) string { return fmt.Sprintf("%016x", id) }
 
+// memberList is the member list as the endpoint holds it, read without asking
+// the cluster to agree on it.
+//
+// **A linearizable read, which is the default, needs a quorum, and the one
+// time this view is opened in earnest is when there is not one.** Against a
+// cluster that has lost its majority the call waits for an answer no member
+// can give until its context ends: the overview hung for as long as the
+// caller let it, on exactly the outage it exists to explain, and the
+// endpoint's own status, which does answer, was never shown. The list is
+// membership, which changes only by an operator's own command, so a member's
+// own copy is as good as the cluster's.
+func memberList(ctx context.Context, c *clientv3.Client) (*clientv3.MemberListResponse, error) {
+	return c.MemberList(ctx, clientv3.WithSerializable())
+}
+
 func memberListCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "etcd.member.list",
@@ -213,7 +228,7 @@ func memberListCapability() plugin.Capability {
 }
 
 func memberTable(ctx context.Context, c *clientv3.Client, req plugin.Request) (view.Table, error) {
-	resp, err := c.MemberList(ctx)
+	resp, err := memberList(ctx, c)
 	if err != nil {
 		return view.Table{}, classify(err, req)
 	}
@@ -258,7 +273,7 @@ func joinURLs(urls []string) string {
 // a split is visible. Members that disagree about the leader or the raft term
 // are not a cluster, and no single endpoint's status can show that.
 func memberHealthTable(ctx context.Context, c *clientv3.Client, req plugin.Request) (view.Table, error) {
-	resp, err := c.MemberList(ctx)
+	resp, err := memberList(ctx, c)
 	if err != nil {
 		return view.Table{}, classify(err, req)
 	}
