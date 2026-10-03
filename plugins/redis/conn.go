@@ -88,6 +88,12 @@ type client struct {
 	r    *bufio.Reader
 	w    *bufio.Writer
 	addr string
+	// reached names the server as its reader reaches it again, for what the
+	// server said once connected (Request.Reached): through a forward addr is
+	// 127.0.0.1 and a port that closed with the call, which "rejected the
+	// credentials" named and the reader could do nothing with. addr stays what
+	// was dialled, for the failures of the dial.
+	reached string
 	// sf is the surface the request came through, so a message about this
 	// connection names an input the way its reader gives one.
 	sf plugin.Surface
@@ -127,7 +133,7 @@ func connect(ctx context.Context, req plugin.Request) (*client, *view.Error) {
 	if err != nil {
 		return nil, classifyDial(err, addr, req)
 	}
-	c := &client{conn: conn, r: bufio.NewReader(conn), w: bufio.NewWriter(conn), addr: addr, sf: req.Surface()}
+	c := &client{conn: conn, r: bufio.NewReader(conn), w: bufio.NewWriter(conn), addr: addr, reached: req.Reached(addr), sf: req.Surface()}
 
 	if pw := req.String("password"); pw != "" {
 		args := []string{"AUTH", pw}
@@ -334,7 +340,12 @@ func (r reply) pairs() [][2]string {
 // classify turns a connection or server error into something an operator can
 // act on. Server errors arrive as a `-` line whose first word is the code;
 // the words are the stable part, the sentence after them is not.
-func classify(err error, addr string, sf plugin.Surface) *view.Error {
+//
+// addr is where the connection was made, for the failures of the dial; reached
+// is the server as its reader reaches it again, for what the server answered
+// (Request.Reached), since through a forward addr is the end of one that closed
+// with the call.
+func classify(err error, addr, reached string, sf plugin.Surface) *view.Error {
 	var already *view.Error
 	if errors.As(err, &already) {
 		return already
@@ -348,37 +359,37 @@ func classify(err error, addr string, sf plugin.Surface) *view.Error {
 			// reader to pass one: an agent told to pass `password` has no
 			// such argument, since the bridge drops a Local input given, and
 			// would read this refusal again.
-			return view.Errorf("redis.auth.required", "%s requires a password", addr).
+			return view.Errorf("redis.auth.required", "%s requires a password", reached).
 				WithHint("the password belongs in $" + plugin.LocalEnvVar("redis.overview", "password") +
 					" or " + sf.SettingName("password"))
 		case "WRONGPASS":
-			return view.Errorf("redis.auth.failed", "%s rejected the credentials", addr).
+			return view.Errorf("redis.auth.failed", "%s rejected the credentials", reached).
 				WithHint("check the password, and " + sf.SettingName("username") + " if the server uses ACLs")
 		case "NOPERM":
-			return view.Errorf("redis.denied", "%s: %s", addr, srv.msg).
+			return view.Errorf("redis.denied", "%s: %s", reached, srv.msg).
 				WithHint("the ACL user is valid but not allowed this command or key")
 		case "LOADING":
-			return view.Errorf("redis.loading", "%s is still loading its dataset", addr).
+			return view.Errorf("redis.loading", "%s is still loading its dataset", reached).
 				WithHint("a server restoring a large RDB or AOF answers this until it is done — try again shortly")
 		case "MOVED", "ASK":
-			return view.Errorf("redis.cluster.redirect", "%s: %s", addr, srv.msg).
+			return view.Errorf("redis.cluster.redirect", "%s: %s", reached, srv.msg).
 				WithHint("this is a cluster and that key lives on another node — " + sf.CapabilityName("redis.cluster") +
 					" lists them; point " + sf.SettingName("address") + " at the one named")
 		case "ERR":
 			if strings.Contains(srv.msg, "unknown command") {
-				return view.Errorf("redis.unsupported", "%s: %s", addr, srv.msg).
+				return view.Errorf("redis.unsupported", "%s: %s", reached, srv.msg).
 					WithHint("the server is older than the command, or a proxy in front of it does not pass it through")
 			}
 			if strings.Contains(srv.msg, "DB index is out of range") {
-				return view.Errorf("redis.db.range", "%s has no database with that index", addr).
+				return view.Errorf("redis.db.range", "%s has no database with that index", reached).
 					WithHint("the server's `databases` setting counts them from 0 (16 unless raised) — pick " + sf.SettingName("db") + " below it")
 			}
 			if strings.Contains(srv.msg, "AUTH") && strings.Contains(srv.msg, "no password") {
-				return view.Errorf("redis.auth.unneeded", "%s has no password set, and one was given", addr).
+				return view.Errorf("redis.auth.unneeded", "%s has no password set, and one was given", reached).
 					WithHint("drop " + sf.SettingName("password") + " (or the environment variable) for this server")
 			}
 		}
-		return view.Errorf("redis.server.error", "%s: %s", addr, srv.msg)
+		return view.Errorf("redis.server.error", "%s: %s", reached, srv.msg)
 	}
 
 	// A dial that found no way to the host, and one the host refused, by the
@@ -523,7 +534,7 @@ func classifyDial(err error, addr string, req plugin.Request) *view.Error {
 		return rejected.WithHint("a certificate is checked for " + checked +
 			", its dates and the use it was issued for, as well as for who issued it")
 	}
-	return classify(err, addr, req.Surface())
+	return classify(err, addr, req.Reached(addr), req.Surface())
 }
 
 // nameRefusal is redis.tls.name: the certificate presented at addr refused
