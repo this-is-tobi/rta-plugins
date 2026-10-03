@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"slices"
 	"strings"
 
 	vaultapi "github.com/hashicorp/vault/api"
@@ -168,7 +167,7 @@ func classify(err error, req plugin.Request) *view.Error {
 			// carries http:// unless its connection says otherwise, and Vault's
 			// listener has no plaintext to fall back to. Read as Vault refusing,
 			// it named nothing the operator could change.
-			if strings.Contains(joinErrors(respErr), "Client sent an HTTP request to an HTTPS server") {
+			if plugin.TLSExpected(errors.New(joinErrors(respErr))) {
 				return tlsExpected(req)
 			}
 			return view.Errorf("vault.badrequest", "%s rejected the request: %s", answered, joinErrors(respErr)).
@@ -299,32 +298,12 @@ func tlsExpected(req plugin.Request) *view.Error {
 // forward the host opened — 127.0.0.1 — and not for the name the Vault
 // answers as, which the certificate names instead.
 func forwardName(req plugin.Request, hostErr x509.HostnameError) *view.Error {
-	return view.Errorf("vault.tls.forward", "the certificate behind profile %s's %s: forward is for %s, not for %s, "+
-		"where the forward ends", req.Profile(), req.Tunnel(), certNames(hostErr.Certificate), hostErr.Host).
+	return view.Errorf("vault.tls.forward", "the certificate behind %s is for %s, not for %s, "+
+		"where the forward ends", reached(req), plugin.CertNames(hostErr.Certificate), hostErr.Host).
 		WithHint("a forward always ends at 127.0.0.1, so the certificate is checked for the name the Vault " +
 			"answers as instead: " + req.Surface().SettingName("tls-server-name") + ", which the profile can " +
 			"hold beside its forward, names it — one the certificate is for — and it is checked as strictly " +
 			"as the host it replaces")
-}
-
-// certNames lists the names a certificate is for, the ones a check reads:
-// its DNS names and its IP addresses, never the subject's common name, which
-// Go's verifier ignores.
-func certNames(cert *x509.Certificate) string {
-	if cert == nil {
-		return "another name"
-	}
-	names := slices.Clone(cert.DNSNames)
-	for _, ip := range cert.IPAddresses {
-		names = append(names, ip.String())
-	}
-	switch {
-	case len(names) == 0:
-		return "no name a check reads"
-	case len(names) > 3:
-		return strings.Join(names[:3], ", ") + fmt.Sprintf(" and %d more", len(names)-3)
-	}
-	return strings.Join(names, ", ")
 }
 
 // reachArgs points a call this one hands its reader at the Vault it reached:

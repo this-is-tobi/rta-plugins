@@ -206,19 +206,8 @@ func runSnapshot(ctx context.Context, req plugin.Request) (view.View, error) {
 // Reached directly, the address stays, since it may be one the caller typed
 // over the profile's, which the profile alone would not reach.
 func restoreCommand(req plugin.Request, path string) string {
-	args := []plugin.Arg{{Name: "file", Value: path, Positional: true}}
-	if profile := req.Profile(); profile != "" {
-		args = append(args, plugin.Arg{Name: "profile", Value: profile})
-	}
-	if req.Tunnel() == plugin.TunnelNone {
-		args = append(args, plugin.Arg{Name: "address", Value: req.String("address")})
-	}
-	for _, name := range []string{"namespace", "ca-file", "tls-server-name"} {
-		if v := req.String(name); v != "" {
-			args = append(args, plugin.Arg{Name: name, Value: v})
-		}
-	}
-	return req.Surface().Call("vault.restore", args...)
+	return req.Surface().Call("vault.restore",
+		append([]plugin.Arg{{Name: "file", Value: path, Positional: true}}, reachArgs(req)...)...)
 }
 
 func snapshotExists(path string) *view.Error {
