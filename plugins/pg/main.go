@@ -68,6 +68,7 @@ package main
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -195,6 +196,15 @@ func tableListView(ctx context.Context, conn *pgx.Conn, req plugin.Request, say 
 	t, err := listed(rows, req.Int("limit"), "table", say, req.Surface())
 	if err != nil {
 		return nil, classify(err, req)
+	}
+	// No rows under a schema nobody has is not "no tables": an empty listing
+	// for a misspelt schema reads as a schema with nothing in it, and sends
+	// somebody looking for a permissions problem that is not there.
+	if schema := strings.TrimSpace(req.String("schema")); len(t.Rows) == 0 && schema != "" {
+		rows.Close()
+		if verr := unknownSchema(ctx, conn, req, schema); verr != nil {
+			return nil, verr
+		}
 	}
 	t.Columns = []view.Column{
 		{Name: "Schema"}, {Name: "Table"},

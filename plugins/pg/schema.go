@@ -108,6 +108,27 @@ func runSchemaDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	})
 }
 
+// unknownSchema is the refusal for a schema this role cannot see or that is
+// not there, or nil when it is. It is the one answer both the dump and the
+// table listing give, so a name that is wrong reads the same wherever it is
+// typed.
+func unknownSchema(ctx context.Context, q querier, req plugin.Request, schema string) *view.Error {
+	names, err := schemaNames(ctx, q)
+	if err != nil {
+		return classify(err, req)
+	}
+	if slices.Contains(names, schema) {
+		return nil
+	}
+	e := view.Errorf("pg.schema.missing", "%s has no schema named %q",
+		req.String("database"), schema)
+	if len(names) == 0 {
+		return e.WithHint("this role can see no schemas at all in this database — " +
+			nextCall(req, "pg.status") + " shows which role the connection is using")
+	}
+	return e.WithHint("this database has: " + strings.Join(names, ", "))
+}
+
 func schemaDDL(ctx context.Context, q querier, req plugin.Request) (view.View, error) {
 	schema := strings.TrimSpace(req.String("schema"))
 
@@ -115,18 +136,8 @@ func schemaDDL(ctx context.Context, q querier, req plugin.Request) (view.View, e
 	// as itself rather than as an empty dump — which reads as "this schema
 	// has nothing in it" and sends somebody looking for a permissions
 	// problem that is not there.
-	names, err := schemaNames(ctx, q)
-	if err != nil {
-		return nil, classify(err, req)
-	}
-	if !slices.Contains(names, schema) {
-		e := view.Errorf("pg.schema.missing", "%s has no schema named %q",
-			req.String("database"), schema)
-		if len(names) == 0 {
-			return nil, e.WithHint("this role can see no schemas at all in this database — " +
-				nextCall(req, "pg.status") + " shows which role the connection is using")
-		}
-		return nil, e.WithHint("this database has: " + strings.Join(names, ", "))
+	if verr := unknownSchema(ctx, q, req, schema); verr != nil {
+		return nil, verr
 	}
 
 	tables, om, err := readSchema(ctx, q, schema, req.Int("limit"))
