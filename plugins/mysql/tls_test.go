@@ -499,7 +499,7 @@ func TestOnlyAnUnknownIssuerIsAnsweredWithTheCA(t *testing.T) {
 	}
 	// The system's words for a chain to no anchor it holds are read as
 	// untrusted where the system gave them, and are nobody's words elsewhere.
-	notTrusted := "mysql.conn.failed"
+	notTrusted := "mysql.tls.rejected"
 	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
 		notTrusted = "mysql.tls.untrusted"
 	}
@@ -511,12 +511,12 @@ func TestOnlyAnUnknownIssuerIsAnsweredWithTheCA(t *testing.T) {
 		{"Go's verifier, an issuer in no pool", x509.UnknownAuthorityError{}, "mysql.tls.untrusted"},
 		{"no pool to read at all", x509.SystemRootsError{}, "mysql.tls.untrusted"},
 		{"macOS, a chain to no anchor it holds", verdict("certificate is not trusted"), notTrusted},
-		{"macOS, a revoked certificate", verdict("certificate is revoked"), "mysql.conn.failed"},
-		{"macOS, a policy it will not pass", verdict("certificate is not standards compliant"), "mysql.conn.failed"},
+		{"macOS, a revoked certificate", verdict("certificate is revoked"), "mysql.tls.rejected"},
+		{"macOS, a policy it will not pass", verdict("certificate is not standards compliant"), "mysql.tls.rejected"},
 		{"a revoked certificate named to look untrusted",
-			verdict("certificate is not trusted" + closing + " certificate is revoked"), "mysql.conn.failed"},
+			verdict("certificate is not trusted" + closing + " certificate is revoked"), "mysql.tls.rejected"},
 		{"a signature algorithm Go's verifier refuses", &tls.CertificateVerificationError{
-			Err: x509.InsecureAlgorithmError(x509.SHA1WithRSA)}, "mysql.conn.failed"},
+			Err: x509.InsecureAlgorithmError(x509.SHA1WithRSA)}, "mysql.tls.rejected"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			verr := classify(tc.err, r)
@@ -524,7 +524,12 @@ func TestOnlyAnUnknownIssuerIsAnsweredWithTheCA(t *testing.T) {
 				t.Fatalf("code = %q, want %q", verr.Code, tc.code)
 			}
 			if tc.code != "mysql.tls.untrusted" {
-				if !strings.Contains(verr.Message, tc.err.Error()) {
+				words := tc.err.Error()
+				var handshake *tls.CertificateVerificationError
+				if errors.As(tc.err, &handshake) {
+					words = handshake.Err.Error()
+				}
+				if !strings.Contains(verr.Message, words) {
 					t.Errorf("message = %q, want the verifier's own words in it", verr.Message)
 				}
 				if strings.Contains(verr.Hint, "ca-file") {
