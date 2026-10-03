@@ -365,6 +365,9 @@ func kvGetCapability() plugin.Capability {
 		Scope:      "key",
 		Idempotent: true,
 		Description: "The value stored at one key, with its version and lease.\n\n" +
+			"**The value comes back masked (••••••), on every surface.** rta masks every field a " +
+			"plugin marks as secret and this one marks `value`, so what the result tells you is that " +
+			"the key exists and its size, version, revisions and lease — not what it holds.\n\n" +
 			"**Classified write for what it discloses, not what it changes.** A Kubernetes " +
 			"cluster keeps its Secrets in etcd base64-encoded rather than encrypted, unless " +
 			"encryption at rest was turned on — so reading an arbitrary key here can be reading " +

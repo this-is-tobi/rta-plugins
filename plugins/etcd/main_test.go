@@ -213,6 +213,25 @@ func TestTheValueIsDeclaredRedacted(t *testing.T) {
 	}
 }
 
+// What the description says about the value is what the result does with it.
+// rta masks every field a plugin marks redacted, on every surface and for a
+// caller holding a grant too, and the description promised "the value stored
+// at one key" without saying so: an agent granted the call got `••••••`. If
+// the value is ever returned, this fails, and the description has to follow it.
+func TestTheDescriptionSaysTheValueComesBackMasked(t *testing.T) {
+	declared := slices.Contains(kvGetResult("/k", []byte("v"), 1, 1, 1, 0).(view.KeyValue).Redacted, "value")
+	for _, c := range Plugin().Capabilities {
+		if c.ID != "etcd.kv.get" {
+			continue
+		}
+		if said := strings.Contains(c.Description, "comes back masked"); said != declared {
+			t.Errorf("the value is redacted = %v, and the description says it comes back masked = %v", declared, said)
+		}
+		return
+	}
+	t.Fatal("etcd.kv.get is not declared")
+}
+
 // Every capability must be reachable and describable, and namespaced by the
 // plugin's own name.
 func TestEveryCapabilityIsRunnableAndDescribed(t *testing.T) {
