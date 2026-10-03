@@ -51,7 +51,7 @@ var secretDirectives = map[string]bool{"requirepass": true, "masterauth": true, 
 func configView(ctx context.Context, c *client, req plugin.Request) (view.View, error) {
 	r, err := c.do(ctx, "CONFIG", "GET", req.String("pattern"))
 	if err != nil {
-		return nil, classify(err, c.addr, c.sf)
+		return nil, classify(err, c.addr, c.reached, c.sf)
 	}
 	kv := view.KeyValue{}
 	for _, p := range r.pairs() {
@@ -65,7 +65,7 @@ func configView(ctx context.Context, c *client, req plugin.Request) (view.View, 
 		}
 	}
 	if len(kv.Pairs) == 0 {
-		return view.Text{Body: fmt.Sprintf("No directive matches %q on %s.", req.String("pattern"), c.addr)}, nil
+		return view.Text{Body: fmt.Sprintf("No directive matches %q on %s.", req.String("pattern"), c.reached)}, nil
 	}
 	return kv, nil
 }
@@ -95,7 +95,7 @@ func slowlogCapability() plugin.Capability {
 func slowlogView(ctx context.Context, c *client, req plugin.Request) (view.View, error) {
 	r, err := c.do(ctx, "SLOWLOG", "GET", strconv.Itoa(req.Int("count")))
 	if err != nil {
-		return nil, classify(err, c.addr, c.sf)
+		return nil, classify(err, c.addr, c.reached, c.sf)
 	}
 	t := view.Table{Columns: []view.Column{
 		{Name: "ID"},
@@ -156,7 +156,7 @@ func memoryCapability() plugin.Capability {
 func memoryView(ctx context.Context, c *client, req plugin.Request) (view.View, error) {
 	stats, err := c.do(ctx, "MEMORY", "STATS")
 	if err != nil {
-		return nil, classify(err, c.addr, c.sf)
+		return nil, classify(err, c.addr, c.reached, c.sf)
 	}
 	t := view.Table{Columns: []view.Column{{Name: "Stat"}, {Name: "Value"}}}
 	for _, p := range stats.pairs() {

@@ -458,6 +458,26 @@ func TestServerErrorsAreClassified(t *testing.T) {
 	}
 }
 
+// What the server said names the server as its reader reaches it again.
+// Through a forward the address the connection was made to is 127.0.0.1 and a
+// port that closed with the call, and "127.0.0.1:41233 rejected the
+// credentials" named nothing the reader could change.
+func TestARefusalTheServerGaveNamesTheProfileAndNotTheEndOfItsForward(t *testing.T) {
+	srv := newFakeServer(t, map[string]string{"PING": "-WRONGPASS invalid username-password pair\r\n"})
+	r := req(t, "redis.overview", map[string]any{"address": srv.addr()}).WithProfile("prod", plugin.TunnelKube)
+	for _, c := range Plugin().Capabilities {
+		if c.ID != "redis.overview" {
+			continue
+		}
+		_, err := c.Run(context.Background(), r)
+		ve := view.AsError(err, "x")
+		if ve.Code != "redis.auth.failed" || !strings.Contains(ve.Message, "profile prod (through its kube: forward)") ||
+			strings.Contains(ve.Message, srv.addr()) {
+			t.Errorf("error = %s: %q, want the profile and its forward, not %s", ve.Code, ve.Message, srv.addr())
+		}
+	}
+}
+
 // A server's database count is its own setting, so a db past the default 16
 // reaches it, and its refusal comes back named rather than as a bare ERR.
 func TestADatabasePastSixteenIsTheServersToRefuse(t *testing.T) {

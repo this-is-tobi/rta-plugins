@@ -66,10 +66,10 @@ func scanKeys(ctx context.Context, c *client, pattern string, limit int) (keys [
 	for {
 		r, err := c.do(ctx, "SCAN", cursor, "MATCH", pattern, "COUNT", strconv.Itoa(scanBatch))
 		if err != nil {
-			return nil, false, classify(err, c.addr, c.sf)
+			return nil, false, classify(err, c.addr, c.reached, c.sf)
 		}
 		if len(r.items) != 2 {
-			return nil, false, view.Errorf("redis.scan.malformed", "%s answered SCAN with %s, want 2", c.addr, format.CountOf(len(r.items), "item"))
+			return nil, false, view.Errorf("redis.scan.malformed", "%s answered SCAN with %s, want 2", c.reached, format.CountOf(len(r.items), "item"))
 		}
 		for _, k := range r.items[1].strings() {
 			if len(keys) == limit {
@@ -99,17 +99,17 @@ func keyListView(ctx context.Context, c *client, req plugin.Request) (view.View,
 	for _, k := range keys {
 		typ, err := c.do(ctx, "TYPE", k)
 		if err != nil {
-			return nil, classify(err, c.addr, c.sf)
+			return nil, classify(err, c.addr, c.reached, c.sf)
 		}
 		ttl, err := c.do(ctx, "TTL", k)
 		if err != nil {
-			return nil, classify(err, c.addr, c.sf)
+			return nil, classify(err, c.addr, c.reached, c.sf)
 		}
 		t.Rows = append(t.Rows, []string{k, typ.text(), ttlText(ttl.num)})
 	}
 	t.Total = len(t.Rows)
 	if len(t.Rows) == 0 {
-		return view.Text{Body: fmt.Sprintf("No keys match %q on %s.", req.String("pattern"), c.addr)}, nil
+		return view.Text{Body: fmt.Sprintf("No keys match %q on %s.", req.String("pattern"), c.reached)}, nil
 	}
 	if truncated {
 		// A listing that quietly ended at the limit reads exactly like a
@@ -297,11 +297,11 @@ func keyGetView(ctx context.Context, c *client, req plugin.Request) (view.View, 
 	key := req.String("key")
 	typ, err := c.do(ctx, "TYPE", key)
 	if err != nil {
-		return nil, classify(err, c.addr, c.sf)
+		return nil, classify(err, c.addr, c.reached, c.sf)
 	}
 	ttl, err := c.do(ctx, "TTL", key)
 	if err != nil {
-		return nil, classify(err, c.addr, c.sf)
+		return nil, classify(err, c.addr, c.reached, c.sf)
 	}
 	pairs := []view.Pair{
 		{Key: "key", Value: key},
@@ -312,21 +312,21 @@ func keyGetView(ctx context.Context, c *client, req plugin.Request) (view.View, 
 	var redacted []string
 	switch typ.text() {
 	case "none":
-		return nil, view.Errorf("redis.key.notfound", "no key %q on %s", key, c.addr).
+		return nil, view.Errorf("redis.key.notfound", "no key %q on %s", key, c.reached).
 			WithHint("`" + c.sf.Call("redis.key.list", append([]plugin.Arg{
 				{Name: "pattern", Value: "<pattern>", Positional: true}}, reachArgs(req)...)...) +
 				"` shows what exists")
 	case "string":
 		r, err := c.do(ctx, "GET", key)
 		if err != nil {
-			return nil, classify(err, c.addr, c.sf)
+			return nil, classify(err, c.addr, c.reached, c.sf)
 		}
 		value = r.text()
 		pairs = append(pairs, view.Pair{Key: "size", Value: format.Bytes(len(value))})
 	case "hash":
 		r, err := c.do(ctx, "HGETALL", key)
 		if err != nil {
-			return nil, classify(err, c.addr, c.sf)
+			return nil, classify(err, c.addr, c.reached, c.sf)
 		}
 		kv := r.pairs()
 		pairs = append(pairs, view.Pair{Key: "fields", Value: strconv.Itoa(len(kv))})
@@ -342,21 +342,21 @@ func keyGetView(ctx context.Context, c *client, req plugin.Request) (view.View, 
 	case "list":
 		r, err := c.do(ctx, "LRANGE", key, "0", strconv.Itoa(maxValueItems))
 		if err != nil {
-			return nil, classify(err, c.addr, c.sf)
+			return nil, classify(err, c.addr, c.reached, c.sf)
 		}
 		n, _ := c.do(ctx, "LLEN", key)
 		return collectionView(pairs, r.strings(), n.num), nil
 	case "set":
 		r, err := c.do(ctx, "SRANDMEMBER", key, strconv.Itoa(maxValueItems+1))
 		if err != nil {
-			return nil, classify(err, c.addr, c.sf)
+			return nil, classify(err, c.addr, c.reached, c.sf)
 		}
 		n, _ := c.do(ctx, "SCARD", key)
 		return collectionView(pairs, r.strings(), n.num), nil
 	case "zset":
 		r, err := c.do(ctx, "ZRANGE", key, "0", strconv.Itoa(maxValueItems), "WITHSCORES")
 		if err != nil {
-			return nil, classify(err, c.addr, c.sf)
+			return nil, classify(err, c.addr, c.reached, c.sf)
 		}
 		items := make([]string, 0, len(r.items)/2)
 		for _, p := range r.pairs() {

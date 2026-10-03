@@ -153,7 +153,7 @@ func TestOnlyAnUnknownIssuerIsAnsweredWithTheCA(t *testing.T) {
 			Err: x509.InsecureAlgorithmError(x509.SHA1WithRSA)}, "redis.conn.failed"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			verr := classify(tc.err, "10.0.0.1:6379", plugin.SurfaceCLI)
+			verr := classify(tc.err, "10.0.0.1:6379", "10.0.0.1:6379", plugin.SurfaceCLI)
 			if verr.Code != tc.code {
 				t.Fatalf("code = %q, want %q", verr.Code, tc.code)
 			}
@@ -427,7 +427,7 @@ func TestADialIsReadByItsOwnErrorNotByTheWrapper(t *testing.T) {
 			Err: &stdnet.DNSError{Err: "dial udp 10.0.0.53:53: connect: connection refused", Name: "cache.internal"}},
 			"redis.host.unknown"},
 	} {
-		if got := classify(tc.err, "cache.internal:6379", plugin.SurfaceCLI); got.Code != tc.code {
+		if got := classify(tc.err, "cache.internal:6379", "cache.internal:6379", plugin.SurfaceCLI); got.Code != tc.code {
 			t.Errorf("%s: %s %q, want %s", tc.name, got.Code, got.Message, tc.code)
 		}
 	}

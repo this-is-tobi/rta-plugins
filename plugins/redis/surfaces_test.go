@@ -57,7 +57,7 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 			cli:  "this is a cluster and that key lives on another node — `rta redis cluster` lists them; point --address at the one named",
 			mcp:  "the `redis_cluster` tool lists them; point the operator's `address` setting at the one named",
 			refuse: func(sf plugin.Surface) *view.Error {
-				return classify(&serverError{msg: "MOVED 3999 10.0.0.2:6379"}, "10.0.0.1:6379", sf)
+				return classify(&serverError{msg: "MOVED 3999 10.0.0.2:6379"}, "10.0.0.1:6379", "10.0.0.1:6379", sf)
 			},
 		},
 		{
@@ -66,7 +66,7 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 			mcp:  "`net_dns {\"name\":\"cache.internal\"}` shows what DNS returns",
 			refuse: func(sf plugin.Surface) *view.Error {
 				err := &stdnet.OpError{Op: "dial", Net: "tcp", Err: &stdnet.DNSError{Err: "no such host", Name: "cache.internal"}}
-				return classify(err, "cache.internal:6379", sf)
+				return classify(err, "cache.internal:6379", "cache.internal:6379", sf)
 			},
 		},
 		{
@@ -74,7 +74,7 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 			cli:  "the password belongs in $RTA_REDIS_PASSWORD or --password",
 			mcp:  "the password belongs in $RTA_REDIS_PASSWORD or the operator's `password` setting",
 			refuse: func(sf plugin.Surface) *view.Error {
-				return classify(&serverError{msg: "NOAUTH Authentication required."}, "10.0.0.1:6379", sf)
+				return classify(&serverError{msg: "NOAUTH Authentication required."}, "10.0.0.1:6379", "10.0.0.1:6379", sf)
 			},
 		},
 		{
@@ -82,7 +82,7 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 			cli:  "the CA that issued it belongs in --ca-file (a self-signed certificate is its own CA)",
 			mcp:  "the CA that issued it belongs in the operator's `ca-file` setting (a self-signed",
 			refuse: func(sf plugin.Surface) *view.Error {
-				return classify(x509.UnknownAuthorityError{}, "10.0.0.1:6379", sf)
+				return classify(x509.UnknownAuthorityError{}, "10.0.0.1:6379", "10.0.0.1:6379", sf)
 			},
 		},
 		{
@@ -92,7 +92,7 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 			cli:  "a TLS server answers a plaintext client by hanging up — try --tls",
 			mcp:  "try the operator's `tls` set to true",
 			refuse: func(sf plugin.Surface) *view.Error {
-				return classify(io.EOF, "10.0.0.1:6379", sf)
+				return classify(io.EOF, "10.0.0.1:6379", "10.0.0.1:6379", sf)
 			},
 		},
 		{
@@ -102,7 +102,7 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 			mcp: "ask the operator to run `rta explain redis.overview`, which lists every setting and which of " +
 				"the rta config, a profile and the environment the operator can set it in",
 			refuse: func(sf plugin.Surface) *view.Error {
-				return classify(errors.New("handshake went sideways"), "10.0.0.1:6379", sf)
+				return classify(errors.New("handshake went sideways"), "10.0.0.1:6379", "10.0.0.1:6379", sf)
 			},
 		},
 	} {
