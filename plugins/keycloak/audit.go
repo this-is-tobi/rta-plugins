@@ -32,7 +32,7 @@ import (
 // representation, the client list, the browser flow and a bounded page of
 // users. The one place it fans out is the second-factor coverage check,
 // which has to ask each user without an OTP whether they have a WebAuthn
-// credential instead; --max bounds that, and the report says when it
+// credential instead; --limit bounds that, and the report says when it
 // stopped short.
 
 var (
@@ -65,7 +65,7 @@ func auditCapability() plugin.Capability {
 			"Compact by default; `detail` is the work list, grouped, with the references at the end.",
 		Run: runAudit,
 	},
-		maxField(200, 5000, "how many users to examine for a second factor"),
+		limitField(200, 5000, "how many users to examine for a second factor"),
 	)
 }
 
@@ -81,7 +81,7 @@ func runAudit(ctx context.Context, req plugin.Request) (view.View, error) {
 		if s.realm == "master" {
 			s.auditBootstrapAdmin(ctx, r)
 		}
-		s.auditSecondFactor(ctx, r, realm, req.Int("max"))
+		s.auditSecondFactor(ctx, r, realm, req.Int("limit"))
 		auditBruteForce(r, realm)
 		auditPasswords(r, realm)
 		s.auditClients(ctx, r, s.realm == "master")
@@ -259,7 +259,7 @@ func (s *session) auditSecondFactor(ctx context.Context, r *findings.Report, rea
 	if len(users) >= max {
 		r.Add(grpMFA, "coverage-bound", findings.Info,
 			fmt.Sprintf("only the first %s %s examined — raise %s to cover the realm",
-				findings.Plural(max, "user"), format.Plural(max, "was", "were"), s.req.Surface().InputName("max")),
+				findings.Plural(max, "user"), format.Plural(max, "was", "were"), s.req.Surface().InputName("limit")),
 			findings.Reference{})
 	}
 }

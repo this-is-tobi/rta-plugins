@@ -32,27 +32,32 @@ func userListCapability() plugin.Capability {
 		Idempotent: true,
 		Description: "One row per user: username, email, enabled, email verified, whether an OTP " +
 			"is configured, and when the account was created. Service accounts are not users " +
-			"here — Keycloak lists them under their client. Bounded by `max`; a search narrows " +
-			"by username, email or name.",
+			"here — Keycloak lists them under their client. Bounded by `limit`, and it says when it " +
+			"stopped; a search narrows by username, email or name.",
 		Run: runUserList,
 	},
 		plugin.Field{Name: "search", Type: plugin.String, Positional: true, Default: "",
 			Help: "username, email, first or last name to look for; empty lists from the start"},
-		maxField(100, 1000, "how many users to list"),
+		limitField(100, 1000, "how many users to list"),
 	)
 }
 
 func runUserList(ctx context.Context, req plugin.Request) (view.View, error) {
 	return withSession(ctx, req, func(ctx context.Context, s *session) (view.View, error) {
-		users, verr := s.users(ctx, req.String("search"), req.Int("max"))
+		limit := req.Int("limit")
+		got, verr := s.users(ctx, req.String("search"), askFor(limit))
 		if verr != nil {
 			return nil, verr
 		}
+		users, more := bounded(got, limit)
 		t := columns(col("Username"), col("Email"), col("Enabled"), col("Verified"), col("OTP"),
 			view.Column{Name: "Created", Kind: view.KindTimestamp})
 		for _, u := range users {
 			t.Rows = append(t.Rows, []string{u.Username, u.Email, yesNo(u.Enabled), yesNo(u.EmailVerified),
 				yesNo(u.TOTP), stamp(u.CreatedTimestamp)})
+		}
+		if more {
+			t = stoppedAt(t, limit, "user", req.Surface(), ", or narrow it with "+req.Surface().ArgumentName("search"))
 		}
 		return finish(t), nil
 	})

@@ -237,6 +237,8 @@ func (f *fakeKeycloak) route(path string, q map[string][]string) ([]byte, bool) 
 		return fixture("admin-events.json"), true
 	case "/client-session-stats":
 		return fixture("client-session-stats.json"), true
+	case "/clients/" + rtaAuditID + "/user-sessions":
+		return []byte(`[{"username":"alice"},{"username":"bob"},{"username":"carol"}]`), true
 	}
 	if strings.HasPrefix(path, "/users/") && strings.HasSuffix(path, "/role-mappings/realm/composite") {
 		return []byte("[]"), true
@@ -381,12 +383,12 @@ func TestEveryListingIsBounded(t *testing.T) {
 		}
 		found := false
 		for _, in := range c.Inputs {
-			if in.Name == "max" && in.Max != nil {
+			if in.Name == "limit" && in.Max != nil {
 				found = true
 			}
 		}
 		if !found {
-			t.Errorf("%s: no bounded --max input", c.ID)
+			t.Errorf("%s: no bounded --limit input", c.ID)
 		}
 	}
 }

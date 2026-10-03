@@ -58,6 +58,7 @@
 package main
 
 import (
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/sdk"
 	"github.com/this-is-tobi/rta/pkg/view"
@@ -111,13 +112,43 @@ func Plugin() plugin.Plugin {
 	}
 }
 
-// maxField is the bound every listing here carries. The Admin API pages
+// limitField is the bound every listing here carries. The Admin API pages
 // with first/max and defaults to a hundred; a realm with fifty thousand
 // users is ordinary, and "list them all" is a report nobody reads on a
 // terminal. Config-backed so an operator who knows their realm sets it
 // once.
-func maxField(def, ceiling int, help string) plugin.Field {
-	return plugin.Field{Name: "max", Type: plugin.Int, Config: "max", Default: def, Min: 1, Max: ceiling, Help: help}
+//
+// Named limit, as every other plugin's row bound is, and not max, which is
+// the Admin API's own word for it: an agent that learned `limit` from pg, etcd
+// and s3 passed it here and was refused as an unknown argument.
+func limitField(def, ceiling int, help string) plugin.Field {
+	return plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: def, Min: 1, Max: ceiling, Help: help}
+}
+
+// one past the bound is what the Admin API is asked for, so a page that
+// ends on the boundary can be told from one that was cut off — the
+// difference between "that is all of them" and "there are more" cannot be
+// guessed from a count.
+func askFor(limit int) int { return limit + 1 }
+
+// bounded cuts rows back to limit, and reports whether rows beyond it came.
+func bounded[T any](rows []T, limit int) ([]T, bool) {
+	if len(rows) > limit {
+		return rows[:limit], true
+	}
+	return rows, false
+}
+
+// stoppedAt says a listing was cut off where a reader of the table looks.
+// A listing that quietly ended at its bound reads exactly like a realm with
+// that many in it, which is the answer an agent would act on.
+func stoppedAt(t view.Table, limit int, noun string, sf plugin.Surface, narrow string) view.Table {
+	t.Warnings = append(t.Warnings, view.Error{
+		Code:    "keycloak.list.partial",
+		Message: "stopped at " + format.CountOf(limit, noun) + "; the realm has more",
+		Hint:    "raise " + sf.InputName("limit") + narrow,
+	})
+	return t
 }
 
 // finish stamps a table's Total once its rows are in.
