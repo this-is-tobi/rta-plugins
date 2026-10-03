@@ -154,7 +154,18 @@ func (c connection) notFound(name string) *view.Error {
 // names docker lists them joined at commas, and the first is the one to start.
 func (c connection) startLine(names string) string {
 	first, _, _ := strings.Cut(names, ",")
-	args := c.args("start", strings.TrimSpace(first))
+	return c.line("start", strings.TrimSpace(first))
+}
+
+// infoLine is the docker command that asks the daemon c reached whether it
+// answers, for a person to paste: bare, `docker info` asks the daemon of the
+// shell it is pasted into, which is not the one that did not answer.
+func (c connection) infoLine() string { return c.line("info") }
+
+// line is the docker command rest names, on the daemon c reached, each value
+// one shell word.
+func (c connection) line(rest ...string) string {
+	args := c.args(rest...)
 	words := make([]string, 0, len(args)+1)
 	words = append(words, "docker")
 	for _, arg := range args {
@@ -235,7 +246,7 @@ func run(ctx context.Context, c connection, args ...string) ([]byte, *view.Error
 func classify(ctx context.Context, err error, stderr string, args []string, c connection) *view.Error {
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return view.Errorf("docker.unreachable", "docker did not answer within %s", timeout).
-			WithHint("the daemon may not be running — `docker info` is the same question")
+			WithHint("the daemon may not be running — `" + c.infoLine() + "` is the same question")
 	}
 	if errors.Is(ctx.Err(), context.Canceled) {
 		return view.Errorf("docker.cancelled", "the call was cancelled")

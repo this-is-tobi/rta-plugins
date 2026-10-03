@@ -27,7 +27,7 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 		// this is the capability somebody runs *because* something is wrong.
 		return view.KeyValue{Pairs: []view.Pair{
 			{Key: "daemon", Value: "did not answer — " + verr.Message},
-			{Key: "what to check", Value: hintOf(verr)},
+			{Key: "what to check", Value: hintOf(verr, c)},
 		}}, nil
 	}
 
@@ -113,9 +113,9 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 	return page, nil
 }
 
-func hintOf(e *view.Error) string {
+func hintOf(e *view.Error, c connection) string {
 	if e == nil || e.Hint == "" {
-		return "`docker info` asks the same question directly"
+		return "`" + c.infoLine() + "` asks the same question directly"
 	}
 	return e.Hint
 }
