@@ -265,6 +265,33 @@ func stateWords(state string) string {
 	return state
 }
 
+// replicationLine is the summary with a pointer to the page it summarises,
+// for the overview's glance. Only where there is a page worth opening: a
+// server that replicates to and from nothing has nothing for it to show, and
+// pointing at an empty page would send somebody to read one sentence twice.
+//
+// It counts what the page's attention list holds, because the glance is the
+// one place somebody looks while nothing is known to be wrong: a standby that
+// went away reads "no standby is connected" and is only a slot that nobody
+// reads, and a sentence that stayed silent about the warning beside it would
+// be the quiet half of the failure. The count is a number, not a grade; the
+// words and the colours are on the page.
+func replicationLine(f replicationFacts, sf plugin.Surface) string {
+	line := replicationSummary(f)
+	attention := len(attentionTable(f).Rows)
+	switch attention {
+	case 0:
+	case 1:
+		line += ", 1 thing needs attention"
+	default:
+		line += fmt.Sprintf(", %d things need attention", attention)
+	}
+	if f.server.recovering || len(f.standbys) > 0 || len(f.slots) > 0 || attention > 0 {
+		line += " — " + sf.CapabilityName("pg.replication") + " has the positions"
+	}
+	return line
+}
+
 func standbySummary(f replicationFacts) string {
 	r := f.receiver
 	var line string

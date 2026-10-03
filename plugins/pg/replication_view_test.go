@@ -253,6 +253,44 @@ func TestTheHiddenWarningNamesTheRoleAndWhatGrantsIt(t *testing.T) {
 	}
 }
 
+func TestTheOverviewPointsAtThePageOnlyWhereThereIsOne(t *testing.T) {
+	for _, tc := range []struct {
+		surface plugin.Surface
+		want    string
+	}{
+		{plugin.SurfaceCLI, "`rta pg replication`"},
+		{plugin.SurfaceMCP, "`pg_replication`"},
+	} {
+		line := replicationLine(primaryFacts([]standbyRow{caughtUpStandby()}, nil), tc.surface)
+		if !strings.Contains(line, tc.want) {
+			t.Errorf("%s: %q does not point at %s", tc.surface, line, tc.want)
+		}
+	}
+	if line := replicationLine(primaryFacts(nil, nil), plugin.SurfaceCLI); strings.Contains(line, "rta pg") {
+		t.Errorf("a server with nothing to show points at a page: %q", line)
+	}
+}
+
+func TestTheOverviewCountsWhatTheAttentionListHolds(t *testing.T) {
+	healthy := replicationLine(primaryFacts([]standbyRow{caughtUpStandby()}, nil), plugin.SurfaceCLI)
+	if strings.Contains(healthy, "attention") {
+		t.Errorf("a healthy replication asks for attention: %q", healthy)
+	}
+	one := replicationLine(primaryFacts(nil, []slotRow{extendedSlot()}), plugin.SurfaceCLI)
+	if !strings.Contains(one, ", 1 thing needs attention — `rta pg replication`") {
+		t.Errorf("one finding: %q", one)
+	}
+	two := replicationLine(primaryFacts([]standbyRow{driftingStandby()}, []slotRow{lostSlot()}), plugin.SurfaceCLI)
+	if !strings.Contains(two, ", 2 things need attention — ") {
+		t.Errorf("two findings: %q", two)
+	}
+	sync := primaryFacts(nil, nil)
+	sync.server.syncNames = "FIRST 1 (ghost)"
+	if line := replicationLine(sync, plugin.SurfaceMCP); !strings.Contains(line, "`pg_replication`") {
+		t.Errorf("a finding with no standby and no slot has nothing to point at: %q", line)
+	}
+}
+
 func TestAServerTooOldIsRefusedByName(t *testing.T) {
 	r := reqFor(t, "pg.replication", nil).WithSurface(plugin.SurfaceMCP)
 	// server_version as postgres:13 reports it, banner and all: the message

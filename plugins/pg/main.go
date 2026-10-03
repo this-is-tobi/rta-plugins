@@ -638,8 +638,8 @@ func Plugin() plugin.Plugin {
 				Safety:     plugin.Read,
 				Idempotent: true,
 				Detailed:   true,
-				Description: "The compact form is four figures worth a glance: role, size, active " +
-					"queries, cache hit ratio. The full page (`detail`) " +
+				Description: "The compact form is a few figures worth a glance: role, size, active " +
+					"queries, cache hit ratio and one line of replication. The full page (`detail`) " +
 					"adds the whole replication page (`pg.replication`: positions, standbys with their " +
 					"lag, slots, what needs attention), the largest tables and current activity — " +
 					"everything pg.status, pg.replication, pg.table.list and pg.activity would otherwise " +

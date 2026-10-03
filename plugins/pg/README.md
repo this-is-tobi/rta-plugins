@@ -117,7 +117,7 @@ The receipt says the file is unencrypted, names the restore command, states whic
 
 ## pg.overview
 
-The compact form is four figures worth a glance: role, size, active queries, cache hit ratio. The full page (`detail`) adds the whole replication page (`pg.replication`: positions, standbys with their lag, slots, what needs attention), the largest tables and current activity — everything pg.status, pg.replication, pg.table.list and pg.activity would otherwise take four calls to assemble, through the one connection this call already opened.
+The compact form is a few figures worth a glance: role, size, active queries, cache hit ratio and one line of replication. The full page (`detail`) adds the whole replication page (`pg.replication`: positions, standbys with their lag, slots, what needs attention), the largest tables and current activity — everything pg.status, pg.replication, pg.table.list and pg.activity would otherwise take four calls to assemble, through the one connection this call already opened.
 
 | Field             | Value                                                                                                                                                                                                                                                                                                                                                   |
 |-------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
