@@ -83,6 +83,11 @@ type connection struct {
 	// profile is the operator's profile the call came through
 	// (Request.Profile), "" for none.
 	profile string
+	// reached is the daemon the call reached as its reader reaches it again
+	// (Request.Reached), and "" for a call that named none: no host, no
+	// context and no profile, which is the CLI's own default and names
+	// nothing a refusal could add.
+	reached string
 }
 
 func connectionOf(req plugin.Request) (connection, *view.Error) {
@@ -92,6 +97,7 @@ func connectionOf(req plugin.Request) (connection, *view.Error) {
 		sf:      req.Surface(),
 		profile: req.Profile(),
 	}
+	c.reached = reachedDaemon(req, c.Host, c.Context)
 	if verr := checkName("context", c.Context); verr != nil {
 		return connection{}, verr
 	}
@@ -102,6 +108,43 @@ func connectionOf(req plugin.Request) (connection, *view.Error) {
 			"%q is not a usable daemon address", c.Host)
 	}
 	return c, nil
+}
+
+// reachedDaemon names the daemon a call was aimed at: its host, else the
+// context that picks one, beside the profile that supplied either. A profile
+// with neither is the default daemon through a profile that sets nothing
+// here, and is named as that. "" when the call named no daemon at all.
+func reachedDaemon(req plugin.Request, host, context string) string {
+	daemon := host
+	if daemon == "" && context != "" {
+		daemon = "context " + context
+	}
+	if daemon == "" {
+		if req.Profile() == "" {
+			return ""
+		}
+		daemon = "the default daemon"
+	}
+	return req.Reached(daemon)
+}
+
+// notFound is docker.notfound for a container name no daemon holds, with the
+// listing that shows what is there carrying the daemon this call reached:
+// pasted bare it listed the daemon the configuration where it was pasted
+// names, and a container the profile's daemon lacks may well be there.
+func (c connection) notFound(name string) *view.Error {
+	message := fmt.Sprintf("no container named %q", name)
+	if c.reached != "" {
+		message += " on " + c.reached
+	}
+	return view.Errorf("docker.notfound", "%s", message).WithHint(c.listHint() + " shows what is there")
+}
+
+// listHint is the call that lists every container, stopped ones included, on
+// the daemon c reached.
+func (c connection) listHint() string {
+	return "`" + c.sf.Call("docker.container.list",
+		append([]plugin.Arg{{Name: "all", Value: true}}, c.callArgs()...)...) + "`"
 }
 
 func (c connection) args(rest ...string) []string {
@@ -158,11 +201,11 @@ func run(ctx context.Context, c connection, args ...string) ([]byte, *view.Error
 	if err == nil {
 		return out, nil
 	}
-	return nil, classify(ctx, err, errBuf.String(), args, c.sf)
+	return nil, classify(ctx, err, errBuf.String(), args, c)
 }
 
 // classify turns a docker failure into something an operator can act on.
-func classify(ctx context.Context, err error, stderr string, args []string, sf plugin.Surface) *view.Error {
+func classify(ctx context.Context, err error, stderr string, args []string, c connection) *view.Error {
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return view.Errorf("docker.unreachable", "docker did not answer within %s", timeout).
 			WithHint("the daemon may not be running — `docker info` is the same question")
@@ -182,6 +225,14 @@ func classify(ctx context.Context, err error, stderr string, args []string, sf p
 	case strings.Contains(low, "cannot connect to the docker daemon"),
 		strings.Contains(low, "is the docker daemon running"),
 		strings.Contains(low, "connection refused"):
+		// The daemon a profile names is where its host and context point,
+		// and "the host input" sent the reader to a setting of this call
+		// when the call's was the profile's.
+		if c.profile != "" {
+			return view.Errorf("docker.unreachable", "%s", msg).
+				WithHint("start Docker, or fix where profile " + c.profile + " points: the host and context it " +
+					"sets choose the daemon")
+		}
 		return view.Errorf("docker.unreachable", "%s", msg).
 			WithHint("start Docker, or point this at the right daemon with the host input")
 	case strings.Contains(low, "permission denied"):
@@ -189,8 +240,11 @@ func classify(ctx context.Context, err error, stderr string, args []string, sf p
 			WithHint("this account cannot reach the daemon's socket")
 	case strings.Contains(low, "no such container"), strings.Contains(low, "no such object"),
 		strings.Contains(low, "no such image"):
+		if c.reached != "" {
+			msg += " on " + c.reached
+		}
 		return view.Errorf("docker.notfound", "%s", msg).
-			WithHint(sf.CapabilityWith("docker.container.list", "all") + " shows what is there, stopped ones included")
+			WithHint(c.listHint() + " shows what is there, stopped ones included")
 	case strings.Contains(low, "context") && strings.Contains(low, "not found"):
 		return view.Errorf("docker.context.unknown", "%s", msg)
 	case msg != "":
