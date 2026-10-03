@@ -149,7 +149,7 @@ func connect(ctx context.Context, req plugin.Request) (*session, *view.Error) {
 		return nil, verr
 	}
 	if issued.AccessToken == "" {
-		return nil, view.Errorf("keycloak.token.empty", "%s issued no access token", s.base).
+		return nil, view.Errorf("keycloak.token.empty", "%s issued no access token", s.reached()).
 			WithHint("the answer had the shape of a token response without a token in it")
 	}
 	s.token = issued.AccessToken
@@ -229,7 +229,7 @@ func (s *session) call(ctx context.Context, method, u string, body io.Reader, co
 		return nil
 	}
 	if err := json.Unmarshal(payload, out); err != nil {
-		return view.Errorf("keycloak.response.malformed", "%s did not answer with the JSON expected", s.base).
+		return view.Errorf("keycloak.response.malformed", "%s did not answer with the JSON expected", s.reached()).
 			WithHint("is this the Keycloak base URL, and not a realm's or the account console's?")
 	}
 	return nil
@@ -379,18 +379,18 @@ func (s *session) classifyToken(code int, body []byte) *view.Error {
 	sf := s.req.Surface()
 	switch {
 	case code == http.StatusNotFound:
-		return view.Errorf("keycloak.realm.unknown", "%s has no realm to authenticate against: %s", s.base, firstOf(desc, oauthErr)).
+		return view.Errorf("keycloak.realm.unknown", "%s has no realm to authenticate against: %s", s.reached(), firstOf(desc, oauthErr)).
 			WithHint(sf.SettingName("auth-realm") + " (or " + sf.SettingName("realm") + ") names the realm the client " +
 				"lives in; the issuer URL's last segment is its name")
 	case code == http.StatusUnauthorized, code == http.StatusBadRequest && oauthErr == "invalid_client":
-		return view.Errorf("keycloak.auth.failed", "%s refused the client credentials: %s", s.base, firstOf(desc, oauthErr)).
+		return view.Errorf("keycloak.auth.failed", "%s refused the client credentials: %s", s.reached(), firstOf(desc, oauthErr)).
 			WithHint(sf.SettingName("client-id") + " names a confidential client with service accounts enabled, " +
 				"and its secret is read from " + secretSources(s.req))
 	case code == http.StatusBadRequest && oauthErr == "unauthorized_client":
-		return view.Errorf("keycloak.auth.grant", "%s: %s", s.base, firstOf(desc, oauthErr)).
+		return view.Errorf("keycloak.auth.grant", "%s: %s", s.reached(), firstOf(desc, oauthErr)).
 			WithHint("the client needs \"Service accounts roles\" (client credentials grant) enabled")
 	}
-	return view.Errorf("keycloak.auth.failed", "%s returned %d from the token endpoint: %s", s.base, code, firstOf(desc, oauthErr, "no detail given"))
+	return view.Errorf("keycloak.auth.failed", "%s returned %d from the token endpoint: %s", s.reached(), code, firstOf(desc, oauthErr, "no detail given"))
 }
 
 // classifyStatus turns an Admin REST refusal into something an operator can
@@ -400,7 +400,7 @@ func (s *session) classifyStatus(code int, body []byte) *view.Error {
 	detail := adminError(body)
 	switch code {
 	case http.StatusUnauthorized:
-		return view.Errorf("keycloak.token.rejected", "%s refused the token it just issued", s.base).
+		return view.Errorf("keycloak.token.rejected", "%s refused the token it just issued", s.reached()).
 			WithHint("a clock far off the server's makes a fresh token look expired")
 	case http.StatusForbidden:
 		return view.Errorf("keycloak.denied", "the service account may not read this in realm %q", s.realm).
@@ -409,9 +409,9 @@ func (s *session) classifyStatus(code int, body []byte) *view.Error {
 				"of the realm being read")
 	case http.StatusNotFound:
 		return view.Errorf("keycloak.notfound", "%s", detail).
-			WithHint("realm " + s.realm + " on " + s.base)
+			WithHint("realm " + s.realm + " on " + s.reached())
 	}
-	return view.Errorf("keycloak.request.failed", "%s returned %d: %s", s.base, code, detail).
+	return view.Errorf("keycloak.request.failed", "%s returned %d: %s", s.reached(), code, detail).
 		WithHint(s.req.Surface().SettingsHint("keycloak.overview"))
 }
 
@@ -570,6 +570,12 @@ func forwardName(req plugin.Request, hostErr x509.HostnameError) *view.Error {
 			"hold beside its forward, names it — one the certificate is for — and it is checked as strictly " +
 			"as the host it replaces")
 }
+
+// reached names the server as its reader reaches it again, for what the server
+// answered (Request.Reached): through a forward base is 127.0.0.1 and a port
+// that closed with the call, which "refused the client credentials" named and
+// the reader could do nothing with. A dial that found nothing keeps base.
+func (s *session) reached() string { return s.req.Reached(s.base) }
 
 func (s *session) host() string {
 	parsed, err := url.Parse(s.base)
