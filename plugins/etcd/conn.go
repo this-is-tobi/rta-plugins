@@ -445,12 +445,12 @@ func classify(err error, req plugin.Request) *view.Error {
 			// reader to set one: an agent has no host environment to set, and
 			// no password argument either, since the bridge drops a Local
 			// input given.
-			return view.Errorf("etcd.auth.failed", "%s rejected the credentials", where).
+			return view.Errorf("etcd.auth.failed", "%s rejected the credentials", req.Reached(where)).
 				WithHint("the password is read from $" + plugin.LocalEnvVar("etcd.overview", "password") +
 					" or " + sf.SettingName("password") + " — check it, and " + sf.SettingName("username") +
 					": a cluster with auth disabled refuses a username too")
 		case codes.PermissionDenied:
-			return view.Errorf("etcd.denied", "%s: %s", where, msg).
+			return view.Errorf("etcd.denied", "%s: %s", req.Reached(where), msg).
 				WithHint("the credentials are valid but the role does not cover this: a key range for a read of keys, " +
 					"and for the cluster's own status, which etcd answers only to a user holding the root role")
 		case codes.Unavailable:
