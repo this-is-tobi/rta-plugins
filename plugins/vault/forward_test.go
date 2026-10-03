@@ -164,7 +164,7 @@ func TestPlainHTTPToATLSListenerNamesTheScheme(t *testing.T) {
 	if verr == nil || verr.Code != "vault.tls.expected" || !strings.Contains(verr.Hint, "tunnelTLS: true") {
 		t.Errorf("through a forward: %+v, want vault.tls.expected naming tunnelTLS", verr)
 	}
-	if verr != nil && !strings.Contains(verr.Message, "(profile lab, through its kube: forward)") {
+	if verr != nil && !strings.Contains(verr.Message, "to profile lab (through its kube: forward), which speaks only HTTPS") {
 		t.Errorf("%q names the forward's end rather than the profile", verr.Message)
 	}
 	verr = seal(t, map[string]any{"address": "http://" + hostport}, plugin.TunnelNone)

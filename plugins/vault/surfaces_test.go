@@ -30,7 +30,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 	}{
 		{
 			name:    "a token its policy refuses",
-			cli:     "`rta vault token status` shows what the current token can do",
+			cli:     "`rta vault token status --address https://vault.internal:8200` shows what the current token can do",
 			other:   "the `vault_token_status` tool shows what the current token can do",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {

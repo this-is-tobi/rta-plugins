@@ -192,7 +192,7 @@ func TestAReceiptNamesTheProfileRatherThanAForwardsEnd(t *testing.T) {
 		{"a profile reached directly", "prod", "https://vault.internal:8200",
 			"https://vault.internal:8200 (profile prod)", plugin.TunnelNone},
 		{"a profile through a forward", "prod", "http://127.0.0.1:54321",
-			"profile prod, through its kube: forward", plugin.TunnelKube},
+			"profile prod (through its kube: forward)", plugin.TunnelKube},
 	} {
 		r := req(t, "vault.snapshot", map[string]any{"address": tc.address}).WithProfile(tc.profile, tc.tunnel)
 		if got := reached(r); got != tc.want {
