@@ -114,7 +114,7 @@ func getRawJSON(ctx context.Context, s selection, path string, out any) *view.Er
 	if verr != nil {
 		if verr.Code == "kube.notfound" {
 			return verr.WithHint("the metrics-server add-on is not installed on this cluster, " +
-				"or metrics.k8s.io is not yet ready — `kubectl get apiservices` shows whether it is registered")
+				"or metrics.k8s.io is not yet ready — `" + s.kubectlLine("get", "apiservices") + "` shows whether it is registered")
 		}
 		return verr
 	}

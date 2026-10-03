@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -116,6 +117,25 @@ func TestBudgetOfNoLimits(t *testing.T) {
 	b := budgetOf(p)
 	if b.cpuLimit != 0 || b.memLimit != 0 {
 		t.Errorf("budgetOf(no limits) = %+v, want the zero value", b)
+	}
+}
+
+// The command a missing metrics-server is checked with is asked of the context
+// the call read: bare it asks the context of the shell it is pasted into.
+func TestTheApiservicesCheckAMissingMetricsServerOffersAsksTheContextTheCallRead(t *testing.T) {
+	script := filepath.Join(t.TempDir(), "kubectl")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\necho 'Error from server (NotFound): not found' >&2\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	orig := kubectlBin
+	kubectlBin = script
+	t.Cleanup(func() { kubectlBin = orig })
+
+	const kubeContext = "arn:aws:eks:eu-west-3:1234:cluster/prod"
+	verr := getRawJSON(context.Background(), selection{Context: kubeContext}, "/apis/metrics.k8s.io/v1beta1/nodes", &struct{}{})
+	want := "`kubectl " + plugin.ShellWord("--context="+kubeContext) + " get apiservices`"
+	if verr == nil || !strings.Contains(verr.Hint, want) {
+		t.Errorf("error = %+v, want a hint naming %s", verr, want)
 	}
 }
 
