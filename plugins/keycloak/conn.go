@@ -6,13 +6,11 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	stdnet "net"
 	"net/http"
 	"net/url"
 	"os"
-	"slices"
 	"strings"
 	"time"
 
@@ -290,12 +288,8 @@ func serverName(req plugin.Request) string { return strings.TrimSpace(req.String
 // not in a URL the forward fills.
 func plaintextServerName(req plugin.Request, base string) *view.Error {
 	sf := req.Surface()
-	where := base
-	if req.Tunnel() != plugin.TunnelNone {
-		where = "profile " + req.Profile() + ", through its " + string(req.Tunnel()) + ": forward"
-	}
 	refusal := view.Errorf("keycloak.tls.plaintext", "%s names a certificate to check, and this call would "+
-		"reach Keycloak over plain HTTP (%s)", sf.SettingName("tls-server-name"), where)
+		"reach %s over plain HTTP", sf.SettingName("tls-server-name"), req.Reached(base))
 	if req.Tunnel() != plugin.TunnelNone {
 		return refusal.WithHint("a forward carries plain http:// unless the profile's connection says its far end " +
 			"speaks TLS: tunnelTLS: true on that connection, for a Keycloak serving HTTPS on the port it forwards")
@@ -346,16 +340,10 @@ func secretSources(req plugin.Request) string {
 // was searched for in a realm it was never in. Over MCP the call gives the
 // profile alone: the rest are Local, and the bridge drops one an agent sends.
 func reachArgs(req plugin.Request) []plugin.Arg {
-	var args []plugin.Arg
-	if profile := req.Profile(); profile != "" {
-		args = append(args, plugin.Arg{Name: "profile", Value: profile})
-	}
 	if req.Surface() == plugin.SurfaceMCP {
-		return args
+		return req.ReachArgs()
 	}
-	if req.Tunnel() == plugin.TunnelNone {
-		args = append(args, plugin.Arg{Name: "url", Value: req.String("url")})
-	}
+	args := req.ReachArgs(plugin.Arg{Name: "url", Value: req.String("url")})
 	for _, name := range []string{"realm", "auth-realm", "client-id", "ca-file", "tls-server-name"} {
 		if v := strings.TrimSpace(req.String(name)); v != "" {
 			args = append(args, plugin.Arg{Name: name, Value: v})
@@ -575,32 +563,12 @@ func (s *session) plainHTTPHint(how string) string {
 // forward the host opened — 127.0.0.1 — and not for the name the server
 // answers as, which the certificate names instead.
 func forwardName(req plugin.Request, hostErr x509.HostnameError) *view.Error {
-	return view.Errorf("keycloak.tls.forward", "the certificate behind profile %s's %s: forward is for %s, not for %s, "+
-		"where the forward ends", req.Profile(), req.Tunnel(), certNames(hostErr.Certificate), hostErr.Host).
+	return view.Errorf("keycloak.tls.forward", "the certificate behind %s is for %s, not for %s, "+
+		"where the forward ends", req.Reached(req.String("url")), plugin.CertNames(hostErr.Certificate), hostErr.Host).
 		WithHint("a forward always ends at 127.0.0.1, so the certificate is checked for the name the server " +
 			"answers as instead: " + req.Surface().SettingName("tls-server-name") + ", which the profile can " +
 			"hold beside its forward, names it — one the certificate is for — and it is checked as strictly " +
 			"as the host it replaces")
-}
-
-// certNames lists the names a certificate is for, the ones a check reads:
-// its DNS names and its IP addresses, never the subject's common name, which
-// Go's verifier ignores.
-func certNames(cert *x509.Certificate) string {
-	if cert == nil {
-		return "another name"
-	}
-	names := slices.Clone(cert.DNSNames)
-	for _, ip := range cert.IPAddresses {
-		names = append(names, ip.String())
-	}
-	switch {
-	case len(names) == 0:
-		return "no name a check reads"
-	case len(names) > 3:
-		return strings.Join(names[:3], ", ") + fmt.Sprintf(" and %d more", len(names)-3)
-	}
-	return strings.Join(names, ", ")
 }
 
 func (s *session) host() string {

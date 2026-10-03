@@ -111,7 +111,7 @@ func TestThroughAForwardTheCertificateIsCheckedForTheNameGiven(t *testing.T) {
 	if verr == nil || verr.Code != "keycloak.tls.forward" {
 		t.Fatalf("through a forward with no name: %+v, want keycloak.tls.forward", verr)
 	}
-	for _, want := range []string{"profile lab's kube: forward", "svc.example.internal", "127.0.0.1"} {
+	for _, want := range []string{"profile lab (through its kube: forward)", "svc.example.internal", "127.0.0.1"} {
 		if !strings.Contains(verr.Message, want) {
 			t.Errorf("message %q does not name %q", verr.Message, want)
 		}
@@ -144,7 +144,7 @@ func TestAServerNameOverPlainHTTPIsRefused(t *testing.T) {
 	}
 	verr := mint(t, values(), plugin.TunnelKube)
 	if verr == nil || verr.Code != "keycloak.tls.plaintext" || !strings.Contains(verr.Hint, "tunnelTLS: true") ||
-		!strings.Contains(verr.Message, "(profile lab, through its kube: forward)") {
+		!strings.Contains(verr.Message, "profile lab (through its kube: forward)") {
 		t.Errorf("through a forward: %+v, want keycloak.tls.plaintext naming the forward and tunnelTLS", verr)
 	}
 	verr = mint(t, values(), plugin.TunnelNone)
@@ -169,7 +169,7 @@ func TestAForwardRefusalNamesTheSettingForItsSurface(t *testing.T) {
 		if verr.Code != "keycloak.tls.forward" || !strings.Contains(verr.Hint, want) {
 			t.Errorf("%s: %s %q, want %q in the hint", sf, verr.Code, verr.Hint, want)
 		}
-		if !strings.Contains(verr.Message, "ssh: forward is for a, b, c and 1 more") {
+		if !strings.Contains(verr.Message, "(through its ssh: forward) is for a, b, c and 1 more") {
 			t.Errorf("%s: %q does not list the certificate's names", sf, verr.Message)
 		}
 	}
