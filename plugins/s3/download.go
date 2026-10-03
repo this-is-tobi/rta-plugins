@@ -135,7 +135,7 @@ func runBucketDownload(ctx context.Context, req plugin.Request) (view.View, erro
 		return nil, view.Errorf("s3.download.path", "resolving %s: %v", req.Surface().InputName("out"), err)
 	}
 
-	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
+	return withTransferClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
 		// **List and check every key before writing anything.** Doing it in
 		// one pass would mean discovering a hostile key with half a bucket
 		// already on disk, and then having to decide whether to keep it.

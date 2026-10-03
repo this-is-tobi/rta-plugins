@@ -109,7 +109,7 @@ func runBucketUpload(ctx context.Context, req plugin.Request) (view.View, error)
 		return nil, verr
 	}
 
-	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
+	return withTransferClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
 		if verr := checkUploadTarget(ctx, client, req, prefix); verr != nil {
 			return nil, verr
 		}

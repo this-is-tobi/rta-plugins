@@ -85,6 +85,11 @@ func connFields() []plugin.Field {
 // dead server surfaces on the first real call, classified the same way any
 // other request failure is.
 func connect(req plugin.Request) (*minio.Client, *view.Error) {
+	return connectWith(req, 1)
+}
+
+// connectWith is connect with a say in how many times a request may be tried.
+func connectWith(req plugin.Request, attempts int) (*minio.Client, *view.Error) {
 	endpoint := req.String("endpoint")
 	access := req.String("access-key")
 	secret := req.String("secret-key")
@@ -97,13 +102,15 @@ func connect(req plugin.Request) (*minio.Client, *view.Error) {
 		// name given in the profile beside it was a plain-HTTP call to a TLS port.
 		Secure: req.Bool("tls") || req.String("ca-file") != "" || serverName(req) != "",
 		Region: req.String("region"),
-		// One attempt. minio-go asks ten times, with a backoff between, before
-		// it gives up on anything it reads as transient — a refused connection
-		// among it — so a call to an endpoint that was down answered three
-		// seconds late with the same refusal it would have had at once. Every
-		// call here is one an agent or an operator can simply make again, and
-		// asking again is theirs to decide.
-		MaxRetries: 1,
+		// One attempt for a call. minio-go asks ten times, with a backoff
+		// between, before it gives up on anything it reads as transient — a
+		// refused connection among it — so a call to an endpoint that was down
+		// answered three seconds late with the same refusal it would have had
+		// at once. Every call here is one an agent or an operator can simply
+		// make again, and asking again is theirs to decide. A transfer is the
+		// exception, which asks for the library's own ten (see
+		// withTransferClient).
+		MaxRetries: attempts,
 	}
 	// The path with a leading ~ resolved, as every other path a plugin reads
 	// is. Opened as typed, ~/ca.pem was a path under a directory named ~, and
@@ -486,6 +493,27 @@ func hostOnly(endpoint string) string {
 // nobody.
 func withClient(ctx context.Context, req plugin.Request, fn func(context.Context, *minio.Client) (view.View, error)) (view.View, error) {
 	client, verr := connect(req)
+	if verr != nil {
+		return nil, verr
+	}
+	return fn(ctx, client)
+}
+
+// transferAttempts is how many times a transfer's request may be tried, 0 being
+// minio-go's own ten. A variable only so the suite need not wait out the
+// library's backoff against a server that is meant to fail: the tests that
+// drive a failing transfer set it to 1.
+var transferAttempts = 0
+
+// withTransferClient is withClient for a bulk download or upload, which keeps
+// the library's own retries: a transfer is hundreds of requests under one
+// refusal-on-failure, a run that fails takes the whole directory with it, and
+// one transient 503 in the middle of a backup should not cost the backup. A
+// call a person can simply make again is a different thing from a transfer
+// that was nine tenths done. MaxRetries 0 is minio-go's way of saying its
+// default.
+func withTransferClient(ctx context.Context, req plugin.Request, fn func(context.Context, *minio.Client) (view.View, error)) (view.View, error) {
+	client, verr := connectWith(req, transferAttempts)
 	if verr != nil {
 		return nil, verr
 	}
