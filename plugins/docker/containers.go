@@ -151,7 +151,7 @@ func runInspect(ctx context.Context, req plugin.Request) (view.View, error) {
 		return nil, view.Errorf("docker.unreadable", "docker's answer could not be read: %v", err)
 	}
 	if len(got) == 0 {
-		return nil, view.Errorf("docker.notfound", "no container named %q", name)
+		return nil, c.notFound(name)
 	}
 	d := got[0]
 
@@ -264,8 +264,7 @@ func mutate(ctx context.Context, req plugin.Request, verb string,
 	}
 	found, ok := findContainer(rows, name)
 	if !ok {
-		return nil, view.Errorf("docker.notfound", "no container named %q", name).
-			WithHint(req.Surface().CapabilityWith("docker.container.list", "all") + " shows what is there")
+		return nil, c.notFound(name)
 	}
 	if req.DryRun {
 		return view.Text{Body: preview(found)}, nil
@@ -344,8 +343,7 @@ func runRemove(ctx context.Context, req plugin.Request) (view.View, error) {
 	}
 	found, ok := findContainer(rows, name)
 	if !ok {
-		return nil, view.Errorf("docker.notfound", "no container named %q", name).
-			WithHint(req.Surface().CapabilityWith("docker.container.list", "all") + " shows what is there")
+		return nil, c.notFound(name)
 	}
 	// Refused before the daemon would refuse it, so the reason is rta's and
 	// names the remedy. **No --force here on purpose**: killing a running
