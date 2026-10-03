@@ -453,7 +453,7 @@ func (s *session) classifyTransport(err error) *view.Error {
 	// runs Go's verifier in the system's place, with no revocation check, and
 	// connects.
 	if plugin.CertUntrusted(err) {
-		return view.Errorf("keycloak.tls.untrusted", "%s presented a certificate nothing here trusts", s.base).
+		return view.Errorf("keycloak.tls.untrusted", "%s presented a certificate nothing here trusts", s.reached()).
 			WithHint("a Keycloak behind an internal CA wants that CA rather than verification turned off: " +
 				sf.CAHint("ca-file"))
 	}
@@ -479,7 +479,7 @@ func (s *session) classifyTransport(err error) *view.Error {
 		if serverName(s.req) != "" {
 			checked = "the name in " + sf.SettingName("tls-server-name")
 		}
-		rejected := view.Errorf("keycloak.tls.rejected", "%s presented a certificate that does not verify: %v", s.base, verifyErr.Err)
+		rejected := view.Errorf("keycloak.tls.rejected", "%s presented a certificate that does not verify: %v", s.reached(), verifyErr.Err)
 		// A rule of macOS's own, which the verdict's words do not name: a
 		// ten-year certificate, the usual one for a server of one's own, is
 		// "not standards compliant" there, and the hint below would have
