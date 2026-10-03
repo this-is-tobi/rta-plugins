@@ -420,6 +420,27 @@ func classify(err error, req plugin.Request) *view.Error {
 			req.Surface().CAHint("ca-file"))
 	}
 
+	// Every other verdict on a certificate is its own reason, quoted in the
+	// verifier's words — the system's, for one macOS gives untyped, a revoked
+	// certificate among them — and never "could not reach": the server was
+	// reached, and answered with a certificate. No setting is offered that
+	// checks less, which is what skip-verify and a CA file replacing the
+	// system's verifier would be.
+	var verifyErr *tls.CertificateVerificationError
+	if errors.As(err, &verifyErr) {
+		rejected := view.Errorf("mariadb.tls.rejected", "%s presented a certificate that does not verify: %v",
+			where, verifyErr.Err)
+		// A rule of macOS's own, which the verdict's words do not name: a
+		// ten-year certificate, the usual one for a server of one's own, is
+		// "not standards compliant" there.
+		if hint := plugin.CertPolicyHint(err); hint != "" {
+			return rejected.WithHint(hint)
+		}
+		return rejected.WithHint("a certificate is checked for its dates and the use it was issued for, as " +
+			"well as for who issued it, and with " + req.Surface().SettingTo("tls", "true") + " for the host in " +
+			req.Surface().SettingName("host") + " too")
+	}
+
 	// The name first: a dial that could not resolve its host fails with a
 	// *net.OpError wrapping the *net.DNSError, and read the other way round
 	// every name nothing resolves was reported as a port nothing listens on.
