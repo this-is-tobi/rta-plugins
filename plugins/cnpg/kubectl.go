@@ -202,6 +202,28 @@ func (s selection) callArgs(namespace string) []plugin.Arg {
 	return append(out, s.reach...)
 }
 
+// caller is who a kubectl call is made for: the surface that reads what a
+// failure says, and what a call it names gives to reach the same cluster again
+// (callArgs). Held together because a failure that names the next call to make
+// needs both, and completion makes calls for neither.
+type caller struct {
+	sf    plugin.Surface
+	reach []plugin.Arg
+}
+
+func (s selection) caller() caller { return caller{sf: s.sf, reach: s.reach} }
+
+// listEverywhere is the listing of every cluster in every namespace, as a
+// call: on the cluster this one reached when there is a profile or a context
+// to say which, and as the capability and its flag otherwise, which is how an
+// agent with nothing to give is told.
+func (c caller) listEverywhere() string {
+	if len(c.reach) == 0 {
+		return c.sf.CapabilityWith("cnpg.list", "all-namespaces")
+	}
+	return "`" + c.sf.Call("cnpg.list", append([]plugin.Arg{{Name: "all-namespaces", Value: true}}, c.reach...)...) + "`"
+}
+
 // where names what was read, for a message that has to say which cluster.
 func (s selection) where() string {
 	parts := []string{}
@@ -222,7 +244,7 @@ func (s selection) where() string {
 
 // sf is the surface the call came through: a failure names the call to make
 // next, and only the surface knows how its reader makes one.
-func run(ctx context.Context, sf plugin.Surface, args ...string) ([]byte, *view.Error) {
+func run(ctx context.Context, by caller, args ...string) ([]byte, *view.Error) {
 	cctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	cmd := exec.CommandContext(cctx, kubectlBin, args...)
@@ -230,7 +252,7 @@ func run(ctx context.Context, sf plugin.Surface, args ...string) ([]byte, *view.
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, classify(cctx, err, stderr.String(), args, sf)
+		return nil, classify(cctx, err, stderr.String(), args, by)
 	}
 	return out, nil
 }
@@ -243,7 +265,7 @@ func run(ctx context.Context, sf plugin.Surface, args ...string) ([]byte, *view.
 // a proxy that hands out short-lived credentials, so "your login expired" is
 // the ordinary failure and reporting it as an RBAC problem sends people to
 // argue with the wrong team.
-func classify(ctx context.Context, err error, stderr string, args []string, sf plugin.Surface) *view.Error {
+func classify(ctx context.Context, err error, stderr string, args []string, by caller) *view.Error {
 	s := strings.TrimSpace(stderr)
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return view.Errorf("cnpg.timeout", "kubectl did not answer within %s", timeout).
@@ -276,7 +298,7 @@ func classify(ctx context.Context, err error, stderr string, args []string, sf p
 				"grep cnpg` confirms it, and this plugin reads nothing else")
 	case strings.Contains(s, "not found"):
 		return view.Errorf("cnpg.cluster.missing", "%s", firstLine(s)).
-			WithHint(sf.CapabilityWith("cnpg.list", "all-namespaces") + " shows what is there")
+			WithHint(by.listEverywhere() + " shows what is there")
 	case s == "":
 		return view.Errorf("cnpg.kubectl.failed", "kubectl exited %d without saying why",
 			exitErr.ExitCode())
@@ -331,7 +353,7 @@ func getResource(ctx context.Context, s selection, resource, name string, out an
 	}
 	args = append(args, "-o", "json")
 	args = append(args, extra...)
-	raw, verr := run(ctx, s.sf, s.args(args...)...)
+	raw, verr := run(ctx, s.caller(), s.args(args...)...)
 	if verr != nil {
 		return verr
 	}
@@ -340,6 +362,18 @@ func getResource(ctx context.Context, s selection, resource, name string, out an
 			WithHint("that usually means a kubectl old enough to word its output differently")
 	}
 	return nil
+}
+
+// backupListing is the call that lists the backups of the cluster this
+// selection reaches, in the namespace it reads: the capability alone when
+// there is nothing to say which cluster, the call with what reaches it
+// otherwise.
+func (s selection) backupListing() string {
+	args := s.callArgs(s.namespace)
+	if len(args) == 0 {
+		return s.sf.CapabilityName("cnpg.backup.list")
+	}
+	return "`" + s.sf.Call("cnpg.backup.list", args...) + "`"
 }
 
 // createJSON posts one object and decodes what the API server wrote back.
@@ -366,14 +400,14 @@ func createJSON(ctx context.Context, s selection, doc []byte, out any, extra ...
 	cmd.Stderr = &stderr
 	raw, err := cmd.Output()
 	if err != nil {
-		return classify(cctx, err, stderr.String(), args, s.sf)
+		return classify(cctx, err, stderr.String(), args, s.caller())
 	}
 	if out == nil {
 		return nil
 	}
 	if err := json.Unmarshal(raw, out); err != nil {
 		return view.Errorf("cnpg.decode", "kubectl's JSON did not parse: %v", err).
-			WithHint("the object may still have been created — " + s.sf.CapabilityName("cnpg.backup.list") + " says")
+			WithHint("the object may still have been created — " + s.backupListing() + " says")
 	}
 	return nil
 }
