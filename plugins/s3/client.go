@@ -97,6 +97,13 @@ func connect(req plugin.Request) (*minio.Client, *view.Error) {
 		// name given in the profile beside it was a plain-HTTP call to a TLS port.
 		Secure: req.Bool("tls") || req.String("ca-file") != "" || serverName(req) != "",
 		Region: req.String("region"),
+		// One attempt. minio-go asks ten times, with a backoff between, before
+		// it gives up on anything it reads as transient — a refused connection
+		// among it — so a call to an endpoint that was down answered three
+		// seconds late with the same refusal it would have had at once. Every
+		// call here is one an agent or an operator can simply make again, and
+		// asking again is theirs to decide.
+		MaxRetries: 1,
 	}
 	// The path with a leading ~ resolved, as every other path a plugin reads
 	// is. Opened as typed, ~/ca.pem was a path under a directory named ~, and
