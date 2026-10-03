@@ -88,12 +88,12 @@ func slowlogCapability() plugin.Capability {
 				return slowlogView(ctx, c, req)
 			})
 		},
-	}, plugin.Field{Name: "count", Type: plugin.Int, Config: "slowlog.count", Default: 25, Min: 1, Max: 1000,
+	}, plugin.Field{Name: "limit", Type: plugin.Int, Config: "slowlog.limit", Default: 25, Min: 1, Max: 1000,
 		Help: "how many entries, newest first"})
 }
 
 func slowlogView(ctx context.Context, c *client, req plugin.Request) (view.View, error) {
-	r, err := c.do(ctx, "SLOWLOG", "GET", strconv.Itoa(req.Int("count")))
+	r, err := c.do(ctx, "SLOWLOG", "GET", strconv.Itoa(req.Int("limit")))
 	if err != nil {
 		return nil, classify(err, c.addr, c.req)
 	}
