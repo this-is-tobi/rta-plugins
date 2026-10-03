@@ -180,7 +180,7 @@ func TestLiveBackupAnUnconfiguredClusterIsAdmittedByTheOperatorAnyway(t *testing
 // accepted, this asks the cluster what the set *is*, so a value CNPG adds
 // shows up as a suggestion rta is missing rather than staying invisible.
 func TestLiveBackupTheOfferedOptionsMatchTheCRDsEnums(t *testing.T) {
-	raw, verr := run(context.Background(), plugin.SurfaceCLI, "get", "crd", "backups.postgresql.cnpg.io", "-o", "json")
+	raw, verr := run(context.Background(), caller{sf: plugin.SurfaceCLI}, "get", "crd", "backups.postgresql.cnpg.io", "-o", "json")
 	if verr != nil {
 		t.Skipf("cannot read the CRD: %v", verr)
 	}

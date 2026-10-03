@@ -33,7 +33,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			mcp:  "the `cnpg_list` tool with the \"all-namespaces\" argument shows what is there",
 			say: func(sf plugin.Surface) string {
 				verr := classify(context.Background(), &exec.ExitError{},
-					`Error from server (NotFound): clusters.postgresql.cnpg.io "shop" not found`, nil, sf)
+					`Error from server (NotFound): clusters.postgresql.cnpg.io "shop" not found`, nil, caller{sf: sf})
 				return verr.Hint
 			},
 		},
