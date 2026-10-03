@@ -387,7 +387,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	// followed the hint connected to the server the check had caught. It
 	// keeps the system's words below, with no way round.
 	if cert, ok := misnamed(err); ok && !plugin.CertRevoked(err) {
-		return nameRefusal(where, cert, req)
+		return nameRefusal(req.Reached(where), cert, req)
 	}
 
 	// The CA named as where it belongs, and as what to use instead of
@@ -408,7 +408,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	// mariadb.conn.failed, and the hint that sends somebody to name a CA says
 	// what naming one costs (CAHint).
 	if plugin.CertUntrusted(err) {
-		refused := view.Errorf("mariadb.tls.untrusted", "%s presented a certificate nothing here trusts", where)
+		refused := view.Errorf("mariadb.tls.untrusted", "%s presented a certificate nothing here trusts", req.Reached(where))
 		if ca := caFile(req); ca != "" {
 			return refused.WithHint(ca + ", which " + req.Surface().SettingName("ca-file") + " names, does " +
 				"not hold the CA that issued it — a self-signed certificate is its own CA")
@@ -427,7 +427,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	var verifyErr *tls.CertificateVerificationError
 	if errors.As(err, &verifyErr) {
 		rejected := view.Errorf("mariadb.tls.rejected", "%s presented a certificate that does not verify: %v",
-			where, verifyErr.Err)
+			req.Reached(where), verifyErr.Err)
 		// A rule of macOS's own, which the verdict's words do not name: a
 		// ten-year certificate, the usual one for a server of one's own, is
 		// "not standards compliant" there.
