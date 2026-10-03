@@ -284,8 +284,7 @@ func keyGetCapability() plugin.Capability {
 			"and a hash's field names — not what is stored.\n\n" +
 			"**Classified write for what it discloses, not what it changes.** A session store " +
 			"keeps tokens and a cache keeps whatever the application cached, so reading an " +
-			"arbitrary key can be reading somebody's session. It needs a grant naming the key: " +
-			"`grant.allow` for `redis.key.get` and `user:42:session` is a consent somebody can read.\n\n" +
+			"arbitrary key can be reading somebody's session.\n\n" +
 			"The read tier — redis.key.list and redis.key.tree — shows names, types and TTLs, " +
 			"which is usually the question and costs none of this.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
