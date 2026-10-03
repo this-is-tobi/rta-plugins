@@ -329,7 +329,12 @@ func classifyStatus(code int, body []byte, req plugin.Request) *view.Error {
 	switch code {
 	case http.StatusUnauthorized:
 		return view.Errorf("qdrant.auth.failed", "%s rejected the credentials", where).
-			WithHint("set $" + plugin.LocalEnvVar("qdrant.overview", "api-key") +
+			// Where the key comes from rather than a verb telling the reader to
+			// set one: these reads answer an agent too, which has no host
+			// environment to set and no key to pass, since the bridge drops a
+			// Local input given.
+			WithHint("the API key is read from $" + plugin.LocalEnvVar("qdrant.overview", "api-key") + " or " +
+				req.Surface().SettingName("api-key") +
 				" — an instance started without an API key refuses one that is sent, too")
 	case http.StatusForbidden:
 		// A 401 is a key or token the instance does not know, and the hint above
