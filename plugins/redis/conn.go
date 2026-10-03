@@ -371,8 +371,15 @@ func classify(err error, addr string, req plugin.Request) *view.Error {
 			return view.Errorf("redis.auth.failed", "%s rejected the credentials", reached).
 				WithHint("check the password, and " + sf.SettingName("username") + " if the server uses ACLs")
 		case "NOPERM":
-			return view.Errorf("redis.denied", "%s: %s", reached, srv.msg).
-				WithHint("the ACL user is valid but not allowed this command or key")
+			denied := view.Errorf("redis.denied", "%s: %s", reached, srv.msg)
+			// The connection's own PING, which no capability asked for and no
+			// grant of the commands a view reads covers: a monitoring user was
+			// sent to look for the command in the view it was running.
+			if strings.Contains(strings.ToLower(srv.msg), "'ping' command") {
+				return denied.WithHint("every call opens with a PING to check the connection, so the ACL user needs " +
+					"+ping beside the commands the view reads (+info, and +cluster|info and the like for the cluster)")
+			}
+			return denied.WithHint("the ACL user is valid but not allowed this command or key")
 		case "LOADING":
 			return view.Errorf("redis.loading", "%s is still loading its dataset", reached).
 				WithHint("a server restoring a large RDB or AOF answers this until it is done — try again shortly")
