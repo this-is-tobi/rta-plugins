@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
@@ -72,6 +73,25 @@ func overviewCapability() plugin.Capability {
 			"The status column is the one to read. A collection in `yellow` is serving searches " +
 			"from a partly-built index, so its results are quietly incomplete rather than absent " +
 			"— which looks like a working search returning slightly wrong answers.\n\n" +
+			"Against a distributed instance it also lists the peers and adds a replicas column. " +
+			"This peer's row has its raft term, commit index and pending operations and a grade of " +
+			"its consensus thread and its leader; every other peer's row is graded by whether " +
+			"this one can still message it, since a peer that cannot be reached is the first " +
+			"sign of a replica about to be taken out. Only the leader messages every peer, so " +
+			"ask the leader: a follower reports the peers it never talks to as not observed " +
+			"rather than as fine. The replicas column says how many of a " +
+			"collection's replicas are serving and, for those that are not, which shards on which " +
+			"peer: Dead is a replica that missed a write and is red, and Recovery, Partial and " +
+			"the other states of one being brought level are amber.\n\n" +
+			"What one peer cannot say is left blank rather than guessed. The term and commit of " +
+			"the other peers are theirs, read by pointing this at each one — the peer list names " +
+			"only their internal address, and a credential is not sent to an address nobody " +
+			"configured — and a replica on another peer is known by the state consensus recorded " +
+			"for it, so it stays active until a write fails on it — except that the leader, which messages " +
+			"every peer, knows which are not answering, and a replica on one of those is counted as not " +
+			"serving and graded amber, or red when it was the shard's only copy. The cluster's own state needs " +
+			"global read access: the read-only API key has it, and a JWT scoped to collections " +
+			"does not, in which case the replicas are still shown and the page says so.\n\n" +
 			"Describes collections and returns no point. Reading points is qdrant.points.scroll, " +
 			"and it is a write.",
 		Run: runOverview,
@@ -89,7 +109,11 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 		return nil, verr
 	}
 
-	table, verr := collectionTable(ctx, req)
+	cs, verr := fetchCluster(ctx, req)
+	if verr != nil {
+		return nil, verr
+	}
+	table, verr := collectionTableIn(ctx, req, cs)
 	if verr != nil {
 		return nil, verr
 	}
@@ -99,8 +123,12 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 		{Key: "endpoint", Value: req.String("endpoint")},
 		{Key: "title", Value: root.Title},
 		{Key: "version", Value: root.Version},
+		{Key: "cluster", Value: cs.modeText()},
 		{Key: "collections", Value: strconv.Itoa(len(table.Rows))},
 	}})
+	if cs.mode == modeDistributed {
+		p.Put("peers", peersTable(cs, time.Now()))
+	}
 	p.Put("collections", table)
 	return p.View(), nil
 }
@@ -116,6 +144,8 @@ func collectionListCapability() plugin.Capability {
 			"Indexed against total is the number worth watching: a collection still building its " +
 			"index answers searches from what it has, so the gap between those two columns is " +
 			"how incomplete the answers currently are.\n\n" +
+			"In a cluster a replicas column says whether every replica of the collection is " +
+			"serving, as the overview does.\n\n" +
 			"Names and counts only, never a point.",
 		// Not `return collectionTable(ctx, req)`, which reads the same and
 		// is not: the *view.Error comes back inside Run's error interface,
@@ -132,6 +162,23 @@ func collectionListCapability() plugin.Capability {
 }
 
 func collectionTable(ctx context.Context, req plugin.Request) (view.Table, *view.Error) {
+	cs, verr := fetchCluster(ctx, req)
+	if verr != nil {
+		return view.Table{}, verr
+	}
+	return collectionTableIn(ctx, req, cs)
+}
+
+// collectionTableIn lists the collections, and in a cluster adds the column
+// that says whether every replica of each is serving.
+//
+// **The column is there when it can mean something.** A standalone instance
+// has one copy of everything and nothing to say; a distributed one gets it
+// whether or not this credential could read the cluster's own state, because
+// the per-collection endpoint answers a token scoped to collections where
+// /cluster does not, and a collection that turns out to be unsharded in a
+// mode nobody could name reads "-" rather than inventing a replica count.
+func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState) (view.Table, *view.Error) {
 	var list collectionsResponse
 	if verr := get(ctx, req, "/collections", &list); verr != nil {
 		return view.Table{}, verr
@@ -151,7 +198,19 @@ func collectionTable(ctx context.Context, req plugin.Request) (view.Table, *view
 		{Name: "Segments", Kind: view.KindNumber},
 		{Name: "Status", Kind: view.KindStatus},
 	}}
+	replicas := make([]string, 0, len(names))
+	anyDistributed := false
 	for _, name := range names {
+		replica := "-"
+		if cs.mode != modeStandalone {
+			var cc collectionCluster
+			if verr := get(ctx, req, pathFor("/collections/%s/cluster", name), &cc); verr == nil && (cs.mode == modeDistributed || cc.distributed()) {
+				replica = replicasHealth(cc, cs.label, cs.peersDown(time.Now()))
+				anyDistributed = true
+			}
+		}
+		replicas = append(replicas, replica)
+
 		var info collectionInfo
 		if verr := get(ctx, req, pathFor("/collections/%s", name), &info); verr != nil {
 			// Reported, not fatal. A collection this key may not see is the
@@ -167,6 +226,12 @@ func collectionTable(ctx context.Context, req plugin.Request) (view.Table, *view
 			strconv.FormatInt(info.SegmentsCount, 10),
 			info.Status,
 		})
+	}
+	if anyDistributed {
+		t.Columns = append(t.Columns, view.Column{Name: "Replicas", Kind: view.KindStatus})
+		for i := range t.Rows {
+			t.Rows[i] = append(t.Rows[i], replicas[i])
+		}
 	}
 	t.Total = len(t.Rows)
 	return t, nil
@@ -194,6 +259,10 @@ func collectionShowCapability() plugin.Capability {
 			"incompatible with a model: embedding with something that produces a different " +
 			"dimension fails loudly, and embedding with a model trained for a different metric " +
 			"fails silently, returning plausible and wrong neighbours.\n\n" +
+			"For a collection spread over several peers it adds where every replica of every " +
+			"shard is and what state it is in, and any shard transfer under way. The point " +
+			"count is the replica on this peer's alone: another peer's is its own to report, " +
+			"and the state alone does not move until a write fails on that copy.\n\n" +
 			"Configuration only, never a point — this describes the shape of the data and " +
 			"returns none of it.",
 		Run: runCollectionShow,
@@ -225,7 +294,29 @@ func runCollectionShow(ctx context.Context, req plugin.Request) (view.View, erro
 				"indexed so far, so results are incomplete rather than delayed",
 		})
 	}
+
+	// What the collection's own configuration does not say: where each shard's
+	// replicas are and what state each is in. Beyond a collection that lives
+	// on this peer alone there is nothing to add, and the page is the
+	// configuration it always was; a failure here is not the page's failure.
+	var cc collectionCluster
+	if verr := get(ctx, req, pathFor("/collections/%s/cluster", name), &cc); verr == nil && cc.distributed() {
+		return replicasPage(ctx, req, pairs, cc), nil
+	}
 	return view.KeyValue{Pairs: pairs}, nil
+}
+
+// replicasPage is the collection page with where its replicas are beside it.
+func replicasPage(ctx context.Context, req plugin.Request, pairs []view.Pair, cc collectionCluster) view.View {
+	cs, _ := fetchCluster(ctx, req)
+	pairs = append(pairs, view.Pair{Key: "replicas", Value: replicasHealth(cc, cs.label, cs.peersDown(time.Now()))})
+	p := plugin.NewPage(ctx, req)
+	p.Put("collection", view.KeyValue{Pairs: pairs})
+	p.Put("shards", shardsTable(cc, cs.label, cs.peersDown(time.Now())))
+	if len(cc.ShardTransfers) > 0 {
+		p.Put("transfers", transfersTable(cc, cs.label))
+	}
+	return p.View()
 }
 
 // describeVectors flattens Qdrant's two shapes into rows.

@@ -34,6 +34,8 @@ Names, point counts, how many of those vectors are actually indexed, and each co
 
 Indexed against total is the number worth watching: a collection still building its index answers searches from what it has, so the gap between those two columns is how incomplete the answers currently are.
 
+In a cluster a replicas column says whether every replica of the collection is serving, as the overview does.
+
 Names and counts only, never a point.
 
 | Field                 | Value                                                                                                                                                                                                 |
@@ -57,6 +59,8 @@ Names and counts only, never a point.
 Vector dimensions and distance metric, sharding and replication, payload storage, and index progress.
 
 The dimension and the distance metric are the two that make a collection incompatible with a model: embedding with something that produces a different dimension fails loudly, and embedding with a model trained for a different metric fails silently, returning plausible and wrong neighbours.
+
+For a collection spread over several peers it adds where every replica of every shard is and what state it is in, and any shard transfer under way. The point count is the replica on this peer's alone: another peer's is its own to report, and the state alone does not move until a write fails on that copy.
 
 Configuration only, never a point — this describes the shape of the data and returns none of it.
 
@@ -108,6 +112,10 @@ Created with O_EXCL at 0600, so an existing file is never written over; a failed
 Version, reachability and every collection with its point count and status.
 
 The status column is the one to read. A collection in `yellow` is serving searches from a partly-built index, so its results are quietly incomplete rather than absent — which looks like a working search returning slightly wrong answers.
+
+Against a distributed instance it also lists the peers and adds a replicas column. This peer's row has its raft term, commit index and pending operations and a grade of its consensus thread and its leader; every other peer's row is graded by whether this one can still message it, since a peer that cannot be reached is the first sign of a replica about to be taken out. Only the leader messages every peer, so ask the leader: a follower reports the peers it never talks to as not observed rather than as fine. The replicas column says how many of a collection's replicas are serving and, for those that are not, which shards on which peer: Dead is a replica that missed a write and is red, and Recovery, Partial and the other states of one being brought level are amber.
+
+What one peer cannot say is left blank rather than guessed. The term and commit of the other peers are theirs, read by pointing this at each one — the peer list names only their internal address, and a credential is not sent to an address nobody configured — and a replica on another peer is known by the state consensus recorded for it, so it stays active until a write fails on it — except that the leader, which messages every peer, knows which are not answering, and a replica on one of those is counted as not serving and graded amber, or red when it was the shard's only copy. The cluster's own state needs global read access: the read-only API key has it, and a JWT scoped to collections does not, in which case the replicas are still shown and the page says so.
 
 Describes collections and returns no point. Reading points is qdrant.points.scroll, and it is a write.
 
