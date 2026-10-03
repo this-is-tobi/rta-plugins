@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.5.0...plugins/s3/v0.5.1) (2026-10-03)
+
+
+### Bug Fixes
+
+* **s3:** a certificate macOS refuses for its length names the rule and its fix ([78f519a](https://github.com/this-is-tobi/rta-plugins/commit/78f519a84d4e84713c05d510b5bf750241eb7037))
+* **s3:** a refusal the server gave names the profile, and the listing it offers reaches that server ([153375f](https://github.com/this-is-tobi/rta-plugins/commit/153375f873802536b015a0882e075018637dcfc4))
+
+
+### Code Refactoring
+
+* **s3:** name the profile, its forward and a certificate's names with the SDK's helpers ([e317cdf](https://github.com/this-is-tobi/rta-plugins/commit/e317cdf0a76baa858095a82f7cc6abafd7266b4f))
+
 ## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.4.3...plugins/s3/v0.5.0) (2026-10-03)
 
 

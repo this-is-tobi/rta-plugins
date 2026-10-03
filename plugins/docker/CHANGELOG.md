@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.24](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.2.23...plugins/docker/v0.2.24) (2026-10-03)
+
+
+### Bug Fixes
+
+* **docker:** a container not found names the daemon and the profile, and its listing reaches them ([6105931](https://github.com/this-is-tobi/rta-plugins/commit/6105931f344cef3b8eef7835350699e8c94e1360))
+* **docker:** the check a daemon that does not answer offers asks that daemon ([b33e8b0](https://github.com/this-is-tobi/rta-plugins/commit/b33e8b064a506ff57c4017237f02e3a01540e34d))
+* **docker:** the line that starts a stopped container again names its daemon and quotes its words ([9e37897](https://github.com/this-is-tobi/rta-plugins/commit/9e378970b74a7852718a6edd4da537880a5becaf))
+
+
+### Code Refactoring
+
+* **docker:** the calls a message hands over give the profile and the daemon with the SDK's ([2bc2ced](https://github.com/this-is-tobi/rta-plugins/commit/2bc2ced1f16ef8f02b63e47b63abc47d36cc30e0))
+
 ## [0.2.23](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.2.22...plugins/docker/v0.2.23) (2026-10-03)
 
 

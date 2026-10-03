@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.6.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.5.0...plugins/pg/v0.6.0) (2026-10-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* **pg:** a client certificate, key or root certificate found under ~/.postgresql is no longer used, by the driver or by the children. Name them with sslcert, sslkey and sslrootcert, or set ssl-home to have rta search libpq's directory.
+
+### Features
+
+* **pg:** sslcert and sslkey name the client certificate, and nothing is read from ~/.postgresql ([6743f34](https://github.com/this-is-tobi/rta-plugins/commit/6743f34d9ea7c1ae4ab84b67b67ea86a7b3a9730))
+* **pg:** tls-server-name names what the certificate is checked for, and turns TLS on in a forward ([b146fff](https://github.com/this-is-tobi/rta-plugins/commit/b146fff5724728163f665fbec8a3936964408aca))
+
+
+### Bug Fixes
+
+* **pg:** a certificate that does not verify is named for why, macOS's length rule for its fix ([bcab8a7](https://github.com/this-is-tobi/rta-plugins/commit/bcab8a7563d0aca6e4609ffa0b1ddacac3ab7a9c))
+* **pg:** a refusal the server gave names the profile, not the end of its forward ([8288ca9](https://github.com/this-is-tobi/rta-plugins/commit/8288ca96e0c1e569f2be978269a65119b63a8fbb))
+* **pg:** a restore and a schema description name the server as the reader reaches it again ([cca3b87](https://github.com/this-is-tobi/rta-plugins/commit/cca3b87efd08763a3c58e5b87f4cd4a3ba8e5058))
+* **pg:** the createdb line a missing restore target offers is one word per value to a shell ([89bfb08](https://github.com/this-is-tobi/rta-plugins/commit/89bfb08c6a6eed459d61b3319f0105b953e12ecf))
+* **pg:** the listings and status checks a refusal offers reach the server the refusal came from ([64131b9](https://github.com/this-is-tobi/rta-plugins/commit/64131b94919488293d4a83cebab5a684ab14e0bc))
+* **pg:** the policy query a row-level-security refusal offers is for this table and quoted ([d66f781](https://github.com/this-is-tobi/rta-plugins/commit/d66f781454318183d515e57e0882be128699aa9f))
+
+
+### Code Refactoring
+
+* **pg:** name the profile and its forward, and what reaches the server, with the SDK's ([bced140](https://github.com/this-is-tobi/rta-plugins/commit/bced140af305a59bba0e158dddb8239a3e8bb02c))
+
 ## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.4.0...plugins/pg/v0.5.0) (2026-10-03)
 
 

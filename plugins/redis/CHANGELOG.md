@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.2.0...plugins/redis/v0.2.1) (2026-10-03)
+
+
+### Bug Fixes
+
+* **redis:** a certificate that does not verify is named for why, macOS's length rule for its fix ([d210a42](https://github.com/this-is-tobi/rta-plugins/commit/d210a42a3b8a1db504288e6e321f0c7ffb0c76a5))
+* **redis:** a refusal the server gave names the profile, not the end of its forward ([c299019](https://github.com/this-is-tobi/rta-plugins/commit/c299019af9f1b526378344f09a328602fd1dc2b5))
+
+
+### Code Refactoring
+
+* **redis:** name the profile, its forward and a certificate's names with the SDK's helpers ([b00f074](https://github.com/this-is-tobi/rta-plugins/commit/b00f074d9a123cee1b8be795606d0f995c63e12f))
+
 ## [0.2.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.21...plugins/redis/v0.2.0) (2026-10-03)
 
 

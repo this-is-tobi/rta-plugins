@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.9](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.4.8...plugins/kube/v0.4.9) (2026-10-03)
+
+
+### Bug Fixes
+
+* **kube:** the apiservices check a missing metrics-server offers asks the context the call read ([d25cbc0](https://github.com/this-is-tobi/rta-plugins/commit/d25cbc0f90d144aaeaab18a372fa0961e43d28f9))
+
+
+### Code Refactoring
+
+* **kube:** the revoke a partial provision names gives the profile and context with the SDK's ([cf5af1b](https://github.com/this-is-tobi/rta-plugins/commit/cf5af1b5165cf4b12c1085e9203d6ba1f51d1a41))
+
 ## [0.4.8](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.4.7...plugins/kube/v0.4.8) (2026-10-03)
 
 

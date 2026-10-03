@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.5.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.5.0...plugins/mysql/v0.5.1) (2026-10-03)
+
+
+### Bug Fixes
+
+* **mysql:** a certificate that does not verify is named for why, macOS's length rule for its fix ([bb73eaf](https://github.com/this-is-tobi/rta-plugins/commit/bb73eaf860c0073c112ae056f5d713695725961c))
+* **mysql:** a refusal the server gave names the profile, not the end of its forward ([9b11369](https://github.com/this-is-tobi/rta-plugins/commit/9b11369beaa0210a5178b0304751f2b240362aa4))
+* **mysql:** a restore names the server as the reader reaches it again, not a forward's end ([d738bcc](https://github.com/this-is-tobi/rta-plugins/commit/d738bcc7ceb373878936d772f4de70097718dcca))
+* **mysql:** a revoked certificate that names no host keeps the system's verdict, not verify-ca ([28156aa](https://github.com/this-is-tobi/rta-plugins/commit/28156aa7ea463ab7ee1550beb224e5b353f4c8a1))
+* **mysql:** the CREATE DATABASE a missing restore target offers quotes a name that needs it ([dcdfda2](https://github.com/this-is-tobi/rta-plugins/commit/dcdfda2963fd852c0171a815ed1ac236ac057d7a))
+* **mysql:** the listings and status checks a refusal offers reach the server the refusal came from ([264f89e](https://github.com/this-is-tobi/rta-plugins/commit/264f89ec93fdcbaff79ae8ad445f8f1c3ffcfae2))
+
+
+### Code Refactoring
+
+* **mysql:** name the profile, its forward and a certificate's names with the SDK's helpers ([ef6ed52](https://github.com/this-is-tobi/rta-plugins/commit/ef6ed52bf919e82fd2c5d88d37f1d59a1c4374c2))
+
 ## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.4.0...plugins/mysql/v0.5.0) (2026-10-03)
 
 
