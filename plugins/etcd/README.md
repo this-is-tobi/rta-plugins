@@ -38,8 +38,6 @@ The value stored at one key, with its version and lease.
 
 **Classified write for what it discloses, not what it changes.** A Kubernetes cluster keeps its Secrets in etcd base64-encoded rather than encrypted, unless encryption at rest was turned on — so reading an arbitrary key here can be reading every secret in the cluster.
 
-It also needs a grant naming it. That is available because this names one key: `grant.allow` for `etcd.kv.get` and `/registry/services/endpoints/default/api` is a consent somebody can actually read, which a whole-namespace grant would not be.
-
 The read tier — etcd.kv.list and etcd.kv.tree — shows names and sizes, which is usually the question and costs none of this.
 
 | Field                 | Value                                                                                                                                                                                                                          |

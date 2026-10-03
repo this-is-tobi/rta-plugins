@@ -372,9 +372,6 @@ func kvGetCapability() plugin.Capability {
 			"cluster keeps its Secrets in etcd base64-encoded rather than encrypted, unless " +
 			"encryption at rest was turned on — so reading an arbitrary key here can be reading " +
 			"every secret in the cluster.\n\n" +
-			"It also needs a grant naming it. That is available because this names one key: " +
-			"`grant.allow` for `etcd.kv.get` and `/registry/services/endpoints/default/api` is a consent " +
-			"somebody can actually read, which a whole-namespace grant would not be.\n\n" +
 			"The read tier — etcd.kv.list and etcd.kv.tree — shows names and sizes, which is " +
 			"usually the question and costs none of this.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
