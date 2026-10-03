@@ -160,7 +160,7 @@ func sealStateAfter(ctx context.Context, client *vaultapi.Client, req plugin.Req
 	status, err := client.Sys().SealStatusWithContext(ctx)
 	if err != nil {
 		return "the server could not be read back (" + err.Error() + ") — " +
-			req.Surface().CapabilityName("vault.seal.status") + " is the next thing to run"
+			nextCall(req, "vault.seal.status") + " is the next thing to run"
 	}
 	if status.Sealed {
 		return "the Vault is sealed — unseal it with the keys of the cluster the snapshot came from"

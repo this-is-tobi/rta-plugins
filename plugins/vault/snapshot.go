@@ -237,7 +237,7 @@ func classifySnapshot(err error, req plugin.Request) *view.Error {
 			"%s returned a snapshot that stops short of its checksums", req.String("address")).
 			WithHint("the archive is missing SHA256SUMS.sealed, which Vault writes last and " +
 				"encrypts with the seal — so the seal was unavailable partway through. " +
-				req.Surface().CapabilityName("vault.seal.status") + " is the next thing to look at. The partial file has " +
+				nextCall(req, "vault.seal.status") + " is the next thing to look at. The partial file has " +
 				"been removed rather than left looking like a backup")
 	}
 
