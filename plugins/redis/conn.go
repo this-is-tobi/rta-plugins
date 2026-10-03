@@ -97,6 +97,9 @@ type client struct {
 	// sf is the surface the request came through, so a message about this
 	// connection names an input the way its reader gives one.
 	sf plugin.Surface
+	// req is the request the connection was made for, which a refusal needs to
+	// hand its reader a call that reaches this server (nextCall).
+	req plugin.Request
 }
 
 func (c *client) Close() { _ = c.conn.Close() }
@@ -133,7 +136,7 @@ func connect(ctx context.Context, req plugin.Request) (*client, *view.Error) {
 	if err != nil {
 		return nil, classifyDial(err, addr, req)
 	}
-	c := &client{conn: conn, r: bufio.NewReader(conn), w: bufio.NewWriter(conn), addr: addr, reached: req.Reached(addr), sf: req.Surface()}
+	c := &client{conn: conn, r: bufio.NewReader(conn), w: bufio.NewWriter(conn), addr: addr, reached: req.Reached(addr), sf: req.Surface(), req: req}
 
 	if pw := req.String("password"); pw != "" {
 		args := []string{"AUTH", pw}
@@ -341,15 +344,17 @@ func (r reply) pairs() [][2]string {
 // act on. Server errors arrive as a `-` line whose first word is the code;
 // the words are the stable part, the sentence after them is not.
 //
-// addr is where the connection was made, for the failures of the dial; reached
-// is the server as its reader reaches it again, for what the server answered
+// addr is where the connection was made, for the failures of the dial; what the
+// server answered names the server as its reader reaches it again
 // (Request.Reached), since through a forward addr is the end of one that closed
-// with the call.
-func classify(err error, addr, reached string, sf plugin.Surface) *view.Error {
+// with the call. The request is also what a call this hands its reader is
+// given the reach of (nextCall).
+func classify(err error, addr string, req plugin.Request) *view.Error {
 	var already *view.Error
 	if errors.As(err, &already) {
 		return already
 	}
+	reached, sf := req.Reached(addr), req.Surface()
 	var srv *serverError
 	if errors.As(err, &srv) {
 		code, _, _ := strings.Cut(srv.msg, " ")
@@ -373,7 +378,7 @@ func classify(err error, addr, reached string, sf plugin.Surface) *view.Error {
 				WithHint("a server restoring a large RDB or AOF answers this until it is done — try again shortly")
 		case "MOVED", "ASK":
 			return view.Errorf("redis.cluster.redirect", "%s: %s", reached, srv.msg).
-				WithHint("this is a cluster and that key lives on another node — " + sf.CapabilityName("redis.cluster") +
+				WithHint("this is a cluster and that key lives on another node — " + nextCall(req, "redis.cluster") +
 					" lists them; point " + sf.SettingName("address") + " at the one named")
 		case "ERR":
 			if strings.Contains(srv.msg, "unknown command") {
@@ -534,7 +539,7 @@ func classifyDial(err error, addr string, req plugin.Request) *view.Error {
 		return rejected.WithHint("a certificate is checked for " + checked +
 			", its dates and the use it was issued for, as well as for who issued it")
 	}
-	return classify(err, addr, req.Reached(addr), req.Surface())
+	return classify(err, addr, req)
 }
 
 // nameRefusal is redis.tls.name: the certificate presented at addr refused
@@ -606,6 +611,19 @@ func reachArgs(req plugin.Request) []plugin.Arg {
 		args = append(args, plugin.Arg{Name: "db", Value: db})
 	}
 	return args
+}
+
+// nextCall names capability id called with args and reachArgs, for a hint
+// that sends its reader to it next, quoted for the sentence around it — or by
+// its name alone when there is nothing to give, which reads better to an
+// agent than a tool beside an empty object.
+func nextCall(req plugin.Request, id string, args ...plugin.Arg) string {
+	sf := req.Surface()
+	args = append(args, reachArgs(req)...)
+	if len(args) == 0 {
+		return sf.CapabilityName(id)
+	}
+	return "`" + sf.Call(id, args...) + "`"
 }
 
 // serverName is the name the certificate is checked for in place of the

@@ -104,7 +104,7 @@ func parseInfo(raw string) info {
 func fetchInfo(ctx context.Context, c *client) (info, *view.Error) {
 	r, err := c.do(ctx, "INFO", "all")
 	if err != nil {
-		return info{}, classify(err, c.addr, c.reached, c.sf)
+		return info{}, classify(err, c.addr, c.req)
 	}
 	return parseInfo(r.text()), nil
 }
@@ -338,7 +338,7 @@ func clientListCapability() plugin.Capability {
 			return withClient(ctx, req, func(ctx context.Context, c *client) (view.View, error) {
 				r, err := c.do(ctx, "CLIENT", "LIST")
 				if err != nil {
-					return nil, classify(err, c.addr, c.reached, c.sf)
+					return nil, classify(err, c.addr, c.req)
 				}
 				return clientTable(r.text()), nil
 			})
@@ -417,9 +417,9 @@ func clusterView(ctx context.Context, c *client, req plugin.Request) (view.View,
 		var srv *serverError
 		if asServerError(err, &srv) && strings.Contains(srv.msg, "cluster support disabled") {
 			return view.Text{Body: c.reached + " is a standalone server — cluster mode is off. " +
-				c.sf.CapabilityName("redis.overview") + " shows its replication instead."}, nil
+				nextCall(c.req, "redis.overview") + " shows its replication instead."}, nil
 		}
-		return nil, classify(err, c.addr, c.reached, c.sf)
+		return nil, classify(err, c.addr, c.req)
 	}
 	state := map[string]string{}
 	for _, line := range strings.Split(infoReply.text(), "\n") {
@@ -444,7 +444,7 @@ func clusterView(ctx context.Context, c *client, req plugin.Request) (view.View,
 
 	nodesReply, err := c.do(ctx, "CLUSTER", "NODES")
 	if err != nil {
-		return nil, classify(err, c.addr, c.reached, c.sf)
+		return nil, classify(err, c.addr, c.req)
 	}
 	positions, why := clusterPositions(ctx, c)
 	p.Put("nodes", nodesTable(nodesReply.text(), positions))

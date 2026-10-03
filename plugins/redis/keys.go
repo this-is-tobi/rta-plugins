@@ -66,7 +66,7 @@ func scanKeys(ctx context.Context, c *client, pattern string, limit int) (keys [
 	for {
 		r, err := c.do(ctx, "SCAN", cursor, "MATCH", pattern, "COUNT", strconv.Itoa(scanBatch))
 		if err != nil {
-			return nil, false, classify(err, c.addr, c.reached, c.sf)
+			return nil, false, classify(err, c.addr, c.req)
 		}
 		if len(r.items) != 2 {
 			return nil, false, view.Errorf("redis.scan.malformed", "%s answered SCAN with %s, want 2", c.reached, format.CountOf(len(r.items), "item"))
@@ -99,11 +99,11 @@ func keyListView(ctx context.Context, c *client, req plugin.Request) (view.View,
 	for _, k := range keys {
 		typ, err := c.do(ctx, "TYPE", k)
 		if err != nil {
-			return nil, classify(err, c.addr, c.reached, c.sf)
+			return nil, classify(err, c.addr, c.req)
 		}
 		ttl, err := c.do(ctx, "TTL", k)
 		if err != nil {
-			return nil, classify(err, c.addr, c.reached, c.sf)
+			return nil, classify(err, c.addr, c.req)
 		}
 		t.Rows = append(t.Rows, []string{k, typ.text(), ttlText(ttl.num)})
 	}
@@ -297,11 +297,11 @@ func keyGetView(ctx context.Context, c *client, req plugin.Request) (view.View, 
 	key := req.String("key")
 	typ, err := c.do(ctx, "TYPE", key)
 	if err != nil {
-		return nil, classify(err, c.addr, c.reached, c.sf)
+		return nil, classify(err, c.addr, c.req)
 	}
 	ttl, err := c.do(ctx, "TTL", key)
 	if err != nil {
-		return nil, classify(err, c.addr, c.reached, c.sf)
+		return nil, classify(err, c.addr, c.req)
 	}
 	pairs := []view.Pair{
 		{Key: "key", Value: key},
@@ -319,14 +319,14 @@ func keyGetView(ctx context.Context, c *client, req plugin.Request) (view.View, 
 	case "string":
 		r, err := c.do(ctx, "GET", key)
 		if err != nil {
-			return nil, classify(err, c.addr, c.reached, c.sf)
+			return nil, classify(err, c.addr, c.req)
 		}
 		value = r.text()
 		pairs = append(pairs, view.Pair{Key: "size", Value: format.Bytes(len(value))})
 	case "hash":
 		r, err := c.do(ctx, "HGETALL", key)
 		if err != nil {
-			return nil, classify(err, c.addr, c.reached, c.sf)
+			return nil, classify(err, c.addr, c.req)
 		}
 		kv := r.pairs()
 		pairs = append(pairs, view.Pair{Key: "fields", Value: strconv.Itoa(len(kv))})
@@ -342,21 +342,21 @@ func keyGetView(ctx context.Context, c *client, req plugin.Request) (view.View, 
 	case "list":
 		r, err := c.do(ctx, "LRANGE", key, "0", strconv.Itoa(maxValueItems))
 		if err != nil {
-			return nil, classify(err, c.addr, c.reached, c.sf)
+			return nil, classify(err, c.addr, c.req)
 		}
 		n, _ := c.do(ctx, "LLEN", key)
 		return collectionView(pairs, r.strings(), n.num), nil
 	case "set":
 		r, err := c.do(ctx, "SRANDMEMBER", key, strconv.Itoa(maxValueItems+1))
 		if err != nil {
-			return nil, classify(err, c.addr, c.reached, c.sf)
+			return nil, classify(err, c.addr, c.req)
 		}
 		n, _ := c.do(ctx, "SCARD", key)
 		return collectionView(pairs, r.strings(), n.num), nil
 	case "zset":
 		r, err := c.do(ctx, "ZRANGE", key, "0", strconv.Itoa(maxValueItems), "WITHSCORES")
 		if err != nil {
-			return nil, classify(err, c.addr, c.reached, c.sf)
+			return nil, classify(err, c.addr, c.req)
 		}
 		items := make([]string, 0, len(r.items)/2)
 		for _, p := range r.pairs() {
