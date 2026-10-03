@@ -491,9 +491,16 @@ func (s *session) classifyTransport(err error) *view.Error {
 		if serverName(s.req) != "" {
 			checked = "the name in " + sf.SettingName("tls-server-name")
 		}
-		return view.Errorf("keycloak.tls.rejected", "%s presented a certificate that does not verify: %v", s.base, verifyErr.Err).
-			WithHint("a certificate is checked for " + checked +
-				", its dates and the use it was issued for, as well as for who issued it")
+		rejected := view.Errorf("keycloak.tls.rejected", "%s presented a certificate that does not verify: %v", s.base, verifyErr.Err)
+		// A rule of macOS's own, which the verdict's words do not name: a
+		// ten-year certificate, the usual one for a server of one's own, is
+		// "not standards compliant" there, and the hint below would have
+		// sent its reader to check dates that were fine.
+		if hint := plugin.CertPolicyHint(err); hint != "" {
+			return rejected.WithHint(hint)
+		}
+		return rejected.WithHint("a certificate is checked for " + checked +
+			", its dates and the use it was issued for, as well as for who issued it")
 	}
 	// Short of the host, before the port: a dial that found no way there
 	// reached nothing that could refuse it, and read as refused, a Keycloak
