@@ -26,7 +26,7 @@ func TestACertificateRefusalThroughAForwardNamesTheProfile(t *testing.T) {
 	}{
 		{"an unknown issuer", "mysql.tls.untrusted", ca.serverCert(t), map[string]any{"tls": "true"}},
 		{"another name", "mysql.tls.name", ca.certFor(t, "db.internal", nil, "db.internal"),
-			map[string]any{"tls": "true", "ca-file": caFile}},
+			map[string]any{"tls": "true", "ca-file": caFile, "tls-server-name": "other.internal"}},
 		{"no name at all", "mysql.tls.name", ca.certFor(t, "MySQL_Server_Auto_Generated_Server_Certificate", nil),
 			map[string]any{"tls": "true", "ca-file": caFile}},
 	} {
