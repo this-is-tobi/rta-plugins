@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -110,7 +111,7 @@ func statusPairs(info serverInfo, req plugin.Request) []view.Pair {
 		{Key: "server", Value: req.Reached(address(req))},
 		{Key: "flavour", Value: info.flavour},
 		{Key: "version", Value: info.version},
-		{Key: "uptime", Value: info.uptime.Round(time.Second).String()},
+		{Key: "uptime", Value: format.Duration(info.uptime)},
 		{Key: "connections", Value: fmt.Sprintf("%d of %d", info.threads, info.maxConns)},
 		{Key: "running", Value: strconv.FormatInt(info.running, 10)},
 	}
