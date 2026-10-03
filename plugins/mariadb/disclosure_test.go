@@ -51,7 +51,7 @@ func TestTheReadTierNeverReturnsStatementText(t *testing.T) {
 	db := fakeDB(t, processlistColumns, [][]driver.Value{processlistRow(secret)})
 	r := req(t, "mariadb.overview", map[string]any{})
 
-	v, err := activityView(context.Background(), db, r, false)
+	v, err := activityView(context.Background(), db, r, false, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestTheWriteTierDoesReturnStatementText(t *testing.T) {
 	db := fakeDB(t, processlistColumns, [][]driver.Value{processlistRow(secret)})
 	r := req(t, "mariadb.activity", map[string]any{})
 
-	v, err := activityView(context.Background(), db, r, true)
+	v, err := activityView(context.Background(), db, r, true, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestTheWriteTierDoesReturnStatementText(t *testing.T) {
 	// arrives with all of them, and would turn one table row into a page.
 	long := "SELECT " + strings.Repeat("col_name, ", 60) + "1 FROM t"
 	db = fakeDB(t, processlistColumns, [][]driver.Value{processlistRow(long)})
-	v, err = activityView(context.Background(), db, r, true)
+	v, err = activityView(context.Background(), db, r, true, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +185,7 @@ func TestActivitySaysWhenSessionsAreHiddenFromThisAccount(t *testing.T) {
 	}
 	t.Cleanup(func() { fakeRoutes = nil })
 
-	v, err := activityView(context.Background(), db, req(t, "mariadb.activity", map[string]any{}), true)
+	v, err := activityView(context.Background(), db, req(t, "mariadb.activity", map[string]any{}), true, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -219,7 +219,7 @@ func TestActivityIsQuietWhenNothingIsHidden(t *testing.T) {
 	}
 	t.Cleanup(func() { fakeRoutes = nil })
 
-	v, err := activityView(context.Background(), db, req(t, "mariadb.activity", map[string]any{}), true)
+	v, err := activityView(context.Background(), db, req(t, "mariadb.activity", map[string]any{}), true, true)
 	if err != nil {
 		t.Fatal(err)
 	}
