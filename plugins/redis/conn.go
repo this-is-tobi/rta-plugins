@@ -438,11 +438,11 @@ func classify(err error, addr string, req plugin.Request) *view.Error {
 	// ca-file already named that did not issue the certificate is said to be
 	// that, by classifyDial, which has the request to name it.
 	if plugin.CertUntrusted(err) {
-		return view.Errorf("redis.tls.untrusted", "%s presented a certificate nothing here trusts", addr).
+		return view.Errorf("redis.tls.untrusted", "%s presented a certificate nothing here trusts", req.Reached(addr)).
 			WithHint(sf.CAHint("ca-file"))
 	}
 	if errors.Is(err, io.EOF) {
-		return view.Errorf("redis.conn.closed", "%s closed the connection", addr).
+		return view.Errorf("redis.conn.closed", "%s closed the connection", reached).
 			WithHint("a TLS server answers a plaintext client by hanging up — try " + sf.SettingTo("tls", true))
 	}
 	return view.Errorf("redis.conn.failed", "could not reach %s: %v", addr, err).
@@ -481,9 +481,9 @@ func classifyDial(err error, addr string, req plugin.Request) *view.Error {
 	// leaves the forward open, and the name is what the certificate is then
 	// checked for, in place of the forward's end.
 	if req.Tunnel() != plugin.TunnelNone && errors.Is(err, io.EOF) {
-		return view.Errorf("redis.conn.closed", "%s closed the connection", addr).
+		return view.Errorf("redis.conn.closed", "%s closed the connection", req.Reached(addr)).
 			WithHint("a TLS server answers a plaintext client by hanging up, and plaintext is what " +
-				req.Reached(addr) + " asks for — " +
+				"this call asks for — " +
 				req.Surface().SettingName("ca-file", "tls-server-name") + " each turn TLS on over the forward, " +
 				"and the name is the one the certificate is checked for, since the forward ends at " + hostOnly(addr))
 	}
@@ -513,7 +513,7 @@ func classifyDial(err error, addr string, req plugin.Request) *view.Error {
 		}
 	}
 	if ca := plugin.ExpandHome(req.String("ca-file")); ca != "" && plugin.CertUntrusted(err) {
-		return view.Errorf("redis.tls.untrusted", "%s presented a certificate nothing here trusts", addr).
+		return view.Errorf("redis.tls.untrusted", "%s presented a certificate nothing here trusts", req.Reached(addr)).
 			WithHint(ca + ", which " + req.Surface().SettingName("ca-file") + " names, does not hold the CA that " +
 				"issued it — a self-signed certificate is its own CA")
 	}
@@ -528,7 +528,7 @@ func classifyDial(err error, addr string, req plugin.Request) *view.Error {
 		if serverName(req) != "" {
 			checked = "the name in " + req.Surface().SettingName("tls-server-name")
 		}
-		rejected := view.Errorf("redis.tls.rejected", "%s presented a certificate that does not verify: %v", addr, verifyErr.Err)
+		rejected := view.Errorf("redis.tls.rejected", "%s presented a certificate that does not verify: %v", req.Reached(addr), verifyErr.Err)
 		// A rule of macOS's own, which the verdict's words do not name: a
 		// ten-year certificate, the usual one for a server of one's own, is
 		// "not standards compliant" there, and the hint below would have
@@ -561,12 +561,12 @@ func nameRefusal(addr string, nameErr x509.HostnameError, req plugin.Request) *v
 	cert := nameErr.Certificate
 	if cert == nil || len(cert.DNSNames)+len(cert.IPAddresses) == 0 {
 		return view.Errorf("redis.tls.name", "%s presented a certificate that names no host, %s or any other",
-			addr, checked).
+			req.Reached(addr), checked).
 			WithHint("a certificate with no subject alternative names verifies as no host at all — it reaches " +
 				"the server once it is reissued with " + checked + " among them")
 	}
 	refusal := view.Errorf("redis.tls.name", "%s presented a certificate for %s, not %s",
-		addr, plugin.CertNames(cert), checked)
+		req.Reached(addr), plugin.CertNames(cert), checked)
 	if serverName(req) != "" {
 		return refusal.WithHint(sf.SettingName("tls-server-name") + " is the name the certificate is checked " +
 			"against — name one it carries, or have it reissued with " + checked + " among its subject " +
