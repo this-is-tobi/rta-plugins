@@ -4,7 +4,7 @@ The first-party plugins for [rta](https://github.com/this-is-tobi/rta), and the 
 
 | Plugin | Service | Capabilities |
 | --- | --- | --- |
-| [`pg`](./plugins/pg/) | PostgreSQL | 10 |
+| [`pg`](./plugins/pg/) | PostgreSQL | 11 |
 | [`mysql`](./plugins/mysql/) | MySQL. Reaches a MariaDB server for the capabilities that connect in-process, but not for `dump`/`restore`, which pass MySQL 8's own flags to a client that has them | 9 |
 | [`mariadb`](./plugins/mariadb/) | MariaDB, adding Galera cluster state, replica status, and a `dump`/`restore` pair spelled the way that client spells it | 11 |
 | [`etcd`](./plugins/etcd/) | etcd v3: cluster health, members, leases, the keyspace, and a snapshot of the whole backend | 7 |
