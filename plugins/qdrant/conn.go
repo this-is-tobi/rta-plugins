@@ -13,8 +13,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -254,11 +252,6 @@ func tlsOn(req plugin.Request) bool {
 	return req.Bool("tls") || req.String("ca-file") != "" || serverName(req) != ""
 }
 
-// tlsAlert is how Go's HTTP client quotes the start of a TLS alert record,
-// the answer a Qdrant that speaks only TLS gives a plain-HTTP request: the
-// client reads it as a response line, and says it is malformed.
-var tlsAlert = "malformed HTTP response " + strings.TrimSuffix(strconv.Quote(string([]byte{0x15, 0x03})), `"`)
-
 // tlsExpected is the refusal for a plain-HTTP call to a port that speaks only
 // TLS. Through a forward that is the host's doing — it turns tls off unless
 // the profile's connection says its far end speaks TLS — so the way out is
@@ -266,7 +259,7 @@ var tlsAlert = "malformed HTTP response " + strings.TrimSuffix(strconv.Quote(str
 // have named nothing the operator could change.
 func tlsExpected(req plugin.Request) *view.Error {
 	refusal := view.Errorf("qdrant.tls.expected", "this call spoke plain HTTP to a Qdrant that speaks only TLS (%s)",
-		reached(req))
+		req.Reached(req.String("endpoint")))
 	if req.Tunnel() != plugin.TunnelNone {
 		return refusal.WithHint("a forward carries plain HTTP unless the profile's connection says its far end " +
 			"speaks TLS: tunnelTLS: true on that connection")
@@ -460,7 +453,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	// server that had answered, in bytes, with the page of every input for a
 	// hint. Only for a call that spoke plain HTTP: over TLS no alert reaches
 	// the client as a response line.
-	if !tlsOn(req) && strings.Contains(err.Error(), tlsAlert) {
+	if !tlsOn(req) && plugin.TLSExpected(err) {
 		return tlsExpected(req)
 	}
 	return view.Errorf("qdrant.conn.failed", "could not reach %s: %v", where, err).
@@ -471,50 +464,12 @@ func classify(err error, req plugin.Request) *view.Error {
 // forward the host opened — 127.0.0.1 — and not for the name the instance
 // answers as, which the certificate names instead.
 func forwardName(req plugin.Request, hostErr x509.HostnameError) *view.Error {
-	return view.Errorf("qdrant.tls.forward", "the certificate behind profile %s's %s: forward is for %s, not for %s, "+
-		"where the forward ends", req.Profile(), req.Tunnel(), certNames(hostErr.Certificate), hostErr.Host).
+	return view.Errorf("qdrant.tls.forward", "the certificate behind %s is for %s, not for %s, "+
+		"where the forward ends", req.Reached(req.String("endpoint")), plugin.CertNames(hostErr.Certificate), hostErr.Host).
 		WithHint("a forward always ends at 127.0.0.1, so the certificate is checked for the name the instance " +
 			"answers as instead: " + req.Surface().SettingName("tls-server-name") + ", which the profile can " +
 			"hold beside its forward, names it — one the certificate is for — and it is checked as strictly " +
 			"as the host it replaces")
-}
-
-// certNames lists the names a certificate is for, the ones a check reads:
-// its DNS names and its IP addresses, never the subject's common name, which
-// Go's verifier ignores.
-func certNames(cert *x509.Certificate) string {
-	if cert == nil {
-		return "another name"
-	}
-	names := slices.Clone(cert.DNSNames)
-	for _, ip := range cert.IPAddresses {
-		names = append(names, ip.String())
-	}
-	switch {
-	case len(names) == 0:
-		return "no name a check reads"
-	case len(names) > 3:
-		return strings.Join(names[:3], ", ") + fmt.Sprintf(" and %d more", len(names)-3)
-	}
-	return strings.Join(names, ", ")
-}
-
-// reached names the instance this call reached the way its reader reaches it
-// again once the call is over: the endpoint, beside the profile that filled
-// the rest of the connection when there was one — and the profile alone when
-// the host reached the instance through a forward it opened on that profile.
-// A forward's end is 127.0.0.1 and a port that closed with the call, and a
-// receipt naming it named an instance nothing answers as any more.
-func reached(req plugin.Request) string {
-	endpoint := req.String("endpoint")
-	switch profile := req.Profile(); {
-	case profile == "":
-		return endpoint
-	case req.Tunnel() == plugin.TunnelNone:
-		return endpoint + " (profile " + profile + ")"
-	default:
-		return "profile " + profile + ", through its " + string(req.Tunnel()) + ": forward"
-	}
 }
 
 func hostOnly(endpoint string) string {
