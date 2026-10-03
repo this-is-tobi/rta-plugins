@@ -81,6 +81,29 @@ func TestOverviewSaysWhichReadFailedInsteadOfDroppingIt(t *testing.T) {
 	}
 }
 
+// An overview that read nothing says why unless it was the token's policy.
+// It said "nothing could be read" with no hint whatever the cause — the same
+// sentence for a token whose policy reads neither call as for a Vault nothing
+// listens at — so the failures an agent can act on (the address is wrong, the
+// server is down, the request is not one Vault accepts) were told as the one it
+// cannot. A server answering 400 stands for them here: a refused connection is
+// retried by the client for several seconds, which no unit test should wait on.
+func TestAnOverviewThatReadNothingSaysWhyWhenItWasNotThePolicy(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"errors":["missing request"]}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	for _, detail := range []bool{false, true} {
+		_, err := overviewOf(t, srv, detail)
+		verr := view.AsError(err, "")
+		if verr == nil || verr.Code != "vault.badrequest" {
+			t.Errorf("detail=%v: err = %+v, want vault.badrequest", detail, verr)
+		}
+	}
+}
+
 // And a Vault where nothing answers is still an error rather than a page of
 // apologies — the existing behaviour, kept now that the rows above are no
 // longer what distinguishes the two.
