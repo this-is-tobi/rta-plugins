@@ -53,7 +53,7 @@ func TestTheStopARemovalOffersReachesTheDaemonItRead(t *testing.T) {
 		{"another daemon", map[string]any{"host": "ssh://build@ci", "context": "ci"}, "", plugin.SurfaceCLI,
 			"`rta docker container stop web --host ssh://build@ci --context ci`"},
 		{"a profile", map[string]any{"host": "ssh://build@ci"}, "ci", plugin.SurfaceCLI,
-			"`rta docker container stop web --host ssh://build@ci --profile ci`"},
+			"`rta docker container stop web --profile ci --host ssh://build@ci`"},
 		{"an agent through a profile", map[string]any{"host": "ssh://build@ci"}, "ci", plugin.SurfaceMCP,
 			"`docker_container_stop {\"container\":\"web\",\"profile\":\"ci\"}`"},
 	} {
