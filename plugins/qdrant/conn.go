@@ -322,7 +322,7 @@ var maxResponseBytes int64 = 32 << 20
 // classifyStatus turns an HTTP failure into something an operator can act on.
 // Qdrant puts a reason in the body, and it is usually the useful half.
 func classifyStatus(code int, body []byte, req plugin.Request) *view.Error {
-	where := req.String("endpoint")
+	where := req.Reached(req.String("endpoint"))
 	detail := qdrantErrorText(body)
 
 	switch code {
