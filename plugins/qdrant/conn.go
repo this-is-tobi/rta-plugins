@@ -301,7 +301,7 @@ func tlsOn(req plugin.Request) bool {
 // named there, where an endpoint or a tls typed over the forward's would
 // have named nothing the operator could change.
 func tlsExpected(req plugin.Request) *view.Error {
-	refusal := view.Errorf("qdrant.tls.expected", "this call spoke plain HTTP to a Qdrant that speaks only TLS (%s)",
+	refusal := view.Errorf("qdrant.tls.expected", "this call spoke plain HTTP to %s, which speaks only TLS",
 		req.Reached(req.String("endpoint")))
 	if req.Tunnel() != plugin.TunnelNone {
 		return refusal.WithHint("a forward carries plain HTTP unless the profile's connection says its far end " +
