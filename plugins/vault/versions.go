@@ -94,18 +94,20 @@ func versionState(v vaultapi.KVVersionMetadata, current int) string {
 	return state + ", current"
 }
 
+// vault.kv.history is Read, like vault.kv.list: it is the shape of the chain
+// and never a link of it, since no version's data is fetched. The structured
+// equivalent of `vault kv metadata get`.
 func kvHistoryCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.kv.history",
 		Summary:    "A secret's versions — which is current, which are deleted or destroyed — never values",
 		Safety:     plugin.Read,
 		Idempotent: true,
-		Description: "The structured equivalent of `vault kv metadata get`: every version the engine " +
-			"still knows about, when each was written, and whether it is the current one, deleted " +
-			"(hidden, and vault.kv.undelete brings it back) or destroyed (gone). Read, like " +
-			"vault.kv.list, for the same reason: this is the shape of the chain and never a link " +
-			"of it — no version's data is fetched. The count is how many earlier values a " +
-			"rotation could still reach, which is what `vault kv get -version` reads.",
+		Description: "Every version the engine still knows about, when each was written, and whether " +
+			"it is the current one, deleted (hidden, and vault.kv.undelete brings it back) or " +
+			"destroyed (gone). The shape of the chain and never a link of it: no version's data " +
+			"is fetched. The count is how many earlier values vault.kv.get's `version` can still " +
+			"reach.",
 		Run: runKVHistory,
 	}, mountField(), pathField("the secret's path within the mount"))
 }
@@ -147,6 +149,10 @@ func runKVHistory(ctx context.Context, req plugin.Request) (view.View, error) {
 	})
 }
 
+// vault.kv.delete is `vault kv delete`: a soft delete, so it is Write with a
+// grant rather than Destructive. It needs the grant vault.kv.set needs, naming
+// the path, because hiding the current version is what a reader of that path
+// sees as the secret going away.
 func kvDeleteCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.kv.delete",
@@ -155,12 +161,12 @@ func kvDeleteCapability() plugin.Capability {
 		NeedsGrant: true,
 		Scope:      "path",
 		Idempotent: true,
-		Description: "A soft delete, which is what `vault kv delete` does: the data of the versions " +
-			"named is hidden and vault.kv.undelete brings it back — nothing here is destroyed. " +
-			"With no `versions`, the current version. The metadata and every other version stay, " +
-			"so vault.kv.get still answers for those and vault.kv.history lists the deleted ones " +
-			"as deleted. Needs the grant vault.kv.set needs, naming the path, because hiding the " +
-			"current version is what a reader of that path sees as the secret going away.",
+		Description: "A soft delete: the data of the versions named is hidden and vault.kv.undelete " +
+			"brings it back — nothing here is destroyed. With no `versions`, the current version. " +
+			"The metadata and every other version stay, so vault.kv.get still answers for those " +
+			"and vault.kv.history lists the deleted ones as deleted. It needs a grant naming the " +
+			"path, because hiding the current version is what a reader of that path sees as the " +
+			"secret going away.",
 		Run: runKVDelete,
 	}, mountField(), pathField("the secret's path within the mount"),
 		versionsField(false, "version numbers, as vault.kv.history lists them; none means the current version"))

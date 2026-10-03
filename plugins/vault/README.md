@@ -44,7 +44,7 @@ Under `plugins: vault:` in rta's configuration, or in a profile's `set:`. An ins
 
 ## vault.kv.delete
 
-A soft delete, which is what `vault kv delete` does: the data of the versions named is hidden and vault.kv.undelete brings it back — nothing here is destroyed. With no `versions`, the current version. The metadata and every other version stay, so vault.kv.get still answers for those and vault.kv.history lists the deleted ones as deleted. Needs the grant vault.kv.set needs, naming the path, because hiding the current version is what a reader of that path sees as the secret going away.
+A soft delete: the data of the versions named is hidden and vault.kv.undelete brings it back — nothing here is destroyed. With no `versions`, the current version. The metadata and every other version stay, so vault.kv.get still answers for those and vault.kv.history lists the deleted ones as deleted. It needs a grant naming the path, because hiding the current version is what a reader of that path sees as the secret going away.
 
 | Field                 | Value                                                                                                                                                                                                           |
 |-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -91,7 +91,7 @@ The versions named are gone: the data is erased and the chain keeps only the fac
 
 ## vault.kv.get
 
-Write, the same as builtin/kv's kv.get, for the same reason: revealing a secret's plaintext has blast radius even though nothing here is modified. A deleted (but not destroyed) version reports which, rather than an empty secret that looks the same as one that was never there.
+Returns the secret's plaintext, which is why it needs a grant although nothing here is modified. A deleted (but not destroyed) version says so, rather than answering with an empty secret that looks the same as one that was never there.
 
 | Field                 | Value                                                                                                                                                                                               |
 |-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -115,7 +115,7 @@ Write, the same as builtin/kv's kv.get, for the same reason: revealing a secret'
 
 ## vault.kv.history
 
-The structured equivalent of `vault kv metadata get`: every version the engine still knows about, when each was written, and whether it is the current one, deleted (hidden, and vault.kv.undelete brings it back) or destroyed (gone). Read, like vault.kv.list, for the same reason: this is the shape of the chain and never a link of it — no version's data is fetched. The count is how many earlier values a rotation could still reach, which is what `vault kv get -version` reads.
+Every version the engine still knows about, when each was written, and whether it is the current one, deleted (hidden, and vault.kv.undelete brings it back) or destroyed (gone). The shape of the chain and never a link of it: no version's data is fetched. The count is how many earlier values vault.kv.get's `version` can still reach.
 
 | Field                 | Value                                                                                                                                                                                   |
 |-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -137,7 +137,7 @@ The structured equivalent of `vault kv metadata get`: every version the engine s
 
 ## vault.kv.list
 
-The structured equivalent of `vault kv list`: names only, the same Read/Write split builtin/kv's kv.list and kv.get already draw. A name ending in "/" is itself a path, one level further to list.
+Names only, never values — vault.kv.get is where a secret's data is. A name ending in "/" is itself a path, one level further to list.
 
 | Field                 | Value                                                                                                                                                                                   |
 |-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -159,7 +159,7 @@ The structured equivalent of `vault kv list`: names only, the same Read/Write sp
 
 ## vault.kv.set
 
-The same overwrite risk builtin/kv's kv.set carries, needing the same grant, and the same name: this always creates a brand new version rather than merging into the current one — vault.kv.list and vault.kv.get already show what is there before this replaces it.
+Always creates a new version holding exactly `data`: the fields of the current version are replaced, not merged into. vault.kv.get shows what is there before this replaces it, and the version it replaces is kept — read with vault.kv.get's `version` until the mount's version limit drops it.
 
 | Field                 | Value                                                                                                                                                                                                    |
 |-----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -183,9 +183,9 @@ The same overwrite risk builtin/kv's kv.set carries, needing the same grant, and
 
 ## vault.kv.tree
 
-`vault kv list` answers one level at a time, and a name ending in "/" is another path to list — so learning where anything lives in somebody else's Vault means retyping the path over and over. This walks it once and draws the shape.
+vault.kv.list answers one level at a time, and a name ending in "/" is another path to list — so learning where anything lives in somebody else's Vault means calling it over and over. This walks it once and draws the shape.
 
-Names only, never values: the same Read/Write split vault.kv.list and vault.kv.get already draw, and the reason a listing is ungated while a read is not.
+Names only, never values: vault.kv.get is where a secret's data is.
 
 Bounded in both directions, and it says when it stopped. A folder the token may not list is marked and stepped over rather than ending the walk — a policy that grants part of a mount is the normal case, and the part you can see is still the answer you came for.
 
@@ -234,7 +234,7 @@ The other half of vault.kv.delete: the versions named become readable again, exa
 
 ## vault.lease.show
 
-The structured equivalent of `vault lease lookup`: when a leased secret (a database credential, an issued certificate) expires and whether it can be renewed — never the secret the lease was issued for.
+When a leased secret (a database credential, an issued certificate) expires and whether it can be renewed — never the secret the lease was issued for.
 
 | Field                 | Value                                                                                                                                                                                   |
 |-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -245,7 +245,7 @@ The structured equivalent of `vault lease lookup`: when a leased secret (a datab
 | cli                   | rta vault lease show \<id> \[--address \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\] \[--tls-server-name \<string>\]                              |
 | mcp-tool              | vault_lease_show                                                                                                                                                                        |
 | profiles              | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
-| input:id              | string, required — the lease ID, as \`vault lease lookup\` or a secret's own LeaseID reports it                                                                                         |
+| input:id              | string, required — the lease ID, as the response that issued the secret reports it (lease_id)                                                                                           |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
 | input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
@@ -295,7 +295,7 @@ Whether this Vault is worth talking to at all, and what the configured token can
 
 ## vault.policy.list
 
-Names, not rules — vault.policy.get shows one policy's own document. A policy names paths and capabilities, not secret values, so listing and reading policy documents stays Read the way builtin/kv's kv.recipients (public keys, not secrets) does.
+Names, not rules — vault.policy.get shows one policy's own document. A policy names paths and capabilities, not secret values, so neither call needs a grant.
 
 | Field                 | Value                                                                                                                                                                                   |
 |-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -341,7 +341,7 @@ A snapshot from a different cluster is refused by Vault itself unless `force` sk
 
 ## vault.seal.status
 
-The same shape builtin/kv's kv.status has, for the same reason: where the vault is and what it would take to open it, without opening it or touching a single secret. Answerable before authentication even matters — a sealed Vault refuses every token, including a valid one, so this is the first thing worth checking when anything else here fails.
+Where the vault is and what it would take to open it, without opening it or touching a single secret. Answerable before authentication even matters — a sealed Vault refuses every token, including a valid one, so this is the first thing worth checking when anything else here fails.
 
 | Field                 | Value                                                                                                                                                                                   |
 |-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -406,7 +406,7 @@ Always the caller's own token (Vault's own `auth/token/lookup-self`) — looking
 
 ## vault.transit.decrypt
 
-The reveal half of transit: whoever holds the ciphertext gets the plaintext back, which is exactly vault.kv.get's blast radius against a different store — same Write+NeedsGrant answer.
+The reveal half of transit: whoever holds the ciphertext gets the plaintext back, so it needs a grant, as vault.kv.get does.
 
 | Field                 | Value                                                                                                                                                                                                           |
 |-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -430,7 +430,7 @@ The reveal half of transit: whoever holds the ciphertext gets the plaintext back
 
 ## vault.transit.encrypt
 
-Write, not Read+NeedsGrant like vault.kv.get: nothing here is revealed to the caller that they did not already hand over — the plaintext is theirs, only the ciphertext comes back — but the key material is materially used to produce it, which is what keeps this off Read (the same distinction gpg.sign's design draws for a signature: no key exposure, real use). The key itself never leaves Vault; that is the whole point of the transit engine.
+Nothing is revealed that the caller did not already hand over — the plaintext is theirs, only the ciphertext comes back — but the key is used to produce it, which is why this needs a grant. The key itself never leaves Vault. The ciphertext is the `vault:v1:...` text vault.transit.decrypt takes back.
 
 | Field                 | Value                                                                                                                                                                                                            |
 |-----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -454,7 +454,7 @@ Write, not Read+NeedsGrant like vault.kv.get: nothing here is revealed to the ca
 
 ## vault.wrap.get
 
-Consumes the token: a second call against the same token gets Vault's own "wrapping token is not valid or does not exist" refusal, from Vault itself rather than anything this plugin tracks. A dry run must not spend the one read this token has, so it calls sys/wrapping/lookup instead — creation time, path and TTL, without the payload and without consuming anything.
+Consumes the token: a second call against the same token gets Vault's own "wrapping token is not valid or does not exist" refusal, from Vault itself rather than anything this plugin tracks. A dry run does not spend the one read this token has: it asks Vault for the creation time, path and TTL instead, without the payload.
 
 | Field                 | Value                                                                                                                                                                                   |
 |-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -466,7 +466,7 @@ Consumes the token: a second call against the same token gets Vault's own "wrapp
 | mcp-tool              | vault_wrap_get                                                                                                                                                                          |
 | grant required (mcp)  | yes — a person must run \`rta grant allow vault.wrap.get\`                                                                                                                              |
 | profiles              | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
-| input:wrapping-token  | secret, required — the wrapping token vault.wrap.set returned — a different token from \`token\`, this plugin's own auth credential                                                     |
+| input:wrapping-token  | secret, required — the token vault.wrap.set returned — not the Vault token this plugin logs in with                                                                                     |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
 | input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
@@ -476,7 +476,7 @@ Consumes the token: a second call against the same token gets Vault's own "wrapp
 
 ## vault.wrap.set
 
-The recipient calls vault.wrap.get with the token this returns, once — Vault destroys the cubbyhole the instant it is read, by anyone, so a second read (an eavesdropper, a retry) gets nothing. No Scope: this wraps whatever data it is handed rather than acting on a record that already exists, so there is nothing to name one grant against the way vault.kv.get names a path.
+The recipient calls vault.wrap.get with the token this returns, once — Vault destroys the cubbyhole the instant it is read, by anyone, so a second read (an eavesdropper, a retry) gets nothing. `ttl` is a duration such as 5m, and it bounds how long the token waits unread.
 
 | Field                 | Value                                                                                                                                                                                            |
 |-----------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|

@@ -18,6 +18,10 @@ import (
 // pass-through rather than a new transport — it reaches only someone who can
 // already reach this Vault deployment. That is "share within your infra",
 // not "send to anybody", which would need a different transport entirely.
+//
+// No Scope on wrap.set: it wraps whatever data it is handed rather than
+// acting on a record that already exists, so there is nothing to name one
+// grant against the way vault.kv.get names a path.
 func wrapSetCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.wrap.set",
@@ -27,9 +31,8 @@ func wrapSetCapability() plugin.Capability {
 		Idempotent: false,
 		Description: "The recipient calls vault.wrap.get with the token this returns, once — " +
 			"Vault destroys the cubbyhole the instant it is read, by anyone, so a second read (an " +
-			"eavesdropper, a retry) gets nothing. No Scope: this wraps whatever data it is handed " +
-			"rather than acting on a record that already exists, so there is nothing to name one " +
-			"grant against the way vault.kv.get names a path.",
+			"eavesdropper, a retry) gets nothing. `ttl` is a duration such as 5m, and it bounds how " +
+			"long the token waits unread.",
 		Run: runWrapSet,
 	}, plugin.Field{Name: "data", Type: plugin.SecretSlice, Required: true,
 		Help: "key=value, repeated for more than one field"},
@@ -103,13 +106,11 @@ func wrapGetCapability() plugin.Capability {
 		Idempotent: false,
 		Description: "Consumes the token: a second call against the same token gets Vault's own " +
 			"\"wrapping token is not valid or does not exist\" refusal, from Vault itself rather " +
-			"than anything this plugin tracks. A dry run must not spend the one read this token " +
-			"has, so it calls sys/wrapping/lookup instead — creation time, path and TTL, without " +
-			"the payload and without consuming anything.",
+			"than anything this plugin tracks. A dry run does not spend the one read this token " +
+			"has: it asks Vault for the creation time, path and TTL instead, without the payload.",
 		Run: runWrapGet,
 	}, plugin.Field{Name: "wrapping-token", Type: plugin.Secret, Positional: true, Required: true,
-		Help: "the wrapping token vault.wrap.set returned — a different token from `token`, " +
-			"this plugin's own auth credential"})
+		Help: "the token vault.wrap.set returned — not the Vault token this plugin logs in with"})
 }
 
 func runWrapGet(ctx context.Context, req plugin.Request) (view.View, error) {

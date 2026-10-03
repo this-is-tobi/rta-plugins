@@ -49,18 +49,18 @@ func runTokenStatus(ctx context.Context, req plugin.Request) (view.View, error) 
 	})
 }
 
+// vault.lease.show is the structured equivalent of `vault lease lookup`.
 func leaseShowCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.lease.show",
 		Summary:    "A lease's TTL and renewability",
 		Safety:     plugin.Read,
 		Idempotent: true,
-		Description: "The structured equivalent of `vault lease lookup`: when a leased secret " +
-			"(a database credential, an issued certificate) expires and whether it can be renewed " +
-			"— never the secret the lease was issued for.",
+		Description: "When a leased secret (a database credential, an issued certificate) expires " +
+			"and whether it can be renewed — never the secret the lease was issued for.",
 		Run: runLeaseShow,
 	}, plugin.Field{Name: "id", Type: plugin.String, Positional: true, Required: true,
-		Help: "the lease ID, as `vault lease lookup` or a secret's own LeaseID reports it"})
+		Help: "the lease ID, as the response that issued the secret reports it (lease_id)"})
 }
 
 func runLeaseShow(ctx context.Context, req plugin.Request) (view.View, error) {
