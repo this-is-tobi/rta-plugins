@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -199,12 +200,20 @@ func gradeReceiver(f replicationFacts) verdict {
 }
 
 // gradeSynchronous is the one finding a commit feels: with
-// synchronous_standby_names set and no standby that is synchronous, every
-// commit waits for one to appear, which from the application looks like a
-// database that hangs on write. Not judged while any standby is hidden, since
-// the hidden one may be the synchronous one, and not judged where the
-// server-wide synchronous_commit is off or local, which is the setting under
-// which a commit never waits for a standby however the names read.
+// synchronous_standby_names set and fewer synchronous standbys connected than
+// it asks for, every commit waits for another to appear, which from the
+// application looks like a database that hangs on write. Not judged while any
+// standby is hidden, since the hidden one may be a synchronous one, and not
+// judged where the server-wide synchronous_commit is off or local, which is the
+// setting under which a commit never waits for a standby however the names read.
+//
+// **How many it asks for is read off the setting, and a standby counts when
+// the primary calls it sync or quorum.** FIRST 2 (a, b, c) with two of them
+// connected is satisfied, and with one is a stall that "no standby is
+// synchronous" never said: the one connected is. An ANY 2 over three, with one
+// up, was the same, found against a primary whose commits hung while this
+// graded them ok. A setting this cannot read (a form a newer server adds) asks
+// for one, which is what the bare list of names has always meant.
 func gradeSynchronous(f replicationFacts) verdict {
 	g := verdict{status: gradeOK}
 	if f.server.recovering || f.server.syncNames == "" {
@@ -213,15 +222,49 @@ func gradeSynchronous(f replicationFacts) verdict {
 	if f.server.syncCommit == "off" || f.server.syncCommit == "local" {
 		return g
 	}
+	have := 0
 	for _, s := range f.standbys {
 		if s.hidden() {
 			return g
 		}
 		if s.syncKind != nil && (*s.syncKind == "sync" || *s.syncKind == "quorum") {
-			return g
+			have++
 		}
 	}
-	g.note(gradeFail, "synchronous_standby_names is "+f.server.syncNames+
-		" and no standby is synchronous, so every commit waits for one to connect")
+	need := synchronousStandbysNeeded(f.server.syncNames)
+	switch {
+	case have == 0:
+		g.note(gradeFail, "synchronous_standby_names is "+f.server.syncNames+
+			" and no standby is synchronous, so every commit waits for one to connect")
+	case have < need:
+		g.note(gradeFail, "synchronous_standby_names is "+f.server.syncNames+" and asks for "+
+			fmt.Sprintf("%d synchronous standbys, and only %d connected", need, have)+
+			", so every commit waits for another to connect")
+	}
 	return g
+}
+
+// synchronousStandbysNeeded is how many synchronous standbys a
+// synchronous_standby_names value asks for: the number in FIRST n (...), ANY n
+// (...) and the older n (...), and one for a bare list of names, or for
+// anything else.
+func synchronousStandbysNeeded(setting string) int {
+	rest := strings.TrimSpace(setting)
+	lower := strings.ToLower(rest)
+	for _, keyword := range []string{"first", "any"} {
+		if strings.HasPrefix(lower, keyword) && len(rest) > len(keyword) && (rest[len(keyword)] == ' ' || rest[len(keyword)] == '\t') {
+			rest = strings.TrimSpace(rest[len(keyword):])
+			break
+		}
+	}
+	digits := 0
+	for digits < len(rest) && rest[digits] >= '0' && rest[digits] <= '9' {
+		digits++
+	}
+	if digits > 0 && strings.HasPrefix(strings.TrimSpace(rest[digits:]), "(") {
+		if n, err := strconv.Atoi(rest[:digits]); err == nil && n > 0 {
+			return n
+		}
+	}
+	return 1
 }
