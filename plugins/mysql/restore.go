@@ -89,7 +89,7 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 	if database == "" {
 		return nil, view.Errorf("mysql.restore.nodatabase", "say which database to restore into").
 			WithHint(req.Surface().SettingTo("database", "<name>") + " — " +
-				req.Surface().CapabilityName("mysql.database.list") + " shows what is there, and " +
+				nextCall(req, "mysql.database.list") + " shows what is there, and " +
 				"CREATE DATABASE makes a fresh one")
 	}
 	path, err := expandHome(strings.TrimSpace(req.String("file")))
