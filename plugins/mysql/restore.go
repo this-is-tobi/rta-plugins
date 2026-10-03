@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -201,6 +202,21 @@ func restoreArgs(req plugin.Request) []string {
 	return append(args, req.String("database"))
 }
 
+// plainIdentifier is a name MySQL reads as an identifier without quotes.
+var plainIdentifier = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_$]*$`)
+
+// createDatabase is the statement that makes database, for a hint to print
+// and a reader to paste. The name is the caller's, and MySQL reads a bare
+// `my-app` as a subtraction and `orders 2024` as two words: a name that is
+// not a plain identifier is quoted in backticks, one inside it doubled, which
+// is how MySQL quotes an identifier whatever the SQL mode.
+func createDatabase(database string) string {
+	if !plainIdentifier.MatchString(database) {
+		database = "`" + strings.ReplaceAll(database, "`", "``") + "`"
+	}
+	return "CREATE DATABASE " + database
+}
+
 // checkTarget asks the server what it is before anything writes into it, on
 // one connection.
 func checkTarget(ctx context.Context, req plugin.Request, database string) *view.Error {
@@ -214,7 +230,7 @@ func checkTarget(ctx context.Context, req plugin.Request, database string) *view
 		if verr.Code == "mysql.database.notfound" {
 			return view.Errorf("mysql.restore.notarget", "%s", verr.Message).
 				WithHint("rta does not create databases on its own — a typo'd name becoming a " +
-					"new database is worse than this refusal. `CREATE DATABASE " + database +
+					"new database is worse than this refusal. `" + createDatabase(database) +
 					"` makes it, then restore again")
 		}
 		return verr
