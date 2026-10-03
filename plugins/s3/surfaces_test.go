@@ -76,8 +76,8 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "credentials the server rejected",
-			cli:     "or check --access-key",
-			other:   "or check the operator's `access-key` setting",
+			cli:     "the secret key is read from $RTA_S3_SECRET_KEY or --secret-key — check it, and --access-key",
+			other:   "the secret key is read from $RTA_S3_SECRET_KEY or the operator's `secret-key` setting — check it, and the operator's `access-key` setting",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(minio.ErrorResponse{Code: minio.InvalidAccessKeyID}, r(sf)))
