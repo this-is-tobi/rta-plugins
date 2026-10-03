@@ -215,14 +215,14 @@ func TestTheReceiptStatesWhichConsistencyGuaranteeItHad(t *testing.T) {
 // A dump from a replica is as current as the replay lag, and the receipt is
 // where somebody is looking when that matters.
 func TestTheReceiptSaysWhenTheSourceWasAReplica(t *testing.T) {
-	standby := source{role: "standby", version: 170011}.describe(plugin.SurfaceCLI)
+	standby := source{role: "standby", version: 170011}.describe(reqFor(t, "pg.dump", nil).WithSurface(plugin.SurfaceCLI))
 	if !strings.Contains(standby, "standby") || !strings.Contains(standby, "17.11") {
 		t.Errorf("standby = %q", standby)
 	}
 	if !strings.Contains(standby, "replay lag") {
 		t.Errorf("standby = %q, want it to say what a replica dump is current as of", standby)
 	}
-	primary := source{role: "primary", version: 170011}.describe(plugin.SurfaceCLI)
+	primary := source{role: "primary", version: 170011}.describe(reqFor(t, "pg.dump", nil).WithSurface(plugin.SurfaceCLI))
 	if strings.Contains(primary, "replay lag") {
 		t.Errorf("primary = %q, want no replica caveat on a primary", primary)
 	}

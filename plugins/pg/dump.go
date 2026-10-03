@@ -140,7 +140,7 @@ func resolveRelation(ctx context.Context, q querier, req plugin.Request) (relati
 				WithHint("a grant for this name will not help — grants are matched exactly, so " +
 					"an unqualified one would follow whichever schema resolves first. For the " +
 					"qualified name, " + plugin.AskOperator("grant allow pg.table.dump <schema>."+raw) + "; " +
-					req.Surface().CapabilityName("pg.table.list") + " shows the schema of each table")
+					nextCall(req, "pg.table.list") + " shows the schema of each table")
 		}
 		schema, name = "", raw
 	}
@@ -175,7 +175,7 @@ func resolveRelation(ctx context.Context, q querier, req plugin.Request) (relati
 	case 0:
 		return relation{}, view.Errorf("pg.table.missing",
 			"%s has no table named %q", req.String("database"), raw).
-			WithHint(req.Surface().CapabilityName("pg.table.list") + " shows what is there — foreign tables and the " +
+			WithHint(nextCall(req, "pg.table.list") + " shows what is there — foreign tables and the " +
 				"system catalogues are deliberately not dumpable, since neither has rows " +
 				"this database owns")
 	default:

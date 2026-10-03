@@ -143,7 +143,7 @@ func runFullDump(ctx context.Context, req plugin.Request) (view.View, error) {
 		{Key: "size", Value: format.Bytes(written)},
 		{Key: "took", Value: time.Since(started).Round(time.Millisecond).String()},
 		{Key: "contents", Value: contentsOf(req)},
-		{Key: "source", Value: src.describe(req.Surface())},
+		{Key: "source", Value: src.describe(req)},
 		{Key: "consistency", Value: consistencyOf(req)},
 		// Named on the answer rather than left in the docs. The file is every
 		// row in the database in the clear, and the moment to say so is while
@@ -242,14 +242,15 @@ type source struct {
 func (s source) standby() bool { return s.role == "standby" }
 
 // describe says what the server is, and for a standby where its lag is
-// read — named for sf, the surface reading the receipt.
-func (s source) describe(sf plugin.Surface) string {
+// read — named for the surface reading the receipt, and beside the server it
+// reached.
+func (s source) describe(req plugin.Request) string {
 	where := fmt.Sprintf("%s, PostgreSQL %d.%d", s.role, s.version/10000, s.version%10000)
 	if s.standby() {
 		// Said on the receipt because it changes what the dump means and what
 		// can go wrong with it, and the moment to say so is while somebody is
 		// looking at the backup they just took.
-		where += " — a replica is as current as its replay lag, which " + sf.CapabilityName("pg.overview") + " reports"
+		where += " — a replica is as current as its replay lag, which " + nextCall(req, "pg.overview") + " reports"
 	}
 	return where
 }
@@ -654,7 +655,7 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 		// like a server problem and is a client one.
 		return view.Errorf("pg.dump.version", "%s", msg("server version")).
 			WithHint("pg_dump refuses a server newer than itself — install a client at least " +
-				"as new as the server " + req.Surface().CapabilityName("pg.status") + " reports")
+				"as new as the server " + nextCall(req, "pg.status") + " reports")
 	case strings.Contains(stderr, "no password supplied"),
 		strings.Contains(stderr, "password authentication failed"):
 		return view.Errorf("pg.auth.failed", "%s", msg("password")).
@@ -760,44 +761,7 @@ func contentsOf(req plugin.Request) string {
 // profile's and no other layer holds them; and the address beside it then,
 // since it may be one the caller typed over the profile's (Request.Profile).
 func restoreCommand(req plugin.Request, path string) string {
-	args := append([]plugin.Arg{{Name: "file", Value: path, Positional: true}},
-		req.ReachArgs(plugin.Arg{Name: "host", Value: req.String("host")},
-			plugin.Arg{Name: "port", Value: req.Int("port")})...)
-	args = append(args, plugin.Arg{Name: "user", Value: req.String("user")},
-		plugin.Arg{Name: "database", Value: req.String("database")})
-	// Over a forward the mode is the host's, forced, and a line spelling it
-	// would be refused by the host beside the profile: what travels is what
-	// turned TLS on there, the CA and the name.
-	t := transportOf(req)
-	namedRoot := t.rootCert != "" && !t.fromHome.root
-	switch {
-	case req.Tunnel() != plugin.TunnelNone:
-		if namedRoot {
-			args = append(args, plugin.Arg{Name: "sslrootcert", Value: t.rootCert})
-		}
-	case verifiesOrRequires(t.mode):
-		args = append(args, plugin.Arg{Name: "sslmode", Value: t.mode})
-		if namedRoot {
-			args = append(args, plugin.Arg{Name: "sslrootcert", Value: t.rootCert})
-		}
-	}
-	if t.serverName != "" {
-		args = append(args, plugin.Arg{Name: "tls-server-name", Value: t.serverName})
-	}
-	// The client pair the dump presented, by the settings that named it, and
-	// the switch that found it when ssl-home did: a restore that connects
-	// without the certificate the server asked this dump for is refused, and
-	// one that looks under the home of the shell it is pasted into presents
-	// whatever it finds there.
-	if t.mode != "disable" {
-		if t.clientCert != "" && !t.fromHome.client {
-			args = append(args, plugin.Arg{Name: "sslcert", Value: t.clientCert},
-				plugin.Arg{Name: "sslkey", Value: t.clientKey})
-		}
-		if req.Bool("ssl-home") {
-			args = append(args, plugin.Arg{Name: "ssl-home", Value: true})
-		}
-	}
+	args := append([]plugin.Arg{{Name: "file", Value: path, Positional: true}}, reachArgs(req)...)
 	if n := req.Int("jobs"); n > 1 {
 		args = append(args, plugin.Arg{Name: "jobs", Value: n})
 	}

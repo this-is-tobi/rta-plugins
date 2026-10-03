@@ -28,7 +28,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 	}{
 		{
 			name:    "a database the server does not have",
-			cli:     "`rta pg database list` shows what is there",
+			cli:     "`rta pg database list --host localhost --port 5432 --user postgres --database postgres` shows what is there",
 			other:   "the `pg_database_list` tool shows what is there",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {

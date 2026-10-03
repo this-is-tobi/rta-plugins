@@ -444,7 +444,7 @@ func classify(err error, req plugin.Request) *view.Error {
 		case "3D000": // invalid_catalog_name
 			return view.Errorf("pg.database.missing", "%s has no database named %q",
 				where, req.String("database")).
-				WithHint(sf.CapabilityName("pg.database.list") + " shows what is there")
+				WithHint(nextCall(req, "pg.database.list") + " shows what is there")
 		case "42501": // insufficient_privilege
 			return view.Errorf("pg.denied", "%q may not do that on %s",
 				req.String("user"), req.String("database")).

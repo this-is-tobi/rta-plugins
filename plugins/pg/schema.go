@@ -124,7 +124,7 @@ func schemaDDL(ctx context.Context, q querier, req plugin.Request) (view.View, e
 			req.String("database"), schema)
 		if len(names) == 0 {
 			return nil, e.WithHint("this role can see no schemas at all in this database — " +
-				req.Surface().CapabilityName("pg.status") + " shows which role the connection is using")
+				nextCall(req, "pg.status") + " shows which role the connection is using")
 		}
 		return nil, e.WithHint("this database has: " + strings.Join(names, ", "))
 	}
