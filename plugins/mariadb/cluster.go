@@ -79,12 +79,19 @@ const (
 )
 
 // queueWarn is how many writesets may wait to be applied on this node before
-// it is called behind. It is the size of the provider's own default limit for
-// the point at which flow control starts: a queue past it is a node that is
-// applying slower than the cluster writes, which is how a node falls out of a
-// cluster while every flag still reads healthy. It is the node's own queue —
-// the one thing a connection to one node can say about how far behind that
-// node is.
+// it is called behind. A judgement, not a number the server publishes.
+//
+// The provider's own throttle is gcs.fc_limit, which is 16 by default on
+// Galera 4 (read from a MariaDB 11.8 node's wsrep_provider_options), scaled up
+// with the size of a cluster that is not master-slave: flow control holds
+// writers back from a queue of a few dozen, and a queue of a hundred is several
+// times that. So it is a node the throttle is not containing — one desynced
+// on purpose for a backup, which flow control ignores, or applying far slower
+// than the cluster writes, which is how a node falls out of a cluster while
+// every flag still reads healthy. Not read from the live gcs.fc_limit: a node
+// that is desynced is the one whose queue is worth reporting, and for it the
+// limit means nothing. It is the node's own queue, the one thing a connection
+// to one node can say about how far behind that node is.
 const queueWarn = 100
 
 func galeraFacet(v map[string]string) facet {
