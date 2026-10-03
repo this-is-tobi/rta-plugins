@@ -78,6 +78,17 @@ func policyGetCapability() plugin.Capability {
 	}, bucketField("bucket to inspect"))
 }
 
+// noPolicy is the answer for a bucket with no policy, wherever it is noticed.
+// minio-go turns the server's NoSuchBucketPolicy into an empty string and no
+// error, so the empty policy is the path every real call takes and the
+// classified error was only ever the other one: the answer carried no hint,
+// and an agent told a bucket "has no bucket policy set" read it as a bucket
+// anybody can reach, or nobody can.
+func noPolicy(bucket string) *view.Error {
+	return view.Errorf("s3.policy.notfound", "%q has no bucket policy set", bucket).
+		WithHint("an absent policy is not the same as a deny-all one — access still follows IAM/bucket ACLs")
+}
+
 func runPolicyGet(ctx context.Context, req plugin.Request) (view.View, error) {
 	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
 		policy, err := client.GetBucketPolicy(ctx, req.String("bucket"))
@@ -85,7 +96,7 @@ func runPolicyGet(ctx context.Context, req plugin.Request) (view.View, error) {
 			return nil, classify(err, req)
 		}
 		if policy == "" {
-			return nil, view.Errorf("s3.policy.notfound", "%q has no bucket policy set", req.String("bucket"))
+			return nil, noPolicy(req.String("bucket"))
 		}
 		return view.Text{Body: policy}, nil
 	})

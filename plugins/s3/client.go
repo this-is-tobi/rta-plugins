@@ -224,8 +224,7 @@ func classify(err error, req plugin.Request) *view.Error {
 				WithHint(nextCall(req, "s3.object.list", plugin.Arg{Name: "bucket", Value: bucket}) +
 					" shows what is there")
 		case minio.NoSuchBucketPolicy:
-			return view.Errorf("s3.policy.notfound", "%q has no bucket policy set", bucket).
-				WithHint("an absent policy is not the same as a deny-all one — access still follows IAM/bucket ACLs")
+			return noPolicy(bucket)
 		case minio.AccessDenied:
 			return view.Errorf("s3.denied", "%s refused: %s", answered, errResp.Message).
 				WithHint("the credentials are valid but not authorized for this — check the bucket policy or IAM")
