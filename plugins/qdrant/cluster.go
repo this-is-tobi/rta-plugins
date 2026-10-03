@@ -46,6 +46,21 @@ type clusterInfo struct {
 	} `json:"message_send_failures"`
 }
 
+// peerTelemetry is what GET /cluster/telemetry says of one peer: whether the
+// peer asked could reach it, and, when it could, what that peer reports of
+// itself. The asked peer makes the calls, so it works from any peer and not
+// only from the leader, which a send-failure list does not.
+type peerTelemetry struct {
+	Responsive bool `json:"responsive"`
+	Details    *struct {
+		Version string `json:"version"`
+		Role    string `json:"role"`
+		Term    uint64 `json:"term"`
+		Commit  uint64 `json:"commit"`
+		Pending uint64 `json:"num_pending_operations"`
+	} `json:"details"`
+}
+
 // clusterMode is what could be learned about whether this instance is one of
 // several: and "unknown" is its own answer, because a credential limited to
 // collections is refused /cluster and still reads every collection's shards.
@@ -67,6 +82,9 @@ type clusterState struct {
 	// names maps a peer id to the host its URI names, which is how a peer is
 	// told from another in a table: sixteen random digits are not.
 	names map[uint64]string
+	// telemetry is what each peer reported of itself to the one asked, or nil
+	// when the server has no such endpoint or the credential may not read it.
+	telemetry map[uint64]peerTelemetry
 }
 
 // fetchCluster reads /cluster and degrades by what refused it.
@@ -86,7 +104,8 @@ func fetchCluster(ctx context.Context, req plugin.Request) (clusterState, *view.
 	verr := get(ctx, req, "/cluster", &info)
 	switch {
 	case verr == nil && info.Status == "enabled":
-		return clusterState{mode: modeDistributed, info: info, names: peerNames(info)}, nil
+		return clusterState{mode: modeDistributed, info: info, names: peerNames(info),
+			telemetry: fetchTelemetry(ctx, req)}, nil
 	case verr == nil:
 		return clusterState{mode: modeStandalone, info: info}, nil
 	case verr.Code == "qdrant.denied":
@@ -96,6 +115,57 @@ func fetchCluster(ctx context.Context, req plugin.Request) (clusterState, *view.
 		return clusterState{}, nil
 	}
 	return clusterState{}, verr
+}
+
+// peerAnswerBound is how long the peer asked waits for each of the others when
+// it is asked what they report: a peer that does not answer is the finding,
+// and left to the server's own default it held the whole page for a minute.
+const peerAnswerBound = 5
+
+// fetchTelemetry reads GET /cluster/telemetry, the peers' own account of
+// themselves, and is nil for any failure at all.
+//
+// **Nothing here may fail the page.** The endpoint is newer than /cluster
+// (older servers answer 404), and a credential scoped to collections is
+// refused it as it is refused /cluster. The page is complete without it and
+// grades the peers by what it already could, so a missing answer only means
+// fewer columns filled.
+func fetchTelemetry(ctx context.Context, req plugin.Request) map[uint64]peerTelemetry {
+	var out struct {
+		Cluster struct {
+			Peers map[string]peerTelemetry `json:"peers"`
+		} `json:"cluster"`
+	}
+	if verr := get(ctx, req, "/cluster/telemetry?timeout="+strconv.Itoa(peerAnswerBound), &out); verr != nil {
+		return nil
+	}
+	peers := map[uint64]peerTelemetry{}
+	for id, t := range out.Cluster.Peers {
+		if n, err := strconv.ParseUint(id, 10, 64); err == nil {
+			peers[n] = t
+		}
+	}
+	if len(peers) == 0 {
+		return nil
+	}
+	return peers
+}
+
+// versions is the distinct versions the peers report, sorted, for the line
+// that says a cluster is mid-upgrade.
+func (c clusterState) versions() []string {
+	seen := map[string]bool{}
+	for _, t := range c.telemetry {
+		if t.Details != nil && t.Details.Version != "" {
+			seen[t.Details.Version] = true
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for v := range seen {
+		out = append(out, v)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func peerNames(info clusterInfo) map[uint64]string {
@@ -124,7 +194,11 @@ func (c clusterState) modeText() string {
 		if role == "" {
 			role = "a member"
 		}
-		return "distributed — " + peers + ", this one (" + c.label(c.info.PeerID) + ") is " + role
+		text := "distributed — " + peers + ", this one (" + c.label(c.info.PeerID) + ") is " + role
+		if v := c.versions(); len(v) > 1 {
+			text += ", on " + strconv.Itoa(len(v)) + " versions (" + strings.Join(v, ", ") + ")"
+		}
+		return text
 	}
 	if c.note != "" {
 		return "not shown — " + strings.TrimPrefix(c.note, "consensus state not shown: ")
@@ -150,19 +224,22 @@ const recentFailure = 30 * time.Second
 // peersTable is every peer this one knows, with the consensus state of this
 // one and what this one can say of the others.
 //
-// **The other peers' term and commit are blank, on purpose.** They are each
-// peer's own, served at its own REST address, and the peer list names only the
+// **The other peers' own numbers come from this peer, never from them.** Each
+// is served at that peer's own REST address, and the peer list names only the
 // internal one: the cluster's gRPC port, which this plugin does not speak.
 // Guessing the REST port from it and sending the credential there would be a
-// request to an address nobody configured, so the other peers are read by
-// pointing this plugin at each, where each is the one that is described.
-// What this peer does know of them is whether it can still message them, and
-// that is graded.
+// request to an address nobody configured. The peer asked reports what it
+// learned of the others over the cluster's own channel (/cluster/telemetry),
+// which is the version, the role, the term, the commit and whether the peer
+// answered at all, from any peer and not only the leader. Where the server has
+// no such endpoint the cells are blank, and the peer is graded by whether this
+// one can message it.
 func peersTable(c clusterState, now time.Time) view.Table {
 	t := view.Table{Columns: []view.Column{
 		{Name: "Peer"},
 		{Name: "URI"},
 		{Name: "Role"},
+		{Name: "Version"},
 		{Name: "Term", Kind: view.KindNumber},
 		{Name: "Commit", Kind: view.KindNumber},
 		{Name: "Pending", Kind: view.KindNumber},
@@ -186,15 +263,30 @@ func peersTable(c clusterState, now time.Time) view.Table {
 		uri := c.info.Peers[strconv.FormatUint(id, 10)].URI
 		role := c.roleOf(id)
 		if id == c.info.PeerID {
-			t.Rows = append(t.Rows, []string{c.label(id) + " (this peer)", uri, role,
+			t.Rows = append(t.Rows, []string{c.label(id) + " (this peer)", uri, role, c.versionOf(id),
 				strconv.FormatUint(c.info.RaftInfo.Term, 10), strconv.FormatUint(c.info.RaftInfo.Commit, 10),
 				strconv.FormatUint(c.info.RaftInfo.PendingOperations, 10), c.selfHealth()})
 			continue
 		}
-		t.Rows = append(t.Rows, []string{c.label(id), uri, role, "-", "-", "-", c.peerHealth(id, uri, now)})
+		term, commit, pending := "-", "-", "-"
+		if d := c.telemetry[id].Details; d != nil {
+			term, commit, pending = strconv.FormatUint(d.Term, 10), strconv.FormatUint(d.Commit, 10),
+				strconv.FormatUint(d.Pending, 10)
+		}
+		t.Rows = append(t.Rows, []string{c.label(id), uri, role, c.versionOf(id), term, commit, pending,
+			c.peerHealth(id, uri, now)})
 	}
 	t.Total = len(t.Rows)
 	return t
+}
+
+// versionOf is the version peer id reports of itself, or "-" where it did not
+// say: the server has no telemetry endpoint, or the peer does not answer.
+func (c clusterState) versionOf(id uint64) string {
+	if d := c.telemetry[id].Details; d != nil && d.Version != "" {
+		return d.Version
+	}
+	return "-"
 }
 
 func (c clusterState) roleOf(id uint64) string {
@@ -251,10 +343,18 @@ func sendError(msg, uri string) string {
 }
 
 // peersDown says which peers this one cannot message right now, for the
-// replicas that live on them. Only the leader sends to every peer, so only a
-// leader can say: asked of a follower the answer is none, which is not "all
-// reachable" and is why the peers table says "not observed" there.
+// replicas that live on them. Where the server reports its peers' telemetry
+// the answer is that, from any peer. Without it only the leader sends to every
+// peer, so only a leader can say: asked of a follower the answer is none,
+// which is not "all reachable" and is why the peers table says "not observed"
+// there.
 func (c clusterState) peersDown(now time.Time) func(uint64) bool {
+	if c.mode == modeDistributed && c.telemetry != nil {
+		return func(id uint64) bool {
+			t, ok := c.telemetry[id]
+			return ok && id != c.info.PeerID && !t.Responsive
+		}
+	}
 	leader := c.info.RaftInfo.Leader
 	if c.mode != modeDistributed || leader == nil || *leader != c.info.PeerID {
 		return nil
@@ -287,8 +387,15 @@ func failedMessages(n uint64) string {
 // view of it, and says so, muted, rather than a green the evidence does not
 // support.
 func (c clusterState) peerHealth(id uint64, uri string, now time.Time) string {
+	t, told := c.telemetry[id]
+	if told && !t.Responsive {
+		return "fail — does not answer the peer asked"
+	}
 	leader := c.info.RaftInfo.Leader
 	if leader == nil || (*leader != c.info.PeerID && *leader != id) {
+		if told {
+			return "ok — answers the peer asked"
+		}
 		return "info — a follower messages only the leader, so this peer has no view of it"
 	}
 	f, ok := c.info.SendFailures[uri]
