@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.2.0...plugins/keycloak/v0.2.1) (2026-10-03)
+
+
+### Bug Fixes
+
+* **keycloak:** a certificate macOS refuses for its length names the rule and its fix ([9e20ee1](https://github.com/this-is-tobi/rta-plugins/commit/9e20ee1c42d66439b7518155f3761b69edf10946))
+* **keycloak:** a refusal the server gave names the profile, not the end of its forward ([5621322](https://github.com/this-is-tobi/rta-plugins/commit/5621322dbfda2d9232512ffe35c3b9f655082091))
+* **keycloak:** plain HTTP to a server that answers with a TLS alert is named, not "could not reach" ([16e137c](https://github.com/this-is-tobi/rta-plugins/commit/16e137cf6a5927d310075a6f211d026b476791a5))
+
+
+### Code Refactoring
+
+* **keycloak:** name the profile, its forward and a certificate's names with the SDK's helpers ([9746353](https://github.com/this-is-tobi/rta-plugins/commit/9746353a7c7055398fa52e31ca39b6f3949725a4))
+
 ## [0.2.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.1.13...plugins/keycloak/v0.2.0) (2026-10-03)
 
 

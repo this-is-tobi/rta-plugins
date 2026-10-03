@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.5.0...plugins/vault/v0.5.1) (2026-10-03)
+
+
+### Bug Fixes
+
+* **vault:** a certificate macOS refuses for its length names the rule and its fix ([d506551](https://github.com/this-is-tobi/rta-plugins/commit/d506551f4bc19f4ce6719a8d2a5f7cd99697c475))
+* **vault:** a refusal the Vault gave names the profile, and its status check reaches that Vault ([1afc460](https://github.com/this-is-tobi/rta-plugins/commit/1afc46023649103ba42553b7db159f043482793f))
+* **vault:** the listing and status check a policy or a snapshot offers reach the Vault it came from ([1ab44b4](https://github.com/this-is-tobi/rta-plugins/commit/1ab44b4df0cc7ee1f8373f5d0fb6b2eb5a428919))
+* **vault:** the snapshot, restore and wrap refusals name the profile, not the end of its forward ([f588bb5](https://github.com/this-is-tobi/rta-plugins/commit/f588bb54065bd7f8f29a7eef0d60d55ac74e5ed8))
+
+
+### Code Refactoring
+
+* **vault:** name a certificate's names and the TLS-only answer with the SDK's helpers ([11f6092](https://github.com/this-is-tobi/rta-plugins/commit/11f6092c1e53eea7b3fc4e399b2725b1658eb79d))
+
 ## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.4.18...plugins/vault/v0.5.0) (2026-10-03)
 
 

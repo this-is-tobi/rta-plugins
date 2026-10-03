@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.4.0...plugins/qdrant/v0.4.1) (2026-10-03)
+
+
+### Bug Fixes
+
+* **qdrant:** a certificate macOS refuses for its length names the rule and its fix ([38cea42](https://github.com/this-is-tobi/rta-plugins/commit/38cea429b2ae3ac7a2ea52e60c3b7b759cc16ad2))
+* **qdrant:** a refusal the server gave names the profile, not the end of its forward ([b1a8141](https://github.com/this-is-tobi/rta-plugins/commit/b1a8141410c9beca0b8b6aef54f20b1999880dc9))
+* **qdrant:** a reply that is not JSON names the profile, not the end of its forward ([9bd7604](https://github.com/this-is-tobi/rta-plugins/commit/9bd7604408d5642fd388c32467a7112deacb484a))
+* **qdrant:** the listing a collection not found offers reaches the instance the refusal came from ([12013c9](https://github.com/this-is-tobi/rta-plugins/commit/12013c9898059917d2103830d192e8c1e983ed91))
+* **qdrant:** the TLS-only refusal names where the call went once, not inside its own parentheses ([31b60e8](https://github.com/this-is-tobi/rta-plugins/commit/31b60e88a8373ddde440628edd9f045af40b836a))
+
+
+### Code Refactoring
+
+* **qdrant:** name the profile, its forward and the TLS-only answer with the SDK's helpers ([3258328](https://github.com/this-is-tobi/rta-plugins/commit/3258328f538fcbe064045045d616a333922659f2))
+
 ## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.20...plugins/qdrant/v0.4.0) (2026-10-03)
 
 

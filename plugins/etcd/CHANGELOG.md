@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.4.0...plugins/etcd/v0.4.1) (2026-10-03)
+
+
+### Bug Fixes
+
+* **etcd:** a certificate macOS refuses for its length names the rule and its fix ([6913a70](https://github.com/this-is-tobi/rta-plugins/commit/6913a7039c9ff947e1a112856b3c814ef48e5fa1))
+* **etcd:** a member whose certificate spells a refusal is not a refused connection ([350749b](https://github.com/this-is-tobi/rta-plugins/commit/350749b02e42cd379ce8c9fc1d536690fc04125d))
+* **etcd:** a missing key's suggested listing reaches the cluster the read went to ([267552d](https://github.com/this-is-tobi/rta-plugins/commit/267552dee153621074f5ac2e4574cff59e81028e))
+* **etcd:** a refusal the cluster gave names the profile, not the end of its forward ([c6b043e](https://github.com/this-is-tobi/rta-plugins/commit/c6b043e68c61194580e4dbc7a6bbb164c95b60e8))
+* **etcd:** the overview a timeout offers reaches the cluster that did not answer ([62873ee](https://github.com/this-is-tobi/rta-plugins/commit/62873ee67e6f7357669636d8bb7b058b1e1e0298))
+* **etcd:** the restore line quotes a path that draws as nothing, with the SDK's ShellWord ([ef43837](https://github.com/this-is-tobi/rta-plugins/commit/ef438378ffd5dbb1a137e7a237289481b691de73))
+
+
+### Code Refactoring
+
+* **etcd:** a port that answers nothing names the profile and its forward as every plugin does ([7538b00](https://github.com/this-is-tobi/rta-plugins/commit/7538b0039400597f290f3c61990744abd0fc6043))
+* **etcd:** name the profile, its forward and a certificate's names with the SDK's helpers ([296b846](https://github.com/this-is-tobi/rta-plugins/commit/296b846005eaac968473bb5c74900b8f942c12a2))
+
 ## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.3.20...plugins/etcd/v0.4.0) (2026-10-03)
 
 

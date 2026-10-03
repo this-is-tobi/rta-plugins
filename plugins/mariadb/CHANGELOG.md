@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.5.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.5.0...plugins/mariadb/v0.5.1) (2026-10-03)
+
+
+### Bug Fixes
+
+* **mariadb:** a certificate that does not verify is named for why, macOS's length rule for its fix ([62e4f55](https://github.com/this-is-tobi/rta-plugins/commit/62e4f55d8c4c1f30782692994ea92569c1deaae9))
+* **mariadb:** a refusal the server gave names the profile, not the end of its forward ([156fe15](https://github.com/this-is-tobi/rta-plugins/commit/156fe15d76363529320675f89fcae4527b2718cb))
+* **mariadb:** a restore names the server as the reader reaches it again, not a forward's end ([2878c06](https://github.com/this-is-tobi/rta-plugins/commit/2878c060b630e4e9e01407ea5cace39df4da2273))
+* **mariadb:** a revoked certificate that names no host keeps the system's verdict, not verify-ca ([ec1d52a](https://github.com/this-is-tobi/rta-plugins/commit/ec1d52af47c8f97c26984383328b4c751a2bc779))
+* **mariadb:** the CREATE DATABASE a missing restore target offers quotes a name that needs it ([8c044ef](https://github.com/this-is-tobi/rta-plugins/commit/8c044ef92cd8860e373893ff5d073516c8036570))
+* **mariadb:** the listings and status checks a refusal offers reach the server the refusal came from ([6b6b3f2](https://github.com/this-is-tobi/rta-plugins/commit/6b6b3f252f2846858f52351cad90bc8e2683792f))
+
+
+### Code Refactoring
+
+* **mariadb:** name the profile, its forward and a certificate's names with the SDK's helpers ([e4cfbd8](https://github.com/this-is-tobi/rta-plugins/commit/e4cfbd875dd82a298c0a304f0c9b4f22b047add1))
+
 ## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.4.0...plugins/mariadb/v0.5.0) (2026-10-03)
 
 
