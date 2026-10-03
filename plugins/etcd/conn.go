@@ -509,9 +509,16 @@ func classify(err error, req plugin.Request) *view.Error {
 		if serverName(req) != "" {
 			checked = "the name in " + sf.SettingName("tls-server-name")
 		}
-		return view.Errorf("etcd.tls.rejected", "%s presented a certificate that does not verify: %v", where, verifyErr.Err).
-			WithHint("a certificate is checked for " + checked +
-				", its dates and the use it was issued for, as well as for who issued it")
+		rejected := view.Errorf("etcd.tls.rejected", "%s presented a certificate that does not verify: %v", where, verifyErr.Err)
+		// A rule of macOS's own, which the verdict's words do not name: a
+		// ten-year certificate, the usual one for a cluster of one's own, is
+		// "not standards compliant" there, and the hint below would have
+		// sent its reader to check dates that were fine.
+		if hint := plugin.CertPolicyHint(err); hint != "" {
+			return rejected.WithHint(hint)
+		}
+		return rejected.WithHint("a certificate is checked for " + checked +
+			", its dates and the use it was issued for, as well as for who issued it")
 	}
 	var hsErr handshakeError
 	if errors.As(err, &hsErr) {
