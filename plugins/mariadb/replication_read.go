@@ -198,7 +198,7 @@ func unreadable(err error, which section, v serverVersion, req plugin.Request) *
 	case isSyntaxError(err):
 		return view.Errorf("mariadb.replication.unsupported", "this server does not know how to report its %s", which).
 			WithHint("it is older than any version this reads, or not the server it looks like; " +
-				"version in " + req.Surface().CapabilityName("mariadb.status") + " says which")
+				"version in " + nextCall(req, "mariadb.status") + " says which")
 	}
 	return classify(err, req)
 }

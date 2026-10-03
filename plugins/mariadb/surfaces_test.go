@@ -43,7 +43,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "a database the server does not have",
-			cli:     "`rta mariadb database list` shows what is there",
+			cli:     "`rta mariadb database list --host localhost --port 3306 --user root` shows what is there",
 			other:   "the `mariadb_database_list` tool shows what is there",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
@@ -83,8 +83,8 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "a dump with no database",
-			cli:     "--database <name> — `rta mariadb database list` shows what is there",
-			other:   "the database box set to <name> — `mariadb.database.list` shows what is there",
+			cli:     "--database <name> — `rta mariadb database list --host localhost --port 3306 --user root` shows what is there",
+			other:   "the database box set to <name> — `mariadb.database.list host=localhost port=3306 user=root` shows what is there",
 			surface: plugin.SurfaceTUI,
 			say: func(sf plugin.Surface) string {
 				_, err := runDump(context.Background(), req(t, "mariadb.dump", map[string]any{
