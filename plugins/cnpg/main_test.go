@@ -119,7 +119,7 @@ func TestAHealthyClusterHasNothingToSay(t *testing.T) {
 	if got := problemsIn(t, healthy()); len(got) != 0 {
 		t.Errorf("a healthy cluster reported %v", got)
 	}
-	sections := statusView(healthy()).(view.Sections)
+	sections := statusView(healthy(), "").(view.Sections)
 	for _, s := range sections.Items {
 		if s.Title == "Needs attention" {
 			t.Error("the section is present with nothing in it")
@@ -310,7 +310,7 @@ func TestASingleInstanceDoesNotClaimAReplicationMode(t *testing.T) {
 
 func overviewOf(t *testing.T, c cluster) map[string]string {
 	t.Helper()
-	kv, ok := statusView(c).(view.Sections).Items[0].View.(view.KeyValue)
+	kv, ok := statusView(c, "").(view.Sections).Items[0].View.(view.KeyValue)
 	if !ok {
 		t.Fatal("the first status section is not the key/value overview")
 	}

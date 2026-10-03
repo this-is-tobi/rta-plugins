@@ -103,7 +103,7 @@ func TestAClusterThatStatesNothingGetsNoSettingsSection(t *testing.T) {
 	if got := settingsTable(c, serverSettings); len(got.Rows) != 0 {
 		t.Errorf("a cluster with no parameters produced %d rows", len(got.Rows))
 	}
-	for _, s := range statusView(c).(view.Sections).Items {
+	for _, s := range statusView(c, "").(view.Sections).Items {
 		if s.Title == "Server settings" {
 			t.Error("an empty settings section was drawn")
 		}
