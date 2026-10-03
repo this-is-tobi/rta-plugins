@@ -648,6 +648,10 @@ func TestHTTPFailuresAreClassified(t *testing.T) {
 			t.Errorf("%d: message = %q, want the profile and its forward, not the forward's end", code, got.Message)
 		}
 	}
+	if got := malformed(forwarded).Message; !strings.Contains(got, "profile prod (through its kube: forward)") ||
+		strings.Contains(got, "41233") {
+		t.Errorf("malformed: message = %q, want the profile and its forward, not the forward's end", got)
+	}
 	cases := []struct {
 		code int
 		want string

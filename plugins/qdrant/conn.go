@@ -536,6 +536,6 @@ func pathFor(format string, name string) string {
 // is the gRPC port, it is one character away from 6333, and it accepts the
 // connection before failing to answer.
 func malformed(req plugin.Request) *view.Error {
-	return view.Errorf("qdrant.response.malformed", "%s did not answer with JSON", req.String("endpoint")).
+	return view.Errorf("qdrant.response.malformed", "%s did not answer with JSON", req.Reached(req.String("endpoint"))).
 		WithHint("Qdrant serves REST on 6333 and gRPC on 6334 — the gRPC port will not answer this")
 }
