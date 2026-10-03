@@ -234,7 +234,7 @@ func classifySnapshot(err error, req plugin.Request) *view.Error {
 	// removed by the time this runs.
 	if errors.Is(err, vaultapi.ErrIncompleteSnapshot) {
 		return view.Errorf("vault.snapshot.incomplete",
-			"%s returned a snapshot that stops short of its checksums", req.String("address")).
+			"%s returned a snapshot that stops short of its checksums", reached(req)).
 			WithHint("the archive is missing SHA256SUMS.sealed, which Vault writes last and " +
 				"encrypts with the seal — so the seal was unavailable partway through. " +
 				nextCall(req, "vault.seal.status") + " is the next thing to look at. The partial file has " +
@@ -244,7 +244,7 @@ func classifySnapshot(err error, req plugin.Request) *view.Error {
 	var respErr *vaultapi.ResponseError
 	if errors.As(err, &respErr) && respErr.StatusCode == 404 {
 		return view.Errorf("vault.snapshot.unsupported",
-			"%s does not offer raft snapshots", req.String("address")).
+			"%s does not offer raft snapshots", reached(req)).
 			WithHint("the endpoint exists only on integrated (raft) storage — with Consul or " +
 				"another backend, back up that system instead. rta will not substitute a KV " +
 				"export: it would restore none of the mounts, policies, leases or transit keys")

@@ -180,7 +180,7 @@ func classifyRestore(err error, req plugin.Request) *view.Error {
 		switch {
 		case respErr.StatusCode == 404:
 			return view.Errorf("vault.restore.unsupported",
-				"%s does not offer raft snapshot restore", req.String("address")).
+				"%s does not offer raft snapshot restore", reached(req)).
 				WithHint("the endpoint exists only on integrated (raft) storage — with Consul or " +
 					"another backend, restore that system's own backup instead")
 		// **The refusal that protects the unseal keys.** Vault verifies the
@@ -190,7 +190,7 @@ func classifyRestore(err error, req plugin.Request) *view.Error {
 		case respErr.StatusCode == 400 && containsAny(respErr.Error(),
 			"could not verify", "unseal key", "hash file"):
 			return view.Errorf("vault.restore.mismatch",
-				"this snapshot did not come from the cluster at %s", req.String("address")).
+				"this snapshot did not come from %s", reached(req)).
 				WithHint(req.Surface().InputName("force") + " skips the identity check and restores it anyway — do " +
 					"that only holding the source cluster's unseal keys or KMS, because they are what " +
 					"unseals the Vault afterwards. Without them, " + req.Surface().InputName("force") + " bricks it")

@@ -89,7 +89,7 @@ func unknownMount(ctx context.Context, client *vaultapi.Client, req plugin.Reque
 		hint = "its KV mounts are: " + strings.Join(kv, ", ")
 	}
 	return view.Errorf("vault.kv.mount.unknown",
-		"%s has no KV mount named %q", req.String("address"), mount).WithHint(hint)
+		"%s has no KV mount named %q", reached(req), mount).WithHint(hint)
 }
 
 func runKVList(ctx context.Context, req plugin.Request) (view.View, error) {

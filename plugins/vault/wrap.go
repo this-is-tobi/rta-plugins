@@ -75,7 +75,7 @@ func runWrapSet(ctx context.Context, req plugin.Request) (view.View, error) {
 			return nil, classify(err, req)
 		}
 		if secret.WrapInfo == nil {
-			return nil, view.Errorf("vault.wrap.failed", "%s did not wrap the response", req.String("address"))
+			return nil, view.Errorf("vault.wrap.failed", "%s did not wrap the response", reached(req))
 		}
 		return view.KeyValue{Pairs: []view.Pair{
 			{Key: "token", Value: secret.WrapInfo.Token},
