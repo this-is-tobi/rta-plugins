@@ -1,17 +1,30 @@
 package main
 
 import (
+	"crypto/tls"
+	"encoding/pem"
+	"os"
+	"runtime"
+
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
 // checkTransport refuses, before anything dials, the TLS settings that
-// cannot mean what they say: the CA's (checkRootCert) and the name's.
+// cannot mean what they say: the CA's (checkRootCert), the name's and the
+// client pair's. Each file is read here for what it has to hold, the way the
+// driver will read it and the way the children will, because left to them a
+// file that was not there, or whose key a child would refuse for its
+// permissions, came back as pg.conn.failed quoting the whole connection
+// string, or as a libpq line, from a failure that never reached the network.
 func checkTransport(req plugin.Request) *view.Error {
 	if verr := checkRootCert(req); verr != nil {
 		return verr
 	}
-	return checkServerName(req)
+	if verr := checkServerName(req); verr != nil {
+		return verr
+	}
+	return checkClientPair(req)
 }
 
 // checkServerName refuses tls-server-name beside a connection that would not
@@ -56,4 +69,102 @@ func checkServerName(req plugin.Request) *view.Error {
 				"forward, whose certificate is for a name the address does not spell")
 	}
 	return nil
+}
+
+// checkClientPair refuses a client certificate that the server could not be
+// shown: one without its key, a file that is not there or holds no
+// certificate, a key that libpq's children would refuse for being readable
+// by others, a key protected by a passphrase, and a pair that is not a pair.
+// Each names the setting that put the file there.
+//
+// **The key's permissions are libpq's rule, applied to the pre-flight too.**
+// libpq refuses a private key that group or others can read, and pgx does
+// not look, so a pre-flight that connected was followed by a child that was
+// refused. Both are held to the stricter rule, here, before either runs.
+//
+// **A passphrase is refused rather than asked for.** pgx would ask a callback
+// the plugin does not give, and libpq's children ask the controlling terminal
+// through OpenSSL, past the child's own descriptors: a call that hangs at a
+// prompt nobody sees. A key without a passphrase, readable by its owner
+// alone, is what the client certificate of an unattended connection is.
+func checkClientPair(req plugin.Request) *view.Error {
+	t, sf := transportOf(req), req.Surface()
+	if t.mode == "disable" || (t.clientCert == "" && t.clientKey == "") {
+		return nil
+	}
+	cert, key := t.clientSetting(sf, "sslcert"), t.clientSetting(sf, "sslkey")
+	switch {
+	case t.clientCert == "":
+		return view.Errorf("pg.tls.client.pair", "%s names a private key and %s names no certificate to go with it",
+			key, sf.SettingName("sslcert")).
+			WithHint("a client certificate is presented with its key: " + sf.SettingName("sslcert", "sslkey") + " go together")
+	case t.clientKey == "":
+		return view.Errorf("pg.tls.client.pair", "%s names a client certificate and %s names no key to go with it",
+			cert, sf.SettingName("sslkey")).
+			WithHint("a client certificate is presented with its key: " + sf.SettingName("sslcert", "sslkey") + " go together")
+	}
+	certPEM, err := os.ReadFile(t.clientCert)
+	if err != nil {
+		return view.Errorf("pg.tls.client.unreadable", "%v", err).
+			WithHint(cert + " names a file on this machine, read by rta rather than by the server, holding the " +
+				"client certificate in PEM")
+	}
+	if info, err := os.Stat(t.clientKey); err != nil {
+		return view.Errorf("pg.tls.client.unreadable", "%v", err).
+			WithHint(key + " names a file on this machine, read by rta rather than by the server, holding the " +
+				"client certificate's private key in PEM")
+	} else if runtime.GOOS != "windows" && info.Mode().Perm()&0o077 != 0 {
+		return view.Errorf("pg.tls.client.key.perms", "%s is readable by others (mode %04o)", t.clientKey, info.Mode().Perm()).
+			WithHint("libpq refuses a private key that group or others can read, and rta holds its own " +
+				"connection to the same rule: `chmod 600` on the file that " + key + " names")
+	}
+	keyPEM, err := os.ReadFile(t.clientKey)
+	if err != nil {
+		return view.Errorf("pg.tls.client.unreadable", "%v", err).
+			WithHint(key + " names a file on this machine, read by rta rather than by the server, holding the " +
+				"client certificate's private key in PEM")
+	}
+	if encrypted(keyPEM) {
+		return view.Errorf("pg.tls.client.key.encrypted", "%s holds a private key protected by a passphrase", t.clientKey).
+			WithHint("rta has nowhere to ask for it, and libpq would ask a terminal it does not own — " +
+				key + " wants a key without one: `openssl pkey -in <key> -out <new key>` writes it")
+	}
+	if _, err := tls.X509KeyPair(certPEM, keyPEM); err != nil {
+		return view.Errorf("pg.tls.client.invalid", "%s and %s are not a certificate and its key: %v",
+			t.clientCert, t.clientKey, err).
+			WithHint(cert + " wants a PEM certificate and " + key + " the PEM private key that certificate was " +
+				"issued for")
+	}
+	return nil
+}
+
+// rootSetting names the setting that put the root certificate in place:
+// sslrootcert, or ssl-home when the file was found under ~/.postgresql.
+func (t transport) rootSetting(sf plugin.Surface) string {
+	if t.fromHome.root {
+		return sf.SettingName("ssl-home")
+	}
+	return sf.SettingName("sslrootcert")
+}
+
+// clientSetting names the setting that put the client pair in place: sslcert
+// or sslkey, or ssl-home when the files were found under ~/.postgresql.
+func (t transport) clientSetting(sf plugin.Surface, setting string) string {
+	if t.fromHome.client {
+		return sf.SettingName("ssl-home")
+	}
+	return sf.SettingName(setting)
+}
+
+// encrypted reports whether the first PEM block of a private key is one a
+// passphrase protects: PKCS#8's own type, and the legacy form that says so in
+// a DEK-Info header (what x509.IsEncryptedPEMBlock reads, which is deprecated
+// for everything but this).
+func encrypted(keyPEM []byte) bool {
+	block, _ := pem.Decode(keyPEM)
+	if block == nil {
+		return false
+	}
+	_, legacy := block.Headers["DEK-Info"]
+	return block.Type == "ENCRYPTED PRIVATE KEY" || legacy
 }

@@ -531,20 +531,32 @@ func childEnv(req plugin.Request) []string {
 	if _, hostaddr := childHost(req); hostaddr != "" {
 		env = append(env, "PGHOSTADDR="+hostaddr)
 	}
-	if ca := t.rootCert; ca != "" && t.mode != "disable" {
-		// The same keyword dsn() writes into the in-process driver's
-		// connection string, carried the only way a subprocess reads it —
-		// pg_dump has no connection-string argument for a single value like
-		// this one, only PG* environment variables and its own -h/-p/-U/-d.
-		// Left out under disable for dsn()'s reason, and libpq's own: it
-		// refuses system beside disable outright.
-		env = append(env, "PGSSLROOTCERT="+ca)
+	// **The same files dsn() hands the driver, and a path that is not there
+	// for each one nobody named.** The same keywords, carried the only way a
+	// subprocess reads them — pg_dump has no connection-string argument for a
+	// single value like these, only PG* environment variables and its own
+	// -h/-p/-U/-d. libpq reads an empty value as unset and falls back to the
+	// file under ~/.postgresql (the passfile's lesson, below), so a file no
+	// setting named is spelled as a path that does not exist: a missing client
+	// certificate is no certificate, and a missing root certificate means no
+	// verification below verify-ca, which is what the driver does with an
+	// empty one. The revocation list is closed the same way, since pgx has no
+	// way to read one and a libpq that did would refuse a connection the
+	// pre-flight had made.
+	//
+	// Left out under disable, for dsn()'s reason and libpq's own: it refuses
+	// system beside disable outright. And system for verify-full with no CA
+	// named, which is what the driver does there: it checks this machine's
+	// own store, and libpq 16 and later takes the word for the same thing.
+	root, cert, key := t.rootCert, t.clientCert, t.clientKey
+	if t.mode == "disable" {
+		root, cert, key = "", "", ""
 	}
-	if home := os.Getenv("HOME"); home != "" {
-		// pg_dump reads certificates and CRLs from under it for the verify-*
-		// modes, so an sslmode the operator configured keeps working.
-		env = append(env, "HOME="+home)
+	if root == "" && t.mode == "verify-full" {
+		root = "system"
 	}
+	env = append(env, "PGSSLROOTCERT="+orUnreadable(root), "PGSSLCERT="+orUnreadable(cert),
+		"PGSSLKEY="+orUnreadable(key), "PGSSLCRL="+unreadable)
 	// The bound dsn() gives the in-process connect, given to the child the
 	// way libpq reads it, in the same seconds. pgx connecting first proves
 	// the server was there a moment ago, and nothing about the child's own
@@ -561,11 +573,13 @@ func childEnv(req plugin.Request) []string {
 	// and is worse: libpq prints `WARNING: password file "/dev/null" is not a
 	// plain file` onto the stderr classifyDump parses.
 	//
-	// Dropping the HOME line above would not have done it either. libpq falls
-	// back to getpwuid when HOME is unset, so it finds the operator's
+	// HOME is not handed over, and that would not have done it either: libpq
+	// falls back to getpwuid when HOME is unset, so it finds the operator's
 	// ~/.pgpass either way — verified against a real server before this line
 	// was written, because the obvious version of this fix silently does
-	// nothing.
+	// nothing. The TLS files above are closed by the same means, a path that
+	// is not there, for the same reason; ssl-home reaches the child as the
+	// paths it resolved, never as a home directory to search.
 	env = append(env, "PGPASSFILE=/nonexistent/rta-refuses-ambient-credentials")
 	return env
 }
@@ -594,6 +608,13 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 			return line
 		}
 		return err.Error()
+	}
+
+	// The TLS files and the server's verdict on the certificate the child
+	// presented, ahead of the rest: a connection that failed there reached
+	// nothing the cases below read.
+	if verr := childTLS(stderr, req); verr != nil {
+		return verr
 	}
 
 	switch {
@@ -748,19 +769,34 @@ func restoreCommand(req plugin.Request, path string) string {
 	// would be refused by the host beside the profile: what travels is what
 	// turned TLS on there, the CA and the name.
 	t := transportOf(req)
+	namedRoot := t.rootCert != "" && !t.fromHome.root
 	switch {
 	case req.Tunnel() != plugin.TunnelNone:
-		if t.rootCert != "" {
+		if namedRoot {
 			args = append(args, plugin.Arg{Name: "sslrootcert", Value: t.rootCert})
 		}
 	case verifiesOrRequires(t.mode):
 		args = append(args, plugin.Arg{Name: "sslmode", Value: t.mode})
-		if t.rootCert != "" {
+		if namedRoot {
 			args = append(args, plugin.Arg{Name: "sslrootcert", Value: t.rootCert})
 		}
 	}
 	if t.serverName != "" {
 		args = append(args, plugin.Arg{Name: "tls-server-name", Value: t.serverName})
+	}
+	// The client pair the dump presented, by the settings that named it, and
+	// the switch that found it when ssl-home did: a restore that connects
+	// without the certificate the server asked this dump for is refused, and
+	// one that looks under the home of the shell it is pasted into presents
+	// whatever it finds there.
+	if t.mode != "disable" {
+		if t.clientCert != "" && !t.fromHome.client {
+			args = append(args, plugin.Arg{Name: "sslcert", Value: t.clientCert},
+				plugin.Arg{Name: "sslkey", Value: t.clientKey})
+		}
+		if req.Bool("ssl-home") {
+			args = append(args, plugin.Arg{Name: "ssl-home", Value: true})
+		}
 	}
 	if n := req.Int("jobs"); n > 1 {
 		args = append(args, plugin.Arg{Name: "jobs", Value: n})

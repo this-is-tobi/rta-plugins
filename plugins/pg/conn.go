@@ -133,6 +133,47 @@ func connFields() []plugin.Field {
 			Local: true,
 			Help: "name to check the server's certificate for, in place of the host's — verify-full only, and " +
 				"the host an address; under a kube:/ssh: forward it turns TLS on, at verify-full"},
+		// The client certificate a server asks for (pg_hba.conf's clientcert,
+		// or the cert method), and its key. libpq's own keywords, as
+		// sslrootcert is, and Local for the same reason: they name files on
+		// this machine that rta then reads, and a path a caller could choose
+		// would be a file-read primitive. Not Secret: the certificate is the
+		// public half, and the key is a path, not a value that crosses the
+		// wire — its file is held to libpq's rule, readable by its owner
+		// alone (checkClientPair), and never one a passphrase protects, which
+		// nothing here could be asked for.
+		//
+		// **Named, or not read.** Neither pgx nor libpq is left to find the
+		// pair under ~/.postgresql: the driver is handed the files in its
+		// connection string and every child in its environment, and a child
+		// with no file named is pointed at one that does not exist
+		// (transport). ssl-home below asks for libpq's search back.
+		//
+		// Not TLSAdjacent, for sslrootcert's reason: over a forward a client
+		// certificate asks for TLS as the CA does, at verify-full.
+		{Name: "sslcert", Type: plugin.String, Default: "", Config: "sslcert",
+			Local: true,
+			Help: "client certificate to present to the server, PEM, with sslkey — for a server whose " +
+				"pg_hba.conf asks for one; under a kube:/ssh: forward it turns TLS on, at verify-full"},
+		{Name: "sslkey", Type: plugin.String, Default: "", Config: "sslkey",
+			Local: true,
+			Help:  "private key for sslcert, PEM, without a passphrase and readable by its owner alone (mode 600)"},
+		// The one switch for what libpq does unasked: look for the client
+		// certificate, its key and the root certificate under ~/.postgresql
+		// (postgresql.crt, postgresql.key, root.crt) when no setting names
+		// them. Off, because that search is two clients doing it two ways
+		// (transport), and a file nobody named changes what a connection
+		// proves: a root.crt there turns sslmode=require into a verifying
+		// connection on pgx and on libpq, and a postgresql.crt presents a
+		// certificate to a server the operator never pointed it at. On, rta
+		// does the search once and hands the result to the driver and to every
+		// child, so they still agree, and a setting that names a file wins
+		// over the one found for it. Local, for the reason the files are.
+		{Name: "ssl-home", Type: plugin.Bool, Default: false, Config: "ssl-home",
+			Local: true,
+			Help: "also use the client certificate, key and root certificate libpq looks for under ~/.postgresql " +
+				"when sslcert, sslkey and sslrootcert do not name them — off, so no file is read that a setting " +
+				"did not name; rta resolves them once and hands both the driver and libpq's tools the same ones"},
 	}
 }
 
@@ -185,14 +226,29 @@ func dsn(req plugin.Request) string {
 	if pw := req.String("password"); pw != "" {
 		parts = append(parts, "password="+quote(pw))
 	}
-	// Left out under disable, which reads no CA: given one there, pgx reads
-	// the file before it looks at the mode, so one that was not there failed
-	// a connection that would never have used it, and given system it turns
-	// disable into verify-full. disable is what a tunnel forces, beside
-	// whatever the config names for connecting directly.
-	if t.rootCert != "" && t.mode != "disable" {
-		parts = append(parts, "sslrootcert="+quote(t.rootCert))
+	// The three files, always, and empty where no setting named one — for
+	// passfile's reason, one layer along. pgconn's defaultSettings fills
+	// sslrootcert, sslcert and sslkey from ~/.postgresql whenever the files
+	// are there, and a key the connection string leaves out keeps that value:
+	// a root.crt nobody named made require verify, and a postgresql.crt nobody
+	// named was presented to a server the operator never pointed it at. An
+	// empty value is a value, and overrides it. (pgconn reads PGSSLROOTCERT
+	// and its siblings too, which the host's allowlist keeps out of a plugin
+	// it starts: HOME is the channel that is open, and a binary run by hand
+	// has both.)
+	//
+	// Left empty under disable, which reads no file: pgx reads sslrootcert
+	// before it looks at the mode, so a CA that was not there failed a
+	// connection that would never have used it, and given system it turns
+	// disable into verify-full. disable is what a forward forces for a call
+	// that names nothing, beside whatever the config names for connecting
+	// directly. sslpassword is closed the same way: a key that needs a
+	// passphrase is refused (checkClientPair), not asked for.
+	root, cert, key := t.rootCert, t.clientCert, t.clientKey
+	if t.mode == "disable" {
+		root, cert, key = "", "", ""
 	}
+	parts = append(parts, "sslrootcert="+quote(root), "sslcert="+quote(cert), "sslkey="+quote(key), "sslpassword=''")
 	return strings.Join(parts, " ")
 }
 
@@ -287,12 +343,12 @@ func checkRootCert(req plugin.Request) *view.Error {
 	switch mode := t.mode; mode {
 	case "prefer":
 		return view.Errorf("pg.tls.ca.unused", "%s names a CA, and %s never verifies against one",
-			sf.SettingName("sslrootcert"), sf.SettingTo("sslmode", mode)).
+			t.rootSetting(sf), sf.SettingTo("sslmode", mode)).
 			WithHint(sf.SettingTo("sslmode", "verify-full") + " verifies the server against it, its name " +
 				"included, and " + sf.SettingTo("sslmode", "verify-ca") + " its chain alone")
 	case "require":
 		return view.Errorf("pg.tls.ca.implied", "%s names a CA, and %s verifies against one only because it is there",
-			sf.SettingName("sslrootcert"), sf.SettingTo("sslmode", mode)).
+			t.rootSetting(sf), sf.SettingTo("sslmode", mode)).
 			WithHint(sf.SettingTo("sslmode", "verify-ca") + " is that same check under its own name, which does " +
 				"not stop the day the CA is dropped, and " + sf.SettingTo("sslmode", "verify-full") +
 				" checks the server's name as well")
@@ -311,12 +367,12 @@ func checkRootCert(req plugin.Request) *view.Error {
 	pem, err := os.ReadFile(path)
 	if err != nil {
 		return view.Errorf("pg.tls.ca.unreadable", "%v", err).
-			WithHint(sf.SettingName("sslrootcert") + " names a file on this machine, read by rta rather than by the " +
+			WithHint(t.rootSetting(sf) + " names a file on this machine, read by rta rather than by the " +
 				"server, holding the CA's certificate in PEM")
 	}
 	if !x509.NewCertPool().AppendCertsFromPEM(pem) {
 		return view.Errorf("pg.tls.ca.invalid", "%s holds no PEM certificate", path).
-			WithHint(sf.SettingName("sslrootcert") + " wants a PEM certificate — the CA's, or a self-signed " +
+			WithHint(t.rootSetting(sf) + " wants a PEM certificate — the CA's, or a self-signed " +
 				"server's own — and a private key or a DER-encoded certificate is not one")
 	}
 	return nil
@@ -364,6 +420,17 @@ func classify(err error, req plugin.Request) *view.Error {
 			// it always was.
 			if pgErr.Code == "28000" && strings.HasSuffix(pgErr.Message, "no encryption") {
 				return tlsRequired(where, req)
+			}
+			// **A server that wants a client certificate answers a connection
+			// without a good one in the same code**, 28000, and read as a
+			// rejected password the reader was sent to check one that nothing
+			// had looked at. By the server's own words for it, as the case
+			// above is.
+			if pgErr.Code == "28000" && strings.Contains(pgErr.Message, "requires a valid client certificate") {
+				return clientCertRequired(where, req)
+			}
+			if pgErr.Code == "28000" && strings.Contains(pgErr.Message, "certificate authentication failed") {
+				return clientCertRole(where, req)
 			}
 			// Where the password comes from rather than a verb telling the
 			// reader to set one: pg.status and the reads beside it answer an
@@ -472,7 +539,8 @@ func classify(err error, req plugin.Request) *view.Error {
 	// naming one costs (CAHint).
 	if plugin.CertUntrusted(err) {
 		refused := view.Errorf("pg.tls.untrusted", "%s presented a certificate nothing here trusts", where)
-		switch ca := req.String("sslrootcert"); ca {
+		t := transportOf(req)
+		switch ca := t.rootCert; ca {
 		case "":
 			return refused.WithHint("a PostgreSQL an operator or a cluster runs commonly has a CA of its own — " +
 				sf.CAHint("sslrootcert"))
@@ -480,7 +548,7 @@ func classify(err error, req plugin.Request) *view.Error {
 			return refused.WithHint("no CA in this machine's trust store, which " + sf.SettingTo("sslrootcert", "system") +
 				" names, issued it — " + sf.CAHint("sslrootcert"))
 		default:
-			return refused.WithHint(rootCert(req) + ", which " + sf.SettingName("sslrootcert") + " names, does not hold " +
+			return refused.WithHint(ca + ", which " + t.rootSetting(sf) + " names, does not hold " +
 				"the CA that issued it — a self-signed certificate is its own CA")
 		}
 	}
@@ -497,6 +565,11 @@ func classify(err error, req plugin.Request) *view.Error {
 			return forwardName(req, hostErr)
 		}
 		return nameRefusal(where, hostErr, req)
+	}
+	// An alert about the client's certificate, as Go's TLS reports one the
+	// server sent: the server saw the certificate and did not take it.
+	if alert := tlsAlert(err.Error(), where, req); alert != nil {
+		return alert
 	}
 	// Every other verdict on a certificate is its own reason, quoted in the
 	// verifier's words — the system's, for one macOS gives untyped, a revoked
