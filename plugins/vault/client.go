@@ -210,7 +210,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	// answered untyped too, and the CA file is no cure for it but a way
 	// around the check that caught it.
 	if plugin.CertUntrusted(err) {
-		return view.Errorf("vault.tls.untrusted", "%s presented a certificate rta does not trust", addr).
+		return view.Errorf("vault.tls.untrusted", "%s presented a certificate rta does not trust", reached(req)).
 			WithHint("this is a real TLS trust failure, not something to work around here — a Vault " +
 				"behind a tunnel commonly has its own operator- or cluster-generated CA, wanted rather than " +
 				"verification turned off: " + sf.CAHint("ca-file"))
@@ -237,7 +237,7 @@ func classify(err error, req plugin.Request) *view.Error {
 		if serverName(req) != "" {
 			checked = "the name in " + sf.SettingName("tls-server-name")
 		}
-		rejected := view.Errorf("vault.tls.rejected", "%s presented a certificate that does not verify: %v", addr, verifyErr.Err)
+		rejected := view.Errorf("vault.tls.rejected", "%s presented a certificate that does not verify: %v", reached(req), verifyErr.Err)
 		// A rule of macOS's own, which the verdict's words do not name: a
 		// ten-year certificate, the usual one for a Vault of one's own, is
 		// "not standards compliant" there, and the hint below would have
