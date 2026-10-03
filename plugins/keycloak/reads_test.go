@@ -94,12 +94,14 @@ func TestUserListShowsWhoHasAnOTP(t *testing.T) {
 	}
 }
 
+// The server is asked for one row past the bound, which is what tells a
+// listing that ends on its bound from one that was cut off.
 func TestListingsPassTheirBoundAndFiltersToTheServer(t *testing.T) {
 	f := newFakeKeycloak(t)
-	run(t, f, "keycloak.user.list", map[string]any{"max": 7, "search": "ali"})
-	run(t, f, "keycloak.event.list", map[string]any{"type": "LOGIN_ERROR", "max": 9})
+	run(t, f, "keycloak.user.list", map[string]any{"limit": 7, "search": "ali"})
+	run(t, f, "keycloak.event.list", map[string]any{"type": "LOGIN_ERROR", "limit": 9})
 	joined := strings.Join(f.paths(), "\n")
-	for _, want := range []string{"/users?briefRepresentation=false&max=7&search=ali", "/events?max=9&type=LOGIN_ERROR"} {
+	for _, want := range []string{"/users?briefRepresentation=false&max=8&search=ali", "/events?max=10&type=LOGIN_ERROR"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("no request %q in:\n%s", want, joined)
 		}
@@ -295,6 +297,52 @@ func TestCallerNamesAreEscapedIntoOneSegment(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("the escaped path was not requested: %v", f.paths())
+	}
+}
+
+// A listing cut off at its bound says so. Ending quietly reads exactly like a
+// realm with that many users in it, which is the answer an agent would act on:
+// the fixtures hold three users and seven events of each kind, so a bound of
+// two or five is a listing that stopped, and a bound that fits is one that did
+// not.
+func TestAListingThatStoppedSaysSoAndOneThatFitsDoesNot(t *testing.T) {
+	for _, tc := range []struct {
+		capID           string
+		extra           map[string]any
+		stops, fits     int
+		wantRows        int
+		noun, narrowing string
+	}{
+		{"keycloak.user.list", nil, 2, 3, 2, "2 users", "<search>"},
+		{"keycloak.event.list", nil, 5, 7, 5, "5 events", "--type"},
+		{"keycloak.event.admin", nil, 5, 7, 5, "5 events", "--limit"},
+		{"keycloak.session.list", map[string]any{"client": "rta-audit"}, 2, 3, 2, "2 sessions", "--limit"},
+	} {
+		t.Run(tc.capID, func(t *testing.T) {
+			f := newFakeKeycloak(t)
+			with := func(limit int) map[string]any {
+				v := map[string]any{"limit": limit}
+				for k, x := range tc.extra {
+					v[k] = x
+				}
+				return v
+			}
+			cut := table(t, run(t, f, tc.capID, with(tc.stops)))
+			if len(cut.Rows) != tc.wantRows {
+				t.Errorf("rows = %d, want the bound of %d", len(cut.Rows), tc.wantRows)
+			}
+			if len(cut.Warnings) != 1 || cut.Warnings[0].Code != "keycloak.list.partial" {
+				t.Fatalf("a listing cut at %d said nothing: %+v", tc.stops, cut.Warnings)
+			}
+			if w := cut.Warnings[0]; !strings.Contains(w.Message, "stopped at "+tc.noun) ||
+				!strings.Contains(w.Hint, "--limit") || !strings.Contains(w.Hint, tc.narrowing) {
+				t.Errorf("warning = %+v, want it to say it stopped at %s and how to go on (%s)", w, tc.noun, tc.narrowing)
+			}
+			whole := table(t, run(t, f, tc.capID, with(tc.fits)))
+			if len(whole.Warnings) != 0 {
+				t.Errorf("a listing that fit its bound of %d warned anyway: %+v", tc.fits, whole.Warnings)
+			}
+		})
 	}
 }
 

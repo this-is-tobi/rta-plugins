@@ -23,21 +23,23 @@ func eventListCapability() plugin.Capability {
 		Idempotent: true,
 		Description: "The realm's login event log, newest first — LOGIN, LOGIN_ERROR, LOGOUT, " +
 			"CODE_TO_TOKEN, REFRESH_TOKEN and the rest — with the user, the client and the " +
-			"address each came from. Filter by `type`, `user` or `client`; bound by `max`. " +
-			"Empty when the realm does not record events, which `keycloak.audit` flags.",
+			"address each came from. Filter by `type`, `user` or `client`; bound by `limit`, and it " +
+			"says when it stopped. Empty when the realm does not record events, which " +
+			"`keycloak.audit` flags.",
 		Run: runEventList,
 	},
 		plugin.Field{Name: "type", Type: plugin.String, Default: "", Help: "one event type, e.g. LOGIN_ERROR"},
 		plugin.Field{Name: "user", Type: plugin.String, Default: "", Help: "events of one user, by username or id"},
 		plugin.Field{Name: "client", Type: plugin.String, Default: "", Help: "events of one client",
 			Live: true, Suggest: suggestClients},
-		maxField(50, 1000, "how many events to list"),
+		limitField(50, 1000, "how many events to list"),
 	)
 }
 
 func runEventList(ctx context.Context, req plugin.Request) (view.View, error) {
 	return withSession(ctx, req, func(ctx context.Context, s *session) (view.View, error) {
-		q := query("max", strconv.Itoa(req.Int("max")), "type", req.String("type"), "client", req.String("client"))
+		limit := req.Int("limit")
+		q := query("max", strconv.Itoa(askFor(limit)), "type", req.String("type"), "client", req.String("client"))
 		if name := req.String("user"); name != "" {
 			u, verr := s.user(ctx, name)
 			if verr != nil {
@@ -45,15 +47,21 @@ func runEventList(ctx context.Context, req plugin.Request) (view.View, error) {
 			}
 			q.Set("user", u.ID)
 		}
-		var events []eventRep
-		if verr := s.get(ctx, "events", q, &events); verr != nil {
+		var got []eventRep
+		if verr := s.get(ctx, "events", q, &got); verr != nil {
 			return nil, verr
 		}
+		events, more := bounded(got, limit)
 		t := columns(view.Column{Name: "Time", Kind: view.KindTimestamp}, col("Type"), col("User"),
 			col("Client"), col("Address"), col("Error"))
 		for _, e := range events {
 			t.Rows = append(t.Rows, []string{stamp(e.Time), e.Type, firstOf(e.Details["username"], e.UserID),
 				e.ClientID, e.IPAddress, e.Error})
+		}
+		if more {
+			sf := req.Surface()
+			t = stoppedAt(t, limit, "event", sf, ", or narrow it with "+sf.InputName("type")+", "+
+				sf.InputName("user")+" or "+sf.InputName("client"))
 		}
 		return finish(t), nil
 	})
@@ -68,24 +76,29 @@ func eventAdminCapability() plugin.Capability {
 		Description: "The realm's administrative change log: each operation, the resource it " +
 			"touched, the path to it, and the account and address it came from. What an " +
 			"incident wants first when a client or a role appeared that nobody remembers " +
-			"adding. Bound by `max`.",
+			"adding. Bound by `limit`, and it says when it stopped.",
 		Run: runEventAdmin,
 	},
-		maxField(50, 1000, "how many events to list"),
+		limitField(50, 1000, "how many events to list"),
 	)
 }
 
 func runEventAdmin(ctx context.Context, req plugin.Request) (view.View, error) {
 	return withSession(ctx, req, func(ctx context.Context, s *session) (view.View, error) {
-		var events []adminEventRep
-		if verr := s.get(ctx, "admin-events", query("max", strconv.Itoa(req.Int("max"))), &events); verr != nil {
+		limit := req.Int("limit")
+		var got []adminEventRep
+		if verr := s.get(ctx, "admin-events", query("max", strconv.Itoa(askFor(limit))), &got); verr != nil {
 			return nil, verr
 		}
+		events, more := bounded(got, limit)
 		t := columns(view.Column{Name: "Time", Kind: view.KindTimestamp}, col("Operation"), col("Resource"),
 			col("Path"), col("By"), col("Address"), col("Error"))
 		for _, e := range events {
 			t.Rows = append(t.Rows, []string{stamp(e.Time), e.OperationType, e.ResourceType, e.ResourcePath,
 				e.AuthDetails.UserID, e.AuthDetails.IPAddress, e.Error})
+		}
+		if more {
+			t = stoppedAt(t, limit, "event", req.Surface(), "")
 		}
 		return finish(t), nil
 	})

@@ -26,7 +26,7 @@ func sessionListCapability() plugin.Capability {
 		plugin.Field{Name: "user", Type: plugin.String, Default: "", Help: "one user's sessions, by username or id"},
 		plugin.Field{Name: "client", Type: plugin.String, Default: "", Help: "the sessions open against one client",
 			Live: true, Suggest: suggestClients},
-		maxField(100, 1000, "how many sessions to list for a client"),
+		limitField(100, 1000, "how many sessions to list for a client"),
 	)
 }
 
@@ -48,12 +48,18 @@ func runSessionList(ctx context.Context, req plugin.Request) (view.View, error) 
 			if verr != nil {
 				return nil, verr
 			}
-			var sessions []userSessionRep
-			q := query("max", strconv.Itoa(req.Int("max")))
-			if verr := s.get(ctx, "clients/"+segment(c.ID)+"/user-sessions", q, &sessions); verr != nil {
+			limit := req.Int("limit")
+			var got []userSessionRep
+			q := query("max", strconv.Itoa(askFor(limit)))
+			if verr := s.get(ctx, "clients/"+segment(c.ID)+"/user-sessions", q, &got); verr != nil {
 				return nil, verr
 			}
-			return sessionTable(sessions), nil
+			sessions, more := bounded(got, limit)
+			t := sessionTable(sessions)
+			if more {
+				t = stoppedAt(t, limit, "session", req.Surface(), "")
+			}
+			return t, nil
 		}
 		t, verr := s.sessionStats(ctx)
 		if verr != nil {
@@ -77,7 +83,7 @@ func (s *session) sessionStats(ctx context.Context) (view.View, *view.Error) {
 	return finish(t), nil
 }
 
-func sessionTable(sessions []userSessionRep) view.View {
+func sessionTable(sessions []userSessionRep) view.Table {
 	t := columns(col("User"), col("Address"), view.Column{Name: "Started", Kind: view.KindTimestamp},
 		view.Column{Name: "Last access", Kind: view.KindTimestamp}, col("Clients"))
 	for _, se := range sessions {

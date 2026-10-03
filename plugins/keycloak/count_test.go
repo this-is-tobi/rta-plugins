@@ -8,7 +8,7 @@ import (
 )
 
 // A count of one reads in the singular wherever the audit prints one. These
-// are the three a realm setting or --max could bring to one and that said
+// are the three a realm setting or --limit could bring to one and that said
 // "1 failures", "1 times" and "the first 1 users were".
 
 func TestALockoutAfterOneFailureIsInTheSingular(t *testing.T) {
@@ -25,7 +25,7 @@ func TestOneRefreshTokenReuseIsInTheSingular(t *testing.T) {
 
 func TestAnAuditBoundToOneUserSaysSoInTheSingular(t *testing.T) {
 	f := newFakeKeycloak(t)
-	got := graded(t, run(t, f, "keycloak.audit", map[string]any{"detail": true, "max": 1}))
+	got := graded(t, run(t, f, "keycloak.audit", map[string]any{"detail": true, "limit": 1}))
 	g, ok := got["coverage-bound"]
 	if !ok {
 		t.Fatal("an audit bound to one user did not say it stopped there")
