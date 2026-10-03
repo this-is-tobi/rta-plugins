@@ -132,7 +132,7 @@ func serverName(req plugin.Request) string { return strings.TrimSpace(req.String
 func plaintextServerName(req plugin.Request) *view.Error {
 	sf := req.Surface()
 	refusal := view.Errorf("vault.tls.plaintext", "%s names a certificate to check, and this call would "+
-		"reach the Vault over plain HTTP (%s)", sf.SettingName("tls-server-name"), reached(req))
+		"reach %s over plain HTTP", sf.SettingName("tls-server-name"), reached(req))
 	if req.Tunnel() != plugin.TunnelNone {
 		return refusal.WithHint("a forward carries plain http:// unless the profile's connection says its far end " +
 			"speaks TLS, as Vault's own listener does: tunnelTLS: true on that connection")
@@ -146,16 +146,21 @@ func plaintextServerName(req plugin.Request) *view.Error {
 // own error shapes instead of PostgreSQL's.
 func classify(err error, req plugin.Request) *view.Error {
 	addr, sf := req.String("address"), req.Surface()
+	// The Vault as its reader reaches it again, for a refusal the Vault
+	// itself gave: through a forward the address is 127.0.0.1 and a port that
+	// closed with the call, and the token it refused was the profile's, which
+	// is the one thing the reader can change.
+	answered := reached(req)
 
 	var respErr *vaultapi.ResponseError
 	if errors.As(err, &respErr) {
 		switch respErr.StatusCode {
 		case 403:
-			return view.Errorf("vault.denied", "%s refused: %s", addr, joinErrors(respErr)).
+			return view.Errorf("vault.denied", "%s refused: %s", answered, joinErrors(respErr)).
 				WithHint("the token's policy does not allow this, or the token itself is invalid — " +
-					sf.CapabilityName("vault.token.status") + " shows what the current token can do")
+					nextCall(req, "vault.token.status") + " shows what the current token can do")
 		case 404:
-			return view.Errorf("vault.notfound", "nothing at that path on %s", addr).
+			return view.Errorf("vault.notfound", "nothing at that path on %s", answered).
 				WithHint("check the path and the mount — a KV v2 mount is not always named \"secret\"")
 		case 400:
 			// Go's own answer, from the listener rather than from Vault, to a
@@ -166,18 +171,18 @@ func classify(err error, req plugin.Request) *view.Error {
 			if strings.Contains(joinErrors(respErr), "Client sent an HTTP request to an HTTPS server") {
 				return tlsExpected(req)
 			}
-			return view.Errorf("vault.badrequest", "%s rejected the request: %s", addr, joinErrors(respErr)).
+			return view.Errorf("vault.badrequest", "%s rejected the request: %s", answered, joinErrors(respErr)).
 				WithHint("this is Vault refusing, not rta")
 		case 412:
-			return view.Errorf("vault.sealed", "%s is sealed or not yet initialized", addr).
-				WithHint(sf.CapabilityName("vault.seal.status") + " shows which")
+			return view.Errorf("vault.sealed", "%s is sealed or not yet initialized", answered).
+				WithHint(nextCall(req, "vault.seal.status") + " shows which")
 		}
-		return view.Errorf("vault.request.failed", "%s: %s", addr, joinErrors(respErr)).
+		return view.Errorf("vault.request.failed", "%s: %s", answered, joinErrors(respErr)).
 			WithHint(fmt.Sprintf("HTTP %d", respErr.StatusCode))
 	}
 
 	if errors.Is(err, vaultapi.ErrSecretNotFound) {
-		return view.Errorf("vault.notfound", "nothing at that path on %s", addr).
+		return view.Errorf("vault.notfound", "nothing at that path on %s", answered).
 			WithHint("check the path and the mount — a KV v2 mount is not always named \"secret\"")
 	}
 
@@ -273,7 +278,7 @@ func classify(err error, req plugin.Request) *view.Error {
 // tlsExpected is the refusal for a plain-HTTP call to a port that speaks
 // only TLS, which Vault's listener does.
 func tlsExpected(req plugin.Request) *view.Error {
-	refusal := view.Errorf("vault.tls.expected", "this call spoke plain HTTP to a Vault that speaks only HTTPS (%s)",
+	refusal := view.Errorf("vault.tls.expected", "this call spoke plain HTTP to %s, which speaks only HTTPS",
 		reached(req))
 	if req.Tunnel() != plugin.TunnelNone {
 		return refusal.WithHint("a forward carries plain http:// unless the profile's connection says its far end " +
@@ -315,6 +320,46 @@ func certNames(cert *x509.Certificate) string {
 	return strings.Join(names, ", ")
 }
 
+// reachArgs points a call this one hands its reader at the Vault it reached:
+// the profile it came through whenever there was one, since the token it used
+// may be the profile's and no other layer holds it, and the address only when
+// the host opened no forward (Request.ReachArgs) — through one, the address
+// was 127.0.0.1 and a port that closed with the call, and the profile is what
+// reaches the same Vault again. Reached directly the address stays, since it
+// may be one typed over the profile's, and with it the namespace, which
+// decides what the token was asked about, and the CA file and the name the
+// certificate was checked for. Never the token. Over MCP the call gives the
+// profile alone: the rest are Local, and the bridge drops one an agent sends.
+//
+// **Without them, the status a refusal offers reads another Vault.** Pasted,
+// "what the current token can do" was asked of whatever the configuration
+// there named.
+func reachArgs(req plugin.Request) []plugin.Arg {
+	if req.Surface() == plugin.SurfaceMCP {
+		return req.ReachArgs()
+	}
+	args := req.ReachArgs(plugin.Arg{Name: "address", Value: req.String("address")})
+	for _, name := range []string{"namespace", "ca-file", "tls-server-name"} {
+		if v := strings.TrimSpace(req.String(name)); v != "" {
+			args = append(args, plugin.Arg{Name: name, Value: v})
+		}
+	}
+	return args
+}
+
+// nextCall names capability id called with args and reachArgs, for a hint
+// that sends its reader to it next, quoted for the sentence around it — or by
+// its name alone when there is nothing to give, which reads better to an
+// agent than a tool beside an empty object.
+func nextCall(req plugin.Request, id string, args ...plugin.Arg) string {
+	sf := req.Surface()
+	args = append(args, reachArgs(req)...)
+	if len(args) == 0 {
+		return sf.CapabilityName(id)
+	}
+	return "`" + sf.Call(id, args...) + "`"
+}
+
 // dataHint says how data carries a secret's fields: on the CLI a flag repeated
 // once per field, and elsewhere a list with one field per value.
 func dataHint(sf plugin.Surface) string {
@@ -325,22 +370,9 @@ func dataHint(sf plugin.Surface) string {
 }
 
 // reached names the Vault this call reached the way its reader reaches it
-// again once the call is over: the address, beside the profile that filled
-// the rest of the connection when there was one — and the profile alone when
-// the host reached the Vault through a forward it opened on that profile. A
-// forward's end is 127.0.0.1 and a port that closed with the call, and a
-// receipt naming it named a Vault nothing answers as any more.
-func reached(req plugin.Request) string {
-	address := req.String("address")
-	switch profile := req.Profile(); {
-	case profile == "":
-		return address
-	case req.Tunnel() == plugin.TunnelNone:
-		return address + " (profile " + profile + ")"
-	default:
-		return "profile " + profile + ", through its " + string(req.Tunnel()) + ": forward"
-	}
-}
+// again once the call is over (Request.Reached): the address is the input
+// that names it.
+func reached(req plugin.Request) string { return req.Reached(req.String("address")) }
 
 // hostOf is the name in address, the one DNS was asked for: address is a
 // URL, and a lookup given the whole of it, scheme and port and all, answers

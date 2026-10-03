@@ -223,7 +223,7 @@ func TestANameDNSCannotResolveIsNotReadAsNothingListening(t *testing.T) {
 func TestARefusedTokenIsSentToTheTokensStatus(t *testing.T) {
 	verr := classify(&vaultapi.ResponseError{StatusCode: 403, Errors: []string{"permission denied"}},
 		req(t, "vault.kv.get", map[string]any{"path": "app/db"}))
-	if !strings.Contains(verr.Hint, "`rta vault token status` shows what the current token can do") {
+	if !strings.Contains(verr.Hint, "`rta vault token status --address http://127.0.0.1:8200` shows what the current token can do") {
 		t.Errorf("hint = %q, want it to name vault.token.status", verr.Hint)
 	}
 }
