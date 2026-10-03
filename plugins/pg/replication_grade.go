@@ -128,6 +128,33 @@ func gradeStandby(s standbyRow) verdict {
 	return g
 }
 
+// slotLoss says why a slot that can no longer be used was given up on, in
+// the words of the reason the server gives for it. The one sentence about WAL
+// that every invalid slot once got was wrong for the reasons that are not about
+// WAL: a logical slot on a standby invalidated because the primary removed
+// catalog rows it needed (17's rows_removed, 16's conflicting) read "the WAL it
+// needs has been removed (rows_removed)", found against a real standby.
+func slotLoss(s slotRow) string {
+	if s.invalid == nil {
+		return "the WAL it needs has been removed"
+	}
+	switch *s.invalid {
+	case "wal_removed":
+		return "the WAL it needs has been removed (wal_removed)"
+	case "rows_removed":
+		return "the primary removed rows it needs, a conflict with recovery (rows_removed)"
+	case "conflict with recovery":
+		// 16's boolean, which replication_read spells as the words themselves:
+		// quoted again in brackets they read as a sentence saying one thing twice.
+		return "the primary removed rows it needs, a conflict with recovery"
+	case "wal_level_insufficient":
+		return "the primary's wal_level fell below what logical decoding needs (wal_level_insufficient)"
+	case "idle_timeout":
+		return "it sat idle past idle_replication_slot_timeout (idle_timeout)"
+	}
+	return "the server invalidated it (" + *s.invalid + ")"
+}
+
 // gradeSlot judges one slot by what it can cost. A slot nobody reads keeps
 // every WAL file written since it last moved, so it is the one that fills a
 // primary's disk long after the standby it was for has gone; wal_status says
@@ -139,11 +166,7 @@ func gradeSlot(s slotRow) verdict {
 	// retained rules below would only restate what the first sentence already
 	// settles.
 	if s.invalid != nil || (s.status != nil && *s.status == "lost") {
-		why := "the WAL it needs has been removed"
-		if s.invalid != nil {
-			why += " (" + *s.invalid + ")"
-		}
-		g.note(gradeFail, why+", so it can no longer be used and whatever read it must be rebuilt")
+		g.note(gradeFail, slotLoss(s)+", so it can no longer be used and whatever read it must be rebuilt")
 		return g
 	}
 	if s.status != nil {
