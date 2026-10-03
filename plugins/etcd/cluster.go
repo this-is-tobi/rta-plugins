@@ -69,7 +69,7 @@ func overviewView(ctx context.Context, c *clientv3.Client, req plugin.Request) (
 	}
 
 	pairs := []view.Pair{
-		{Key: "endpoint", Value: endpoint},
+		{Key: "endpoint", Value: req.Reached(endpoint)},
 		{Key: "version", Value: st.Version},
 		{Key: "member id", Value: hexID(st.Header.MemberId)},
 		{Key: "leader", Value: leaderText(st)},
