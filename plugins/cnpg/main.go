@@ -175,7 +175,9 @@ func Plugin() plugin.Plugin {
 					"old cluster is the trace of a failover), certificate expiries are graded " +
 					"against the same 30-day window rta's other certificate checks use, and the " +
 					"replication posture, resource bounds and superuser-access switch are read " +
-					"from the spec.",
+					"from the spec. The resource holds no replication positions or lag, so for a " +
+					"cluster with replicas one row says where they are read: the pg plugin's " +
+					"replication page, which connects to the primary.",
 				Inputs: []plugin.Field{clusterField("the cluster to read")},
 				Run:    runStatus,
 			}),
@@ -235,16 +237,39 @@ func runStatus(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr := getJSON(ctx, s, name, &c); verr != nil {
 		return nil, verr
 	}
-	return statusView(c), nil
+	return statusView(c, lagPointer(req)), nil
+}
+
+// lagPointer says where the positions and the lag this resource does not hold
+// are read: the pg plugin's replication page, which connects to the server and
+// reads them from the primary. Spelled for the surface that asked, a command at
+// a terminal and the tool to an agent, and beside the profile the call came
+// through when there was one, since a connection to the server is the
+// profile's to make and the cnpg read is of the cluster around it.
+//
+// A pointer and not a read: this capability is one GET of one resource, and
+// stays that. It is also a plugin that may not be installed, which is why this
+// only names it.
+func lagPointer(req plugin.Request) string {
+	sf, call := req.Surface(), ""
+	if profile := req.Profile(); profile != "" {
+		call = "`" + sf.Call("pg.replication", plugin.Arg{Name: "profile", Value: profile}) + "`"
+	} else {
+		call = sf.CapabilityName("pg.replication")
+	}
+	return "not in the Cluster resource — " + call + " reads each standby's position and how far behind it is " +
+		"from the primary, over a connection to it"
 }
 
 // statusView lays one cluster out as three sections: what it is, what its
-// instances are doing, and what is wrong with it.
+// instances are doing, and what is wrong with it. lag, when it is not empty,
+// is where to read what the resource cannot say about how far behind the
+// replicas are, and is shown only for a cluster that has replicas.
 //
 // The third section is absent when there is nothing in it, which is the same
 // conditional-column doctrine the rest of rta follows one level up: a
 // "Problems" heading with nothing under it trains people to skip the heading.
-func statusView(c cluster) view.View {
+func statusView(c cluster, lag string) view.View {
 	overview := []view.Pair{
 		{Key: "Cluster", Value: c.Metadata.Namespace + "/" + c.Metadata.Name},
 		{Key: "Phase", Value: orDash(c.Status.Phase)},
@@ -276,6 +301,9 @@ func statusView(c cluster) view.View {
 	overview = append(overview,
 		view.Pair{Key: "Replication", Value: c.replicationLine()},
 	)
+	if lag != "" && c.Spec.Instances > 1 {
+		overview = append(overview, view.Pair{Key: "Lag and positions", Value: lag})
+	}
 	if e := c.Spec.EnableSuperuserAccess; e != nil {
 		v := "disabled"
 		if *e {

@@ -20,6 +20,10 @@ import (
 // than no column, the same trap plugins/kube's `pvc.list` refuses when it
 // declines to show a percentage it cannot compute.
 //
+// The page points at where the figure is read, the pg plugin's replication
+// page, and does not go and get it: a pointer costs no round trip, and works
+// whether or not that plugin is installed, which a read would not.
+//
 // So what is offered instead is the two things the resource does carry, and
 // both answer a real question:
 //
