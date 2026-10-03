@@ -189,6 +189,11 @@ func tlsExpected(req plugin.Request) *view.Error {
 // *url.Error family plugins/pg and plugins/vault already classify.
 func classify(err error, req plugin.Request) *view.Error {
 	where, sf := req.String("endpoint"), req.Surface()
+	// The server as its reader reaches it again, for a refusal the server
+	// itself gave: through a forward the endpoint is 127.0.0.1 and a port
+	// that closed with the call, and the credentials it rejected were the
+	// profile's, which is the one thing the reader can change.
+	answered := req.Reached(where)
 
 	// Checked ahead of the network-error family below because a context
 	// error can arrive bare — the listing iterator hands back ctx.Err()
@@ -209,24 +214,24 @@ func classify(err error, req plugin.Request) *view.Error {
 	if errors.As(err, &errResp) {
 		switch errResp.Code {
 		case minio.NoSuchBucket:
-			return view.Errorf("s3.bucket.notfound", "%s has no bucket %q", where, errResp.BucketName).
-				WithHint(sf.CapabilityName("s3.bucket.list") + " shows what is there")
+			return view.Errorf("s3.bucket.notfound", "%s has no bucket %q", answered, errResp.BucketName).
+				WithHint(nextCall(req, "s3.bucket.list") + " shows what is there")
 		case minio.NoSuchKey:
 			return view.Errorf("s3.object.notfound", "no object %q in %q", errResp.Key, errResp.BucketName).
-				WithHint("`" + sf.Call("s3.object.list", plugin.Arg{Name: "bucket", Value: errResp.BucketName}) +
-					"` shows what is there")
+				WithHint(nextCall(req, "s3.object.list", plugin.Arg{Name: "bucket", Value: errResp.BucketName}) +
+					" shows what is there")
 		case minio.NoSuchBucketPolicy:
 			return view.Errorf("s3.policy.notfound", "%q has no bucket policy set", errResp.BucketName).
 				WithHint("an absent policy is not the same as a deny-all one — access still follows IAM/bucket ACLs")
 		case minio.AccessDenied:
-			return view.Errorf("s3.denied", "%s refused: %s", where, errResp.Message).
+			return view.Errorf("s3.denied", "%s refused: %s", answered, errResp.Message).
 				WithHint("the credentials are valid but not authorized for this — check the bucket policy or IAM")
 		case minio.InvalidAccessKeyID, minio.SignatureDoesNotMatch:
-			return view.Errorf("s3.auth.failed", "%s rejected the credentials", where).
+			return view.Errorf("s3.auth.failed", "%s rejected the credentials", answered).
 				WithHint("set $" + plugin.LocalEnvVar("s3.overview", "secret-key") + ", or check " + sf.SettingName("access-key"))
 		case minio.BucketAlreadyExists, minio.BucketAlreadyOwnedByYou:
 			return view.Errorf("s3.bucket.exists", "%q already exists", errResp.BucketName).
-				WithHint(sf.CapabilityName("s3.bucket.list") + " shows who owns what this plugin can see")
+				WithHint(nextCall(req, "s3.bucket.list") + " shows who owns what this plugin can see")
 		}
 		// Go's own answer, from the listener rather than from the S3 API behind
 		// it, to a plain-HTTP request on a port that speaks only TLS — MinIO's
@@ -435,6 +440,24 @@ func reachArgs(req plugin.Request) []plugin.Arg {
 		args = append(args, plugin.Arg{Name: "tls-server-name", Value: name})
 	}
 	return args
+}
+
+// nextCall names capability id called with args and reachArgs, for a hint
+// that sends its reader to it next, quoted for the sentence around it — or by
+// its name alone when there is nothing to give, which reads better to an
+// agent than a tool beside an empty object.
+//
+// **Without reachArgs, the listing a refusal offers reads another server.**
+// "No such bucket" through --profile or a typed --endpoint was answered with
+// a listing naming neither, and pasted it listed whatever the configuration
+// there named.
+func nextCall(req plugin.Request, id string, args ...plugin.Arg) string {
+	sf := req.Surface()
+	args = append(args, reachArgs(req)...)
+	if len(args) == 0 {
+		return sf.CapabilityName(id)
+	}
+	return "`" + sf.Call(id, args...) + "`"
 }
 
 // outHint says how to have an object too large to print written to a file

@@ -67,7 +67,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "a bucket that is not there",
-			cli:     "`rta s3 bucket list` shows what is there",
+			cli:     "`rta s3 bucket list --endpoint s3.internal:9000` shows what is there",
 			other:   "the `s3_bucket_list` tool shows what is there",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {

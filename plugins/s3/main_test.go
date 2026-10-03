@@ -107,7 +107,7 @@ func TestANameDNSCannotResolveIsNotReadAsNothingListening(t *testing.T) {
 func TestAMissingObjectPointsAtAListingTheCLITakes(t *testing.T) {
 	verr := classify(minio.ErrorResponse{Code: minio.NoSuchKey, BucketName: "shop", Key: "k"},
 		req(t, "s3.object.get", map[string]any{"key": "k"}))
-	if want := "`rta s3 object list --bucket shop` shows what is there"; !strings.Contains(verr.Hint, want) {
+	if want := "`rta s3 object list --bucket shop --endpoint 127.0.0.1:9000` shows what is there"; !strings.Contains(verr.Hint, want) {
 		t.Errorf("hint = %q, want %q in it", verr.Hint, want)
 	}
 }
