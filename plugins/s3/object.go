@@ -257,7 +257,7 @@ func s3ObjectSetCapability() plugin.Capability {
 		plugin.Field{Name: "value", Type: plugin.Text, Positional: true, Help: "content to upload"},
 		plugin.Field{Name: "file", Type: plugin.Path, Local: true, Help: "upload this file's content instead"},
 		plugin.Field{Name: "content-type", Type: plugin.String, Suggest: suggestContentTypes,
-			Help: "MIME type; guessed from the file's extension if omitted"},
+			Help: "MIME type; text/plain for a value, and the file's extension's type for a file, if omitted"},
 		plugin.Field{Name: "storage-class", Type: plugin.String, Config: "storage-class", Suggest: suggestStorageClasses,
 			Help: "e.g. STANDARD, STANDARD_IA, GLACIER — left to the server's default if omitted"})
 }
