@@ -168,10 +168,11 @@ func TestSafetyClassesMatchWhatEachCapabilityDiscloses(t *testing.T) {
 		"mariadb.dump":    plugin.Write,
 		"mariadb.restore": plugin.Destructive,
 		// Read: every value is a number the server publishes about itself.
-		// Cluster health is not a value anybody stored, and an operator who
-		// cannot see it is an operator who finds out about a split brain from
-		// their users.
-		"mariadb.galera.status":      plugin.Read,
+		// Replication and cluster health are not a value anybody stored, and
+		// an operator who cannot see them is an operator who finds out about
+		// a split brain from their users. The text of a replication error,
+		// which carries the failing statement, is not returned (see
+		// replication_test.go).
 		"mariadb.replication.status": plugin.Read,
 	}
 	seen := map[string]bool{}

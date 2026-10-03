@@ -1,274 +1,161 @@
 package main
 
 import (
-	"context"
-	"database/sql/driver"
 	"strings"
 	"testing"
-
-	"github.com/this-is-tobi/rta/pkg/view"
 )
 
-// statusRows renders a map as the two-column result SHOW GLOBAL STATUS
-// returns, so a cluster state can be stated in the test and checked against
-// the verdict it produces.
-func statusRows(vars map[string]string) [][]driver.Value {
-	out := make([][]driver.Value, 0, len(vars))
+// The Galera rules, against what nodes of a real three-node cluster said in
+// each state — and, for the states one cluster cannot be put in on demand, the
+// healthy node's answer with the one variable a rule reads changed, so every
+// other value is what a node writes.
+
+func galeraVars(t *testing.T, fixture string) map[string]string {
+	t.Helper()
+	db := fixtureOpen(t, fixture)
+	vars, err := wsrepVars(t.Context(), db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return vars
+}
+
+func withVars(vars map[string]string, change map[string]string) map[string]string {
+	out := map[string]string{}
 	for k, v := range vars {
-		out = append(out, []driver.Value{[]byte(k), []byte(v)})
+		out[k] = v
+	}
+	for k, v := range change {
+		out[k] = v
 	}
 	return out
 }
 
-func galeraOf(t *testing.T, vars map[string]string) view.KeyValue {
-	t.Helper()
-	db := fakeDB(t, []string{"Variable_name", "Value"}, statusRows(vars))
-	v, err := galeraView(context.Background(), db, req(t, "mariadb.galera.status", map[string]any{}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	kv, ok := v.(view.KeyValue)
-	if !ok {
-		t.Fatalf("want KeyValue, got %s", view.TypeOf(v))
-	}
-	return kv
-}
-
-func valueOf(kv view.KeyValue, key string) string {
-	for _, p := range kv.Pairs {
-		if p.Key == key {
-			return p.Value
+func TestAHealthyNodeIsOkAndShowsTheClusterItIsIn(t *testing.T) {
+	for _, name := range fixtureNames(t, "galera-synced") {
+		st := stateFrom(t, name, "root")
+		sum := summarise(st, nil)
+		if sum.status != "ok" || sum.role != "Galera node (cluster of 3)" {
+			t.Errorf("%s: summary = %+v, want an ok node of a cluster of three", name, sum)
+		}
+		if !strings.Contains(sum.detail, "synced with 3 members") {
+			t.Errorf("%s: detail = %q", name, sum.detail)
+		}
+		pairs := pairsOf(replicationView(st), "galera")
+		if pairs["cluster uuid"] == "" || pairs["cluster uuid"] != pairs["node uuid"] {
+			t.Errorf("%s: the cluster's and the node's state uuids are not side by side and equal: %v", name, pairs)
+		}
+		if n := strings.Count(pairs["members"], ",") + 1; n != 3 {
+			t.Errorf("%s: members = %q, want the three the cluster reports", name, pairs["members"])
+		}
+		if pairs["last committed"] == "" || pairs["cluster conf id"] == "" {
+			t.Errorf("%s: a node's place in the cluster's history is missing: %v", name, pairs)
 		}
 	}
-	return ""
 }
 
-// **The failure this capability exists for.** A Galera node that has lost
-// quorum still accepts connections and still answers SELECT — it just stops
-// being part of the cluster. Nothing else about the server looks wrong while
-// it is happening, so the verdict has to say it in words.
-func TestANodeOutsideThePrimaryComponentIsCalledOut(t *testing.T) {
-	kv := galeraOf(t, map[string]string{
-		"wsrep_provider_name":       "Galera",
-		"wsrep_cluster_status":      "non-Primary",
-		"wsrep_cluster_size":        "1",
-		"wsrep_ready":               "OFF",
-		"wsrep_connected":           "ON",
-		"wsrep_local_state_comment": "Initialized",
-	})
-	verdict := valueOf(kv, "verdict")
-	if !strings.Contains(verdict, "SPLIT BRAIN RISK") {
-		t.Errorf("verdict = %q — a node outside the primary component must not read as merely degraded", verdict)
+// **The failure this exists for.** A Galera node that has lost quorum still
+// accepts connections and still answers SELECT — it just stops being part of
+// the cluster. Nothing else about the server looks wrong while it is
+// happening, so the verdict has to say it in words.
+func TestANodeCutOffFromTheClusterIsASplitBrainRisk(t *testing.T) {
+	st := stateFrom(t, "mariadb-11.4-galera-split", "root")
+	sum := summarise(st, nil)
+	if sum.status != "fail" || !strings.Contains(sum.detail, "split-brain risk") ||
+		!strings.Contains(sum.detail, "must not be written to") {
+		t.Errorf("summary = %+v, want a failure that says not to write to it", sum)
 	}
-	if !strings.Contains(verdict, "must not be written to") {
-		t.Errorf("verdict does not say what to do about it: %q", verdict)
+	if !strings.Contains(sum.detail, "non-Primary") {
+		t.Errorf("detail = %q, want the cluster status the node reported", sum.detail)
 	}
 }
 
-// The combination that gets misread at three in the morning: connected, ready,
-// and not caught up. Every individual row looks fine.
-func TestANodeThatIsUpButNotSyncedIsNotCalledHealthy(t *testing.T) {
-	kv := galeraOf(t, map[string]string{
-		"wsrep_provider_name":       "Galera",
-		"wsrep_cluster_status":      "Primary",
-		"wsrep_cluster_size":        "3",
-		"wsrep_ready":               "ON",
-		"wsrep_connected":           "ON",
-		"wsrep_local_state_comment": "Donor/Desynced",
-	})
-	verdict := valueOf(kv, "verdict")
-	if strings.HasPrefix(verdict, "healthy") {
-		t.Errorf("verdict = %q — a desynced node is not serving current data", verdict)
-	}
-	if !strings.Contains(verdict, "Donor/Desynced") {
-		t.Errorf("verdict does not name the state: %q", verdict)
+// The combination that gets misread at three in the morning: connected,
+// ready, in the primary component, and not caught up.
+func TestADesyncedNodeIsAWarningNotHealthy(t *testing.T) {
+	sum := summarise(stateFrom(t, "mariadb-11.4-galera-desynced", "root"), nil)
+	if sum.status != "warn" || !strings.Contains(sum.detail, "Donor/Desynced") {
+		t.Errorf("summary = %+v, want a warning naming the state", sum)
 	}
 }
 
-func TestAHealthyNodeIsCalledHealthy(t *testing.T) {
-	kv := galeraOf(t, map[string]string{
-		"wsrep_provider_name":       "Galera",
-		"wsrep_cluster_status":      "Primary",
-		"wsrep_cluster_size":        "3",
-		"wsrep_ready":               "ON",
-		"wsrep_connected":           "ON",
-		"wsrep_local_state_comment": "Synced",
-	})
-	if v := valueOf(kv, "verdict"); !strings.HasPrefix(v, "healthy") {
-		t.Errorf("verdict = %q, want healthy", v)
-	}
-	if v := valueOf(kv, "cluster size"); v != "3" {
-		t.Errorf("cluster size = %q, want 3", v)
+func TestANodeWhoseHistoryIsNotTheClustersIsOutOfStep(t *testing.T) {
+	vars := withVars(galeraVars(t, "mariadb-11.4-galera-synced"),
+		map[string]string{"wsrep_local_state_uuid": "00000000-0000-0000-0000-000000000000"})
+	f := galeraFacet(vars)
+	if f.status != "fail" || !strings.Contains(f.detail, "out of step") {
+		t.Errorf("facet = %+v, want a failure calling the node out of step", f)
 	}
 }
 
-// A standalone MariaDB is a normal thing to run. Returning an empty table for
-// one would read exactly like a cluster that has fallen apart.
-func TestAServerWithoutGaleraSaysSoRatherThanLookingBroken(t *testing.T) {
+func TestFlowControlGradesByHowMuchOfTheTimeANodeIsHeldBack(t *testing.T) {
+	base := galeraVars(t, "mariadb-11.4-galera-synced")
+	for _, tc := range []struct{ paused, want string }{
+		{"0.000000", "ok"},
+		{"0.099999", "ok"},
+		{"0.100000", "warn"},
+		{"0.499999", "warn"},
+		{"0.500000", "fail"},
+		{"0.970000", "fail"},
+	} {
+		f := galeraFacet(withVars(base, map[string]string{"wsrep_flow_control_paused": tc.paused}))
+		if f.status != tc.want {
+			t.Errorf("paused %s: status = %q, want %q (%s)", tc.paused, f.status, tc.want, f.detail)
+		}
+	}
+	f := galeraFacet(withVars(base, map[string]string{"wsrep_flow_control_paused": "0.250000"}))
+	if !strings.Contains(f.detail, "25%") {
+		t.Errorf("detail = %q, want the share of time spelled as a percentage", f.detail)
+	}
+}
+
+// A node blocked behind a global read lock while the rest of the cluster
+// writes reads Synced, connected and ready, and is a long way behind: the
+// queue of writesets waiting to be applied is the only thing that says so.
+func TestANodeFallingBehindIsAWarningByItsReceiveQueue(t *testing.T) {
+	sum := summarise(stateFrom(t, "mariadb-11.4-galera-flow-n3", "root"), nil)
+	// The global read lock also desyncs the node, which is why it reads
+	// Donor/Desynced; both findings are kept.
+	if sum.status != "warn" || !strings.Contains(sum.detail, "waiting to be applied") ||
+		!strings.Contains(sum.detail, "Donor/Desynced") {
+		t.Errorf("summary = %+v, want a warning naming the queue and the state", sum)
+	}
+	base := galeraVars(t, "mariadb-11.4-galera-synced")
+	for queue, want := range map[string]string{"0": "ok", "99": "ok", "100": "warn"} {
+		if f := galeraFacet(withVars(base, map[string]string{"wsrep_local_recv_queue": queue})); f.status != want {
+			t.Errorf("queue %s: status = %q, want %q", queue, f.status, want)
+		}
+	}
+}
+
+// A node that is up and refusing cluster traffic is not a healthy one, and
+// neither flag alone is the whole of it.
+func TestAnUnreadyOrDisconnectedNodeFails(t *testing.T) {
+	base := galeraVars(t, "mariadb-11.4-galera-synced")
+	for _, change := range []map[string]string{{"wsrep_ready": "OFF"}, {"wsrep_connected": "OFF"}} {
+		if f := galeraFacet(withVars(base, change)); f.status != "fail" {
+			t.Errorf("%v: facet = %+v, want a failure", change, f)
+		}
+	}
+}
+
+// A standalone MariaDB is a normal thing to run. A cluster section for one
+// would read exactly like a cluster that has fallen apart.
+func TestAServerWithoutGaleraHasNoClusterSection(t *testing.T) {
 	for _, vars := range []map[string]string{
 		{},                              // no wsrep variables at all
 		{"wsrep_provider_name": "none"}, // compiled in, not configured
 		{"wsrep_provider_name": ""},     // present and empty
 		{"wsrep_cluster_size": "0"},     // wsrep variables, no provider
 	} {
-		kv := galeraOf(t, vars)
-		if v := valueOf(kv, "clustered"); v != "no" {
-			t.Errorf("vars %v: clustered = %q, want no", vars, v)
-		}
-		if !strings.Contains(valueOf(kv, "note"), "not a broken cluster") {
-			t.Errorf("vars %v: does not distinguish standalone from broken", vars)
+		if part := clusterFrom(vars); part.facet != nil || part.section != nil {
+			t.Errorf("vars %v: a cluster part for a server that is not clustered: %+v", vars, part)
 		}
 	}
-}
-
-func replicationOf(t *testing.T, columns []string, row []driver.Value) view.KeyValue {
-	t.Helper()
-	var rows [][]driver.Value
-	if row != nil {
-		rows = [][]driver.Value{row}
-	}
-	db := fakeDB(t, columns, rows)
-	v, err := replicationView(context.Background(), db, req(t, "mariadb.replication.status", map[string]any{}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return v.(view.KeyValue)
-}
-
-// **The trap this capability exists for.** Seconds_Behind_Master reads 0 both
-// when a replica is caught up and when it has stopped receiving anything at
-// all, so the lag figure on its own is not an answer.
-func TestAStoppedReplicaIsNotReportedAsCaughtUp(t *testing.T) {
-	kv := replicationOf(t,
-		[]string{"Master_Host", "Slave_IO_Running", "Slave_SQL_Running", "Seconds_Behind_Master", "Last_Errno"},
-		[]driver.Value{[]byte("primary.internal"), []byte("No"), []byte("No"), nil, []byte("2003")})
-
-	verdict := valueOf(kv, "verdict")
-	if !strings.Contains(verdict, "STOPPED") {
-		t.Errorf("verdict = %q — a stopped replica must not read as healthy", verdict)
-	}
-	if !strings.Contains(verdict, "lag figure means nothing") {
-		t.Errorf("verdict does not warn that the lag is meaningless: %q", verdict)
-	}
-	if lag := valueOf(kv, "lag"); !strings.Contains(lag, "unknown") {
-		t.Errorf("NULL lag rendered as %q — indistinguishable from caught up", lag)
-	}
-	if got := valueOf(kv, "last error"); !strings.Contains(got, "errno 2003") {
-		t.Errorf("the errno was dropped: %q", got)
-	}
-}
-
-// **The fact stays, the disclosure does not.** Last_Error carries the
-// failing statement verbatim — row literals included — on a Read capability
-// with no grant. Only the errno may appear here; the message belongs behind
-// mariadb.query.
-func TestReplicationErrorTextNeverReachesTheReadTier(t *testing.T) {
-	kv := replicationOf(t,
-		[]string{"Master_Host", "Slave_IO_Running", "Slave_SQL_Running", "Seconds_Behind_Master",
-			"Last_Errno", "Last_Error", "Last_IO_Errno", "Last_IO_Error"},
-		[]driver.Value{[]byte("primary.internal"), []byte("No"), []byte("No"), nil,
-			[]byte("1062"), []byte("INSERT INTO users (email, ssn) VALUES ('a@b.com', '123-45-6789')"),
-			[]byte("2003"), []byte("could not connect to primary.internal:3306")})
-
-	for _, secret := range []string{
-		"INSERT INTO users",
-		"a@b.com",
-		"123-45-6789",
-		"could not connect to primary.internal",
-	} {
-		if strings.Contains(valueOf(kv, "last error"), secret) || strings.Contains(valueOf(kv, "last io error"), secret) {
-			t.Errorf("the failing statement reached the read tier: %q / %q",
-				valueOf(kv, "last error"), valueOf(kv, "last io error"))
+	for _, name := range fixtureNames(t, "standalone") {
+		st := stateFrom(t, name, "root")
+		if st.cluster.facet != nil || st.cluster.section != nil {
+			t.Errorf("%s: a standalone server has a cluster part", name)
 		}
-	}
-	if got := valueOf(kv, "last error"); !strings.Contains(got, "errno 1062") || !strings.Contains(got, "mariadb.query") {
-		t.Errorf("last error = %q, want the errno and a pointer to mariadb.query", got)
-	}
-	if got := valueOf(kv, "last io error"); !strings.Contains(got, "errno 2003") || !strings.Contains(got, "mariadb.query") {
-		t.Errorf("last io error = %q, want the errno and a pointer to mariadb.query", got)
-	}
-}
-
-// A zero errno means no error, on either field — not "run mariadb.query to
-// find out", which would send an operator chasing a replica that is fine.
-func TestReplicationZeroErrnoIsNotReportedAsAnError(t *testing.T) {
-	kv := replicationOf(t,
-		[]string{"Master_Host", "Slave_IO_Running", "Slave_SQL_Running", "Seconds_Behind_Master",
-			"Last_Errno", "Last_IO_Errno"},
-		[]driver.Value{[]byte("primary.internal"), []byte("Yes"), []byte("Yes"), []byte("0"),
-			[]byte("0"), []byte("0")})
-
-	if valueOf(kv, "last error") != "" {
-		t.Errorf("last error = %q, want no row for errno 0", valueOf(kv, "last error"))
-	}
-	if valueOf(kv, "last io error") != "" {
-		t.Errorf("last io error = %q, want no row for errno 0", valueOf(kv, "last io error"))
-	}
-}
-
-// MariaDB renamed these columns in 10.5 and kept the old spelling as a
-// deprecated alias, so both are in the wild. Reading only one is how this
-// silently reports nothing on half the versions people run.
-func TestBothColumnSpellingsAreRead(t *testing.T) {
-	modern := replicationOf(t,
-		[]string{"Source_Host", "Replica_IO_Running", "Replica_SQL_Running", "Seconds_Behind_Source"},
-		[]driver.Value{[]byte("primary.internal"), []byte("Yes"), []byte("Yes"), []byte("0")})
-	if valueOf(modern, "source") != "primary.internal" {
-		t.Errorf("10.5+ column names were not read: %+v", modern.Pairs)
-	}
-	if !strings.HasPrefix(valueOf(modern, "verdict"), "healthy") {
-		t.Errorf("verdict = %q, want healthy", valueOf(modern, "verdict"))
-	}
-
-	legacy := replicationOf(t,
-		[]string{"Master_Host", "Slave_IO_Running", "Slave_SQL_Running", "Seconds_Behind_Master"},
-		[]driver.Value{[]byte("primary.internal"), []byte("Yes"), []byte("Yes"), []byte("0")})
-	if valueOf(legacy, "source") != "primary.internal" {
-		t.Errorf("pre-10.5 column names were not read: %+v", legacy.Pairs)
-	}
-
-	// Every column that feeds the verdict, not only the one that names the
-	// source. Reading source_host from both spellings while reading the thread
-	// states from one leaves a pre-10.5 replica reporting a verdict built from
-	// two empty strings — which is "STOPPED" for a replica that is running.
-	for _, kv := range []view.KeyValue{modern, legacy} {
-		if v := valueOf(kv, "io thread"); v != "Yes" {
-			t.Errorf("io thread = %q, want Yes — a spelling was missed", v)
-		}
-		if v := valueOf(kv, "sql thread"); v != "Yes" {
-			t.Errorf("sql thread = %q, want Yes — a spelling was missed", v)
-		}
-		if v := valueOf(kv, "verdict"); !strings.HasPrefix(v, "healthy") {
-			t.Errorf("verdict = %q, want healthy — a running replica read as stopped", v)
-		}
-	}
-}
-
-// A replica that is running and an hour behind is a different problem from one
-// that has stopped, and both are different from healthy.
-func TestALaggingReplicaIsDistinguishedFromAStoppedOne(t *testing.T) {
-	kv := replicationOf(t,
-		[]string{"Source_Host", "Replica_IO_Running", "Replica_SQL_Running", "Seconds_Behind_Source"},
-		[]driver.Value{[]byte("primary.internal"), []byte("Yes"), []byte("Yes"), []byte("3600")})
-	verdict := valueOf(kv, "verdict")
-	if !strings.Contains(verdict, "BEHIND") {
-		t.Errorf("verdict = %q, want BEHIND", verdict)
-	}
-	if strings.Contains(verdict, "STOPPED") {
-		t.Errorf("a running replica was reported as stopped: %q", verdict)
-	}
-	if valueOf(kv, "lag") != "3600s" {
-		t.Errorf("lag = %q, want 3600s", valueOf(kv, "lag"))
-	}
-}
-
-// A primary returns an empty result here, and that is not a failure.
-func TestAPrimarySaysSoRatherThanLookingBroken(t *testing.T) {
-	kv := replicationOf(t, []string{"Master_Host", "Slave_IO_Running"}, nil)
-	if v := valueOf(kv, "replica"); v != "no" {
-		t.Errorf("replica = %q, want no", v)
-	}
-	if !strings.Contains(valueOf(kv, "note"), "not a broken replica") {
-		t.Errorf("does not distinguish a primary from a broken replica: %+v", kv.Pairs)
 	}
 }

@@ -1,6 +1,7 @@
 // Command rta-plugin-mariadb talks to a MariaDB server: what it is, what is
-// in it, what shape that has, what is running, whether its cluster is healthy,
-// and — behind the write tier — the rows themselves.
+// in it, what shape that has, what is running, where its replication stands
+// and whether its cluster is healthy, and — behind the write tier — the rows
+// themselves.
 //
 // # Why this is a separate artifact from plugins/mysql
 //
@@ -17,9 +18,10 @@
 // repository carries its own connection handling for the same reason.
 //
 // What is actually different is what MariaDB has that MySQL does not: a Galera
-// cluster's replication state, and MariaDB's own replica status. Those are the
-// two capabilities below that plugins/mysql has no equivalent of, and they are
-// the reason somebody running MariaDB wants this artifact rather than that one.
+// cluster's state, which the replication view carries beside the replica and
+// source state both servers have, and MariaDB's own spelling of positions and
+// privileges. They are the reason somebody running MariaDB wants this
+// artifact rather than that one.
 //
 // Build it and put it on your $PATH as `rta-plugin-mariadb`:
 //
@@ -100,7 +102,7 @@ var version = "dev"
 func Plugin() plugin.Plugin {
 	return plugin.Plugin{
 		Name:    "mariadb",
-		Summary: "MariaDB: connection health, schema, rows, activity and cluster state",
+		Summary: "MariaDB: connection health, schema, rows, activity, replication and cluster state",
 		Version: version,
 		Capabilities: []plugin.Capability{
 			dumpCapability(),
@@ -112,8 +114,6 @@ func Plugin() plugin.Plugin {
 			schemaCapability(),
 			queryCapability(),
 			activityCapability(),
-			// The two MariaDB has and MySQL does not.
-			galeraCapability(),
 			replicationCapability(),
 		},
 	}

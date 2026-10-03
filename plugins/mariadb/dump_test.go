@@ -364,11 +364,11 @@ func TestTheReceiptNamesALostQuorum(t *testing.T) {
 	}
 	// Where the whole picture is, as a capability this plugin has: the line
 	// once named `rta mariadb cluster`, a command rta does not have.
-	if !strings.Contains(split, "`rta mariadb galera status` has the whole picture") {
+	if !strings.Contains(split, "`rta mariadb replication status` has the whole picture") {
 		t.Errorf("describe() = %q, want it to name where the whole picture is", split)
 	}
 	tui := source{version: "11.4.2-MariaDB", galeraStatus: "non-Primary"}.describe(plugin.SurfaceTUI)
-	if !strings.Contains(tui, "`mariadb.galera.status` has the whole picture") {
+	if !strings.Contains(tui, "`mariadb.replication.status` has the whole picture") {
 		t.Errorf("describe() in the TUI = %q, want it to name the capability by its ID", tui)
 	}
 
