@@ -9,7 +9,24 @@ import (
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
+
+// A refusal the cluster gave names the cluster as its reader reaches it
+// again. Through a forward the endpoint is 127.0.0.1 and a port that closed
+// with the call, and "127.0.0.1:41233 rejected the credentials" named nothing
+// the reader could change.
+func TestARefusalTheClusterGaveNamesTheProfileAndNotTheEndOfItsForward(t *testing.T) {
+	r := req(t, "etcd.overview", map[string]any{"endpoint": "127.0.0.1:41233"}).WithProfile("prod", plugin.TunnelKube)
+	for _, code := range []codes.Code{codes.Unauthenticated, codes.PermissionDenied} {
+		got := classify(status.Error(code, "server text"), r)
+		if !strings.Contains(got.Message, "profile prod (through its kube: forward)") ||
+			strings.Contains(got.Message, "41233") {
+			t.Errorf("%v: message = %q, want the profile and its forward, not the forward's end", code, got.Message)
+		}
+	}
+}
 
 // A key that is not there is looked for again with the call the hint hands
 // over, and that call has to reach the cluster this one read: through a
