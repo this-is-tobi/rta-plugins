@@ -47,7 +47,7 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 	if len(sick) > 0 {
 		names := make([]string, 0, len(sick))
 		for _, r := range sick {
-			names = append(names, r.Names+" ("+strings.ToLower(r.State)+")")
+			names = append(names, r.Names+" ("+whatIsWrong(r)+")")
 		}
 		pairs = append(pairs, view.Pair{
 			Key:   "not running or not healthy",
@@ -111,6 +111,18 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 		page.Warnings = append(page.Warnings, *imgErr)
 	}
 	return page, nil
+}
+
+// whatIsWrong is the word beside a container the overview lists as worth
+// looking at. A container that is running and failing its healthcheck was
+// listed as "web (running)" under "not running or not healthy": the state
+// the daemon reports is the one thing that is fine about it, and the list
+// read as saying the container was down.
+func whatIsWrong(r containerRow) string {
+	if strings.EqualFold(r.State, "running") {
+		return "unhealthy"
+	}
+	return strings.ToLower(r.State)
 }
 
 func hintOf(e *view.Error, c connection) string {

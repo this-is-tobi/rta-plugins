@@ -80,6 +80,31 @@ func TestOverviewSaysWhenTheImageQueryFailed(t *testing.T) {
 	}
 }
 
+// A container that is up and failing its healthcheck is listed for the
+// healthcheck, not for the state the daemon reports. The list was headed "not
+// running or not healthy" and held "web (running)", which reads as the
+// daemon's opinion that a container it says is running is not.
+func TestAnUnhealthyContainerIsNamedForItsHealthNotItsState(t *testing.T) {
+	scriptedDocker(t, "case \"$*\" in\n"+
+		"  *ps*) echo '{\"Names\":\"web\",\"State\":\"running\",\"HealthStatus\":\"unhealthy\",\"Status\":\"Up 2 hours (unhealthy)\"}'\n"+
+		"        echo '{\"Names\":\"old\",\"State\":\"exited\",\"Status\":\"Exited (0) 3 days ago\"}'\n"+
+		"        echo '{\"Names\":\"ok\",\"State\":\"running\",\"HealthStatus\":\"healthy\",\"Status\":\"Up\"}' ;;\n"+
+		"esac\n")
+	v, err := runOverview(t.Context(), overviewReq(t, map[string]any{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sick string
+	for _, p := range v.(view.KeyValue).Pairs {
+		if p.Key == "not running or not healthy" {
+			sick = p.Value
+		}
+	}
+	if want := "old (exited), web (unhealthy)"; sick != want {
+		t.Errorf("not running or not healthy = %q, want %q", sick, want)
+	}
+}
+
 // And the detailed page carries the same fact where a page says it: in the
 // warnings, which is what pkg/view built them for.
 func TestTheDetailedOverviewWarnsAboutTheImageQuery(t *testing.T) {
