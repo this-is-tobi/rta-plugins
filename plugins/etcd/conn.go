@@ -431,7 +431,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	case errors.Is(err, context.DeadlineExceeded):
 		return view.Errorf("etcd.timeout", "%s did not answer in time", where).
 			WithHint("a cluster that has lost quorum accepts connections and answers nothing — " +
-				sf.CapabilityName("etcd.overview") + " shows whether the members can see each other")
+				nextCall(req, "etcd.overview") + " shows whether the members can see each other")
 	case errors.Is(err, clientv3.ErrNoAvailableEndpoints):
 		return view.Errorf("etcd.unreachable", "no endpoint answered at %s", where).
 			WithHint("is the cluster up, and is " + sf.SettingName("endpoint") + " right? etcd listens on 2379 for clients " +
@@ -637,6 +637,19 @@ func reachArgs(req plugin.Request) []plugin.Arg {
 		}
 	}
 	return args
+}
+
+// nextCall names capability id called with args and reachArgs, for a hint
+// that sends its reader to it next, quoted for the sentence around it — or by
+// its name alone when there is nothing to give, which reads better to an
+// agent than a tool beside an empty object.
+func nextCall(req plugin.Request, id string, args ...plugin.Arg) string {
+	sf := req.Surface()
+	args = append(args, reachArgs(req)...)
+	if len(args) == 0 {
+		return sf.CapabilityName(id)
+	}
+	return "`" + sf.Call(id, args...) + "`"
 }
 
 func hostOnly(endpoint string) string {
