@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
@@ -159,19 +158,30 @@ func whyNotAsked(req plugin.Request) string {
 // is what an unreachable member usually reads, and the URL beside it is the
 // part that says which. The typed reasons are for the dials that do fail
 // outright; where gRPC wrapped one in a status the operating system's error
-// survives only as the text its errno prints, and is matched as that.
+// survives only as the text its errno prints, and plugin.DialRefused and
+// DialUnroutable read it as that: a dial's words, "connect: connection
+// refused", and never when the text holds a handshake's or a certificate's
+// failure, which only a server that was reached gives.
+//
+// **Not by the errno's words alone.** Matched as bare text, "connection
+// refused" in a status read as a refused dial whatever the status was about,
+// and a member whose certificate was valid for a name spelled that way, or
+// whose reply quoted a backend of its own that refused, was a port nothing
+// listened on, on a member that had answered. The name that does not resolve
+// is read by its words too, since a flattened lookup keeps nothing else, but
+// not from a handshake's.
 func unreachableWhy(err error) string {
 	msg := err.Error()
 	var dnsErr *stdnet.DNSError
 	switch {
 	case errors.Is(err, context.DeadlineExceeded) || status.Code(err) == codes.DeadlineExceeded:
 		return "no answer within " + memberTimeout.String()
-	case plugin.DialRefused(err), strings.Contains(msg, syscall.ECONNREFUSED.Error()):
+	case plugin.DialRefused(err):
 		return "connection refused"
-	case errors.As(err, &dnsErr), strings.Contains(msg, "no such host"):
+	case errors.As(err, &dnsErr), strings.Contains(msg, "no such host") && !strings.Contains(msg, "x509: ") &&
+		!strings.Contains(msg, "tls: "):
 		return "the name does not resolve from here"
-	case plugin.DialUnroutable(err), strings.Contains(msg, syscall.EHOSTUNREACH.Error()),
-		strings.Contains(msg, syscall.ENETUNREACH.Error()):
+	case plugin.DialUnroutable(err):
 		return "no route from here"
 	}
 	if st, ok := status.FromError(err); ok {
