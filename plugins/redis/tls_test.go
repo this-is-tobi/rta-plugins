@@ -349,7 +349,10 @@ func TestAHangUpThroughAForwardIsNotSentToTLS(t *testing.T) {
 	if verr == nil || verr.Code != "redis.conn.closed" {
 		t.Fatalf("through a forward: %v, want redis.conn.closed", verr)
 	}
-	for _, want := range []string{"profile prod (through its kube: forward) asks for — --ca-file and " +
+	if !strings.Contains(verr.Message, "profile prod (through its kube: forward) closed the connection") {
+		t.Errorf("message = %q, want the profile named", verr.Message)
+	}
+	for _, want := range []string{"this call asks for — --ca-file and " +
 		"--tls-server-name each turn TLS on over the forward", "since the forward ends at 127.0.0.1"} {
 		if !strings.Contains(verr.Hint, want) {
 			t.Errorf("hint = %q, want %q in it", verr.Hint, want)
