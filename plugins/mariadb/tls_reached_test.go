@@ -26,7 +26,7 @@ func TestACertificateRefusalThroughAForwardNamesTheProfile(t *testing.T) {
 	}{
 		{"an unknown issuer", "mariadb.tls.untrusted", ca.serverCert(t), map[string]any{"tls": "true"}},
 		{"another name", "mariadb.tls.name", ca.certFor(t, "db.internal", nil, "db.internal"),
-			map[string]any{"tls": "true", "ca-file": caFile}},
+			map[string]any{"tls": "true", "ca-file": caFile, "tls-server-name": "other.internal"}},
 		{"no name at all", "mariadb.tls.name", ca.certFor(t, "MariaDB_Server_Auto_Generated_Server_Certificate", nil),
 			map[string]any{"tls": "true", "ca-file": caFile}},
 	} {

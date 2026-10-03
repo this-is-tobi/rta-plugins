@@ -164,6 +164,9 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	if _, verr := tlsConfig(req); verr != nil {
 		return nil, verr
 	}
+	if verr := checkClientTLS(req); verr != nil {
+		return nil, verr
+	}
 
 	tool, err := lookupTool(dumpTools)
 	if err != nil {
@@ -411,7 +414,7 @@ func dumpArgs(req plugin.Request) []string {
 // the one a client before 11.4 reads as a chain check; pin.go says what a
 // newer one is handed instead.
 func tlsArgs(req plugin.Request) []string {
-	switch req.String("tls") {
+	switch tlsMode(req) {
 	case "false":
 		return []string{"--skip-ssl"}
 	case "true":
@@ -636,11 +639,19 @@ func reachArgs(req plugin.Request) []plugin.Arg {
 	if database := req.String("database"); database != "" {
 		args = append(args, plugin.Arg{Name: "database", Value: database})
 	}
-	if mode := req.String("tls"); mode == "true" || mode == "verify-ca" || mode == "skip-verify" {
+	switch mode := req.String("tls"); {
+	case req.Tunnel() != plugin.TunnelNone:
+		if ca := caFile(req); ca != "" {
+			args = append(args, plugin.Arg{Name: "ca-file", Value: ca})
+		}
+	case mode == "true" || mode == "verify-ca" || mode == "skip-verify":
 		args = append(args, plugin.Arg{Name: "tls", Value: mode})
 		if ca := caFile(req); mode != "skip-verify" && ca != "" {
 			args = append(args, plugin.Arg{Name: "ca-file", Value: ca})
 		}
+	}
+	if name := serverName(req); name != "" {
+		args = append(args, plugin.Arg{Name: "tls-server-name", Value: name})
 	}
 	return args
 }

@@ -254,17 +254,17 @@ func TestWhatTheServerSaysAboutTLSIsNamedAsThat(t *testing.T) {
 
 	// Through a forward, tls true given by the caller opens no forward, and
 	// the call goes to the default host instead: the forward is named as
-	// what carries no TLS, and the way on is a direct connection.
+	// what carries no TLS, and the way on is the CA or the name in the profile.
 	forwarded := classify(&mysql.MySQLError{Number: 3159, Message: "Connections using insecure transport are prohibited"},
 		req(t, "mariadb.status", map[string]any{"host": "127.0.0.1", "port": 54321, "tls": "false"}).
 			WithProfile("prod", plugin.TunnelKube))
-	if forwarded.Code != "mariadb.tls.required" ||
-		!strings.Contains(forwarded.Message, "profile prod (through its kube: forward) carries none") {
+	if forwarded.Code != "mariadb.tls.required" || !strings.Contains(forwarded.Message,
+		"profile prod (through its kube: forward) accepts connections over TLS only, and the forward carries none") {
 		t.Errorf("3159 through a forward = %s: %s, want the forward named", forwarded.Code, forwarded.Message)
 	}
-	if !strings.Contains(forwarded.Hint, "by a profile with no kube: or ssh: coordinate") ||
-		strings.Contains(forwarded.Hint, "--tls") {
-		t.Errorf("hint = %q, want a direct connection named and no tls to give", forwarded.Hint)
+	if !strings.Contains(forwarded.Hint, "--ca-file and --tls-server-name each turn TLS on over it") ||
+		strings.Contains(forwarded.Hint, "--tls ") {
+		t.Errorf("hint = %q, want what turns TLS on over a forward named and no tls to give", forwarded.Hint)
 	}
 }
 

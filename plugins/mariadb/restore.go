@@ -105,6 +105,9 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 	if _, verr := tlsConfig(req); verr != nil {
 		return nil, verr
 	}
+	if verr := checkClientTLS(req); verr != nil {
+		return nil, verr
+	}
 	tool, err := lookupTool(restoreTools)
 	if err != nil {
 		return nil, view.Errorf("mariadb.restore.missing", "no %s on $PATH",
