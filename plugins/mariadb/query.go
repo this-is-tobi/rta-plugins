@@ -200,7 +200,7 @@ func activityView(ctx context.Context, db *sql.DB, req plugin.Request, withState
 		}
 		row := []string{
 			strconv.FormatInt(id, 10), user, host, dbName, command,
-			(time.Duration(seconds) * time.Second).String(), state,
+			format.Duration(time.Duration(seconds) * time.Second), state,
 		}
 		if withStatements {
 			row = append(row, truncateStatement(info))
