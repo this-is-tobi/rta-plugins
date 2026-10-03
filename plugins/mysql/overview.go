@@ -98,8 +98,16 @@ func statusView(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 	if err != nil {
 		return nil, classify(err, req)
 	}
+	return view.KeyValue{Pairs: statusPairs(info, req)}, nil
+}
+
+// statusPairs is the status page. The server is named as its reader reaches it
+// again (Request.Reached): through a forward the address is 127.0.0.1 and a
+// port that closed with the call, which a page kept or pasted into a ticket
+// named and the reader could do nothing with.
+func statusPairs(info serverInfo, req plugin.Request) []view.Pair {
 	pairs := []view.Pair{
-		{Key: "server", Value: address(req)},
+		{Key: "server", Value: req.Reached(address(req))},
 		{Key: "flavour", Value: info.flavour},
 		{Key: "version", Value: info.version},
 		{Key: "uptime", Value: info.uptime.Round(time.Second).String()},
@@ -109,7 +117,7 @@ func statusView(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 	if dbName := req.String("database"); dbName != "" {
 		pairs = append(pairs, view.Pair{Key: "database", Value: dbName})
 	}
-	return view.KeyValue{Pairs: pairs}, nil
+	return pairs
 }
 
 func overviewCapability() plugin.Capability {
