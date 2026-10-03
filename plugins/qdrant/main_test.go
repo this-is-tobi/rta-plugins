@@ -273,6 +273,33 @@ func TestPayloadColumnsAreRedactedAndTheIDIsNot(t *testing.T) {
 	}
 }
 
+// What the description says about a stored value is what the result does with
+// it. rta masks every column a plugin marks redacted, on every surface and for
+// a caller holding a grant too, so an agent granted qdrant.points.scroll was
+// told it reads "points, with their payloads" and got ids and bullets. If a
+// payload is ever returned, this fails and the description has to follow.
+func TestTheDescriptionSaysThePayloadsComeBackMasked(t *testing.T) {
+	f := newFakeQdrant(t, map[string]string{
+		"/collections/docs/points/scroll": `{"result":{"points":[{"id":1,"payload":{"text":"a"}}],"next_page_offset":null}}`,
+	})
+	v, err := runPointsScroll(context.Background(),
+		reqAt(t, f, "qdrant.points.scroll", map[string]any{"collection": "docs"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	masked := len(v.(view.Table).Redacted) > 0
+	for _, c := range Plugin().Capabilities {
+		if c.ID != "qdrant.points.scroll" {
+			continue
+		}
+		if said := strings.Contains(c.Description, "come back masked (••••••), on every surface"); said != masked {
+			t.Errorf("the payloads are redacted = %v, and the description says so = %v", masked, said)
+		}
+		return
+	}
+	t.Fatal("qdrant.points.scroll is not declared")
+}
+
 // A collection name is caller-supplied and Qdrant accepts a wide range of
 // them, so a raw concatenation is a path traversal: a name of "../cluster"
 // would reach a different endpoint entirely.
