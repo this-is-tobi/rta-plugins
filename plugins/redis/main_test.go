@@ -260,7 +260,7 @@ func TestOverviewGradesMemoryAgainstMaxmemory(t *testing.T) {
 		t.Errorf("memory row = %v", got)
 	}
 	repl := sectionOf(t, page, "replication").(view.Table)
-	if len(repl.Rows) != 1 || repl.Rows[0][1] != "10.0.0.2:6379" || repl.Rows[0][2] != "online" {
+	if len(repl.Rows) != 1 || repl.Rows[0][1] != "10.0.0.2:6379" || repl.Rows[0][2] != "ok" {
 		t.Errorf("replication rows = %v", repl.Rows)
 	}
 	ks := sectionOf(t, page, "keyspace").(view.Table)

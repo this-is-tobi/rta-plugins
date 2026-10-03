@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	stdnet "net"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,11 +24,21 @@ func overviewCapability() plugin.Capability {
 		Description: "INFO, read once and graded: memory against maxmemory and what happens at " +
 			"the ceiling, when the last RDB was written and how many writes it does not " +
 			"cover, whether AOF is on and whether its last rewrite succeeded, the " +
-			"replication role and every replica's link, and each database's key count.\n\n" +
+			"replication role with every link it has, and each database's key count.\n\n" +
 			"The memory row is the one to watch. A server at maxmemory with `noeviction` " +
 			"refuses every write while answering reads, which looks like a working cache " +
 			"from anywhere except here; one with an eviction policy quietly loses keys " +
 			"instead, and the evicted count is where that shows.\n\n" +
+			"Against a primary, the replication table has a row per replica: its acknowledged " +
+			"offset, how many bytes of the stream it has not acknowledged, and whether a " +
+			"reconnect now could still resume. A replica that has fallen behind the replication " +
+			"backlog is graded, because its next dropped connection costs a full copy of the " +
+			"dataset; one that has not answered for 10 seconds is graded at the lag a primary " +
+			"configured with min-replicas-to-write refuses writes at. Against a replica it shows " +
+			"the link and, for a replica rebuilding itself, the progress of the full sync — the " +
+			"distance behind the primary is the primary's to say, and is read there. The stream " +
+			"section holds the replication id, which every member of one history shares and a " +
+			"promotion changes, and what the backlog holds. Reading it needs only INFO.\n\n" +
 			"`detail` adds the raw INFO sections, for the field this page does not show.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withClient(ctx, req, func(ctx context.Context, c *client) (view.View, error) {
@@ -120,6 +129,9 @@ func overviewView(ctx context.Context, c *client, req plugin.Request) (view.View
 	p.Put("memory", memoryTable(in))
 	p.Put("persistence", persistenceTable(in, now))
 	p.Put("replication", replicationTable(in))
+	if stream, ok := streamPairs(in, c.sf); ok {
+		p.Put("replication stream", stream)
+	}
 	p.Put("keyspace", keyspaceTable(in))
 	if req.Bool("detail") {
 		for _, name := range in.order {
@@ -223,46 +235,6 @@ func loadingText(in info) string {
 		return "loading"
 	}
 	return "ok"
-}
-
-// replicationTable is the role and, on a primary, every replica's link; on a
-// replica, the primary it follows and whether the link is up.
-//
-// A peer is named as the address it is dialled at, an IPv6 literal
-// bracketed: joined with a bare colon, as it once was, a replica at ::1 read
-// ::1:6380, which no reader could split into an address and a port.
-func replicationTable(in info) view.Table {
-	t := view.Table{Columns: []view.Column{
-		{Name: "Role"},
-		{Name: "Peer"},
-		{Name: "Link", Kind: view.KindStatus},
-		{Name: "Offset", Kind: view.KindNumber},
-		{Name: "Lag"},
-	}}
-	role := in.get("role")
-	switch role {
-	case "slave", "replica":
-		link := in.get("master_link_status")
-		lag := "-"
-		if s := in.get("master_last_io_seconds_ago"); s != "" {
-			lag = s + "s since last I/O"
-		}
-		t.Rows = append(t.Rows, []string{"replica",
-			stdnet.JoinHostPort(in.get("master_host"), in.get("master_port")), link, in.get("slave_repl_offset"), lag})
-	default:
-		n := int(in.int("connected_slaves"))
-		if n == 0 {
-			t.Rows = append(t.Rows, []string{"primary", "no replicas", "-", in.get("master_repl_offset"), "-"})
-		}
-		for i := 0; i < n; i++ {
-			raw := in.get("slave" + strconv.Itoa(i))
-			f := fieldsOf(raw)
-			t.Rows = append(t.Rows, []string{"primary",
-				stdnet.JoinHostPort(f["ip"], f["port"]), f["state"], f["offset"], f["lag"] + "s"})
-		}
-	}
-	t.Total = len(t.Rows)
-	return t
 }
 
 // fieldsOf reads the `k=v,k=v` shape INFO uses for replicas and databases.
