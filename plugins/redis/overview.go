@@ -137,7 +137,7 @@ func overviewView(ctx context.Context, c *client, req plugin.Request) (view.View
 
 	p := plugin.NewPage(ctx, req)
 	p.Put("server", view.KeyValue{Pairs: []view.Pair{
-		{Key: "address", Value: c.addr},
+		{Key: "address", Value: req.Reached(c.addr)},
 		{Key: "version", Value: versionText(in)},
 		{Key: "mode", Value: modeText(in)},
 		{Key: "uptime", Value: span(time.Duration(in.int("uptime_in_seconds")) * time.Second)},
