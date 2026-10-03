@@ -266,6 +266,12 @@ func restoreArgs(req plugin.Request, format dumpFormat, path string) []string {
 // one again, was sent to a port nothing listens on. The server is named by
 // the profile instead, which createdb has to reach by a way of its own.
 //
+// **It connects the way the restore did** (pasteEnv): the TLS the restore
+// insisted on and the files it used. createdb takes none of them as a flag,
+// and a line pasted without them connected to a server that asks for a client
+// certificate with none, or to one that insists on TLS without it, and was
+// refused for the very thing the restore had been given.
+//
 // **Every value is one word of the line, as a shell reads it
 // (plugin.ShellWord).** The line is pasted, and a database named `my db` was
 // two words, one named `$(id)` ran, and one opening on a dash was read as an
@@ -279,8 +285,10 @@ func createdbHint(req plugin.Request) string {
 	}
 	user := "--username=" + plugin.ShellWord(req.String("user"))
 	if req.Tunnel() == plugin.TunnelNone {
-		return "`createdb --host=" + plugin.ShellWord(req.String("host")) + " --port=" + strconv.Itoa(req.Int("port")) +
-			" " + user + " " + name + "` makes it, then restore again"
+		host, _ := childHost(req)
+		words := append(pasteEnv(req), "createdb", "--host="+plugin.ShellWord(host), "--port="+strconv.Itoa(req.Int("port")),
+			user, name)
+		return "`" + strings.Join(words, " ") + "` makes it, then restore again"
 	}
 	return "`createdb " + user + " " + name + "` makes it, run " +
 		"against the server profile " + req.Profile() + " reaches — the " + string(req.Tunnel()) + ": forward " +
@@ -504,6 +512,13 @@ func classifyRestore(err error, stderr string, req plugin.Request, format dumpFo
 			return line
 		}
 		return err.Error()
+	}
+
+	// The TLS files and the server's verdict on the certificate the child
+	// presented, ahead of the rest: a connection that failed there reached
+	// nothing the cases below read.
+	if verr := childTLS(stderr, req); verr != nil {
+		return verr
 	}
 
 	switch {

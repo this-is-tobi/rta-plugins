@@ -34,6 +34,20 @@
 //	  tiles:
 //	    - id: pg.overview
 //
+// A server that asks for a client certificate (pg_hba.conf's `clientcert`) is
+// reached with `sslcert` and `sslkey`, and one whose certificate a CA of its
+// own issued with `sslrootcert`. Those are the files used and the only ones:
+// nothing is looked up under `~/.postgresql`, where libpq looks unasked and
+// pgx and libpq find different files, so that a pre-flight could pass on one
+// pair and the pg_dump behind it connect with another, or none. `ssl-home` asks
+// for libpq's search by name; rta then does it once and hands the driver and
+// every tool the same paths. The trade is that a file you did not name is a
+// file that can change what a connection proves — a `root.crt` there turns
+// `sslmode: require` into a verifying one, a `postgresql.crt` presents a
+// certificate to every server — and a revocation list there is not read by
+// anything, since the driver has no way to and a tool that did would refuse a
+// connection the pre-flight had made.
+//
 // Through `kubectl port-forward`, leave TLS off, which is what the host does
 // for a forward. PostgreSQL TLS kills a forward on the first clean disconnect
 // — the trailing close_notify reaches a socket PostgreSQL has already closed,

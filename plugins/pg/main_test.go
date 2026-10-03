@@ -91,7 +91,7 @@ func TestDSNSurvivesAwkwardPasswords(t *testing.T) {
 // as "authenticate with the empty string", which fails differently from
 // "no password offered" on a trust-configured server.
 func TestAnEmptyPasswordIsOmitted(t *testing.T) {
-	if got := dsn(req(t, map[string]any{})); strings.Contains(got, "password=") {
+	if got := dsn(req(t, map[string]any{})); strings.Contains(got, " password=") {
 		t.Errorf("an unset password was sent as empty: %s", got)
 	}
 }
@@ -314,12 +314,10 @@ func TestDisableLeavesTheCAOutOfTheConnection(t *testing.T) {
 		if got := checkRootCert(req(t, values)); got != nil {
 			t.Errorf("%s beside disable: refused as %s", ca, got.Code)
 		}
-		if got := dsn(req(t, values)); strings.Contains(got, "sslrootcert") {
+		if got := dsn(req(t, values)); !strings.Contains(got, "sslrootcert=''") {
 			t.Errorf("%s beside disable reached the driver: %s", ca, got)
 		}
-		if env := childEnv(reqFor(t, "pg.dump", values)); slices.ContainsFunc(env, func(kv string) bool {
-			return strings.HasPrefix(kv, "PGSSLROOTCERT=")
-		}) {
+		if env := childEnv(reqFor(t, "pg.dump", values)); !slices.Contains(env, "PGSSLROOTCERT="+unreadable) {
 			t.Errorf("%s beside disable reached the child: %v", ca, env)
 		}
 	}
@@ -431,15 +429,36 @@ func TestSSLRootCertIsResolvedWhereverItGoes(t *testing.T) {
 	}
 }
 
-// Unset, sslrootcert is left out of the connection string rather than sent
-// empty, because its two readers disagree about empty. pgx takes it as no CA
-// at all, overriding the ~/.postgresql/root.crt it otherwise defaults to;
-// libpq, which pg_dump, psql and pg_restore run on, takes it as unset and
-// reads that same file. Left out, both read the file when it is there, and
-// the connection checked before a dump trusts what the dump's child does.
-func TestAnEmptySSLRootCertIsOmitted(t *testing.T) {
-	if got := dsn(req(t, map[string]any{})); strings.Contains(got, "sslrootcert=") {
-		t.Errorf("an unset sslrootcert was sent as empty: %s", got)
+// Unset, the three TLS files are sent empty, and an empty value is a value:
+// it overrides what pgx would otherwise fill in from ~/.postgresql, and from
+// PGSSLROOTCERT and its siblings when the binary is run by hand, which is how
+// a root.crt nobody named made sslmode=require verify, and a postgresql.crt
+// nobody named was presented to a server the operator never pointed it at.
+// libpq, which pg_dump, psql and pg_restore run on, reads an empty value as
+// unset and searches its directory all the same, so its children are handed a
+// path that is not there instead, for each file and for the revocation list
+// pgx cannot read. Nothing is found by either.
+func TestNoTLSFileIsLeftToBeFound(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("PGSSLROOTCERT", "/somewhere/ambient-root.crt")
+	t.Setenv("PGSSLCERT", "/somewhere/ambient.crt")
+	t.Setenv("PGSSLKEY", "/somewhere/ambient.key")
+	for _, want := range []string{"sslrootcert=''", "sslcert=''", "sslkey=''", "sslpassword=''"} {
+		if got := dsn(req(t, map[string]any{})); !strings.Contains(got, want) {
+			t.Errorf("dsn = %s, want %s so nothing is filled in", got, want)
+		}
+	}
+	env := childEnv(reqFor(t, "pg.dump", map[string]any{}))
+	for _, name := range []string{"PGSSLROOTCERT", "PGSSLCERT", "PGSSLKEY", "PGSSLCRL"} {
+		if !slices.Contains(env, name+"="+unreadable) {
+			t.Errorf("the child's %s is not a path that is not there: %v", name, env)
+		}
+	}
+	for _, kv := range env {
+		if strings.HasPrefix(kv, "HOME=") {
+			t.Errorf("the child is told where the home directory is: %s", kv)
+		}
 	}
 }
 
