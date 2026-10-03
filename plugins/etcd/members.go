@@ -141,11 +141,21 @@ func whyNotAsked(req plugin.Request) string {
 	switch {
 	case req.Tunnel() != plugin.TunnelNone:
 		return "the " + string(req.Tunnel()) + ": forward reaches one member; run this from inside the cluster's network to ask the rest"
-	case req.String("username") != "" && !tlsRequested(req):
+	case req.String("username") != "" && !overTLS(req):
 		return "not over TLS, so the credentials are not sent to an address the member list names; " +
-			"turn TLS on (" + sf.SettingTo("tls", true) + ") to ask them"
+			"an https:// endpoint, or " + sf.SettingName("tls", "ca-file", "tls-server-name") + ", turns TLS on " +
+			"for a cluster whose client port serves it, and the others are then asked"
 	}
 	return ""
+}
+
+// overTLS is whether the connection is TLS: a setting asks for it
+// (tlsRequested), or the endpoint is https://, which requires it with no
+// setting at all. Read by the setting alone, a username over an https://
+// endpoint, the usual secured cluster, was refused the other members as if its
+// token travelled in the clear.
+func overTLS(req plugin.Request) bool {
+	return tlsRequested(req) || strings.HasPrefix(req.String("endpoint"), "https://")
 }
 
 // unreachableWhy is the shortest true reason a member's own status could not
