@@ -5,12 +5,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"fmt"
 	stdnet "net"
 	"net/http"
 	"net/url"
 	"os"
-	"slices"
 	"strings"
 
 	"github.com/minio/minio-go/v7"
@@ -166,15 +164,13 @@ func serverName(req plugin.Request) string { return strings.TrimSpace(req.String
 // named there, where the endpoint the forward filled names nothing the
 // operator could change.
 func tlsExpected(req plugin.Request) *view.Error {
+	refusal := view.Errorf("s3.tls.expected", "this call spoke plain HTTP to %s, which speaks only HTTPS",
+		req.Reached(req.String("endpoint")))
 	if req.Tunnel() != plugin.TunnelNone {
-		return view.Errorf("s3.tls.expected", "this call spoke plain HTTP through profile %s's %s: forward, "+
-			"to a server that speaks only HTTPS", req.Profile(), req.Tunnel()).
-			WithHint("a forward carries plain HTTP unless the profile's connection says its far end speaks TLS: " +
-				"tunnelTLS: true on that connection")
+		return refusal.WithHint("a forward carries plain HTTP unless the profile's connection says its far end " +
+			"speaks TLS: tunnelTLS: true on that connection")
 	}
-	return view.Errorf("s3.tls.expected", "this call spoke plain HTTP to %s, which speaks only HTTPS",
-		req.String("endpoint")).
-		WithHint(req.Surface().SettingName("tls") + " turns HTTPS on")
+	return refusal.WithHint(req.Surface().SettingName("tls") + " turns HTTPS on")
 }
 
 // classify turns a client error into something an operator can act on.
@@ -239,8 +235,7 @@ func classify(err error, req plugin.Request) *view.Error {
 		// connection says its far end speaks TLS, and quoted as the server's
 		// refusal, with the page of every input for a hint, it named nothing
 		// the operator could change.
-		if errResp.StatusCode == http.StatusBadRequest &&
-			strings.Contains(errResp.Message, "Client sent an HTTP request to an HTTPS server") {
+		if errResp.StatusCode == http.StatusBadRequest && plugin.TLSExpected(errResp) {
 			return tlsExpected(req)
 		}
 		return view.Errorf("s3.request.failed", "%s: %s", errResp.Code, errResp.Message).
@@ -351,32 +346,12 @@ func classify(err error, req plugin.Request) *view.Error {
 // forward the host opened — 127.0.0.1 — and not for the name the server
 // answers as, which the certificate names instead.
 func forwardName(req plugin.Request, hostErr x509.HostnameError) *view.Error {
-	return view.Errorf("s3.tls.forward", "the certificate behind profile %s's %s: forward is for %s, not for %s, "+
-		"where the forward ends", req.Profile(), req.Tunnel(), certNames(hostErr.Certificate), hostErr.Host).
+	return view.Errorf("s3.tls.forward", "the certificate behind %s is for %s, not for %s, "+
+		"where the forward ends", req.Reached(req.String("endpoint")), plugin.CertNames(hostErr.Certificate), hostErr.Host).
 		WithHint("a forward always ends at 127.0.0.1, so the certificate is checked for the name the server " +
 			"answers as instead: " + req.Surface().SettingName("tls-server-name") + ", which the profile can " +
 			"hold beside its forward, names it — one the certificate is for — and it is checked as strictly " +
 			"as the host it replaces")
-}
-
-// certNames lists the names a certificate is for, the ones a check reads:
-// its DNS names and its IP addresses, never the subject's common name, which
-// Go's verifier ignores.
-func certNames(cert *x509.Certificate) string {
-	if cert == nil {
-		return "another name"
-	}
-	names := slices.Clone(cert.DNSNames)
-	for _, ip := range cert.IPAddresses {
-		names = append(names, ip.String())
-	}
-	switch {
-	case len(names) == 0:
-		return "no name a check reads"
-	case len(names) > 3:
-		return strings.Join(names[:3], ", ") + fmt.Sprintf(" and %d more", len(names)-3)
-	}
-	return strings.Join(names, ", ")
 }
 
 // ctxErr is what a ListObjectsIter walk needs checked once it stops,
@@ -427,16 +402,10 @@ func rmCall(req plugin.Request, bucket, key string) string {
 // there under the same name. Over MCP the call gives the profile alone: the
 // rest are Local, and the bridge drops one an agent sends.
 func reachArgs(req plugin.Request) []plugin.Arg {
-	var args []plugin.Arg
-	if profile := req.Profile(); profile != "" {
-		args = append(args, plugin.Arg{Name: "profile", Value: profile})
-	}
 	if req.Surface() == plugin.SurfaceMCP {
-		return args
+		return req.ReachArgs()
 	}
-	if req.Tunnel() == plugin.TunnelNone {
-		args = append(args, plugin.Arg{Name: "endpoint", Value: req.String("endpoint")})
-	}
+	args := req.ReachArgs(plugin.Arg{Name: "endpoint", Value: req.String("endpoint")})
 	if req.Bool("tls") {
 		args = append(args, plugin.Arg{Name: "tls", Value: true})
 	}

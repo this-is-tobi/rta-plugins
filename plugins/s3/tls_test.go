@@ -70,7 +70,8 @@ func TestCAFileTrustsATunneledServersOwnCertificate(t *testing.T) {
 		"endpoint": endpoint, "tls": false,
 	}).WithProfile("lab", plugin.TunnelKube))
 	if verr, ok := err.(*view.Error); !ok || verr.Code != "s3.tls.expected" ||
-		!strings.Contains(verr.Hint, "tunnelTLS: true on that connection") {
+		!strings.Contains(verr.Hint, "tunnelTLS: true on that connection") ||
+		!strings.Contains(verr.Message, "to profile lab (through its kube: forward), which speaks only HTTPS") {
 		t.Fatalf("plain HTTP through a forward answered %v, want s3.tls.expected naming tunnelTLS", err)
 	}
 
