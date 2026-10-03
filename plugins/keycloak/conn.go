@@ -532,22 +532,43 @@ func (s *session) classifyTransport(err error) *view.Error {
 			WithHint("a firewall that drops rather than refuses looks exactly like this")
 	}
 	failed := view.Errorf("keycloak.conn.failed", "could not reach %s: %v", s.base, err)
+	parsed, perr := url.Parse(s.base)
+	plain := perr == nil && parsed.Scheme == "http"
+	// A TLS alert where a response line belongs, to an http:// URL: a server
+	// that speaks only TLS, and said so (plugin.TLSExpected). Keycloak's own
+	// listener hangs up instead, below; a proxy built on OpenSSL in front of
+	// it answers with the alert. Read as the failure it quoted, it was
+	// "could not reach" a server that had answered, in bytes, with the page of
+	// every input for a hint.
+	if plain && plugin.TLSExpected(err) {
+		return view.Errorf("keycloak.tls.expected", "this call spoke plain HTTP to %s, which speaks only TLS",
+			s.req.Reached(s.base)).WithHint(s.plainHTTPHint("refuses plain HTTP like this"))
+	}
 	// A hang-up with no answer, to an http:// URL: Keycloak's HTTPS listener
 	// closes a plain-HTTP connection this way, with no alert and no 400 to
 	// tell it by, and a forward carries plain HTTP unless the profile's
 	// connection says its far end speaks TLS. EOF says no more than that the
 	// server hung up, so it stays conn.failed, and the hint names the likelier
 	// reason and where it is changed rather than the page of every input.
-	if parsed, perr := url.Parse(s.base); perr == nil && parsed.Scheme == "http" && errors.Is(err, io.EOF) {
-		if s.req.Tunnel() != plugin.TunnelNone {
-			return failed.WithHint("a Keycloak serving only HTTPS hangs up on plain HTTP like this, and a forward " +
-				"carries plain HTTP unless the profile's connection says its far end speaks TLS: tunnelTLS: true " +
-				"on that connection")
-		}
-		return failed.WithHint("a Keycloak serving only HTTPS on that port hangs up on plain HTTP like this — " +
-			"an https:// URL is what makes the call TLS: " + sf.SettingName("url") + " names the scheme")
+	if plain && errors.Is(err, io.EOF) {
+		return failed.WithHint(s.plainHTTPHint("hangs up on plain HTTP like this"))
 	}
 	return failed.WithHint(sf.SettingsHint("keycloak.overview"))
+}
+
+// plainHTTPHint is where a call that spoke plain HTTP to a server that
+// speaks only TLS is changed: the connection's tunnelTLS through a forward,
+// which carries plain HTTP unless the profile says its far end speaks TLS,
+// and the URL's scheme otherwise. How the server refused it is how, the
+// clause a Keycloak serving only HTTPS does it by.
+func (s *session) plainHTTPHint(how string) string {
+	if s.req.Tunnel() != plugin.TunnelNone {
+		return "a Keycloak serving only HTTPS " + how + ", and a forward " +
+			"carries plain HTTP unless the profile's connection says its far end speaks TLS: tunnelTLS: true " +
+			"on that connection"
+	}
+	return "a Keycloak serving only HTTPS on that port " + how + " — " +
+		"an https:// URL is what makes the call TLS: " + s.req.Surface().SettingName("url") + " names the scheme"
 }
 
 // forwardName is the refusal for a certificate checked for the end of a
