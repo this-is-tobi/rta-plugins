@@ -39,7 +39,7 @@ const (
 // what to check rather than declaring the number wrong.
 const cacheHitFloor = 90.0
 
-// compactOverview is four figures worth a glance, in the same "add what
+// compactOverview is the few figures worth a glance, in the same "add what
 // answered" style as builtin/sys's runOverview: one query failing costs the
 // reader that one line, not the page.
 func compactOverview(ctx context.Context, conn *pgx.Conn, req plugin.Request) (view.View, error) {
@@ -58,6 +58,13 @@ func compactOverview(ctx context.Context, conn *pgx.Conn, req plugin.Request) (v
 	}
 	if role, err := roleOf(ctx, conn); err == nil {
 		add("role", role)
+	}
+	// One line, from the same reads pg.replication makes, so the glance and
+	// the page cannot disagree about whether anything is behind. Left out
+	// when a read fails or the server is too old to answer, like every other
+	// figure here.
+	if f, err := readReplication(ctx, conn); err == nil && f.server.versionNum >= minReplicationVersion {
+		add("replication", replicationLine(f, req.Surface()))
 	}
 	var active int
 	if err := conn.QueryRow(ctx,
