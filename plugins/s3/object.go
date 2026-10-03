@@ -74,6 +74,17 @@ func runObjectList(ctx context.Context, req plugin.Request) (view.View, error) {
 				// happens to end on the boundary — the difference between "here
 				// is the rest" and "there is more" cannot be guessed from a count.
 				t.Page = &view.Cursor{Next: last}
+				// The cursor alone is a bare string over MCP, with no input
+				// named beside it, so an agent holding it could neither pass
+				// it back nor tell it was a continuation. Said where it reads
+				// the table, in the words of the surface reading it.
+				sf := req.Surface()
+				t.Warnings = append(t.Warnings, view.Error{
+					Code:    "s3.object.list.partial",
+					Message: fmt.Sprintf("stopped after %s; more keys follow %q", format.CountOf(limit, "object"), last),
+					Hint: "pass " + sf.InputTo("after", last) + " for the next page, or narrow it with " +
+						sf.InputName("prefix") + " or raise " + sf.InputName("limit"),
+				})
 				break
 			}
 			last = obj.Key

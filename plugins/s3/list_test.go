@@ -7,8 +7,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 
+	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
@@ -117,6 +119,31 @@ func TestAnExactlyFullPageIsNotReportedAsTruncated(t *testing.T) {
 	}
 	if tbl.Page != nil {
 		t.Errorf("a listing that ended exactly on the limit was reported as having more: %+v", tbl.Page)
+	}
+}
+
+// Over MCP the cursor is a bare `page.next` with no input named beside it, so
+// a listing that stopped also says so in words and names the argument that
+// continues it, which etcd.kv.list does for the same reason.
+func TestAStoppedListingNamesTheArgumentThatContinuesIt(t *testing.T) {
+	srv := listingServer(t, 30, 10)
+
+	v, err := runObjectList(context.Background(), reqFor(t, "s3.object.list", endpointOf(t, srv),
+		map[string]any{"bucket": "test-bucket", "limit": 10}).WithSurface(plugin.SurfaceMCP))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tbl := v.(view.Table)
+	if len(tbl.Warnings) != 1 || tbl.Warnings[0].Code != "s3.object.list.partial" {
+		t.Fatalf("warnings = %+v, want the one that says it stopped", tbl.Warnings)
+	}
+	if want := `the "after" argument set to "obj-0009"`; !strings.Contains(tbl.Warnings[0].Hint, want) {
+		t.Errorf("hint = %q, want it to contain %s", tbl.Warnings[0].Hint, want)
+	}
+
+	whole := listTable(t, listingServer(t, 10, 10), map[string]any{"limit": 10})
+	if len(whole.Warnings) != 0 {
+		t.Errorf("a listing that ended on the limit warned: %+v", whole.Warnings)
 	}
 }
 
