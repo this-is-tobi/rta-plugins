@@ -1,6 +1,6 @@
 // Command rta-plugin-mysql talks to a MySQL server: what it is, what is in
-// it, what shape that has, what is running, and — behind the write tier —
-// the rows themselves.
+// it, what shape that has, what is running, where its replication stands,
+// and — behind the write tier — the rows themselves.
 //
 // It speaks to MariaDB too, since MariaDB answers the same wire protocol and
 // carries the same INFORMATION_SCHEMA. What it does not do is know anything
@@ -88,7 +88,7 @@ var version = "dev"
 func Plugin() plugin.Plugin {
 	return plugin.Plugin{
 		Name:    "mysql",
-		Summary: "MySQL: connection health, schema, rows and activity",
+		Summary: "MySQL: connection health, schema, rows, activity and replication",
 		Version: version,
 		Capabilities: []plugin.Capability{
 			overviewCapability(),
@@ -98,6 +98,7 @@ func Plugin() plugin.Plugin {
 			schemaCapability(),
 			queryCapability(),
 			activityCapability(),
+			replicationCapability(),
 			dumpCapability(),
 			restoreCapability(),
 		},

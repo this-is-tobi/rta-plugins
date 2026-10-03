@@ -1,35 +1,36 @@
 # mysql
 
-MySQL: connection health, schema, rows and activity
+MySQL: connection health, schema, rows, activity and replication
 
 ## Capabilities
 
-| Capability          | Safety      | Summary                                                               |
-|---------------------|-------------|-----------------------------------------------------------------------|
-| mysql.activity      | write       | What every connected session is doing right now                       |
-| mysql.database.list | read        | List databases on this server, with their sizes                       |
-| mysql.dump          | write       | Back up one database to a SQL file, for a person at a terminal        |
-| mysql.overview      | read        | Everything about this connection at a glance                          |
-| mysql.query         | write       | Run a read-only query                                                 |
-| mysql.restore       | destructive | Restore a mysql.dump file into a database, for a person at a terminal |
-| mysql.schema        | read        | Describe a database's tables, columns and keys — no values            |
-| mysql.status        | read        | Whether the database answers, and what it is                          |
-| mysql.table.list    | read        | List tables with their row estimates and sizes                        |
+| Capability               | Safety      | Summary                                                               |
+|--------------------------|-------------|-----------------------------------------------------------------------|
+| mysql.activity           | write       | What every connected session is doing right now                       |
+| mysql.database.list      | read        | List databases on this server, with their sizes                       |
+| mysql.dump               | write       | Back up one database to a SQL file, for a person at a terminal        |
+| mysql.overview           | read        | Everything about this connection at a glance                          |
+| mysql.query              | write       | Run a read-only query                                                 |
+| mysql.replication.status | read        | Replication in one place: role, lag, positions and connected replicas |
+| mysql.restore            | destructive | Restore a mysql.dump file into a database, for a person at a terminal |
+| mysql.schema             | read        | Describe a database's tables, columns and keys — no values            |
+| mysql.status             | read        | Whether the database answers, and what it is                          |
+| mysql.table.list         | read        | List tables with their row estimates and sizes                        |
 
 ## Configuration
 
 Under `plugins: mysql:` in rta's configuration, or in a profile's `set:`. An installed plugin's section is pinned to the artifact — `plugins: mysql@<digest>:` — and `rta doctor` prints the exact line. The caller always wins, so a configured value is a default, never a lock.
 
-| Key          | Read by                                                                                                                                   | Help                                                                                                                                  |
-|--------------|-------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
-| ca-file      | mysql.activity, mysql.database.list, mysql.dump, mysql.overview, mysql.query, mysql.restore, mysql.schema, mysql.status, mysql.table.list | PEM bundle to verify the server against — read when tls is true or verify-ca, and overridden along with tls under a kube:/ssh: tunnel |
-| database     | mysql.activity, mysql.database.list, mysql.dump, mysql.overview, mysql.query, mysql.restore, mysql.schema, mysql.status, mysql.table.list | database to select (optional — the server is reachable without one)                                                                   |
-| dump.include | mysql.dump                                                                                                                                | what to put in the file                                                                                                               |
-| host         | mysql.activity, mysql.database.list, mysql.dump, mysql.overview, mysql.query, mysql.restore, mysql.schema, mysql.status, mysql.table.list | database host                                                                                                                         |
-| limit        | mysql.activity, mysql.database.list, mysql.query, mysql.schema, mysql.table.list                                                          | how many sessions to show                                                                                                             |
-| port         | mysql.activity, mysql.database.list, mysql.dump, mysql.overview, mysql.query, mysql.restore, mysql.schema, mysql.status, mysql.table.list | database port                                                                                                                         |
-| tls          | mysql.activity, mysql.database.list, mysql.dump, mysql.overview, mysql.query, mysql.restore, mysql.schema, mysql.status, mysql.table.list | TLS negotiation mode — verify-ca checks the chain against ca-file and not the name                                                    |
-| user         | mysql.activity, mysql.database.list, mysql.dump, mysql.overview, mysql.query, mysql.restore, mysql.schema, mysql.status, mysql.table.list | user to connect as                                                                                                                    |
+| Key          | Read by                                                                                                                                                             | Help                                                                                                                                  |
+|--------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
+| ca-file      | mysql.activity, mysql.database.list, mysql.dump, mysql.overview, mysql.query, mysql.replication.status, mysql.restore, mysql.schema, mysql.status, mysql.table.list | PEM bundle to verify the server against — read when tls is true or verify-ca, and overridden along with tls under a kube:/ssh: tunnel |
+| database     | mysql.activity, mysql.database.list, mysql.dump, mysql.overview, mysql.query, mysql.replication.status, mysql.restore, mysql.schema, mysql.status, mysql.table.list | database to select (optional — the server is reachable without one)                                                                   |
+| dump.include | mysql.dump                                                                                                                                                          | what to put in the file                                                                                                               |
+| host         | mysql.activity, mysql.database.list, mysql.dump, mysql.overview, mysql.query, mysql.replication.status, mysql.restore, mysql.schema, mysql.status, mysql.table.list | database host                                                                                                                         |
+| limit        | mysql.activity, mysql.database.list, mysql.query, mysql.schema, mysql.table.list                                                                                    | how many sessions to show                                                                                                             |
+| port         | mysql.activity, mysql.database.list, mysql.dump, mysql.overview, mysql.query, mysql.replication.status, mysql.restore, mysql.schema, mysql.status, mysql.table.list | database port                                                                                                                         |
+| tls          | mysql.activity, mysql.database.list, mysql.dump, mysql.overview, mysql.query, mysql.replication.status, mysql.restore, mysql.schema, mysql.status, mysql.table.list | TLS negotiation mode — verify-ca checks the chain against ca-file and not the name                                                    |
+| user         | mysql.activity, mysql.database.list, mysql.dump, mysql.overview, mysql.query, mysql.replication.status, mysql.restore, mysql.schema, mysql.status, mysql.table.list | user to connect as                                                                                                                    |
 
 ## mysql.activity
 
@@ -114,7 +115,7 @@ Created with O_EXCL at 0600, never over an existing file; a failed run takes its
 
 ## mysql.overview
 
-What server this is, how long it has been up, how much of its connection budget is in use, and the largest databases on it.
+What server this is, how long it has been up, how much of its connection budget is in use, one line on whether replication is healthy (mysql.replication.status has the rest), and the largest databases on it.
 
 `detail` adds what every session is doing, without the statement text — state, time and command, which answers "is anything stuck" and hands back nothing anybody stored. The statement text is mysql.activity, and it is a write for exactly that reason.
 
@@ -165,6 +166,36 @@ Over `limit` rows it is refused rather than shortened: a truncated result set is
 | input:ca-file        | string, default , local (never offered to MCP callers), from config plugins.mysql.ca-file — PEM bundle to verify the server against — read when tls is true or verify-ca, and overridden along with tls under a kube:/ssh: tunnel                                                             |
 | input:password       | secret, local (never offered to MCP callers), from $RTA_MYSQL_PASSWORD — password for the user                                                                                                                                                                                                |
 | dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                                                                                                  |
+
+## mysql.replication.status
+
+Answers "is replication healthy, where is this server in it, and how far behind is it" without a query: what this server is (a replica, a source with replicas, both, or neither), each replication thread's state, seconds behind, the position read against the one applied, the transactions received and not yet applied, and the replicas connected to it.
+
+Each replica is graded. A stopped thread is a failure, named with the error number the server recorded; a running replica warns at a minute behind and fails at ten, beyond any delay it keeps. The lag figure alone is never the answer — it reads 0 both when caught up and when receiving nothing — so it is never shown without the thread states.
+
+One connection sees one server: the source's own position is what the same call against the source says, so run it on each member and compare. The connected replicas are the source's own list: a replica that went away stays on it until the source next fails to send it something.
+
+A server with no replication says so rather than returning an empty table. Every part is read on its own: an account that may read the replica threads and not the connected replicas gets the first, with the privilege that adds the second named.
+
+Positions and states only: the text of a replication error is the failing statement with its row values, so only its number is returned. The message is what `mysql.query` returns for SHOW REPLICA STATUS, behind its grant.
+
+| Field          | Value                                                                                                                                                                                                                                                                                         |
+|----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id             | mysql.replication.status                                                                                                                                                                                                                                                                      |
+| summary        | Replication in one place: role, lag, positions and connected replicas                                                                                                                                                                                                                         |
+| safety         | read                                                                                                                                                                                                                                                                                          |
+| idempotent     | true                                                                                                                                                                                                                                                                                          |
+| cli            | rta mysql replication status \[--host \<string>\] \[--port \<int>\] \[--user \<string>\] \[--database \<string>\] \[--tls \<string>\] \[--ca-file \<string>\] \[--password \<secret>\]                                                                                                        |
+| mcp-tool       | mysql_replication_status                                                                                                                                                                                                                                                                      |
+| profiles       | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow mysql --profile \<name>\`                                                                                                                                                           |
+| input:host     | string, default localhost, local (never offered to MCP callers), from config plugins.mysql.host, filled by a profile's tunnel (the forward's host) — database host                                                                                                                            |
+| input:port     | int, default 3306, a value from 1 to 65535, local (never offered to MCP callers), from config plugins.mysql.port, filled by a profile's tunnel (the forward's port) — database port                                                                                                           |
+| input:user     | string, default root, local (never offered to MCP callers), from config plugins.mysql.user — user to connect as                                                                                                                                                                               |
+| input:database | string, default , local (never offered to MCP callers), from config plugins.mysql.database — database to select (optional — the server is reachable without one)                                                                                                                              |
+| input:tls      | string, default preferred, one of: false\|preferred\|true\|skip-verify\|verify-ca, local (never offered to MCP callers), from config plugins.mysql.tls, filled by a profile's tunnel (the forward's tls) — TLS negotiation mode — verify-ca checks the chain against ca-file and not the name |
+| input:ca-file  | string, default , local (never offered to MCP callers), from config plugins.mysql.ca-file — PEM bundle to verify the server against — read when tls is true or verify-ca, and overridden along with tls under a kube:/ssh: tunnel                                                             |
+| input:password | secret, local (never offered to MCP callers), from $RTA_MYSQL_PASSWORD — password for the user                                                                                                                                                                                                |
+| dashboard      | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add mysql.replication.status\`, or + on it in the TUI, puts it there, re-run every few seconds                                                                                                                   |
 
 ## mysql.restore
 

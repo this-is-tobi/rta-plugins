@@ -1,0 +1,87 @@
+{
+  "note": "MySQL 8.4 source read by an account with no replication privilege",
+  "statements": {
+    "SELECT VERSION()": {
+      "columns": [
+        "VERSION()"
+      ],
+      "rows": [
+        [
+          "8.4.11"
+        ]
+      ]
+    },
+    "SHOW BINARY LOG STATUS": {
+      "error": {
+        "number": 1227,
+        "message": "Access denied; you need (at least one of) the SUPER, REPLICATION CLIENT privilege(s) for this operation"
+      }
+    },
+    "SHOW GLOBAL VARIABLES WHERE Variable_name IN ('server_id','server_uuid','read_only','super_read_only','log_bin','gtid_mode','gtid_executed')": {
+      "columns": [
+        "Variable_name",
+        "Value"
+      ],
+      "rows": [
+        [
+          "gtid_executed",
+          "579bd394-bebd-11f1-943a-a20528d1e244:1-8"
+        ],
+        [
+          "gtid_mode",
+          "ON"
+        ],
+        [
+          "log_bin",
+          "ON"
+        ],
+        [
+          "read_only",
+          "OFF"
+        ],
+        [
+          "server_id",
+          "1"
+        ],
+        [
+          "server_uuid",
+          "579bd394-bebd-11f1-943a-a20528d1e244"
+        ],
+        [
+          "super_read_only",
+          "OFF"
+        ]
+      ]
+    },
+    "SHOW MASTER STATUS": {
+      "error": {
+        "number": 1064,
+        "message": "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MASTER STATUS' at line 1"
+      }
+    },
+    "SHOW REPLICA STATUS": {
+      "error": {
+        "number": 1227,
+        "message": "Access denied; you need (at least one of) the SUPER, REPLICATION CLIENT privilege(s) for this operation"
+      }
+    },
+    "SHOW REPLICAS": {
+      "error": {
+        "number": 1227,
+        "message": "Access denied; you need (at least one of) the REPLICATION SLAVE privilege(s) for this operation"
+      }
+    },
+    "SHOW SLAVE HOSTS": {
+      "error": {
+        "number": 1064,
+        "message": "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SLAVE HOSTS' at line 1"
+      }
+    },
+    "SHOW SLAVE STATUS": {
+      "error": {
+        "number": 1064,
+        "message": "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SLAVE STATUS' at line 1"
+      }
+    }
+  }
+}

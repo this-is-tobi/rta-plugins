@@ -1,0 +1,349 @@
+{
+  "note": "MySQL 8.0 replica whose SQL thread stopped on a duplicate key",
+  "statements": {
+    "SELECT VERSION()": {
+      "columns": [
+        "VERSION()"
+      ],
+      "rows": [
+        [
+          "8.0.46"
+        ]
+      ]
+    },
+    "SHOW BINARY LOG STATUS": {
+      "error": {
+        "number": 1064,
+        "message": "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'LOG STATUS' at line 1"
+      }
+    },
+    "SHOW GLOBAL VARIABLES WHERE Variable_name IN ('server_id','server_uuid','read_only','super_read_only','log_bin','gtid_mode','gtid_executed')": {
+      "columns": [
+        "Variable_name",
+        "Value"
+      ],
+      "rows": [
+        [
+          "gtid_executed",
+          "2ccf55bb-bebe-11f1-ad0d-2260277badd8:1-17,\n2ce7a8be-bebe-11f1-a55b-66834775029b:1-5"
+        ],
+        [
+          "gtid_mode",
+          "ON"
+        ],
+        [
+          "log_bin",
+          "ON"
+        ],
+        [
+          "read_only",
+          "ON"
+        ],
+        [
+          "server_id",
+          "2"
+        ],
+        [
+          "server_uuid",
+          "2ce7a8be-bebe-11f1-a55b-66834775029b"
+        ],
+        [
+          "super_read_only",
+          "OFF"
+        ]
+      ]
+    },
+    "SHOW MASTER STATUS": {
+      "columns": [
+        "File",
+        "Position",
+        "Binlog_Do_DB",
+        "Binlog_Ignore_DB",
+        "Executed_Gtid_Set"
+      ],
+      "rows": [
+        [
+          "binlog.000002",
+          "3001155",
+          "",
+          "",
+          "2ccf55bb-bebe-11f1-ad0d-2260277badd8:1-17,\n2ce7a8be-bebe-11f1-a55b-66834775029b:1-5"
+        ]
+      ]
+    },
+    "SHOW REPLICA STATUS": {
+      "columns": [
+        "Replica_IO_State",
+        "Source_Host",
+        "Source_User",
+        "Source_Port",
+        "Connect_Retry",
+        "Source_Log_File",
+        "Read_Source_Log_Pos",
+        "Relay_Log_File",
+        "Relay_Log_Pos",
+        "Relay_Source_Log_File",
+        "Replica_IO_Running",
+        "Replica_SQL_Running",
+        "Replicate_Do_DB",
+        "Replicate_Ignore_DB",
+        "Replicate_Do_Table",
+        "Replicate_Ignore_Table",
+        "Replicate_Wild_Do_Table",
+        "Replicate_Wild_Ignore_Table",
+        "Last_Errno",
+        "Last_Error",
+        "Skip_Counter",
+        "Exec_Source_Log_Pos",
+        "Relay_Log_Space",
+        "Until_Condition",
+        "Until_Log_File",
+        "Until_Log_Pos",
+        "Source_SSL_Allowed",
+        "Source_SSL_CA_File",
+        "Source_SSL_CA_Path",
+        "Source_SSL_Cert",
+        "Source_SSL_Cipher",
+        "Source_SSL_Key",
+        "Seconds_Behind_Source",
+        "Source_SSL_Verify_Server_Cert",
+        "Last_IO_Errno",
+        "Last_IO_Error",
+        "Last_SQL_Errno",
+        "Last_SQL_Error",
+        "Replicate_Ignore_Server_Ids",
+        "Source_Server_Id",
+        "Source_UUID",
+        "Source_Info_File",
+        "SQL_Delay",
+        "SQL_Remaining_Delay",
+        "Replica_SQL_Running_State",
+        "Source_Retry_Count",
+        "Source_Bind",
+        "Last_IO_Error_Timestamp",
+        "Last_SQL_Error_Timestamp",
+        "Source_SSL_Crl",
+        "Source_SSL_Crlpath",
+        "Retrieved_Gtid_Set",
+        "Executed_Gtid_Set",
+        "Auto_Position",
+        "Replicate_Rewrite_DB",
+        "Channel_Name",
+        "Source_TLS_Version",
+        "Source_public_key_path",
+        "Get_Source_public_key",
+        "Network_Namespace"
+      ],
+      "rows": [
+        [
+          "Waiting for source to send event",
+          "dbwp-my-m80-p",
+          "repl",
+          "3306",
+          "60",
+          "mysql-bin.000003",
+          "3553",
+          "relay.000002",
+          "420",
+          "mysql-bin.000003",
+          "Yes",
+          "No",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "1062",
+          "Coordinator stopped because there were error(s) in the worker(s). The most recent failure being: Worker 1 failed executing transaction '2ccf55bb-bebe-11f1-ad0d-2260277badd8:18' at source log mysql-bin.000003, end_log_pos 3522. See error log and/or performance_schema.replication_applier_status_by_worker table for more details about this failure or others, if any.",
+          "0",
+          "3279",
+          "894",
+          "None",
+          "",
+          "0",
+          "No",
+          "",
+          "",
+          "",
+          "",
+          "",
+          null,
+          "No",
+          "0",
+          "",
+          "1062",
+          "Coordinator stopped because there were error(s) in the worker(s). The most recent failure being: Worker 1 failed executing transaction '2ccf55bb-bebe-11f1-ad0d-2260277badd8:18' at source log mysql-bin.000003, end_log_pos 3522. See error log and/or performance_schema.replication_applier_status_by_worker table for more details about this failure or others, if any.",
+          "",
+          "1",
+          "2ccf55bb-bebe-11f1-ad0d-2260277badd8",
+          "mysql.slave_master_info",
+          "0",
+          null,
+          "",
+          "86400",
+          "",
+          "",
+          "261003 00:08:23",
+          "",
+          "",
+          "2ccf55bb-bebe-11f1-ad0d-2260277badd8:18",
+          "2ccf55bb-bebe-11f1-ad0d-2260277badd8:1-17,\n2ce7a8be-bebe-11f1-a55b-66834775029b:1-5",
+          "1",
+          "",
+          "",
+          "",
+          "",
+          "1",
+          ""
+        ]
+      ]
+    },
+    "SHOW REPLICAS": {
+      "columns": [
+        "Server_Id",
+        "Host",
+        "Port",
+        "Source_Id",
+        "Replica_UUID"
+      ]
+    },
+    "SHOW SLAVE HOSTS": {
+      "columns": [
+        "Server_id",
+        "Host",
+        "Port",
+        "Master_id",
+        "Slave_UUID"
+      ]
+    },
+    "SHOW SLAVE STATUS": {
+      "columns": [
+        "Slave_IO_State",
+        "Master_Host",
+        "Master_User",
+        "Master_Port",
+        "Connect_Retry",
+        "Master_Log_File",
+        "Read_Master_Log_Pos",
+        "Relay_Log_File",
+        "Relay_Log_Pos",
+        "Relay_Master_Log_File",
+        "Slave_IO_Running",
+        "Slave_SQL_Running",
+        "Replicate_Do_DB",
+        "Replicate_Ignore_DB",
+        "Replicate_Do_Table",
+        "Replicate_Ignore_Table",
+        "Replicate_Wild_Do_Table",
+        "Replicate_Wild_Ignore_Table",
+        "Last_Errno",
+        "Last_Error",
+        "Skip_Counter",
+        "Exec_Master_Log_Pos",
+        "Relay_Log_Space",
+        "Until_Condition",
+        "Until_Log_File",
+        "Until_Log_Pos",
+        "Master_SSL_Allowed",
+        "Master_SSL_CA_File",
+        "Master_SSL_CA_Path",
+        "Master_SSL_Cert",
+        "Master_SSL_Cipher",
+        "Master_SSL_Key",
+        "Seconds_Behind_Master",
+        "Master_SSL_Verify_Server_Cert",
+        "Last_IO_Errno",
+        "Last_IO_Error",
+        "Last_SQL_Errno",
+        "Last_SQL_Error",
+        "Replicate_Ignore_Server_Ids",
+        "Master_Server_Id",
+        "Master_UUID",
+        "Master_Info_File",
+        "SQL_Delay",
+        "SQL_Remaining_Delay",
+        "Slave_SQL_Running_State",
+        "Master_Retry_Count",
+        "Master_Bind",
+        "Last_IO_Error_Timestamp",
+        "Last_SQL_Error_Timestamp",
+        "Master_SSL_Crl",
+        "Master_SSL_Crlpath",
+        "Retrieved_Gtid_Set",
+        "Executed_Gtid_Set",
+        "Auto_Position",
+        "Replicate_Rewrite_DB",
+        "Channel_Name",
+        "Master_TLS_Version",
+        "Master_public_key_path",
+        "Get_master_public_key",
+        "Network_Namespace"
+      ],
+      "rows": [
+        [
+          "Waiting for source to send event",
+          "dbwp-my-m80-p",
+          "repl",
+          "3306",
+          "60",
+          "mysql-bin.000003",
+          "3553",
+          "relay.000002",
+          "420",
+          "mysql-bin.000003",
+          "Yes",
+          "No",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "1062",
+          "Coordinator stopped because there were error(s) in the worker(s). The most recent failure being: Worker 1 failed executing transaction '2ccf55bb-bebe-11f1-ad0d-2260277badd8:18' at source log mysql-bin.000003, end_log_pos 3522. See error log and/or performance_schema.replication_applier_status_by_worker table for more details about this failure or others, if any.",
+          "0",
+          "3279",
+          "894",
+          "None",
+          "",
+          "0",
+          "No",
+          "",
+          "",
+          "",
+          "",
+          "",
+          null,
+          "No",
+          "0",
+          "",
+          "1062",
+          "Coordinator stopped because there were error(s) in the worker(s). The most recent failure being: Worker 1 failed executing transaction '2ccf55bb-bebe-11f1-ad0d-2260277badd8:18' at source log mysql-bin.000003, end_log_pos 3522. See error log and/or performance_schema.replication_applier_status_by_worker table for more details about this failure or others, if any.",
+          "",
+          "1",
+          "2ccf55bb-bebe-11f1-ad0d-2260277badd8",
+          "mysql.slave_master_info",
+          "0",
+          null,
+          "",
+          "86400",
+          "",
+          "",
+          "261003 00:08:23",
+          "",
+          "",
+          "2ccf55bb-bebe-11f1-ad0d-2260277badd8:18",
+          "2ccf55bb-bebe-11f1-ad0d-2260277badd8:1-17,\n2ce7a8be-bebe-11f1-a55b-66834775029b:1-5",
+          "1",
+          "",
+          "",
+          "",
+          "",
+          "1",
+          ""
+        ]
+      ]
+    }
+  }
+}

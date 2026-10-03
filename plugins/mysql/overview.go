@@ -120,7 +120,8 @@ func overviewCapability() plugin.Capability {
 		Idempotent: true,
 		Detailed:   true,
 		Description: "What server this is, how long it has been up, how much of its connection " +
-			"budget is in use, and the largest databases on it.\n\n" +
+			"budget is in use, one line on whether replication is healthy (mysql.replication.status " +
+			"has the rest), and the largest databases on it.\n\n" +
 			"`detail` adds what every session is doing, without the statement text — state, " +
 			"time and command, which answers \"is anything stuck\" and hands back nothing " +
 			"anybody stored. The statement text is mysql.activity, and it is a write for " +
@@ -143,6 +144,12 @@ func overviewView(ctx context.Context, db *sql.DB, req plugin.Request) (view.Vie
 	}
 	p := plugin.NewPage(ctx, req)
 	p.Put("status", status)
+
+	line, warnings := replicationSummary(ctx, db, req)
+	p.Put("replication", line)
+	for i := range warnings {
+		p.Warn(&warnings[i])
+	}
 
 	databases, err := databaseTable(ctx, db, req, 10)
 	if err != nil {
