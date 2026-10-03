@@ -123,7 +123,7 @@ The value at one key, whatever its type: a string as itself, a hash as its field
 
 **What it holds comes back masked (••••••), on every surface.** rta masks every field a plugin marks as secret and this one marks the value, a hash's field values and a collection's members, so what the result tells you is the key's type, ttl and size, and a hash's field names — not what is stored.
 
-**Classified write for what it discloses, not what it changes.** A session store keeps tokens and a cache keeps whatever the application cached, so reading an arbitrary key can be reading somebody's session. It needs a grant naming the key: `grant.allow` for `redis.key.get` and `user:42:session` is a consent somebody can read.
+**Classified write for what it discloses, not what it changes.** A session store keeps tokens and a cache keeps whatever the application cached, so reading an arbitrary key can be reading somebody's session.
 
 The read tier — redis.key.list and redis.key.tree — shows names, types and TTLs, which is usually the question and costs none of this.
 
