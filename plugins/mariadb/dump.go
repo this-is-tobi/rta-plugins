@@ -612,14 +612,9 @@ var errnoInLine = regexp.MustCompile(`\((\d+)\)`)
 // profile's and no other layer holds them; and the address beside it then,
 // since it may be one the caller typed over the profile's (Request.Profile).
 func restoreCommand(req plugin.Request, path string) string {
-	args := []plugin.Arg{{Name: "file", Value: path, Positional: true}}
-	if profile := req.Profile(); profile != "" {
-		args = append(args, plugin.Arg{Name: "profile", Value: profile})
-	}
-	if req.Tunnel() == plugin.TunnelNone {
-		args = append(args, plugin.Arg{Name: "host", Value: req.String("host")},
-			plugin.Arg{Name: "port", Value: req.Int("port")})
-	}
+	args := append([]plugin.Arg{{Name: "file", Value: path, Positional: true}},
+		req.ReachArgs(plugin.Arg{Name: "host", Value: req.String("host")},
+			plugin.Arg{Name: "port", Value: req.Int("port")})...)
 	args = append(args, plugin.Arg{Name: "user", Value: req.String("user")},
 		plugin.Arg{Name: "database", Value: req.String("database")})
 	if mode := req.String("tls"); mode == "true" || mode == "verify-ca" || mode == "skip-verify" {
