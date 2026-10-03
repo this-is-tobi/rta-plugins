@@ -88,6 +88,9 @@ type connection struct {
 	// context and no profile, which is the CLI's own default and names
 	// nothing a refusal could add.
 	reached string
+	// reach is the arguments a call takes to reach the same daemon again
+	// (Request.ReachArgs).
+	reach []plugin.Arg
 }
 
 func connectionOf(req plugin.Request) (connection, *view.Error) {
@@ -98,6 +101,7 @@ func connectionOf(req plugin.Request) (connection, *view.Error) {
 		profile: req.Profile(),
 	}
 	c.reached = reachedDaemon(req, c.Host, c.Context)
+	c.reach = reachArgs(req, c.Host, c.Context)
 	if verr := checkName("context", c.Context); verr != nil {
 		return connection{}, verr
 	}
@@ -167,20 +171,24 @@ func (c connection) args(rest ...string) []string {
 // was pasted names, and a container there may well share the name: a removal
 // through --host or a profile, refused because its container was running,
 // offered a stop that stopped another machine's.
-func (c connection) callArgs() []plugin.Arg {
-	var out []plugin.Arg
-	if c.sf != plugin.SurfaceMCP {
-		if c.Host != "" {
-			out = append(out, plugin.Arg{Name: "host", Value: c.Host})
-		}
-		if c.Context != "" {
-			out = append(out, plugin.Arg{Name: "context", Value: c.Context})
-		}
+func (c connection) callArgs() []plugin.Arg { return c.reach }
+
+// reachArgs is the profile a call came through, whenever there was one, and
+// the host and the context it was given beside it: over MCP the profile
+// alone, since the other two are Local and the bridge drops what an agent
+// sends. docker opens no forward, so Request.ReachArgs always gives them.
+func reachArgs(req plugin.Request, host, context string) []plugin.Arg {
+	if req.Surface() == plugin.SurfaceMCP {
+		return req.ReachArgs()
 	}
-	if c.profile != "" {
-		out = append(out, plugin.Arg{Name: "profile", Value: c.profile})
+	var named []plugin.Arg
+	if host != "" {
+		named = append(named, plugin.Arg{Name: "host", Value: host})
 	}
-	return out
+	if context != "" {
+		named = append(named, plugin.Arg{Name: "context", Value: context})
+	}
+	return req.ReachArgs(named...)
 }
 
 // run executes docker and returns its stdout.
