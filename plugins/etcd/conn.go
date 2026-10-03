@@ -209,7 +209,7 @@ func awaitConnection(ctx context.Context, c *clientv3.Client, req plugin.Request
 
 // noConnection is the bound run out with no connection up.
 func noConnection(req plugin.Request) *view.Error {
-	return view.Errorf("etcd.timeout", "%s did not answer in time", endpointOf(req)).
+	return view.Errorf("etcd.timeout", "%s did not answer in time", req.Reached(endpointOf(req))).
 		WithHint("no connection came up: a firewall that drops rather than refuses looks exactly " +
 			"like this, and so does a listener that takes the connection and never speaks")
 }
@@ -234,7 +234,7 @@ func until(ctx context.Context, conn *grpc.ClientConn, states ...connectivity.St
 // client protocol over it.
 func wrongPort(req plugin.Request, to target) *view.Error {
 	refusal := view.Errorf("etcd.conn.protocol", "%s takes a connection and answers nothing etcd's client "+
-		"understands", endpointOf(req))
+		"understands", req.Reached(endpointOf(req)))
 	if to.tls != nil {
 		return refusal.WithHint("etcd listens on 2379 for clients and 2380 for peers, and the peer port " +
 			"will not answer this — nor will a client port serving TLS to a certificate it does not accept")
@@ -429,7 +429,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	// several of them share a code and only the sentinel says which is which.
 	switch {
 	case errors.Is(err, context.DeadlineExceeded):
-		return view.Errorf("etcd.timeout", "%s did not answer in time", where).
+		return view.Errorf("etcd.timeout", "%s did not answer in time", req.Reached(where)).
 			WithHint("a cluster that has lost quorum accepts connections and answers nothing — " +
 				nextCall(req, "etcd.overview") + " shows whether the members can see each other")
 	case errors.Is(err, clientv3.ErrNoAvailableEndpoints):
@@ -457,7 +457,7 @@ func classify(err error, req plugin.Request) *view.Error {
 			return view.Errorf("etcd.unavailable", "%s is not serving: %s", req.Reached(where), msg).
 				WithHint("a member that has lost quorum reports exactly this — check the others")
 		case codes.DeadlineExceeded:
-			return view.Errorf("etcd.timeout", "%s did not answer in time", where).
+			return view.Errorf("etcd.timeout", "%s did not answer in time", req.Reached(where)).
 				WithHint("a firewall that drops rather than refuses looks exactly like this")
 		}
 	}

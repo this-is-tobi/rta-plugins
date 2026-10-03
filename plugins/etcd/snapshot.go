@@ -447,7 +447,7 @@ func classifySnapshot(err error, req plugin.Request) *view.Error {
 	}
 	if st, ok := status.FromError(err); ok && st.Code() == codes.PermissionDenied {
 		return view.Errorf("etcd.snapshot.denied",
-			"%s refused the snapshot: %s", endpointOf(req), st.Message()).
+			"%s refused the snapshot: %s", req.Reached(endpointOf(req)), st.Message()).
 			WithHint("etcd's maintenance calls are root-only — a role with permissions on a " +
 				"key range does not reach them, however wide that range is. Authenticate as a " +
 				"member of the root role")
