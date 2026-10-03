@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -350,9 +351,37 @@ func classifyStatus(code int, body []byte, req plugin.Request) *view.Error {
 	case http.StatusServiceUnavailable:
 		return view.Errorf("qdrant.unavailable", "%s is not serving: %s", where, detail).
 			WithHint("a Qdrant loading a collection from disk answers this until it is ready")
+	case http.StatusInternalServerError:
+		if refused, ok := peerNotAnswering(detail, where); ok {
+			return refused.WithHint(nextCall(req, "qdrant.overview") + " lists the peers and says which of them do " +
+				"not answer. A collection with a shard on one cannot be read whole until it is back, or until " +
+				"that shard has a replica on another peer")
+		}
 	}
 	return view.Errorf("qdrant.request.failed", "%s returned %d: %s", where, code, detail).
 		WithHint(req.Surface().SettingsHint("qdrant.overview"))
+}
+
+// peerURIInFailure is the address of the peer a read could not connect to, in
+// the failure the server quotes. Present when the connection was refused, and
+// absent when the name no longer resolves, which quotes the lookup instead.
+var peerURIInFailure = regexp.MustCompile(`Failed to connect to (\S+?), error`)
+
+// peerNotAnswering is qdrant.peer.unreachable: the 500 a read that needs a
+// shard held by a peer answers when it cannot reach that peer, which names a
+// transport library's status and, for a refused connection only, the address.
+// It is a fact about the cluster and not about the request, and "returned 500"
+// with the page of every input as its hint sent its reader to settings that
+// were fine. The page that says which peer is the overview's.
+func peerNotAnswering(detail, where string) (*view.Error, bool) {
+	if !strings.Contains(detail, "Tonic status error") || !strings.Contains(detail, "currently unavailable") {
+		return nil, false
+	}
+	if m := peerURIInFailure.FindStringSubmatch(detail); m != nil {
+		return view.Errorf("qdrant.peer.unreachable", "%s could not read from the peer at %s, which does not answer",
+			where, m[1]), true
+	}
+	return view.Errorf("qdrant.peer.unreachable", "%s could not read from a peer that does not answer", where), true
 }
 
 // qdrantErrorText digs the message out of Qdrant's error envelope, falling
