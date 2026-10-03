@@ -65,6 +65,7 @@ func compactOverview(ctx context.Context, client *vaultapi.Client, req plugin.Re
 	// being the difference between a Vault half-read and one that said
 	// nothing at all.
 	read := 0
+	var cause *view.Error
 	if status, err := client.Sys().SealStatusWithContext(ctx); err == nil {
 		read++
 		state := "unsealed"
@@ -76,6 +77,7 @@ func compactOverview(ctx context.Context, client *vaultapi.Client, req plugin.Re
 		}
 		add("state", state+" · "+status.Version)
 	} else {
+		cause = classify(err, req)
 		add("state", "unreadable — "+err.Error())
 	}
 	if secret, err := client.Auth().Token().LookupSelfWithContext(ctx); err == nil {
@@ -87,13 +89,31 @@ func compactOverview(ctx context.Context, client *vaultapi.Client, req plugin.Re
 			add("token ttl (seconds)", tokenTTL(ttl))
 		}
 	} else {
+		if cause == nil {
+			cause = classify(err, req)
+		}
 		add("token", "unreadable — "+err.Error())
 	}
 
 	if read == 0 {
-		return nil, view.Errorf("vault.overview.unavailable", "nothing could be read")
+		return nil, nothingRead(cause)
 	}
 	return kv, nil
+}
+
+// nothingRead is the refusal for an overview that read nothing, and it says why
+// whenever the reason is not the token's own. It was the bare "nothing could
+// be read" for a Vault that refused the connection as much as for one that
+// refused the token, so the one failure an agent can act on — the address is
+// wrong, the server is down, the certificate does not verify — was reported
+// as the one it cannot. A refusal by the token's policy stays the overview's
+// own answer, since neither read was the token's to make.
+func nothingRead(cause *view.Error) *view.Error {
+	if cause != nil && cause.Code != "vault.denied" {
+		return cause
+	}
+	return view.Errorf("vault.overview.unavailable", "nothing could be read").
+		WithHint("this token may read neither the seal status nor itself, so there is nothing for an overview to say")
 }
 
 func detailedOverview(ctx context.Context, client *vaultapi.Client, req plugin.Request) (view.View, error) {
@@ -106,7 +126,11 @@ func detailedOverview(ctx context.Context, client *vaultapi.Client, req plugin.R
 		p.Put(title, v)
 	}
 
+	var cause *view.Error
 	kv, err := compactOverview(ctx, client, req)
+	if err != nil {
+		cause = view.AsError(err, "vault.overview.unavailable")
+	}
 	put("status", kv, err)
 
 	names, err := client.Sys().ListPoliciesWithContext(ctx)
@@ -119,11 +143,14 @@ func detailedOverview(ctx context.Context, client *vaultapi.Client, req plugin.R
 		t.Total = len(t.Rows)
 		put("policies", t, nil)
 	} else {
+		if cause == nil {
+			cause = classify(err, req)
+		}
 		put("policies", nil, err)
 	}
 
 	if p.Empty() {
-		return nil, view.Errorf("vault.overview.unavailable", "nothing could be read")
+		return nil, nothingRead(cause)
 	}
 	return p.View(), nil
 }
