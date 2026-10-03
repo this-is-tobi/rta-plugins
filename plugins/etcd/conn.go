@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -377,6 +378,36 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 	return cfg, nil
 }
 
+// serverCode is the gRPC code a failure carries and the server's words for
+// it, however the client delivered it.
+//
+// **The client delivers most of them as an rpctypes.EtcdError, which is not a
+// gRPC status.** clientv3 turns a status into its own error type on the way
+// out, and status.FromError reads that type as no status at all, so a refused
+// password, a role without the permission and a member without quorum all
+// fell past the code switch below and were reported as "could not reach" the
+// endpoint, with a hint about the settings. The tests fed the switch
+// status.Error values, which is what the server sends and not what the
+// client hands back.
+func serverCode(err error) (codes.Code, string, bool) {
+	if st, ok := status.FromError(err); ok {
+		return st.Code(), st.Message(), true
+	}
+	var ee rpctypes.EtcdError
+	if errors.As(err, &ee) {
+		// etcd answers a wrong password and a missing user name with
+		// InvalidArgument, and only a token it no longer honours with
+		// Unauthenticated: the four are one finding for the person who has to
+		// fix it, and the code alone sent three of them to the generic error.
+		switch ee {
+		case rpctypes.ErrAuthFailed, rpctypes.ErrUserEmpty, rpctypes.ErrInvalidAuthToken, rpctypes.ErrAuthOldRevision:
+			return codes.Unauthenticated, ee.Error(), true
+		}
+		return ee.Code(), ee.Error(), true
+	}
+	return codes.OK, "", false
+}
+
 // classify turns a client error into something an operator can act on.
 //
 // etcd speaks gRPC, so most failures arrive as a status code rather than as a
@@ -402,8 +433,8 @@ func classify(err error, req plugin.Request) *view.Error {
 				"and 2380 for peers, and the peer port will not answer this")
 	}
 
-	if st, ok := status.FromError(err); ok {
-		switch st.Code() {
+	if code, msg, ok := serverCode(err); ok {
+		switch code {
 		case codes.Unauthenticated:
 			// Where the password comes from rather than a verb telling the
 			// reader to set one: an agent has no host environment to set, and
@@ -414,10 +445,11 @@ func classify(err error, req plugin.Request) *view.Error {
 					" or " + sf.SettingName("password") + " — check it, and " + sf.SettingName("username") +
 					": a cluster with auth disabled refuses a username too")
 		case codes.PermissionDenied:
-			return view.Errorf("etcd.denied", "%s: %s", where, st.Message()).
-				WithHint("the credentials are valid but the role does not cover this key range")
+			return view.Errorf("etcd.denied", "%s: %s", where, msg).
+				WithHint("the credentials are valid but the role does not cover this: a key range for a read of keys, " +
+					"and for the cluster's own status, which etcd answers only to a user holding the root role")
 		case codes.Unavailable:
-			return view.Errorf("etcd.unavailable", "%s is not serving: %s", where, st.Message()).
+			return view.Errorf("etcd.unavailable", "%s is not serving: %s", where, msg).
 				WithHint("a member that has lost quorum reports exactly this — check the others")
 		case codes.DeadlineExceeded:
 			return view.Errorf("etcd.timeout", "%s did not answer in time", where).

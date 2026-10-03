@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -311,6 +312,33 @@ func TestGRPCFailuresAreClassifiedByCode(t *testing.T) {
 		if strings.TrimSpace(got.Hint) == "" {
 			t.Errorf("%s has no hint — the code alone does not say what to do next", c.code)
 		}
+	}
+}
+
+// The server sends gRPC statuses and the client hands back its own error type
+// for them: rpctypes.Error is what it does on the way out. Classified as the
+// status the server sent, a refused password and a role without permission
+// were both "could not reach" the endpoint, with a hint about connection
+// settings, against a cluster that had answered.
+func TestWhatTheClientRaisesIsClassifiedByItsCode(t *testing.T) {
+	r := req(t, "etcd.overview", map[string]any{"endpoint": "etcd-0.internal:2379"})
+	for _, tc := range []struct {
+		raised error
+		want   string
+	}{
+		{rpctypes.ErrGRPCAuthFailed, "etcd.auth.failed"},
+		{rpctypes.ErrGRPCUserEmpty, "etcd.auth.failed"},
+		{rpctypes.ErrGRPCPermissionDenied, "etcd.denied"},
+		{rpctypes.ErrGRPCNoLeader, "etcd.unavailable"},
+	} {
+		got := classify(rpctypes.Error(tc.raised), r)
+		if got.Code != tc.want {
+			t.Errorf("%v classified as %q, want %q", tc.raised, got.Code, tc.want)
+		}
+	}
+	denied := classify(rpctypes.Error(rpctypes.ErrGRPCPermissionDenied), r)
+	if !strings.Contains(denied.Message, "etcdserver: permission denied") || !strings.Contains(denied.Hint, "root role") {
+		t.Errorf("denied = %q / %q", denied.Message, denied.Hint)
 	}
 }
 
