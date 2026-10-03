@@ -246,8 +246,8 @@ func wrongPort(req plugin.Request, to target) *view.Error {
 	// connect reads them.
 	if req.Tunnel() != plugin.TunnelNone {
 		return refusal.WithHint("etcd listens on 2379 for clients and 2380 for peers, and the peer port will " +
-			"not answer this — nor will a client port serving TLS, to the plaintext the " + string(req.Tunnel()) +
-			": forward profile " + req.Profile() + " opened asks for: " +
+			"not answer this — nor will a client port serving TLS, to the plaintext " +
+			req.Reached(endpointOf(req)) + " asks for: " +
 			req.Surface().SettingName("ca-file", "tls-server-name") + " each turn TLS on over the forward")
 	}
 	return refusal.WithHint("etcd listens on 2379 for clients and 2380 for peers, and the peer port will " +

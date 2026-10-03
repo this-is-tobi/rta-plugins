@@ -187,7 +187,7 @@ func TestThroughAForwardAPortThatAnswersNothingNamesWhatTurnsTLSOn(t *testing.T)
 		tunnel       plugin.Tunnel
 		want, unwant string
 	}{
-		{plugin.TunnelKube, "--ca-file", "without --tls"},
+		{plugin.TunnelKube, "to the plaintext profile lab (through its kube: forward) asks for: --ca-file", "without --tls"},
 		{plugin.TunnelNone, "without --tls on", "--ca-file"},
 	} {
 		r := req(t, "etcd.overview", nil).WithProfile("lab", c.tunnel)
