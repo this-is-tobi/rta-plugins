@@ -109,7 +109,7 @@ func detailedOverview(ctx context.Context, conn *pgx.Conn, req plugin.Request) (
 	v, err = cacheView(ctx, conn, req)
 	put("cache", v, err)
 
-	v, err = tableListView(ctx, conn, req.With(map[string]any{"limit": overviewTableLimit}))
+	v, err = tableListView(ctx, conn, req.With(map[string]any{"limit": overviewTableLimit}), false)
 	put("largest tables", v, err)
 
 	// Without the query text, which is what lets this page stay Read: the
@@ -117,7 +117,7 @@ func detailedOverview(ctx context.Context, conn *pgx.Conn, req plugin.Request) (
 	// session is waiting on, and none of that is a value anybody stored.
 	// `rta pg activity` is where the query text lives, and it is Write for
 	// exactly that reason.
-	v, err = activityView(ctx, conn, req.With(map[string]any{"limit": overviewActivityLimit}), false)
+	v, err = activityView(ctx, conn, req.With(map[string]any{"limit": overviewActivityLimit}), false, false)
 	put("activity", v, err)
 
 	if p.Empty() {

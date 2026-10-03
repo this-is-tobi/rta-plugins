@@ -143,9 +143,38 @@ func statusView(ctx context.Context, conn *pgx.Conn, req plugin.Request) (view.V
 	}}, nil
 }
 
+// listed reads a listing's rows and cuts them back to the bound it was asked
+// for. The queries ask one row past it, which is what tells a listing that
+// ends on its bound from one that was cut off — the difference between "that
+// is all of them" and "there are more" cannot be guessed from a count. A
+// listing that quietly ended at its bound reads exactly like a database with
+// that many tables in it, which is the answer an agent would act on.
+//
+// say is false where the cut is the point: the overview's five largest tables
+// are five on purpose, and a warning there would send its reader to a `limit`
+// the overview does not take.
+func listed(rows pgx.Rows, limit int, noun string, say bool, sf plugin.Surface) (view.Table, error) {
+	t, err := rowsToTable(rows, limit+1)
+	if err != nil {
+		return t, err
+	}
+	if len(t.Rows) > limit {
+		t.Rows = t.Rows[:limit]
+		if say {
+			t.Warnings = append(t.Warnings, view.Error{
+				Code:    "pg.list.partial",
+				Message: "stopped at " + format.CountOf(limit, noun) + "; there are more",
+				Hint:    "raise " + sf.InputName("limit"),
+			})
+		}
+	}
+	return t, nil
+}
+
 // tableListView lists tables with their row estimates and sizes — pg.table.list
-// and a "largest tables" section of pg.overview at a tighter limit.
-func tableListView(ctx context.Context, conn *pgx.Conn, req plugin.Request) (view.View, error) {
+// and a "largest tables" section of pg.overview at a tighter limit, which is
+// why say is a parameter: see listed.
+func tableListView(ctx context.Context, conn *pgx.Conn, req plugin.Request, say bool) (view.View, error) {
 	// pg_size_pretty, not the raw count: a view carries pre-formatted strings
 	// and view.ColumnKind selects alignment, not rendering — so declaring
 	// KindBytes and handing over an integer prints the integer. Ordering
@@ -158,12 +187,12 @@ func tableListView(ctx context.Context, conn *pgx.Conn, req plugin.Request) (vie
 		from pg_stat_user_tables
 		where ($1 = '' or schemaname = $1)
 		order by pg_total_relation_size(relid) desc
-		limit $2`, req.String("schema"), req.Int("limit"))
+		limit $2`, req.String("schema"), req.Int("limit")+1)
 	if err != nil {
 		return nil, classify(err, req)
 	}
 	defer rows.Close()
-	t, err := rowsToTable(rows, req.Int("limit"))
+	t, err := listed(rows, req.Int("limit"), "table", say, req.Surface())
 	if err != nil {
 		return nil, classify(err, req)
 	}
@@ -251,14 +280,14 @@ func activitySQL(withQuery bool) (string, view.Column) {
 		limit $1`, col
 }
 
-func activityView(ctx context.Context, conn *pgx.Conn, req plugin.Request, withQuery bool) (view.View, error) {
+func activityView(ctx context.Context, conn *pgx.Conn, req plugin.Request, withQuery, say bool) (view.View, error) {
 	sql, tail := activitySQL(withQuery)
-	rows, err := conn.Query(ctx, sql, req.Int("limit"))
+	rows, err := conn.Query(ctx, sql, req.Int("limit")+1)
 	if err != nil {
 		return nil, classify(err, req)
 	}
 	defer rows.Close()
-	t, err := rowsToTable(rows, req.Int("limit"))
+	t, err := listed(rows, req.Int("limit"), "session", say, req.Surface())
 	if err != nil {
 		return nil, classify(err, req)
 	}
@@ -305,7 +334,7 @@ func Plugin() plugin.Plugin {
 				Idempotent: true,
 				Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 					return withConn(ctx, req, func(ctx context.Context, conn *pgx.Conn) (view.View, error) {
-						return tableListView(ctx, conn, req)
+						return tableListView(ctx, conn, req, true)
 					})
 				},
 			},
@@ -610,7 +639,7 @@ func Plugin() plugin.Plugin {
 					"form stays in the read tier and this one does not.",
 				Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 					return withConn(ctx, req, func(ctx context.Context, conn *pgx.Conn) (view.View, error) {
-						return activityView(ctx, conn, req, true)
+						return activityView(ctx, conn, req, true, true)
 					})
 				},
 			},
