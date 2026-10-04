@@ -191,6 +191,9 @@ func TestAForwardRefusalNamesTheSettingForItsSurface(t *testing.T) {
 		if !strings.Contains(verr.Message, "(through its ssh: forward) is for a, b, c and 1 more") {
 			t.Errorf("%s: %q does not list the certificate's names", sf, verr.Message)
 		}
+		if !strings.Contains(verr.Hint, "the name the Vault answers as") || strings.Contains(verr.Hint, "ca-file") {
+			t.Errorf("%s: hint %q should name the Vault's own name and no CA file", sf, verr.Hint)
+		}
 	}
 }
 
