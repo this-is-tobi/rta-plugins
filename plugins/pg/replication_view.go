@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
@@ -83,7 +85,7 @@ func hiddenWarning(f replicationFacts, req plugin.Request) *view.Error {
 	user, sf := req.String("user"), req.Surface()
 	return view.Errorf("pg.replication.hidden", "%q may not see %s", user, strings.Join(what, " or ")).
 		WithHint("PostgreSQL shows a standby's state and positions only to a role in pg_monitor or " +
-			"pg_read_all_stats — `GRANT pg_monitor TO \"" + user + "\"`, or name a role that has it with " +
+			"pg_read_all_stats — `GRANT pg_monitor TO " + pgx.Identifier{user}.Sanitize() + "`, or name a role that has it with " +
 			sf.SettingName("user") + ". Until then those cells read hidden or -, never zero")
 }
 
