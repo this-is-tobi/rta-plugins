@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -18,9 +17,6 @@ import (
 // script says it is, for a test that needs a refusal in the CLI's own words.
 func scriptedDocker(t *testing.T, script string) {
 	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("the fake daemon is a shell script")
-	}
 	bin := filepath.Join(t.TempDir(), "docker")
 	if err := os.WriteFile(bin, []byte("#!/bin/sh\n"+script), 0o755); err != nil {
 		t.Fatal(err)

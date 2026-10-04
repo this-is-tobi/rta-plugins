@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -16,9 +15,6 @@ import (
 // one query and not another, rather than a daemon that is down.
 func fakeDocker(t *testing.T) {
 	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("the fake daemon is a shell script")
-	}
 	bin := filepath.Join(t.TempDir(), "docker")
 	script := "#!/bin/sh\n" +
 		"for a in \"$@\"; do\n" +
