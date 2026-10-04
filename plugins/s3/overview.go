@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"sort"
 	"strconv"
 
 	"github.com/minio/minio-go/v7"
@@ -58,13 +57,7 @@ func detailedOverview(req plugin.Request, buckets []minio.BucketInfo) view.View 
 	p := plugin.NewPage(context.Background(), req)
 	p.Put("status", compactOverview(req, buckets))
 
-	sort.Slice(buckets, func(i, j int) bool { return buckets[i].Name < buckets[j].Name })
-	t := view.Table{Columns: []view.Column{{Name: "Name"}, {Name: "Region"}, {Name: "Created"}}}
-	for _, b := range buckets {
-		t.Rows = append(t.Rows, []string{b.Name, b.BucketRegion, b.CreationDate.Format("2006-01-02")})
-	}
-	t.Total = len(t.Rows)
-	p.Put("buckets", t)
+	p.Put("buckets", bucketTable(buckets))
 
 	return p.View()
 }

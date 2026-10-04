@@ -114,8 +114,8 @@ func runBucketUpload(ctx context.Context, req plugin.Request) (view.View, error)
 			return nil, verr
 		}
 		if req.DryRun {
-			return view.Text{Body: fmt.Sprintf("would upload %s (%s) from %s into %s/%s",
-				format.CountOf(len(plan), "file"), format.Bytes(total), root, req.String("bucket"), prefix)}, nil
+			return view.Text{Body: fmt.Sprintf("would upload %s (%s) from %s into %s",
+				format.CountOf(len(plan), "file"), format.Bytes(total), root, address(req.String("bucket"), prefix))}, nil
 		}
 
 		started := time.Now()
@@ -129,7 +129,7 @@ func runBucketUpload(ctx context.Context, req plugin.Request) (view.View, error)
 			{Key: "objects", Value: fmt.Sprintf("%d", len(plan))},
 			{Key: "size", Value: format.Bytes(written)},
 			{Key: "took", Value: time.Since(started).Round(time.Millisecond).String()},
-			{Key: "to", Value: req.String("bucket") + "/" + prefix},
+			{Key: "to", Value: address(req.String("bucket"), prefix)},
 		}
 		if req.Bool("overwrite") {
 			pairs = append(pairs, view.Pair{Key: "overwrite",
@@ -194,7 +194,7 @@ func planUpload(sf plugin.Surface, root string, limit int) ([]upload, int64, *vi
 				if d.Type()&fs.ModeSymlink != 0 {
 					kind = "a symlink"
 				}
-				unsafe = append(unsafe, fmt.Sprintf("%q (%s)", path, kind))
+				unsafe = append(unsafe, fmt.Sprintf("%s (%s)", quoted(path), kind))
 			}
 			return nil
 		}
@@ -220,7 +220,7 @@ func planUpload(sf plugin.Surface, root string, limit int) ([]upload, int64, *vi
 			WithHint("raise " + sf.InputName("limit") + ", or upload a subdirectory — refused rather than truncated, " +
 				"because a restore missing files nobody named is worse than one that did not run")
 	case walkErr != nil:
-		return nil, 0, view.Errorf("s3.upload.walk", "reading %s: %v", root, walkErr)
+		return nil, 0, view.Errorf("s3.upload.walk", "reading %s: %s", root, fsReason(walkErr))
 	}
 	if refused > 0 {
 		return nil, 0, view.Errorf("s3.upload.notregular",
@@ -259,9 +259,9 @@ func checkUploadTarget(ctx context.Context, client *minio.Client, req plugin.Req
 		if obj.Err != nil {
 			return classify(obj.Err, req)
 		}
-		where := req.String("bucket") + "/" + prefix
+		where := address(req.String("bucket"), prefix)
 		return view.Errorf("s3.upload.notempty",
-			"%s already holds objects (%s, and possibly more)", where, obj.Key).
+			"%s already holds objects (%s, and possibly more)", where, plugin.ListedName(obj.Key)).
 			WithHint(req.Surface().InputName("overwrite") + " replaces objects whose keys collide and " +
 				"leaves the rest, or upload under a fresh " + req.Surface().InputName("prefix") +
 				" — the bucket does not care what the prefix is called")
@@ -317,7 +317,7 @@ func putAll(ctx context.Context, client *minio.Client, req plugin.Request,
 	wg.Wait()
 
 	if failure != nil {
-		partial := req.String("bucket") + "/" + prefix + " may hold a partial upload; rta does " +
+		partial := address(req.String("bucket"), prefix) + " may hold a partial upload; rta does " +
 			"not delete remote objects on failure, because with " + req.Surface().InputName("overwrite") + " a delete could " +
 			"also destroy what was already replaced"
 		if failure.Hint != "" {

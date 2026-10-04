@@ -54,14 +54,22 @@ func runBucketList(ctx context.Context, req plugin.Request) (view.View, error) {
 		if err != nil {
 			return nil, classify(err, req)
 		}
-		sort.Slice(buckets, func(i, j int) bool { return buckets[i].Name < buckets[j].Name })
-		t := view.Table{Columns: []view.Column{{Name: "Name"}, {Name: "Region"}, {Name: "Created"}}}
-		for _, b := range buckets {
-			t.Rows = append(t.Rows, []string{b.Name, b.BucketRegion, b.CreationDate.Format("2006-01-02")})
-		}
-		t.Total = len(t.Rows)
-		return t, nil
+		return bucketTable(buckets), nil
 	})
+}
+
+// bucketTable is the listing s3.bucket.list answers with and s3.overview's
+// detail carries, one table so the two cannot show a bucket two ways. Bucket
+// names are the server's to accept, and a lenient one accepts what AWS does
+// not: a name holding a newline or a bidirectional override reaches here.
+func bucketTable(buckets []minio.BucketInfo) view.Table {
+	sort.Slice(buckets, func(i, j int) bool { return buckets[i].Name < buckets[j].Name })
+	t := view.Table{Columns: []view.Column{{Name: "Name"}, {Name: "Region"}, {Name: "Created"}}}
+	for _, b := range buckets {
+		t.Rows = append(t.Rows, []string{plugin.ListedName(b.Name), b.BucketRegion, b.CreationDate.Format("2006-01-02")})
+	}
+	t.Total = len(t.Rows)
+	return t
 }
 
 // s3.policy.get is Read: the policy document names what is already
@@ -85,7 +93,7 @@ func policyGetCapability() plugin.Capability {
 // and an agent told a bucket "has no bucket policy set" read it as a bucket
 // anybody can reach, or nobody can.
 func noPolicy(bucket string) *view.Error {
-	return view.Errorf("s3.policy.notfound", "%q has no bucket policy set", bucket).
+	return view.Errorf("s3.policy.notfound", "%s has no bucket policy set", quoted(bucket)).
 		WithHint("an absent policy is not the same as a deny-all one — access still follows IAM/bucket ACLs")
 }
 
