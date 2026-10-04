@@ -92,6 +92,25 @@ func TestADownloadNamesTheLocalFileItCouldNotWriteAsAName(t *testing.T) {
 	}
 }
 
+// The file a key resolves to is one the system may refuse to create for a
+// reason of its own, and its error words the path as the key spelled it.
+func TestADownloadNamesTheFileTheSystemWouldNotCreateAsAName(t *testing.T) {
+	const tail = "x\x1b"
+	long := tail + strings.Repeat("a", 300)
+	srv := serveNames(t, bucketContents{keys: []string{"dir\x1b/" + long}, object: []byte("body")})
+	root := filepath.Join(t.TempDir(), "backup")
+	_, err := runBucketDownload(context.Background(),
+		downloadReq(t, srv, map[string]any{"out": root, "parallel": 1}))
+	var verr *view.Error
+	if !errors.As(err, &verr) || verr.Code != "s3.download.create" {
+		t.Fatalf("err = %v, want s3.download.create", err)
+	}
+	shown := `"` + root + `/dir\x1b/x\x1b` + strings.Repeat("a", 300) + `"`
+	if want := "creating " + shown + ": open " + shown + ": file name too long"; verr.Message != want {
+		t.Errorf("message = %q, want %q", verr.Message, want)
+	}
+}
+
 func TestADownloadReportsWhereItCameFromByAName(t *testing.T) {
 	for prefix, want := range map[string]string{
 		escKey:              escAddress,
@@ -173,6 +192,25 @@ func TestAnUploadNamesWhatItRefusesAndWhereItWritesAsNames(t *testing.T) {
 				t.Fatalf("err = %v, want s3.upload.notempty", err)
 			}
 			if wantMessage := "test-bucket/backup/ already holds objects (" + want + ", and possibly more)"; verr.Message != wantMessage {
+				t.Errorf("message = %q, want %q", verr.Message, wantMessage)
+			}
+		}
+	})
+
+	t.Run("a destination named by a prefix", func(t *testing.T) {
+		for prefix, want := range map[string]string{
+			escKey:              `"test-bucket/esc\x1b[31mred\nline/"`,
+			"reports/café été/": "test-bucket/reports/café été/",
+		} {
+			srv := serveNames(t, bucketContents{keys: []string{"k"}})
+			dir := dirWithFiles(t, map[string]string{"a.txt": "x"})
+			_, err := runBucketUpload(context.Background(),
+				uploadReq(t, srv, map[string]any{"dir": dir, "prefix": prefix}))
+			var verr *view.Error
+			if !errors.As(err, &verr) || verr.Code != "s3.upload.notempty" {
+				t.Fatalf("err = %v, want s3.upload.notempty", err)
+			}
+			if wantMessage := want + " already holds objects (k, and possibly more)"; verr.Message != wantMessage {
 				t.Errorf("message = %q, want %q", verr.Message, wantMessage)
 			}
 		}
