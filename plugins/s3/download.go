@@ -300,7 +300,7 @@ func destinationFor(root, key string) (string, error) {
 		return "", errors.New("names no object")
 	}
 
-	path := filepath.Join(root, filepath.FromSlash(trimmed))
+	path := filepath.Join(root, trimmed)
 	rel, err := filepath.Rel(root, path)
 	if err != nil {
 		return "", errors.New("cannot be resolved against the destination")

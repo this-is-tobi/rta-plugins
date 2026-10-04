@@ -186,7 +186,7 @@ func TestABucketIsCopiedWithItsLayoutAndModes(t *testing.T) {
 	}
 
 	for key := range map[string]bool{"a.txt": true, "nested/b.txt": true, "nested/deep/c.txt": true} {
-		path := filepath.Join(root, filepath.FromSlash(key))
+		path := filepath.Join(root, key)
 		body, readErr := os.ReadFile(path)
 		if readErr != nil {
 			t.Errorf("%s: %v", key, readErr)
