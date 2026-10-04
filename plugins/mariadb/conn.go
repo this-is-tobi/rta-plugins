@@ -420,10 +420,15 @@ func classify(err error, req plugin.Request) *view.Error {
 	// followed the hint connected to the server the check had caught. It
 	// keeps the system's words below, with no way round.
 	//
+	// **Nor one the system refuses for its length (plugin.CertPolicyHint).**
+	// Its way round is the same, a mode that checks the chain without the
+	// system's policy, and the cure is the certificate: valid for fewer days,
+	// which the hint below says.
+	//
 	// A forward's refusal only for a certificate that has names: tls-server-name
 	// can be set to one of them, and one with none is cured by reissuing it,
 	// which nameRefusal says and plugin.ForwardNameRefusal's hint would not.
-	if cert, ok := misnamed(err); ok && !plugin.CertRevoked(err) {
+	if cert, ok := misnamed(err); ok && !plugin.CertRevoked(err) && plugin.CertPolicyHint(err) == "" {
 		var hostErr x509.HostnameError
 		if req.Tunnel() != plugin.TunnelNone && serverName(req) == "" && errors.As(err, &hostErr) &&
 			cert != nil && len(cert.DNSNames)+len(cert.IPAddresses) > 0 {
