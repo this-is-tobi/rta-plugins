@@ -159,7 +159,11 @@ func checkSnapshotFile(sf plugin.Surface, path string) *view.Error {
 func sealStateAfter(ctx context.Context, client *vaultapi.Client, req plugin.Request) string {
 	status, err := client.Sys().SealStatusWithContext(ctx)
 	if err != nil {
-		return "the server could not be read back (" + err.Error() + ") — " +
+		// The classified message and never the client's own text, which is a
+		// paragraph over several lines naming the request's URL — through a
+		// forward, the end of one that closed with the call — in a cell that is
+		// a line.
+		return "the server could not be read back (" + classify(err, req).Message + ") — " +
 			nextCall(req, "vault.seal.status") + " is the next thing to run"
 	}
 	if status.Sealed {
