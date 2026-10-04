@@ -138,8 +138,8 @@ func statusView(ctx context.Context, conn querier, req plugin.Request) (view.Vie
 	}
 	return view.KeyValue{Pairs: []view.Pair{
 		{Key: "server", Value: server},
-		{Key: "database", Value: db},
-		{Key: "connected as", Value: user},
+		{Key: "database", Value: plugin.ListedName(db)},
+		{Key: "connected as", Value: plugin.ListedName(user)},
 		{Key: "size", Value: size},
 	}}, nil
 }
@@ -206,6 +206,7 @@ func tableListView(ctx context.Context, conn querier, req plugin.Request, say bo
 			return nil, verr
 		}
 	}
+	listNames(&t, 0, 1)
 	t.Columns = []view.Column{
 		{Name: "Schema"}, {Name: "Table"},
 		{Name: "Rows", Kind: view.KindNumber},
@@ -230,6 +231,7 @@ func databaseListView(ctx context.Context, conn querier, req plugin.Request) (vi
 	if err != nil {
 		return nil, classify(err, req)
 	}
+	listNames(&t, 0, 2)
 	t.Columns = []view.Column{{Name: "Database"}, {Name: "Size"}, {Name: "Owner"}}
 	return t, nil
 }
@@ -301,6 +303,7 @@ func activityView(ctx context.Context, conn querier, req plugin.Request, withQue
 	if err != nil {
 		return nil, classify(err, req)
 	}
+	listNames(&t, 1)
 	t.Columns = []view.Column{
 		{Name: "PID", Kind: view.KindNumber}, {Name: "User"},
 		{Name: "Application"}, {Name: "State", Kind: view.KindStatus},

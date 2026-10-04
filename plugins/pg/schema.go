@@ -129,7 +129,7 @@ func unknownSchema(ctx context.Context, q querier, req plugin.Request, schema st
 		return e.WithHint("this role can see no schemas at all in this database — " +
 			nextCall(req, "pg.status") + " shows which role the connection is using")
 	}
-	return e.WithHint("this database has: " + strings.Join(names, ", "))
+	return e.WithHint("this database has: " + listedNames(names))
 }
 
 func schemaDDL(ctx context.Context, q querier, req plugin.Request) (view.View, error) {
@@ -155,8 +155,8 @@ func schemaDDL(ctx context.Context, q querier, req plugin.Request) (view.View, e
 	// it.
 	if len(body) > maxBytes {
 		return nil, view.Errorf("pg.schema.toolarge",
-			"the description of schema %q is %s, over the %s a result may be",
-			schema, format.Bytes(len(body)), format.Bytes(maxBytes)).
+			"the description of schema %s is %s, over the %s a result may be",
+			quotedName(schema), format.Bytes(len(body)), format.Bytes(maxBytes)).
 			WithHint("lower " + req.Surface().InputName("limit") + " to describe fewer tables, or use " +
 				"`pg_dump --schema-only` for a schema this large")
 	}

@@ -75,7 +75,7 @@ func slotsTable(f replicationFacts) view.Table {
 			active = "yes"
 		}
 		t.Rows = append(t.Rows, []string{
-			s.name, s.kind, orDash(&s.database), active, orDash(s.holder),
+			s.name, s.kind, listedOrDash(s.database), active, orDash(s.holder),
 			orDash(s.restart), bytesOrDash(s.retained), untilLost(s),
 			orDash(s.status), gradeSlot(s).status,
 		})
