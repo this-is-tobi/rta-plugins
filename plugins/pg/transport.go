@@ -68,7 +68,7 @@ func transportOf(req plugin.Request) transport {
 	// else answers, as etcd's ca-file and tls-server-name are, and what it
 	// asks for is verify-full: the one mode that checks the name, which a
 	// forward's end (127.0.0.1) never is, so the refusal for a certificate
-	// that is for another name (forwardName) has the setting that cures it.
+	// that is for another name (plugin.ForwardNameRefusal) has the setting that cures it.
 	if req.Tunnel() != plugin.TunnelNone &&
 		(t.serverName != "" || t.rootCert != "" || t.clientCert != "" || t.clientKey != "") {
 		t.mode, t.forwardTLS = "verify-full", true

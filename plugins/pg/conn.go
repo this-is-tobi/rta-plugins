@@ -562,7 +562,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	var hostErr x509.HostnameError
 	if errors.As(err, &hostErr) {
 		if req.Tunnel() != plugin.TunnelNone && serverName(req) == "" {
-			return forwardName(req, hostErr)
+			return plugin.ForwardNameRefusal(req, "pg.tls.forward", address(req), "server", hostErr)
 		}
 		return nameRefusal(req.Reached(where), hostErr, req)
 	}
@@ -592,25 +592,6 @@ func classify(err error, req plugin.Request) *view.Error {
 	}
 	return view.Errorf("pg.conn.failed", "could not connect to %s: %v", where, err).
 		WithHint(sf.SettingsHint("pg.status"))
-}
-
-// forwardName is pg.tls.forward: the refusal for a certificate checked for
-// the end of a forward the host opened, 127.0.0.1, and not for the name the
-// server answers as, which the certificate names instead.
-//
-// **The way through is tls-server-name, never sslmode.** The forward has set
-// sslmode to disable already and the host refuses one given beside it, so a
-// hint naming sslmode sent its reader to a setting that opens no forward at
-// all. Nor anything that checks less: tls-server-name moves the check to a
-// name the certificate is for, and verify-ca, which skips the name, would
-// accept any certificate the CA ever signed.
-func forwardName(req plugin.Request, hostErr x509.HostnameError) *view.Error {
-	return view.Errorf("pg.tls.forward", "the certificate behind %s is for %s, not for %s, where the forward ends",
-		req.Reached(address(req)), plugin.CertNames(hostErr.Certificate), hostErr.Host).
-		WithHint("a forward always ends at 127.0.0.1, so the certificate is checked for the name the server " +
-			"answers as instead: " + req.Surface().SettingName("tls-server-name") + ", which the profile can " +
-			"hold beside its forward, names it — one the certificate is for — and it is checked as strictly " +
-			"as the host it replaces")
 }
 
 // nameRefusal is pg.tls.name: the certificate presented at where refused for
@@ -659,7 +640,7 @@ func nameRefusal(where string, hostErr x509.HostnameError, req plugin.Request) *
 // name to check (transportOf), and a profile holds either beside its
 // forward. The name is the one the certificate is for, since the forward ends
 // at 127.0.0.1; without it, the refusal for a certificate for another name
-// (forwardName) says so.
+// (plugin.ForwardNameRefusal) says so.
 func tlsRequired(req plugin.Request) *view.Error {
 	sf, server := req.Surface(), req.Reached(address(req))
 	if req.Tunnel() == plugin.TunnelNone {

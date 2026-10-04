@@ -172,7 +172,8 @@ func TestACertificateForAnotherNameIsNamedAsThat(t *testing.T) {
 	if code != "pg.tls.forward" ||
 		!strings.Contains(message, "the certificate behind profile prod (through its kube: forward) is for "+
 			"svc.example.internal, b, c and 1 more, not for 127.0.0.1") ||
-		!strings.Contains(hint, "--tls-server-name") || strings.Contains(hint, "--sslmode") {
+		!strings.Contains(hint, "the name the server answers as instead: --tls-server-name") ||
+		strings.Contains(hint, "--sslmode") || strings.Contains(hint, "verify-ca") {
 		t.Errorf("through a forward: %s %q %q", code, message, hint)
 	}
 
