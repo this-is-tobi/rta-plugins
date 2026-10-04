@@ -209,7 +209,7 @@ func planUpload(sf plugin.Surface, root string, limit int) ([]upload, int64, *vi
 		if infoErr != nil {
 			return infoErr
 		}
-		plan = append(plan, upload{path: path, key: filepath.ToSlash(rel), size: fi.Size()})
+		plan = append(plan, upload{path: path, key: rel, size: fi.Size()})
 		total += fi.Size()
 		return nil
 	})

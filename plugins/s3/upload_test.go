@@ -87,7 +87,7 @@ func dirWithFiles(t *testing.T, files map[string]string) string {
 	t.Helper()
 	root := t.TempDir()
 	for name, content := range files {
-		path := filepath.Join(root, filepath.FromSlash(name))
+		path := filepath.Join(root, name)
 		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 			t.Fatal(err)
 		}
@@ -155,7 +155,7 @@ func TestASymlinkRefusesTheWholeUploadAndSendsNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.Symlink(secret, filepath.Join(dir, "innocent.txt")); err != nil {
-		t.Skipf("no symlinks here: %v", err)
+		t.Fatal(err)
 	}
 
 	_, err := runBucketUpload(context.Background(), uploadReq(t, srv, map[string]any{"dir": dir}))
@@ -186,7 +186,7 @@ func TestEveryUnsafeEntryIsCountedNotOnlyTheOnesListed(t *testing.T) {
 	}
 	for i := range unsafeShown + 2 {
 		if err := os.Symlink(target, filepath.Join(dir, fmt.Sprintf("link-%02d", i))); err != nil {
-			t.Skipf("no symlinks here: %v", err)
+			t.Fatal(err)
 		}
 	}
 

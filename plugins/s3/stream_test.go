@@ -1,5 +1,3 @@
-//go:build unix
-
 package main
 
 import (
@@ -22,8 +20,8 @@ import (
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
-// Unix only, for mkfifo(2) and /dev/null: the streams --file has to take
-// are a Unix shell's, `--file <(pg_dump app)` and `--file /dev/null`.
+// mkfifo(2) and /dev/null stand in here for the streams --file has to take,
+// a shell's: `--file <(pg_dump app)` and `--file /dev/null`.
 
 // storedS3 is an S3 that stores what it is sent, in one PUT or in parts, so
 // a test can compare the object that arrived with the bytes that left. It
