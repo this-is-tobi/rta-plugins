@@ -6,6 +6,7 @@ import (
 	"database/sql/driver"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -115,6 +116,26 @@ func TestTheWriteTierDoesReturnStatementText(t *testing.T) {
 	last := v.(view.Table).Rows[0]
 	if got := last[len(last)-1]; len([]rune(got)) > statementWidth+1 {
 		t.Errorf("statement column is %d runes — the bound is not applied where it is used", len([]rune(got)))
+	}
+}
+
+// A running statement is cut at a width counted in bytes, and a cut there fell
+// inside a multi-byte character as often as not: a statement quoting an accented
+// name or an emoji at the boundary came out as invalid UTF-8, which every
+// renderer draws as a replacement glyph that was never in the statement.
+func TestALongStatementIsCutBetweenCharactersAndNotThroughOne(t *testing.T) {
+	// 8 bytes of "SELECT '", then enough to put the first byte of the
+	// accented letter at the last byte the width allows.
+	statement := "SELECT '" + strings.Repeat("a", statementWidth-8-1) + "é" + strings.Repeat("b", 40) + "' FROM t"
+	got := truncateStatement(statement)
+	if !utf8.ValidString(got) {
+		t.Errorf("truncateStatement = %q, want valid UTF-8", got)
+	}
+	if !strings.HasSuffix(got, "…") || strings.Contains(got, "é") {
+		t.Errorf("truncateStatement = %q, want it cut before the letter it would have split, and say so", got)
+	}
+	if short := "SELECT 'é' FROM t"; truncateStatement(short) != short {
+		t.Errorf("a statement within the width was changed: %q", truncateStatement(short))
 	}
 }
 
