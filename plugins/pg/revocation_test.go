@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -15,9 +14,6 @@ import (
 // revokes, with no word, is refused before anything dials. A list nobody asked
 // for, or one beside a mode that verifies nothing, is left alone.
 func TestARevocationListSSLHomeWouldFindIsRefusedWhereTheServerIsVerified(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("libpq's directory is under %APPDATA% there")
-	}
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	dir := filepath.Join(home, ".postgresql")

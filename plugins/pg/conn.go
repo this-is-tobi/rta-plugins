@@ -464,9 +464,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	// The other two by the operating system's own error, as plugin.DialRefused
 	// and DialUnroutable read it, and never by the *net.OpError around it,
 	// which every failed dial and every broken read is: read that way, a
-	// server that reset the handshake was "nothing is listening" too. They
-	// read Windows' socket errors as well, which the errnos asked here before
-	// them did not.
+	// server that reset the handshake was "nothing is listening" too.
 	var netErr *net.OpError
 	if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout()) {
 		return view.Errorf("pg.conn.timeout", "%s did not answer in time", where).

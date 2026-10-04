@@ -5,7 +5,6 @@ import (
 	"encoding/pem"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
@@ -173,7 +172,7 @@ func checkClientPair(req plugin.Request) *view.Error {
 		return view.Errorf("pg.tls.client.unreadable", "%v", err).
 			WithHint(key + " names a file on this machine, read by rta rather than by the server, holding the " +
 				"client certificate's private key in PEM")
-	} else if runtime.GOOS != "windows" && info.Mode().Perm()&0o077 != 0 {
+	} else if info.Mode().Perm()&0o077 != 0 {
 		return view.Errorf("pg.tls.client.key.perms", "%s is readable by others (mode %04o)", t.clientKey, info.Mode().Perm()).
 			WithHint("libpq refuses a private key that group or others can read, and rta holds its own " +
 				"connection to the same rule: `chmod 600` on the file that " + key + " names")

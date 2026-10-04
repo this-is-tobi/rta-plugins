@@ -199,28 +199,26 @@ func TestARefusedCertificateThroughAForwardDoesNotOfferTheModeTheHostRefuses(t *
 // Linux handshake has no revoked, and a plugin that read them as one would be
 // reading a certificate's name, which anybody can choose.
 func TestTheSystemsWordsAreNotAVerdictWhereNoSystemGaveThem(t *testing.T) {
-	for _, system := range []string{"linux", "windows"} {
-		for _, verdict := range []sdktest.Verdict{sdktest.VerdictRevoked, sdktest.VerdictNotTrusted,
-			sdktest.VerdictNotStandardsCompliant} {
-			t.Run(system+"/"+string(verdict), func(t *testing.T) {
-				sdktest.VerifierSystem(t, system)
-				err := sdktest.SystemVerdict("db.internal", verdict, leafValidFor(3650*24*time.Hour,
-					time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)))
-				verr := refusalOf(t, err, verdictRequest(t, verdictCalls[0].values, plugin.TunnelNone))
-				if verr.Code != "pg.tls.rejected" || !strings.Contains(verr.Message, string(verdict)) {
-					t.Errorf("got %s %q, want %q kept in the verifier's own words", verr.Code, verr.Message, verdict)
-				}
-				noWayRound(t, "the hint", verr.Hint)
-			})
-		}
+	for _, verdict := range []sdktest.Verdict{sdktest.VerdictRevoked, sdktest.VerdictNotTrusted,
+		sdktest.VerdictNotStandardsCompliant} {
+		t.Run(string(verdict), func(t *testing.T) {
+			sdktest.VerifierSystem(t, "linux")
+			err := sdktest.SystemVerdict("db.internal", verdict, leafValidFor(3650*24*time.Hour,
+				time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)))
+			verr := refusalOf(t, err, verdictRequest(t, verdictCalls[0].values, plugin.TunnelNone))
+			if verr.Code != "pg.tls.rejected" || !strings.Contains(verr.Message, string(verdict)) {
+				t.Errorf("got %s %q, want %q kept in the verifier's own words", verr.Code, verr.Message, verdict)
+			}
+			noWayRound(t, "the hint", verr.Hint)
+		})
 	}
 }
 
 // Go's own verifier runs wherever a CA file is named, on every system, and its
 // refusal for an issuer no pool holds is the same answer as the system's, so
-// the CA file's hint reads alike on all four.
+// the CA file's hint reads alike on every system.
 func TestAnUnknownIssuerIsAnsweredWithTheCAOnEverySystem(t *testing.T) {
-	for _, system := range []string{"darwin", "ios", "linux", "windows"} {
+	for _, system := range []string{"darwin", "ios", "linux"} {
 		t.Run(system, func(t *testing.T) {
 			sdktest.VerifierSystem(t, system)
 			verr := refusalOf(t, errors.Join(errors.New("tls"), x509.UnknownAuthorityError{}),

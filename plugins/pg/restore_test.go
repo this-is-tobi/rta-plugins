@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -405,9 +404,6 @@ func TestTheDumpsWriterIsReadOffTheDump(t *testing.T) {
 		t.Errorf("a file that is not there read as %d, want 0", got)
 	}
 
-	if runtime.GOOS == "windows" {
-		t.Skip("the fake pg_restore is a shell script")
-	}
 	fake := filepath.Join(dir, "pg_restore")
 	listing := "echo ';     Dumped from database version: 16.15'\n" +
 		"echo ';     Dumped by pg_dump version: 18.6 (Homebrew)'"

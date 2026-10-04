@@ -11,7 +11,6 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -104,9 +103,6 @@ func TestAClientCertificateThatCannotBePresentedIsNamedAsThat(t *testing.T) {
 		{"disable reads none of it", map[string]any{"sslmode": "disable", "sslcert": filepath.Join(dir, "absent.crt")}, "", ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if runtime.GOOS == "windows" && tc.code == "pg.tls.client.key.perms" {
-				t.Skip("a key's mode is not a thing on Windows")
-			}
 			tc.values["sslmode"] = valueOr(tc.values["sslmode"], "verify-ca")
 			tc.values["sslrootcert"] = cert
 			verr := checkClientPair(reqFor(t, "pg.status", tc.values))
@@ -146,12 +142,7 @@ func mustRead(t *testing.T, path string) []byte {
 func TestNothingIsFoundUnderTheHomeDirectoryUnlessAskedFor(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
-	t.Setenv("APPDATA", home)
 	dir := filepath.Join(home, ".postgresql")
-	if runtime.GOOS == "windows" {
-		dir = filepath.Join(home, "postgresql")
-	}
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
