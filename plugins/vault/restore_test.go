@@ -187,3 +187,30 @@ func TestRestoreOnNonRaftStorageSaysSo(t *testing.T) {
 		t.Fatalf("err = %v, want vault.restore.unsupported", err)
 	}
 }
+
+// The line that says the read-back failed says it in the words the other
+// refusals use. The client's own text is a paragraph over several lines that
+// names the request's URL, which through a forward is the end of one that
+// closed with the call.
+func TestARestoreReadBackThatFailedIsOneLineNamingTheProfile(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"errors":["permission denied"]}`))
+	}))
+	t.Cleanup(srv.Close)
+	r := req(t, "vault.restore", map[string]any{"address": srv.URL, "token": "t"}).
+		WithProfile("prod", plugin.TunnelKube)
+	client, verr := connect(r)
+	if verr != nil {
+		t.Fatal(verr)
+	}
+
+	after := sealStateAfter(t.Context(), client, r)
+	want := "the server could not be read back (profile prod (through its kube: forward) refused: permission denied) — "
+	if !strings.HasPrefix(after, want) {
+		t.Errorf("read-back = %q, want it to open on %q", after, want)
+	}
+	if strings.ContainsAny(after, "\n\t") || strings.Contains(after, srv.URL) {
+		t.Errorf("read-back = %q holds more than a line, or the end of the forward", after)
+	}
+}
