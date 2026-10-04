@@ -200,6 +200,7 @@ func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState)
 	replicas := make([]string, 0, len(names))
 	anyDistributed := false
 	for _, name := range names {
+		listed := plugin.ListedName(name)
 		replica := "-"
 		if cs.mode != modeStandalone {
 			var cc collectionCluster
@@ -215,11 +216,11 @@ func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState)
 			// Reported, not fatal. A collection this key may not see is the
 			// normal case on a shared instance, and ending the listing at the
 			// first one would turn "here is what you can see" into nothing.
-			t.Rows = append(t.Rows, []string{name, "-", "-", "-", "unreadable"})
+			t.Rows = append(t.Rows, []string{listed, "-", "-", "-", "unreadable"})
 			continue
 		}
 		t.Rows = append(t.Rows, []string{
-			name,
+			listed,
 			countText(info.PointsCount),
 			countText(info.IndexedVectorsCount),
 			strconv.FormatInt(info.SegmentsCount, 10),
@@ -276,7 +277,7 @@ func runCollectionShow(ctx context.Context, req plugin.Request) (view.View, erro
 	}
 
 	pairs := []view.Pair{
-		{Key: "collection", Value: name},
+		{Key: "collection", Value: plugin.ListedName(name)},
 		{Key: "status", Value: info.Status},
 		{Key: "points", Value: countText(info.PointsCount)},
 		{Key: "indexed vectors", Value: countText(info.IndexedVectorsCount)},
@@ -345,7 +346,7 @@ func describeVectors(v any) []view.Pair {
 		out := make([]view.Pair, 0, len(names))
 		for _, name := range names {
 			cfg, _ := shape[name].(map[string]any)
-			out = append(out, view.Pair{Key: "vector " + name, Value: vectorText(name, cfg)})
+			out = append(out, view.Pair{Key: "vector " + plugin.ListedName(name), Value: vectorText(name, cfg)})
 		}
 		return out
 	default:
