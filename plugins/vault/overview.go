@@ -63,6 +63,11 @@ func compactOverview(ctx context.Context, client *vaultapi.Client, req plugin.Re
 	// with a failure now occupying a row of its own, len(kv.Pairs) stopped
 	// being the difference between a Vault half-read and one that said
 	// nothing at all.
+	//
+	// The row holds the classified message and never the client's own text,
+	// which is a paragraph over several lines naming the request's URL — through
+	// a forward, the end of one that closed with the call — in a cell that is
+	// a line.
 	read := 0
 	var cause *view.Error
 	if status, err := client.Sys().SealStatusWithContext(ctx); err == nil {
@@ -77,7 +82,7 @@ func compactOverview(ctx context.Context, client *vaultapi.Client, req plugin.Re
 		add("state", state+" · "+status.Version)
 	} else {
 		cause = classify(err, req)
-		add("state", "unreadable — "+err.Error())
+		add("state", "unreadable — "+cause.Message)
 	}
 	if secret, err := client.Auth().Token().LookupSelfWithContext(ctx); err == nil {
 		read++
@@ -88,10 +93,11 @@ func compactOverview(ctx context.Context, client *vaultapi.Client, req plugin.Re
 			add("token ttl (seconds)", tokenTTL(ttl))
 		}
 	} else {
+		refusal := classify(err, req)
 		if cause == nil {
-			cause = classify(err, req)
+			cause = refusal
 		}
-		add("token", "unreadable — "+err.Error())
+		add("token", "unreadable — "+refusal.Message)
 	}
 
 	if read == 0 {
