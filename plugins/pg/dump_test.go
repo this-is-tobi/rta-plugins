@@ -236,6 +236,19 @@ func TestThePolicyQueryARowLevelSecurityRefusalOffersIsForThisTableAlone(t *test
 	}
 }
 
+// The same query for a table a stranger named: the literal is SQL's own escape
+// for the characters that do not draw as themselves, which PostgreSQL reads
+// back to the name, where the raw name lost its escape sequence on the way to
+// the terminal and asked after another table's policies.
+func TestThePolicyQueryNamesAnOddTableInSQLsOwnEscape(t *testing.T) {
+	verr := rlsRefusal(relation{oid: 7, schema: oddName, name: plainName}, true, false)
+	const want = "select * from pg_policies where schemaname = U&'esc\\001b[31mred\\000aline' and tablename = 'café table'`"
+	if verr == nil || !strings.Contains(verr.Hint, want) {
+		t.Fatalf("hint = %+v, want the query %q in it", verr, want)
+	}
+	bare(t, "the hint", verr.Hint)
+}
+
 func TestAnEmptyDumpOfARowLevelSecurityTableSaysSo(t *testing.T) {
 	rel := relation{oid: 42, schema: "public", name: "orders"}
 
