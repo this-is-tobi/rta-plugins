@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -148,34 +147,46 @@ func (timeoutError) Temporary() bool { return true }
 // question of trust, and none is a server that could not be reached.
 func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
 	r := req(t, "vault.seal.status", map[string]any{"address": "https://vault.internal:8200"})
-	open, closing := string(rune(0x201c)), string(rune(0x201d))
-	onMac := "vault.tls.rejected"
-	if runtime.GOOS == "darwin" {
-		onMac = "vault.tls.untrusted"
-	}
 	for _, tc := range []struct {
-		name string
-		err  error
-		want string
+		name, system string
+		err          error
+		want, quotes string
 	}{
-		{"Go's own verifier", x509.UnknownAuthorityError{}, "vault.tls.untrusted"},
-		{"the system's verifier, a chain it cannot anchor",
-			errors.New("x509: " + open + "vault" + closing + " certificate is not trusted"), onMac},
-		{"the system's verifier, a revoked certificate",
-			errors.New("x509: " + open + "vault" + closing + " certificate is revoked"), "vault.tls.rejected"},
-		{"a name it is not for", x509.HostnameError{Certificate: &x509.Certificate{}, Host: "vault.internal"},
-			"vault.tls.rejected"},
+		{"Go's own verifier", "linux", x509.UnknownAuthorityError{}, "vault.tls.untrusted", ""},
+		{"the system's verifier, a chain it cannot anchor", "darwin",
+			sdktest.SystemVerdict("vault", sdktest.VerdictNotTrusted), "vault.tls.untrusted", ""},
+		{"the system's verifier, a revoked certificate", "darwin",
+			sdktest.SystemVerdict("vault", sdktest.VerdictRevoked), "vault.tls.rejected", "certificate is revoked"},
+		// The same words from a system that gives no such verdict are one of
+		// Go's own errors, which is never a question of trust.
+		{"the system's words on a system that gives none", "linux",
+			sdktest.SystemVerdict("vault", sdktest.VerdictNotTrusted), "vault.tls.rejected", "certificate is not trusted"},
+		{"a name it is not for", "linux",
+			x509.HostnameError{Certificate: &x509.Certificate{}, Host: "vault.internal"}, "vault.tls.rejected", "vault.internal"},
 	} {
-		err := &url.Error{Op: "Get", URL: "https://vault.internal:8200/v1/sys/seal-status",
-			Err: &tls.CertificateVerificationError{Err: tc.err}}
-		got := classify(err, r)
-		if got.Code != tc.want {
-			t.Errorf("%s: classified %s, want %s", tc.name, got.Code, tc.want)
-		}
-		if got.Code == "vault.tls.rejected" && !strings.Contains(got.Message, tc.err.Error()) {
-			t.Errorf("%s: %q does not quote the verdict", tc.name, got.Message)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			sdktest.VerifierSystem(t, tc.system)
+			got := classify(handshakeRefusal(tc.err), r)
+			if got.Code != tc.want {
+				t.Errorf("classified %s, want %s", got.Code, tc.want)
+			}
+			if !strings.Contains(got.Message, tc.quotes) {
+				t.Errorf("%q does not quote the verdict %q", got.Message, tc.quotes)
+			}
+		})
 	}
+}
+
+// handshakeRefusal is err as the HTTP client returns a handshake the verifier
+// refused: the verdict inside a *tls.CertificateVerificationError, inside the
+// *url.Error of the request. A verdict that already is one is wrapped no
+// further.
+func handshakeRefusal(err error) error {
+	var verify *tls.CertificateVerificationError
+	if !errors.As(err, &verify) {
+		err = &tls.CertificateVerificationError{Err: err}
+	}
+	return &url.Error{Op: "Get", URL: "https://vault.internal:8200/v1/sys/seal-status", Err: err}
 }
 
 // A certificate's names are the server's to choose, and a verdict quotes
@@ -185,17 +196,15 @@ func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
 // the dial's words, read first, would have had it.
 func TestACertificatesOwnNamesAreNeverReadAsTheDialsFailure(t *testing.T) {
 	r := req(t, "vault.seal.status", map[string]any{"address": "https://vault.internal:8200"})
-	open, closing := string(rune(0x201c)), string(rune(0x201d))
+	sdktest.VerifierSystem(t, "darwin")
 	for _, verdict := range []error{
 		x509.HostnameError{Certificate: &x509.Certificate{DNSNames: []string{syscall.ECONNREFUSED.Error()}},
 			Host: "vault.internal"},
 		x509.HostnameError{Certificate: &x509.Certificate{DNSNames: []string{syscall.EHOSTUNREACH.Error()}},
 			Host: "vault.internal"},
-		errors.New("x509: " + open + syscall.ECONNREFUSED.Error() + closing + " certificate is revoked"),
+		sdktest.SystemVerdict(syscall.ECONNREFUSED.Error(), sdktest.VerdictRevoked),
 	} {
-		err := &url.Error{Op: "Get", URL: "https://vault.internal:8200/v1/sys/seal-status",
-			Err: &tls.CertificateVerificationError{Err: verdict}}
-		if got := classify(err, r); got.Code != "vault.tls.rejected" {
+		if got := classify(handshakeRefusal(verdict), r); got.Code != "vault.tls.rejected" {
 			t.Errorf("%v: classified %s %q, want vault.tls.rejected", verdict, got.Code, got.Message)
 		}
 	}
