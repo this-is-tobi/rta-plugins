@@ -788,8 +788,11 @@ const maxBytes = 1 << 20
 // gets to decide, by raising the bound or by writing a LIMIT.
 func rowsToTable(rows pgx.Rows, bound int) (view.Table, error) {
 	var t view.Table
+	// A heading is a name too: a result's columns are the columns of a table
+	// somebody else created, and the cells under them are the data, which is
+	// the difference names.go draws.
 	for _, fd := range rows.FieldDescriptions() {
-		t.Columns = append(t.Columns, view.Column{Name: fd.Name})
+		t.Columns = append(t.Columns, view.Column{Name: plugin.ListedName(fd.Name)})
 	}
 	if bound <= 0 {
 		bound = maxRows

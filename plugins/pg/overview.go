@@ -52,7 +52,7 @@ func compactOverview(ctx context.Context, conn querier, req plugin.Request) (vie
 	if err := conn.QueryRow(ctx,
 		`select current_database(), pg_size_pretty(pg_database_size(current_database()))`).
 		Scan(&db, &size); err == nil {
-		add("database", db+" · "+size)
+		add("database", plugin.ListedName(db)+" · "+size)
 	}
 	if role, err := roleOf(ctx, conn); err == nil {
 		add("role", role)

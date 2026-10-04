@@ -74,7 +74,11 @@ type relation struct {
 	name   string
 }
 
-func (r relation) qualified() string { return r.schema + "." + r.name }
+// listed is the relation as a sentence names it: schema.table, each part as a list
+// shows a name (names.go).
+func (r relation) listed() string {
+	return plugin.ListedName(r.schema) + "." + plugin.ListedName(r.name)
+}
 func (r relation) sanitized() string { return pgx.Identifier{r.schema, r.name}.Sanitize() }
 
 func runTableDump(ctx context.Context, req plugin.Request) (view.View, error) {
@@ -181,7 +185,7 @@ func resolveRelation(ctx context.Context, q querier, req plugin.Request) (relati
 	default:
 		var where []string
 		for _, r := range found {
-			where = append(where, r.qualified())
+			where = append(where, r.listed())
 		}
 		// Ambiguity is refused rather than resolved by precedence, so that a
 		// name never quietly means a different table than it did yesterday.
@@ -200,7 +204,7 @@ func dumpRows(ctx context.Context, q querier, req plugin.Request, rel relation) 
 	}
 	if len(cols) == 0 {
 		return nil, view.Errorf("pg.table.nocolumns",
-			"%s has no readable columns", rel.qualified())
+			"%s has no readable columns", rel.listed())
 	}
 
 	// **--columns narrows and can never widen.** A grant is per-record and
@@ -220,8 +224,8 @@ func dumpRows(ctx context.Context, q querier, req plugin.Request, rel relation) 
 			}
 			if !slices.Contains(cols, w) {
 				return nil, view.Errorf("pg.column.missing",
-					"%s has no column %q", rel.qualified(), w).
-					WithHint("it has: " + strings.Join(cols, ", "))
+					"%s has no column %q", rel.listed(), w).
+					WithHint("it has: " + listedNames(cols))
 			}
 			selected = append(selected, w)
 		}
@@ -266,7 +270,7 @@ func dumpRows(ctx context.Context, q querier, req plugin.Request, rel relation) 
 	switch {
 	case errors.Is(err, ErrTooManyRows):
 		return nil, view.Errorf("pg.dump.toomany",
-			"%s has more than %s", rel.qualified(), format.CountOf(limit, "row")).
+			"%s has more than %s", rel.listed(), format.CountOf(limit, "row")).
 			WithHint("raise " + req.Surface().InputName("limit") + ", or narrow the dump with " +
 				req.Surface().InputName("columns") + " — refused rather " +
 				"than shortened, because a truncated dump is a different answer wearing " +
@@ -274,7 +278,7 @@ func dumpRows(ctx context.Context, q querier, req plugin.Request, rel relation) 
 	case errors.Is(err, ErrTooLarge):
 		return nil, view.Errorf("pg.dump.toolarge",
 			"the rows of %s are over the %s a result may be",
-			rel.qualified(), format.Bytes(maxBytes)).
+			rel.listed(), format.Bytes(maxBytes)).
 			WithHint("lower " + req.Surface().InputName("limit") + ", or name the columns you need with " +
 				req.Surface().InputName("columns") + " — " +
 				"one wide column is usually what does this")
@@ -342,7 +346,7 @@ func rlsRefusal(rel relation, enabled, forced bool) *view.Error {
 		hint += ". FORCE ROW LEVEL SECURITY is set, so the policies apply to the table's owner too"
 	}
 	return view.Errorf("pg.dump.rls",
-		"%s returned no rows, and row-level security is enabled on it", rel.qualified()).
+		"%s returned no rows, and row-level security is enabled on it", rel.listed()).
 		WithHint(hint)
 }
 

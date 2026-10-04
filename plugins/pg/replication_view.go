@@ -94,6 +94,16 @@ func orDash(s *string) string {
 	return *s
 }
 
+// listedOrDash is orDash for a name the server returned, which is shown as a
+// list shows a name (names.go): a logical slot's database is whatever its
+// creator called it.
+func listedOrDash(name string) string {
+	if name == "" {
+		return "-"
+	}
+	return plugin.ListedName(name)
+}
+
 func bytesOrDash(n *int64) string {
 	if n == nil {
 		return "-"
