@@ -165,9 +165,9 @@ func sealStateAfter(ctx context.Context, client *vaultapi.Client, req plugin.Req
 	if status.Sealed {
 		return "the Vault is sealed — unseal it with the keys of the cluster the snapshot came from"
 	}
-	name := status.ClusterName
-	if name == "" {
-		name = reached(req)
+	name := reached(req)
+	if status.ClusterName != "" {
+		name = plugin.ListedName(status.ClusterName)
 	}
 	return fmt.Sprintf("%s is unsealed and serving the snapshot's data", name)
 }

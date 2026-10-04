@@ -126,7 +126,13 @@ func runWrapGet(ctx context.Context, req plugin.Request) (view.View, error) {
 			sort.Strings(keys)
 			for _, k := range keys {
 				if v, ok := secret.Data[k]; ok {
-					kv.Pairs = append(kv.Pairs, view.Pair{Key: k, Value: cell(v)})
+					value := cell(v)
+					// The path the wrapped call was made at: for a wrapped read, the
+					// path of the secret, which is a name its caller chose.
+					if k == "creation_path" {
+						value = nameCell(v)
+					}
+					kv.Pairs = append(kv.Pairs, view.Pair{Key: k, Value: value})
 				}
 			}
 			return kv, nil
@@ -143,7 +149,7 @@ func runWrapGet(ctx context.Context, req plugin.Request) (view.View, error) {
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
-			kv.Pairs = append(kv.Pairs, view.Pair{Key: k, Value: cell(secret.Data[k])})
+			kv.Pairs = append(kv.Pairs, view.Pair{Key: plugin.ListedName(k), Value: cell(secret.Data[k])})
 		}
 		return kv, nil
 	})

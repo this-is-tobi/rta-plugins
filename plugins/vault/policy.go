@@ -30,14 +30,22 @@ func runPolicyList(ctx context.Context, req plugin.Request) (view.View, error) {
 		if err != nil {
 			return nil, classify(err, req)
 		}
-		sort.Strings(names)
-		t := view.Table{Columns: []view.Column{{Name: "Name"}}}
-		for _, n := range names {
-			t.Rows = append(t.Rows, []string{n})
-		}
-		t.Total = len(t.Rows)
-		return t, nil
+		return policyTable(names), nil
 	})
+}
+
+// policyTable is the policy names Vault listed, sorted, one to a row. A policy
+// is named by whoever may write one, so each name goes through
+// plugin.ListedName: a name holding an escape sequence or a newline is shown
+// quoted, and one that reads as itself is shown as it is.
+func policyTable(names []string) view.Table {
+	sort.Strings(names)
+	t := view.Table{Columns: []view.Column{{Name: "Name"}}}
+	for _, n := range names {
+		t.Rows = append(t.Rows, []string{plugin.ListedName(n)})
+	}
+	t.Total = len(t.Rows)
+	return t
 }
 
 func policyGetCapability() plugin.Capability {

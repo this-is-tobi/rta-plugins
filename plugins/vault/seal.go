@@ -44,7 +44,7 @@ func runSealStatus(ctx context.Context, req plugin.Request) (view.View, error) {
 			})
 		}
 		if status.ClusterName != "" {
-			kv.Pairs = append(kv.Pairs, view.Pair{Key: "cluster", Value: status.ClusterName})
+			kv.Pairs = append(kv.Pairs, view.Pair{Key: "cluster", Value: plugin.ListedName(status.ClusterName)})
 		}
 		return kv, nil
 	})

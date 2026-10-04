@@ -177,7 +177,7 @@ func runKVDelete(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr != nil {
 		return nil, verr
 	}
-	where := req.String("mount") + "/" + req.String("path")
+	where := listedPath(req.String("mount"), req.String("path"))
 	if req.DryRun {
 		return view.Text{Body: fmt.Sprintf("would delete %s of %s — hidden, and vault.kv.undelete brings it back",
 			versionWords(versions), where)}, nil
@@ -219,7 +219,7 @@ func runKVUndelete(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr != nil {
 		return nil, verr
 	}
-	where := req.String("mount") + "/" + req.String("path")
+	where := listedPath(req.String("mount"), req.String("path"))
 	if req.DryRun {
 		return view.Text{Body: fmt.Sprintf("would bring back %s of %s", versionWords(versions), where)}, nil
 	}
@@ -261,7 +261,7 @@ func runKVDestroy(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr != nil {
 		return nil, verr
 	}
-	where := req.String("mount") + "/" + req.String("path")
+	where := listedPath(req.String("mount"), req.String("path"))
 	if req.DryRun {
 		return view.Text{Body: fmt.Sprintf("would destroy %s of %s — the data erased, nothing brings it back",
 			versionWords(versions), where)}, nil

@@ -27,6 +27,25 @@ func mountField() plugin.Field {
 		Local: true, Help: "the KV v2 secrets engine's mount path", Live: true, Suggest: suggestMounts("kv")}
 }
 
+// listedEntry is a name Vault's LIST answered, as a person reads it in a row or
+// a tree label: a name that reads as itself as it is, and one that does not
+// quoted with its characters written out.
+//
+// **The "/" that marks a folder stays outside the quotes.** It is Vault's
+// marker and not part of the name, and vault.kv.list's description tells a
+// reader to look for a name that ends in it: quoted whole, a folder holding an
+// escape sequence ended in a quotation mark and read as a secret.
+func listedEntry(name string) string {
+	if folder, ok := strings.CutSuffix(name, "/"); ok {
+		return plugin.ListedName(folder) + "/"
+	}
+	return plugin.ListedName(name)
+}
+
+// listedPath is where a call reached in the mount, as a sentence names it: the
+// path is whatever its caller typed, and over MCP that is an agent.
+func listedPath(mount, path string) string { return plugin.ListedName(mount + "/" + path) }
+
 func pathField(help string) plugin.Field {
 	return plugin.Field{Name: "path", Type: plugin.String, Positional: true, Required: true, Help: help,
 		Live: true, Suggest: suggestPaths}
@@ -88,7 +107,11 @@ func unknownMount(ctx context.Context, client *vaultapi.Client, req plugin.Reque
 	sort.Strings(kv)
 	hint := "this Vault has no KV mount at all"
 	if len(kv) > 0 {
-		hint = "its KV mounts are: " + strings.Join(kv, ", ")
+		listed := make([]string, len(kv))
+		for i, m := range kv {
+			listed[i] = plugin.ListedName(m)
+		}
+		hint = "its KV mounts are: " + strings.Join(listed, ", ")
 	}
 	return view.Errorf("vault.kv.mount.unknown",
 		"%s has no KV mount named %q", reached(req), mount).WithHint(hint)
@@ -111,7 +134,7 @@ func runKVList(ctx context.Context, req plugin.Request) (view.View, error) {
 				}
 				sort.Strings(names)
 				for _, n := range names {
-					t.Rows = append(t.Rows, []string{n})
+					t.Rows = append(t.Rows, []string{listedEntry(n)})
 				}
 			}
 		}
@@ -172,7 +195,7 @@ func runKVGet(ctx context.Context, req plugin.Request) (view.View, error) {
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
-			kv.Pairs = append(kv.Pairs, view.Pair{Key: k, Value: cell(secret.Data[k])})
+			kv.Pairs = append(kv.Pairs, view.Pair{Key: plugin.ListedName(k), Value: cell(secret.Data[k])})
 		}
 		return kv, nil
 	})
@@ -216,15 +239,15 @@ func runKVSet(ctx context.Context, req plugin.Request) (view.View, error) {
 		// do, and the values are the caller's own input rather than anything
 		// only Vault could tell them.
 		if req.DryRun {
-			return view.Text{Body: fmt.Sprintf("would set %s/%s with %s — a new version, "+
-				"the current one kept", req.String("mount"), req.String("path"), format.CountOf(len(data), "field"))}, nil
+			return view.Text{Body: fmt.Sprintf("would set %s with %s — a new version, "+
+				"the current one kept", listedPath(req.String("mount"), req.String("path")), format.CountOf(len(data), "field"))}, nil
 		}
 		secret, err := client.KVv2(req.String("mount")).Put(ctx, req.String("path"), data)
 		if err != nil {
 			return nil, classify(err, req)
 		}
 		return view.KeyValue{Pairs: []view.Pair{
-			{Key: "path", Value: req.String("path")},
+			{Key: "path", Value: plugin.ListedName(req.String("path"))},
 			{Key: "version", Value: cell(secret.VersionMetadata.Version)},
 			{Key: "created", Value: secret.VersionMetadata.CreatedTime.Format("2006-01-02T15:04:05Z07:00")},
 		}}, nil
