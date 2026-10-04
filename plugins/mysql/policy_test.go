@@ -1,33 +1,62 @@
 package main
 
 import (
-	"crypto/tls"
 	"crypto/x509"
-	"errors"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/this-is-tobi/rta/pkg/plugin"
+	"github.com/this-is-tobi/rta/pkg/sdk/sdktest"
 )
 
 // A certificate macOS refuses for its validity period is not one with dates
-// to check: the rule and its fix are what the reader is owed. The rule is
-// macOS's, so elsewhere the system's words are all there is.
+// to check: the rule and its fix are what the reader is owed, and the fix is
+// the certificate, never a CA file, which would get past the refusal by going
+// around every check the system makes. The rule is macOS's, and the system's
+// words are all there is where the length does not explain the refusal.
 func TestACertificateAppleRefusesForItsLengthSaysSo(t *testing.T) {
-	if runtime.GOOS != "darwin" {
-		t.Skip("the validity rule is the system verifier's on macOS")
+	sdktest.VerifierSystem(t, "darwin")
+	leaf := func(valid time.Duration) *x509.Certificate {
+		issued := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+		return &x509.Certificate{DNSNames: []string{"db.internal"}, NotBefore: issued, NotAfter: issued.Add(valid)}
 	}
-	open, closing := string(rune(0x201c)), string(rune(0x201d))
-	leaf := &x509.Certificate{
-		DNSNames:  []string{"db.internal"},
-		NotBefore: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		NotAfter:  time.Date(2034, 1, 1, 0, 0, 0, 0, time.UTC),
-	}
-	got := classify(&tls.CertificateVerificationError{
-		UnverifiedCertificates: []*x509.Certificate{leaf},
-		Err:                    errors.New("x509: " + open + "db" + closing + " certificate is not standards compliant"),
-	}, req(t, "mysql.overview", map[string]any{"host": "db.internal", "tls": "true"}))
-	if got.Code != "mysql.tls.rejected" || !strings.Contains(got.Hint, "825 days") {
-		t.Errorf("got %s %q, want mysql.tls.rejected naming the 825-day rule", got.Code, got.Hint)
+	const day = 24 * time.Hour
+	for _, tc := range []struct {
+		name string
+		sent []*x509.Certificate
+		says bool
+	}{
+		{"ten years", []*x509.Certificate{leaf(3653 * day)}, true},
+		{"a day over the limit", []*x509.Certificate{leaf(826 * day)}, true},
+		{"within the limit", []*x509.Certificate{leaf(825 * day)}, false},
+		{"nothing sent", nil, false},
+	} {
+		for _, surface := range surfaces {
+			t.Run(tc.name+"/"+string(surface), func(t *testing.T) {
+				r := verdictRequest(t, surface)
+				err := sdktest.SystemVerdict("db.internal", sdktest.VerdictNotStandardsCompliant, tc.sent...)
+				got := classify(err, r)
+				if got.Code != "mysql.tls.rejected" {
+					t.Fatalf("code = %q, want mysql.tls.rejected", got.Code)
+				}
+				if !strings.Contains(got.Message, "certificate is not standards compliant") {
+					t.Errorf("message = %q, want the system's own words", got.Message)
+				}
+				noWayRound(t, r, got.Hint)
+				if !tc.says {
+					if strings.Contains(got.Hint, "825 days") {
+						t.Errorf("hint = %q names a limit the certificate is within", got.Hint)
+					}
+					return
+				}
+				if want := plugin.CertPolicyHint(err); want == "" || got.Hint != want {
+					t.Errorf("hint = %q, want the policy's own: %q", got.Hint, want)
+				}
+				if !strings.Contains(got.Hint, "825 days") || !strings.Contains(got.Hint, "reissue") {
+					t.Errorf("hint = %q, want the 825-day limit named and the certificate reissued", got.Hint)
+				}
+			})
+		}
 	}
 }
