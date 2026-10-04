@@ -247,6 +247,13 @@ type userSessionRep struct {
 // draw, which turns a name holding an escape sequence into another, ordinary
 // one.
 //
+// The address of an event or a session is listed too, though it reads as a
+// value the server assigned. Keycloak records the remote address it is given,
+// and behind a reverse proxy that is the first element of X-Forwarded-For,
+// which a proxy that appends to the header and does not replace it leaves for
+// whoever made the request to choose — in an event log that is read while an
+// attack is in progress. A real address is plain text and shows as it is.
+//
 // An empty name stays empty: ListedName writes the two quotes of an empty
 // string, which for a field a record may not have (an email, a credential's
 // label, the user of an event nobody logged in as) is a cell that claims to
