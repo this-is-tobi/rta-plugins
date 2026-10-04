@@ -240,3 +240,13 @@ func TestReplicationShowsEveryOddNameQuotedAndEveryOrdinaryOneAsItIs(t *testing.
 		shownAs(t, "the binary log", pairsOf(replicationView(st), "server")["binary log"], "binlog.000007:157")
 	})
 }
+
+// A host reported with no port is the other way hostPort lists it: by the host
+// alone, which is just as much a name somebody else set, and an address with a
+// colon in it is no reason to quote one that reads as itself.
+func TestAHostListedWithNoPortIsQuotedWhenOddAndAsItIsWhenOrdinary(t *testing.T) {
+	shownAs(t, "an odd host", hostPort(oddName, ""), oddShown)
+	shownAs(t, "an ordinary host", hostPort(ordinaryName, ""), ordinaryName)
+	shownAs(t, "an address with a port", hostPort("2001:db8::1", "3306"), "[2001:db8::1]:3306")
+	shownAs(t, "no host", hostPort("", "3306"), "-")
+}
