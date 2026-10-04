@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.3.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.2.0...plugins/redis/v0.3.0) (2026-10-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* **redis:** the `count` input of redis.slowlog is `limit`, and the `slowlog.count` configuration key is `slowlog.limit`.
+
+### Features
+
+* **redis:** the slow log's row bound is `limit`, as every other row bound is ([cd17f3c](https://github.com/this-is-tobi/rta-plugins/commit/cd17f3c421b61757e488978a90c7dcb787fcb971))
+
+
+### Bug Fixes
+
+* **redis:** a certificate that does not verify is named for why, macOS's length rule for its fix ([d210a42](https://github.com/this-is-tobi/rta-plugins/commit/d210a42a3b8a1db504288e6e321f0c7ffb0c76a5))
+* **redis:** a name that does not draw as itself is listed quoted, written out ([b337fda](https://github.com/this-is-tobi/rta-plugins/commit/b337fda52e4cfcc08f9958520c1445a0d5aca011))
+* **redis:** a refusal the server gave names the profile, not the end of its forward ([c299019](https://github.com/this-is-tobi/rta-plugins/commit/c299019af9f1b526378344f09a328602fd1dc2b5))
+* **redis:** a TLS refusal the server gave names the profile, not the end of its forward ([d20caef](https://github.com/this-is-tobi/rta-plugins/commit/d20caef00d4d68871c3d19b3dc87da3d1cc96a66))
+* **redis:** a Valkey is named for what it is, and its mode is shown ([cc83747](https://github.com/this-is-tobi/rta-plugins/commit/cc837478090a8a24ff4d6b89e996ef3b0ff1de7e))
+* **redis:** an ACL user without +ping is told the connection needs it ([7d2b28b](https://github.com/this-is-tobi/rta-plugins/commit/7d2b28b0fe6210908f171444012ca8f819984ba0))
+* **redis:** redis.key.get and redis.config.get say what comes back masked, which is on every surface ([d9eeb07](https://github.com/this-is-tobi/rta-plugins/commit/d9eeb07f489f08d6ba57ba290e44fe35925a4202))
+* **redis:** redis.key.get stops telling its reader to take `grant.allow` ([7f96dc2](https://github.com/this-is-tobi/rta-plugins/commit/7f96dc2d5da9764456f05aa257a383ba39d6218e))
+* **redis:** the calls a message hands over reach the server it came from ([f6da1f5](https://github.com/this-is-tobi/rta-plugins/commit/f6da1f5c9861a2905d35df1c51883bc8eb8d7ef7))
+* **redis:** the overview names the profile, not the end of its forward ([35421d8](https://github.com/this-is-tobi/rta-plugins/commit/35421d8f00c5d5dfaf3d5879cd32417ed135ef25))
+
+
+### Code Refactoring
+
+* **redis:** name the profile, its forward and a certificate's names with the SDK's helpers ([b00f074](https://github.com/this-is-tobi/rta-plugins/commit/b00f074d9a123cee1b8be795606d0f995c63e12f))
+* **redis:** the forward's name refusal is the SDK's, not a copy kept by hand ([4008fe9](https://github.com/this-is-tobi/rta-plugins/commit/4008fe9464d9ddeeaf8c4945a63f272052239809))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.34.0 ([b212d16](https://github.com/this-is-tobi/rta-plugins/commit/b212d165ced0e7aaf112a9be37a56178d950cbe2))
+
 ## [0.2.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.1.21...plugins/redis/v0.2.0) (2026-10-03)
 
 

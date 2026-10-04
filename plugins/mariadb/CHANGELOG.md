@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.6.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.5.0...plugins/mariadb/v0.6.0) (2026-10-04)
+
+
+### Features
+
+* **mariadb:** a CA or a name to check reaches a server that insists on TLS through a forward ([860ca78](https://github.com/this-is-tobi/rta-plugins/commit/860ca78d782a71e716f45b7d08eed680f938439c))
+
+
+### Bug Fixes
+
+* **mariadb:** a certificate that does not verify is named for why, macOS's length rule for its fix ([62e4f55](https://github.com/this-is-tobi/rta-plugins/commit/62e4f55d8c4c1f30782692994ea92569c1deaae9))
+* **mariadb:** a certificate the server presented and nothing accepts names the profile ([492d858](https://github.com/this-is-tobi/rta-plugins/commit/492d858cf545553514df84d323e960e6409f27fe))
+* **mariadb:** a listed name that does not draw as itself is shown quoted, not cleaned ([6223de8](https://github.com/this-is-tobi/rta-plugins/commit/6223de8157360a8d2dc2e7f669b4d406559b381b))
+* **mariadb:** a long statement in the activity listing is cut between characters, not through one ([042ae67](https://github.com/this-is-tobi/rta-plugins/commit/042ae6723706914f4402eab6b6dbe35d4a41a0c7))
+* **mariadb:** a nameless certificate the system refuses for its length is not sent to verify-ca ([d52b83c](https://github.com/this-is-tobi/rta-plugins/commit/d52b83cba5c988e0d1bc4c6e955bda9aa469a1b1))
+* **mariadb:** a refusal the server gave names the profile, not the end of its forward ([156fe15](https://github.com/this-is-tobi/rta-plugins/commit/156fe15d76363529320675f89fcae4527b2718cb))
+* **mariadb:** a restore names the server as the reader reaches it again, not a forward's end ([2878c06](https://github.com/this-is-tobi/rta-plugins/commit/2878c060b630e4e9e01407ea5cace39df4da2273))
+* **mariadb:** a revoked certificate that names no host keeps the system's verdict, not verify-ca ([ec1d52a](https://github.com/this-is-tobi/rta-plugins/commit/ec1d52af47c8f97c26984383328b4c751a2bc779))
+* **mariadb:** a schema-wide grant on a name with an underscore is not called narrow ([6a480a6](https://github.com/this-is-tobi/rta-plugins/commit/6a480a654061ec9a11b62c23c2682c837d43384f))
+* **mariadb:** the CREATE DATABASE a missing restore target offers quotes a name that needs it ([8c044ef](https://github.com/this-is-tobi/rta-plugins/commit/8c044ef92cd8860e373893ff5d073516c8036570))
+* **mariadb:** the listings and status checks a refusal offers reach the server the refusal came from ([6b6b3f2](https://github.com/this-is-tobi/rta-plugins/commit/6b6b3f252f2846858f52351cad90bc8e2683792f))
+* **mariadb:** the status page names the profile, not the end of its forward ([a439e3c](https://github.com/this-is-tobi/rta-plugins/commit/a439e3ca99d9b0ff38f388654fb8e2c677d3de4d))
+* **mariadb:** what the grants hide is said, as it is in the mysql fork ([83f5ad5](https://github.com/this-is-tobi/rta-plugins/commit/83f5ad5a89dfe7c95f2a610e8131615d4ffc9b53))
+* **mysql:** a rejected statement is not blamed on the connection; no database says what to do ([52d6eb7](https://github.com/this-is-tobi/rta-plugins/commit/52d6eb7a0dac476bf0f6bea9ec7d5541914dae79))
+* **mysql:** a session's time and the server's uptime read "1h", not "1h0m0s" ([2cdeeb9](https://github.com/this-is-tobi/rta-plugins/commit/2cdeeb97975acff2e55fdbd9da0de64cd86cc57f))
+* **mysql:** mysql.query stops telling its reader to take `grant.allow` ([5d5189b](https://github.com/this-is-tobi/rta-plugins/commit/5d5189b77c2af3af73c526044538acdfebbff15d))
+* **mysql:** the database, table and session listings say when they stopped at their limit ([9000a95](https://github.com/this-is-tobi/rta-plugins/commit/9000a952d3bc3d9a1c832d71559874fdead87a7d))
+
+
+### Code Refactoring
+
+* **mariadb:** name the profile, its forward and a certificate's names with the SDK's helpers ([e4cfbd8](https://github.com/this-is-tobi/rta-plugins/commit/e4cfbd875dd82a298c0a304f0c9b4f22b047add1))
+* **mariadb:** the refusal for a certificate checked for a forward's end is the SDK's ([7684f02](https://github.com/this-is-tobi/rta-plugins/commit/7684f020520ec7152976e2064f4219d28f5091d1))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.34.0 ([b212d16](https://github.com/this-is-tobi/rta-plugins/commit/b212d165ced0e7aaf112a9be37a56178d950cbe2))
+
 ## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.4.0...plugins/mariadb/v0.5.0) (2026-10-03)
 
 

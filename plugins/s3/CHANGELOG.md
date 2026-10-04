@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.5.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.5.0...plugins/s3/v0.5.1) (2026-10-04)
+
+
+### Bug Fixes
+
+* **s3:** a bucket with no policy is told what that does not mean ([c4d18eb](https://github.com/this-is-tobi/rta-plugins/commit/c4d18ebf099800939147a7340e9ae12ba6c25ebb))
+* **s3:** a bulk download or upload keeps the library's retries ([a99754c](https://github.com/this-is-tobi/rta-plugins/commit/a99754c92b83828524a9cdb3644c713f9cb4ed75))
+* **s3:** a certificate macOS refuses for its length names the rule and its fix ([78f519a](https://github.com/this-is-tobi/rta-plugins/commit/78f519a84d4e84713c05d510b5bf750241eb7037))
+* **s3:** a certificate the server presented and nothing accepts names the profile ([53d413f](https://github.com/this-is-tobi/rta-plugins/commit/53d413f390815febc5002e5652077adc6814780c))
+* **s3:** a listing that stopped names the argument that continues it ([a9d3427](https://github.com/this-is-tobi/rta-plugins/commit/a9d342738799dfc2b96dccd5bb317c8d0e3b1d03))
+* **s3:** a missing object is named by the call when the server's answer leaves it out ([8193137](https://github.com/this-is-tobi/rta-plugins/commit/81931375cb1ae29d9c12bb6f217fd5ad5ad911bd))
+* **s3:** a name that does not draw as itself is shown quoted, never cleaned into another ([a5ff25d](https://github.com/this-is-tobi/rta-plugins/commit/a5ff25de396650b89ffbefb66299142939597978))
+* **s3:** a refusal the server gave names the profile, and the listing it offers reaches that server ([153375f](https://github.com/this-is-tobi/rta-plugins/commit/153375f873802536b015a0882e075018637dcfc4))
+* **s3:** content-type says what a value is stored as, not only what a file would be ([bc3157d](https://github.com/this-is-tobi/rta-plugins/commit/bc3157d87dc4832ea9c7c1f800f5441d9447d43f))
+* **s3:** fsReason shows a path as a name through any wrapping of the error ([ff3efb4](https://github.com/this-is-tobi/rta-plugins/commit/ff3efb47ec7e3142d280f172d28ffc37218a2c92))
+* **s3:** rejected credentials say where the secret comes from, not to set it ([c3d3963](https://github.com/this-is-tobi/rta-plugins/commit/c3d3963504b373e48bcd576e1310b9139c820851))
+* **s3:** s3.object.get stops telling an agent about the file a person can write to ([6ebfdb1](https://github.com/this-is-tobi/rta-plugins/commit/6ebfdb19452c9040569ced39385bb290235b4708))
+* **s3:** the overview names the profile, not the end of its forward ([ebed386](https://github.com/this-is-tobi/rta-plugins/commit/ebed38674a38e86472aa84299d7fb5dfdcae72ad))
+* **s3:** the tools that act in the operator's bucket say so, since no caller can name it ([6fb946c](https://github.com/this-is-tobi/rta-plugins/commit/6fb946ca8e2ca64b5c8cc3211dec4c6ce8af69ea))
+
+
+### Performance Improvements
+
+* **s3:** a call is one attempt, so a down endpoint answers at once, not three seconds late ([eb45633](https://github.com/this-is-tobi/rta-plugins/commit/eb45633191bbac368d5f844dff9e908154d3593c))
+
+
+### Code Refactoring
+
+* **s3:** name the profile, its forward and a certificate's names with the SDK's helpers ([e317cdf](https://github.com/this-is-tobi/rta-plugins/commit/e317cdf0a76baa858095a82f7cc6abafd7266b4f))
+* **s3:** the refusal for a forward's certificate comes from the SDK ([42341e9](https://github.com/this-is-tobi/rta-plugins/commit/42341e978d200389e65c488e2e0cf3da8044994a))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.34.0 ([b212d16](https://github.com/this-is-tobi/rta-plugins/commit/b212d165ced0e7aaf112a9be37a56178d950cbe2))
+
 ## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.4.3...plugins/s3/v0.5.0) (2026-10-03)
 
 

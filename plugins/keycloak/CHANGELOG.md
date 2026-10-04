@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.3.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.2.0...plugins/keycloak/v0.3.0) (2026-10-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* **keycloak:** the `max` input and the `max` configuration key are now `limit`. A configuration that sets `max` under the keycloak plugin is reported as setting nothing.
+
+### Features
+
+* **keycloak:** the row bound is `limit`, and a listing cut off at it says so ([28205e7](https://github.com/this-is-tobi/rta-plugins/commit/28205e74745954c79a02dcbc141ff0ef906cce72))
+
+
+### Bug Fixes
+
+* **keycloak:** a certificate macOS refuses for its length names the rule and its fix ([9e20ee1](https://github.com/this-is-tobi/rta-plugins/commit/9e20ee1c42d66439b7518155f3761b69edf10946))
+* **keycloak:** a certificate the server presented and nothing accepts names the profile ([2ffb212](https://github.com/this-is-tobi/rta-plugins/commit/2ffb2127c223cce5d5660c78800a31385eda3462))
+* **keycloak:** a name holding an escape or a newline is listed quoted, not cleaned into another ([8726ed5](https://github.com/this-is-tobi/rta-plugins/commit/8726ed500ec4a79459c9254ac7dcc9e27aa46926))
+* **keycloak:** a refusal the server gave names the profile, not the end of its forward ([5621322](https://github.com/this-is-tobi/rta-plugins/commit/5621322dbfda2d9232512ffe35c3b9f655082091))
+* **keycloak:** an address a proxy's header supplied is listed quoted, not cleaned into another ([43cb7d3](https://github.com/this-is-tobi/rta-plugins/commit/43cb7d30d10b0af20ebf833c7c4ed720dfc2c213))
+* **keycloak:** plain HTTP to a server that answers with a TLS alert is named, not "could not reach" ([16e137c](https://github.com/this-is-tobi/rta-plugins/commit/16e137cf6a5927d310075a6f211d026b476791a5))
+
+
+### Code Refactoring
+
+* **keycloak:** name the profile, its forward and a certificate's names with the SDK's helpers ([9746353](https://github.com/this-is-tobi/rta-plugins/commit/9746353a7c7055398fa52e31ca39b6f3949725a4))
+* **keycloak:** the forward's name refusal is the SDK's, under keycloak.tls.forward ([26ba9c9](https://github.com/this-is-tobi/rta-plugins/commit/26ba9c9f64fa67cb7c16438b5af397b6246befd2))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.34.0 ([b212d16](https://github.com/this-is-tobi/rta-plugins/commit/b212d165ced0e7aaf112a9be37a56178d950cbe2))
+
 ## [0.2.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.1.13...plugins/keycloak/v0.2.0) (2026-10-03)
 
 

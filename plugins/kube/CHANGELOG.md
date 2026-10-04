@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.9](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.4.8...plugins/kube/v0.4.9) (2026-10-04)
+
+
+### Bug Fixes
+
+* **kube:** a kubeconfig with no current context names the calls that make one current ([fc4c188](https://github.com/this-is-tobi/rta-plugins/commit/fc4c1882811bb419796dd9f4ae7d8634f31d72f8))
+* **kube:** the apiservices check a missing metrics-server offers asks the context the call read ([d25cbc0](https://github.com/this-is-tobi/rta-plugins/commit/d25cbc0f90d144aaeaab18a372fa0961e43d28f9))
+
+
+### Code Refactoring
+
+* **kube:** the revoke a partial provision names gives the profile and context with the SDK's ([cf5af1b](https://github.com/this-is-tobi/rta-plugins/commit/cf5af1b5165cf4b12c1085e9203d6ba1f51d1a41))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.34.0 ([b212d16](https://github.com/this-is-tobi/rta-plugins/commit/b212d165ced0e7aaf112a9be37a56178d950cbe2))
+
 ## [0.4.8](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.4.7...plugins/kube/v0.4.8) (2026-10-03)
 
 

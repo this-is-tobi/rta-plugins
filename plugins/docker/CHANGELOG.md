@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.2.24](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.2.23...plugins/docker/v0.2.24) (2026-10-04)
+
+
+### Bug Fixes
+
+* **docker:** a container not found names the daemon and the profile, and its listing reaches them ([6105931](https://github.com/this-is-tobi/rta-plugins/commit/6105931f344cef3b8eef7835350699e8c94e1360))
+* **docker:** a daemon that does not answer names the settings the way the reader gives them ([13ed663](https://github.com/this-is-tobi/rta-plugins/commit/13ed663e327407744b48132b1e8a92e441320b7a))
+* **docker:** docker.container.inspect says an environment's values come back masked ([b1cee08](https://github.com/this-is-tobi/rta-plugins/commit/b1cee08ce214bea4d6dd464bb64c3319e18c96d8))
+* **docker:** the check a daemon that does not answer offers asks that daemon ([b33e8b0](https://github.com/this-is-tobi/rta-plugins/commit/b33e8b064a506ff57c4017237f02e3a01540e34d))
+* **docker:** the line that starts a stopped container again names its daemon and quotes its words ([9e37897](https://github.com/this-is-tobi/rta-plugins/commit/9e378970b74a7852718a6edd4da537880a5becaf))
+* **docker:** the overview names an unhealthy container for its health, not its running state ([d69be7a](https://github.com/this-is-tobi/rta-plugins/commit/d69be7aa17b4b0688c97b860ae1af5ccb2929fa9))
+
+
+### Code Refactoring
+
+* **docker:** the calls a message hands over give the profile and the daemon with the SDK's ([2bc2ced](https://github.com/this-is-tobi/rta-plugins/commit/2bc2ced1f16ef8f02b63e47b63abc47d36cc30e0))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.34.0 ([b212d16](https://github.com/this-is-tobi/rta-plugins/commit/b212d165ced0e7aaf112a9be37a56178d950cbe2))
+
 ## [0.2.23](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.2.22...plugins/docker/v0.2.23) (2026-10-03)
 
 

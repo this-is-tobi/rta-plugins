@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.6.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.5.0...plugins/mysql/v0.6.0) (2026-10-04)
+
+
+### Features
+
+* **mysql:** a CA or a name to check reaches a server that insists on TLS through a forward ([b649396](https://github.com/this-is-tobi/rta-plugins/commit/b649396deed253ec04bcb81a299ea10735057309))
+
+
+### Bug Fixes
+
+* **mysql:** a certificate that does not verify is named for why, macOS's length rule for its fix ([bb73eaf](https://github.com/this-is-tobi/rta-plugins/commit/bb73eaf860c0073c112ae056f5d713695725961c))
+* **mysql:** a certificate the server presented and nothing accepts names the profile ([6695be7](https://github.com/this-is-tobi/rta-plugins/commit/6695be7779b4f1e064d59d1ee6f032b55ba3f969))
+* **mysql:** a listed name that does not draw as itself is shown quoted, not cleaned ([d78e7f7](https://github.com/this-is-tobi/rta-plugins/commit/d78e7f74c947296fc67854347c4767513cbbd67d))
+* **mysql:** a long statement in the activity listing is cut between characters, not through one ([64496ff](https://github.com/this-is-tobi/rta-plugins/commit/64496ffc23bef632e941e5fc333706fb901726ae))
+* **mysql:** a nameless certificate the system refuses for its length is not sent to verify-ca ([115da6e](https://github.com/this-is-tobi/rta-plugins/commit/115da6e6fd00a6beaf528f7bd6e6eec797ad9428))
+* **mysql:** a refusal the server gave names the profile, not the end of its forward ([9b11369](https://github.com/this-is-tobi/rta-plugins/commit/9b11369beaa0210a5178b0304751f2b240362aa4))
+* **mysql:** a rejected statement is not blamed on the connection; no database says what to do ([52d6eb7](https://github.com/this-is-tobi/rta-plugins/commit/52d6eb7a0dac476bf0f6bea9ec7d5541914dae79))
+* **mysql:** a restore names the server as the reader reaches it again, not a forward's end ([d738bcc](https://github.com/this-is-tobi/rta-plugins/commit/d738bcc7ceb373878936d772f4de70097718dcca))
+* **mysql:** a revoked certificate that names no host keeps the system's verdict, not verify-ca ([28156aa](https://github.com/this-is-tobi/rta-plugins/commit/28156aa7ea463ab7ee1550beb224e5b353f4c8a1))
+* **mysql:** a schema-wide grant on a name with an underscore is not called narrow ([48bbac9](https://github.com/this-is-tobi/rta-plugins/commit/48bbac9c043fa2395687590b25a53fafc9ecb8dc))
+* **mysql:** a session's time and the server's uptime read "1h", not "1h0m0s" ([2cdeeb9](https://github.com/this-is-tobi/rta-plugins/commit/2cdeeb97975acff2e55fdbd9da0de64cd86cc57f))
+* **mysql:** mysql.query stops telling its reader to take `grant.allow` ([5d5189b](https://github.com/this-is-tobi/rta-plugins/commit/5d5189b77c2af3af73c526044538acdfebbff15d))
+* **mysql:** the CREATE DATABASE a missing restore target offers quotes a name that needs it ([dcdfda2](https://github.com/this-is-tobi/rta-plugins/commit/dcdfda2963fd852c0171a815ed1ac236ac057d7a))
+* **mysql:** the database, table and session listings say when they stopped at their limit ([9000a95](https://github.com/this-is-tobi/rta-plugins/commit/9000a952d3bc3d9a1c832d71559874fdead87a7d))
+* **mysql:** the listings and status checks a refusal offers reach the server the refusal came from ([264f89e](https://github.com/this-is-tobi/rta-plugins/commit/264f89ec93fdcbaff79ae8ad445f8f1c3ffcfae2))
+* **mysql:** the status page names the profile, not the end of its forward ([d47e4f4](https://github.com/this-is-tobi/rta-plugins/commit/d47e4f458b4406d6350715ce95f0f699361be0dd))
+
+
+### Code Refactoring
+
+* **mysql:** name the profile, its forward and a certificate's names with the SDK's helpers ([ef6ed52](https://github.com/this-is-tobi/rta-plugins/commit/ef6ed52bf919e82fd2c5d88d37f1d59a1c4374c2))
+* **mysql:** the refusal for a certificate checked for a forward's end is the SDK's ([cd4785f](https://github.com/this-is-tobi/rta-plugins/commit/cd4785fdbc402058dcd2fd9deff406ce7a8f1884))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.34.0 ([b212d16](https://github.com/this-is-tobi/rta-plugins/commit/b212d165ced0e7aaf112a9be37a56178d950cbe2))
+
 ## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.4.0...plugins/mysql/v0.5.0) (2026-10-03)
 
 
