@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"path/filepath"
 	"strconv"
@@ -111,6 +113,65 @@ func TestTheDriverChecksTheCertificateForTheNameGiven(t *testing.T) {
 	_, verr = connect(context.Background(), through(map[string]any{"ca-file": "", "tls-server-name": "db.internal"}))
 	if verr == nil || verr.Code != "mariadb.tls.untrusted" {
 		t.Errorf("a name with no CA: %v, want mariadb.tls.untrusted", verr)
+	}
+}
+
+// The refusal for a certificate checked for the end of a forward is the SDK's,
+// worded once for every plugin that has one. What stays this plugin's own is
+// its code, which an operator's config and a grant name it by, and the setting
+// it sends the reader to. A certificate that holds no name is not this refusal:
+// tls-server-name cannot be set to a name there is none of.
+func TestACertificateForAnotherNameThroughAForwardIsRefusedUnderThePluginsCode(t *testing.T) {
+	named := &x509.Certificate{DNSNames: []string{"db.internal"}}
+	nameless := &x509.Certificate{}
+	refused := func(cert *x509.Certificate) error {
+		return &tls.CertificateVerificationError{
+			UnverifiedCertificates: []*x509.Certificate{cert},
+			Err:                    x509.HostnameError{Certificate: cert, Host: "127.0.0.1"},
+		}
+	}
+	through := func(extra map[string]any, tunnel plugin.Tunnel) plugin.Request {
+		values := map[string]any{"host": "127.0.0.1", "port": 54321, "tls": "false"}
+		for k, v := range extra {
+			values[k] = v
+		}
+		return req(t, "mariadb.status", values).WithProfile("prod", tunnel)
+	}
+
+	got := classify(refused(named), through(nil, plugin.TunnelKube))
+	if got.Code != "mariadb.tls.forward" {
+		t.Fatalf("code = %q, want mariadb.tls.forward", got.Code)
+	}
+	if want := "the certificate behind profile prod (through its kube: forward) is for db.internal, " +
+		"not for 127.0.0.1, where the forward ends"; got.Message != want {
+		t.Errorf("message = %q, want %q", got.Message, want)
+	}
+	for _, part := range []string{"--tls-server-name", "the name the server answers as"} {
+		if !strings.Contains(got.Hint, part) {
+			t.Errorf("hint = %q, want it to say %q", got.Hint, part)
+		}
+	}
+	for _, bad := range []string{"--tls ", "verify-ca", "skip-verify", "--ca-file"} {
+		if strings.Contains(got.Hint, bad) {
+			t.Errorf("hint = %q names %q, which checks less or opens no forward", got.Hint, bad)
+		}
+	}
+
+	for _, tc := range []struct {
+		name   string
+		cert   *x509.Certificate
+		extra  map[string]any
+		tunnel plugin.Tunnel
+	}{
+		{"a certificate with no name", nameless, nil, plugin.TunnelKube},
+		{"a name already given", named, map[string]any{"tls-server-name": "other.internal"}, plugin.TunnelKube},
+		{"no forward", named, nil, plugin.TunnelNone},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := classify(refused(tc.cert), through(tc.extra, tc.tunnel)); got.Code != "mariadb.tls.name" {
+				t.Errorf("code = %q, want mariadb.tls.name", got.Code)
+			}
+		})
 	}
 }
 
