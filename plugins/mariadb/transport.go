@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/x509"
 	"strings"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -19,9 +18,9 @@ import (
 // request for TLS that nothing else answers, as plugins/pg's sslrootcert and
 // tls-server-name are, and what it asks for is true: the one mode that checks
 // the name, which a forward's end (127.0.0.1) never is, so the refusal for a
-// certificate that is for another name (forwardName) has the setting that
-// cures it. Never verify-ca, which checks the chain alone: a name given is a
-// name that has to hold, and a forward is no reason to check less.
+// certificate that is for another name (plugin.ForwardNameRefusal) has the
+// setting that cures it. Never verify-ca, which checks the chain alone: a name
+// given is a name that has to hold, and a forward is no reason to check less.
 func tlsMode(req plugin.Request) string {
 	if req.Tunnel() != plugin.TunnelNone && (caFile(req) != "" || serverName(req) != "") {
 		return "true"
@@ -103,23 +102,4 @@ func checkClientTLS(req plugin.Request) *view.Error {
 				"coordinate does, and give no " + sf.SettingName("tls-server-name"))
 	}
 	return nil
-}
-
-// forwardName is mariadb.tls.forward: the refusal for a certificate checked for
-// the end of a forward the host opened, 127.0.0.1, and not for the name the
-// server answers as, which the certificate names instead.
-//
-// **The way through is tls-server-name, never tls.** The forward has set tls
-// to false already, and given by the caller it is an input the forward fills:
-// the host then opens no forward at all, and the call goes to the host config
-// or the default names. Nor anything that checks less: tls-server-name moves
-// the check to a name the certificate is for, and verify-ca, which skips the
-// name, would accept any certificate the CA ever signed.
-func forwardName(req plugin.Request, cert *x509.Certificate) *view.Error {
-	return view.Errorf("mariadb.tls.forward", "the certificate behind %s is for %s, not for %s, where the forward ends",
-		req.Reached(address(req)), plugin.CertNames(cert), req.String("host")).
-		WithHint("a forward always ends at 127.0.0.1, so the certificate is checked for the name the server " +
-			"answers as instead: " + req.Surface().SettingName("tls-server-name") + ", which the profile can " +
-			"hold beside its forward, names it — one the certificate is for — and it is checked as strictly " +
-			"as the host it replaces")
 }

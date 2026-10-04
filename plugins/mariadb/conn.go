@@ -419,10 +419,15 @@ func classify(err error, req plugin.Request) *view.Error {
 	// system's place and checks no revocation at all — the operator who
 	// followed the hint connected to the server the check had caught. It
 	// keeps the system's words below, with no way round.
+	//
+	// A forward's refusal only for a certificate that has names: tls-server-name
+	// can be set to one of them, and one with none is cured by reissuing it,
+	// which nameRefusal says and plugin.ForwardNameRefusal's hint would not.
 	if cert, ok := misnamed(err); ok && !plugin.CertRevoked(err) {
-		if req.Tunnel() != plugin.TunnelNone && serverName(req) == "" && cert != nil &&
-			len(cert.DNSNames)+len(cert.IPAddresses) > 0 {
-			return forwardName(req, cert)
+		var hostErr x509.HostnameError
+		if req.Tunnel() != plugin.TunnelNone && serverName(req) == "" && errors.As(err, &hostErr) &&
+			cert != nil && len(cert.DNSNames)+len(cert.IPAddresses) > 0 {
+			return plugin.ForwardNameRefusal(req, "mariadb.tls.forward", where, "server", hostErr)
 		}
 		return nameRefusal(req.Reached(where), cert, req)
 	}
@@ -577,7 +582,7 @@ func nameRefusal(where string, cert *x509.Certificate, req plugin.Request) *view
 // is a CA or a name to check (tlsMode), which a profile holds beside it, and
 // the name is the one the certificate is for, since the forward ends at
 // 127.0.0.1; without it, the refusal for a certificate for another name
-// (forwardName) says so.
+// (plugin.ForwardNameRefusal) says so.
 func tlsThroughForward(req plugin.Request) *view.Error {
 	// What the hop off this machine runs inside, which is why the forward
 	// turns TLS off in the first place (plugin.EndpointTLS).
