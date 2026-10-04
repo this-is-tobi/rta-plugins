@@ -373,7 +373,7 @@ func readSchema(ctx context.Context, q querier, schema string, limit int) ([]sch
 // beats inventing one.
 func renderDDL(req plugin.Request, schema string, tables []schemaTable, om dropped) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "-- schema %q of %s on %s\n", schema, req.String("database"), req.Reached(address(req)))
+	fmt.Fprintf(&b, "-- schema %s of %s on %s\n", quotedName(schema), req.String("database"), req.Reached(address(req)))
 	b.WriteString("--\n")
 	b.WriteString("-- Structure only: no expression crosses this boundary, because an expression\n" +
 		"-- is a place a value can hide. Defaults, check constraints, view and routine\n" +
@@ -386,20 +386,20 @@ func renderDDL(req plugin.Request, schema string, tables []schemaTable, om dropp
 	b.WriteString("\n")
 
 	if len(tables) == 0 {
-		fmt.Fprintf(&b, "-- schema %q holds no tables.\n", schema)
+		fmt.Fprintf(&b, "-- schema %s holds no tables.\n", quotedName(schema))
 		return b.String()
 	}
 
 	var foreign []string
 	for _, t := range tables {
-		qualified := pgx.Identifier{schema, t.name}.Sanitize()
+		qualified := sqlIdentifier(schema, t.name)
 		fmt.Fprintf(&b, "CREATE TABLE %s (\n", qualified)
 
 		// Aligned on the widest name and type, so a column list reads as a
 		// column list rather than as ragged prose.
 		var nameW, typeW int
 		for _, c := range t.columns {
-			nameW = max(nameW, len(pgx.Identifier{c.name}.Sanitize()))
+			nameW = max(nameW, len(sqlIdentifier(c.name)))
 			typeW = max(typeW, len(c.typ))
 		}
 		// code and note are kept apart all the way to the write, because a
@@ -412,7 +412,7 @@ func renderDDL(req plugin.Request, schema string, tables []schemaTable, om dropp
 		lines := make([]ddlLine, 0, len(t.columns)+len(t.keys))
 		for _, c := range t.columns {
 			line := ddlLine{code: fmt.Sprintf("    %-*s %-*s", nameW,
-				pgx.Identifier{c.name}.Sanitize(), typeW, c.typ)}
+				sqlIdentifier(c.name), typeW, c.typ)}
 			if c.notNull {
 				line.code += " NOT NULL"
 			}
@@ -427,7 +427,7 @@ func renderDDL(req plugin.Request, schema string, tables []schemaTable, om dropp
 			lines = append(lines, line)
 		}
 		for _, k := range t.keys {
-			lines = append(lines, ddlLine{code: "    " + k})
+			lines = append(lines, ddlLine{code: "    " + writtenOut(k)})
 		}
 		for i, l := range lines {
 			b.WriteString(l.code)
@@ -448,11 +448,11 @@ func renderDDL(req plugin.Request, schema string, tables []schemaTable, om dropp
 		}
 		b.WriteString("\n")
 		for _, idx := range t.indexes {
-			b.WriteString(idx + ";\n")
+			b.WriteString(writtenOut(idx) + ";\n")
 		}
 		b.WriteString("\n")
 		for _, f := range t.foreign {
-			foreign = append(foreign, fmt.Sprintf("ALTER TABLE %s ADD %s;", qualified, f))
+			foreign = append(foreign, fmt.Sprintf("ALTER TABLE %s ADD %s;", qualified, writtenOut(f)))
 		}
 	}
 
