@@ -81,6 +81,53 @@ func TestOverviewSaysWhichReadFailedInsteadOfDroppingIt(t *testing.T) {
 	}
 }
 
+// The row that says a read failed says it in a line, in the words the other
+// refusals use. The client's own text is a paragraph over several lines that
+// names the request's URL, which through a forward is the end of one that
+// closed with the call.
+func TestAnOverviewRowForAFailedReadIsOneLineNamingTheProfile(t *testing.T) {
+	srv := halfBlindVault(t)
+	r := mountReq(t, "vault.overview", srv.URL, map[string]any{}).WithProfile("prod", plugin.TunnelKube)
+	v, err := runOverview(t.Context(), r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var state string
+	for _, p := range v.(view.KeyValue).Pairs {
+		if p.Key == "state" {
+			state = p.Value
+		}
+	}
+	if want := "unreadable — profile prod (through its kube: forward) refused: permission denied"; state != want {
+		t.Errorf("state = %q, want %q", state, want)
+	}
+
+	// The token's own row too: a Vault that says what it is and refuses the
+	// token.
+	tokenless := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "lookup-self") {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"errors":["permission denied"]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"sealed":false,"initialized":true,"version":"1.0.0"}`))
+	}))
+	t.Cleanup(tokenless.Close)
+	r = mountReq(t, "vault.overview", tokenless.URL, map[string]any{}).WithProfile("prod", plugin.TunnelKube)
+	if v, err = runOverview(t.Context(), r); err != nil {
+		t.Fatal(err)
+	}
+	var token string
+	for _, p := range v.(view.KeyValue).Pairs {
+		if p.Key == "token" {
+			token = p.Value
+		}
+	}
+	if want := "unreadable — profile prod (through its kube: forward) refused: permission denied"; token != want {
+		t.Errorf("token = %q, want %q", token, want)
+	}
+}
+
 // An overview that read nothing says why unless it was the token's policy.
 // It said "nothing could be read" with no hint whatever the cause — the same
 // sentence for a token whose policy reads neither call as for a Vault nothing
