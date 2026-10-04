@@ -53,8 +53,11 @@ import (
 // them is neither useful nor cheap.
 const maxSchemaTables = 500
 
-// querier is whatever the catalogue queries run against: a connection, or
-// the read-only transaction the row dump insists on. Both satisfy it.
+// querier is whatever the catalogue queries and the views built from them run
+// against: a connection, or the read-only transaction the row dump insists on.
+// Both satisfy it, and so does a test's script of answers, which is why no view
+// asks for more than this: what a view does with a name the server returned is
+// testable without a server.
 type querier interface {
 	Query(context.Context, string, ...any) (pgx.Rows, error)
 	QueryRow(context.Context, string, ...any) pgx.Row

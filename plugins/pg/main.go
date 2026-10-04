@@ -120,7 +120,7 @@ func cap(c plugin.Capability, own ...plugin.Field) plugin.Capability {
 
 // statusView answers "can I reach it, as whom, and what is it" — the shared
 // query behind pg.status and the lead section of pg.overview.
-func statusView(ctx context.Context, conn *pgx.Conn, req plugin.Request) (view.View, error) {
+func statusView(ctx context.Context, conn querier, req plugin.Request) (view.View, error) {
 	// server, not version: this is PostgreSQL's own banner, and the package
 	// now has a `version` of its own that this would shadow.
 	var server, db, user, size string
@@ -175,7 +175,7 @@ func listed(rows pgx.Rows, limit int, noun string, say bool, sf plugin.Surface) 
 // tableListView lists tables with their row estimates and sizes — pg.table.list
 // and a "largest tables" section of pg.overview at a tighter limit, which is
 // why say is a parameter: see listed.
-func tableListView(ctx context.Context, conn *pgx.Conn, req plugin.Request, say bool) (view.View, error) {
+func tableListView(ctx context.Context, conn querier, req plugin.Request, say bool) (view.View, error) {
 	// pg_size_pretty, not the raw count: a view carries pre-formatted strings
 	// and view.ColumnKind selects alignment, not rendering — so declaring
 	// KindBytes and handing over an integer prints the integer. Ordering
@@ -215,7 +215,7 @@ func tableListView(ctx context.Context, conn *pgx.Conn, req plugin.Request, say 
 }
 
 // databaseListView lists databases on this server, with their sizes.
-func databaseListView(ctx context.Context, conn *pgx.Conn, req plugin.Request) (view.View, error) {
+func databaseListView(ctx context.Context, conn querier, req plugin.Request) (view.View, error) {
 	rows, err := conn.Query(ctx, `
 		select datname, pg_size_pretty(pg_database_size(datname)),
 		       pg_get_userbyid(datdba)
@@ -290,7 +290,7 @@ func activitySQL(withQuery bool) (string, view.Column) {
 		limit $1`, col
 }
 
-func activityView(ctx context.Context, conn *pgx.Conn, req plugin.Request, withQuery, say bool) (view.View, error) {
+func activityView(ctx context.Context, conn querier, req plugin.Request, withQuery, say bool) (view.View, error) {
 	sql, tail := activitySQL(withQuery)
 	rows, err := conn.Query(ctx, sql, req.Int("limit")+1)
 	if err != nil {

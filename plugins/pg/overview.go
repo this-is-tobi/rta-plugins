@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
-
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -42,7 +40,7 @@ const cacheHitFloor = 90.0
 // compactOverview is the few figures worth a glance, in the same "add what
 // answered" style as builtin/sys's runOverview: one query failing costs the
 // reader that one line, not the page.
-func compactOverview(ctx context.Context, conn *pgx.Conn, req plugin.Request) (view.View, error) {
+func compactOverview(ctx context.Context, conn querier, req plugin.Request) (view.View, error) {
 	kv := view.KeyValue{}
 	add := func(key, value string) {
 		if value != "" {
@@ -89,7 +87,7 @@ func compactOverview(ctx context.Context, conn *pgx.Conn, req plugin.Request) (v
 // failure rather than sinking the whole page — the same contract
 // plugin.Page documents, used here through Put/Warn since every section is
 // already in hand rather than behind a Handler to invoke.
-func detailedOverview(ctx context.Context, conn *pgx.Conn, req plugin.Request) (view.View, error) {
+func detailedOverview(ctx context.Context, conn querier, req plugin.Request) (view.View, error) {
 	p := plugin.NewPage(ctx, req)
 	put := func(title string, v view.View, err error) {
 		if err != nil {
@@ -134,7 +132,7 @@ func detailedOverview(ctx context.Context, conn *pgx.Conn, req plugin.Request) (
 // plugin.Request and classifies it themselves, and roleOf has no request of
 // its own to classify with (compactOverview treats it as best-effort and
 // never surfaces the error at all).
-func roleOf(ctx context.Context, conn *pgx.Conn) (string, error) {
+func roleOf(ctx context.Context, conn querier) (string, error) {
 	var recovery bool
 	if err := conn.QueryRow(ctx, `select pg_is_in_recovery()`).Scan(&recovery); err != nil {
 		return "", err
@@ -151,7 +149,7 @@ func roleOf(ctx context.Context, conn *pgx.Conn) (string, error) {
 // that. -1 signals "nothing to divide by yet" from SQL rather than a NULL
 // pgx has to be told how to scan, matching how pg.activity already turns
 // query_start's possible NULL into 0 in the query itself.
-func cacheView(ctx context.Context, conn *pgx.Conn, req plugin.Request) (view.View, error) {
+func cacheView(ctx context.Context, conn querier, req plugin.Request) (view.View, error) {
 	var ratio float64
 	err := conn.QueryRow(ctx, `
 		select coalesce(round(100 * sum(heap_blks_hit) /

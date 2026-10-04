@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-
 	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
@@ -24,7 +22,7 @@ import (
 // primary nobody replicates from has no standbys table, and the server
 // section's `replication` line says so in words, which an empty table with
 // headers would not — it reads as a listing that failed.
-func addReplication(ctx context.Context, p *plugin.Page, conn *pgx.Conn, req plugin.Request) error {
+func addReplication(ctx context.Context, p *plugin.Page, conn querier, req plugin.Request) error {
 	f, err := readReplication(ctx, conn)
 	if err != nil {
 		return classify(err, req)
@@ -46,7 +44,7 @@ func addReplication(ctx context.Context, p *plugin.Page, conn *pgx.Conn, req plu
 	return nil
 }
 
-func replicationView(ctx context.Context, conn *pgx.Conn, req plugin.Request) (view.View, error) {
+func replicationView(ctx context.Context, conn querier, req plugin.Request) (view.View, error) {
 	p := plugin.NewPage(ctx, req)
 	if err := addReplication(ctx, p, conn, req); err != nil {
 		return nil, err
