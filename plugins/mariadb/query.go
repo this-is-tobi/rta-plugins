@@ -298,10 +298,15 @@ const statementWidth = 120
 // truncateStatement also collapses whitespace, because a statement written
 // across twelve lines in application source arrives with all of them and
 // turns one table row into a page.
+//
+// Cut between characters: the width is bytes, and a cut at a byte offset
+// ended halfway through an accented letter or an emoji, which is no longer
+// valid UTF-8 and drew as a replacement glyph that was never in the statement.
 func truncateStatement(s string) string {
 	s = strings.Join(strings.Fields(s), " ")
-	if len(s) <= statementWidth {
+	head, rest := format.Head(s, statementWidth)
+	if rest == 0 {
 		return s
 	}
-	return s[:statementWidth] + "…"
+	return head + "…"
 }
