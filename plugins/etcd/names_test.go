@@ -252,3 +252,34 @@ func TestAnAdvertisedURLThatDoesNotReadAsItselfIsWrittenOutWhereAMemberDoesNotAn
 		t.Errorf("why = %q, want an ordinary address unchanged: %q", got, want)
 	}
 }
+
+// A key etcd is handed back is the key as etcd holds it: what the next page
+// continues after, and what a not-found key's hint looks for again, are spelled
+// for the surface by the SDK, which shell-quotes or JSON-quotes the real bytes.
+// Written out as a list shows a name, the hint would continue after a key that
+// is not there and look for another one, so the one thing that must not be
+// listed is the one a reader pastes.
+func TestAKeyHandedBackToEtcdIsTheKeyAsItIsHeldNotAsAListShowsIt(t *testing.T) {
+	for _, key := range []string{oddName, blankName, `"quoted"`, " padded "} {
+		listed := plugin.ListedName(key)
+		if listed == key {
+			t.Fatalf("%q reads as itself, so it proves nothing here", key)
+		}
+		for _, sf := range []plugin.Surface{plugin.SurfaceCLI, plugin.SurfaceTUI, plugin.SurfaceMCP} {
+			tbl := kvListTable([]*mvccpb.KeyValue{{Key: []byte(key)}, {Key: []byte("zzz")}}, 1, sf)
+			if hint := tbl.Warnings[0].Hint; !strings.Contains(hint, sf.InputTo("after", key)) ||
+				strings.Contains(hint, sf.InputTo("after", listed)) {
+				t.Errorf("%q on %s: hint %q does not hand the key back as etcd holds it", key, sf, hint)
+			}
+
+			r := req(t, "etcd.kv.get", nil).WithSurface(sf)
+			call := func(value string) string {
+				return sf.Call("etcd.kv.list",
+					append([]plugin.Arg{{Name: "prefix", Value: value, Positional: true}}, reachArgs(r)...)...)
+			}
+			if hint := noSuchKey(r, key).Hint; !strings.Contains(hint, call(key)) || strings.Contains(hint, call(listed)) {
+				t.Errorf("%q on %s: hint %q does not look for the key as etcd holds it", key, sf, hint)
+			}
+		}
+	}
+}
