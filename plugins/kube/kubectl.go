@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -357,7 +358,7 @@ func credentialPluginRefused(stderr string) (exe, said string, ok bool) {
 	if said == "" || strings.Contains(said, "getting credentials: exec:") {
 		said = "exit code " + m[2] + ", with nothing said"
 	}
-	return baseName(m[1]), said, true
+	return filepath.Base(m[1]), said, true
 }
 
 // execPluginMissing is kubectl's line for an exec credential plugin the
@@ -379,17 +380,7 @@ func credentialPluginMissing(stderr string) (exe string, ok bool) {
 	if exe == "" {
 		exe = m[2]
 	}
-	return baseName(exe), true
-}
-
-// baseName is the last element of a path as the kubeconfig may spell it,
-// with either separator, since a kubeconfig written on Windows names its
-// plugin with backslashes wherever it is later read.
-func baseName(path string) string {
-	if i := strings.LastIndexAny(path, `/\`); i >= 0 {
-		return path[i+1:]
-	}
-	return path
+	return filepath.Base(exe), true
 }
 
 // loginHint is the command that refreshes a credential plugin's session,
