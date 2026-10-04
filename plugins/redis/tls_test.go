@@ -15,7 +15,6 @@ import (
 	stdnet "net"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -122,23 +121,11 @@ func writeFile(t *testing.T, name string, data []byte) string {
 }
 
 // A certificate is answered with the CA to name only when it is an unknown
-// issuer's. macOS's own verifier, asked whenever no ca-file is named, gives
-// most of its verdicts untyped, and a revoked certificate named by one of
-// them is no issuer a CA file would cure: naming one turns the system's
-// revocation check off. Such a verdict keeps the system's words, and the one
-// hint that does send the reader to a CA file says what naming one costs.
+// issuer's: Go's own verdicts for a chain that reaches no root, and none for
+// any other reason Go's verifier refuses it. The verdicts macOS's own
+// verifier gives untyped, which are answered by what they say, are in
+// verdict_test.go.
 func TestOnlyAnUnknownIssuerIsAnsweredWithTheCA(t *testing.T) {
-	open, closing := string(rune(0x201c)), string(rune(0x201d))
-	verdict := func(words string) error {
-		return &tls.CertificateVerificationError{
-			Err: errors.New("x509: " + open + "cache.internal" + closing + " " + words)}
-	}
-	// The system's words for a chain to no anchor it holds are read as
-	// untrusted where the system gave them, and are nobody's words elsewhere.
-	notTrusted := "redis.conn.failed"
-	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
-		notTrusted = "redis.tls.untrusted"
-	}
 	for _, tc := range []struct {
 		name string
 		err  error
@@ -146,9 +133,6 @@ func TestOnlyAnUnknownIssuerIsAnsweredWithTheCA(t *testing.T) {
 	}{
 		{"Go's verifier, an issuer in no pool", x509.UnknownAuthorityError{}, "redis.tls.untrusted"},
 		{"no pool to read at all", x509.SystemRootsError{}, "redis.tls.untrusted"},
-		{"macOS, a chain to no anchor it holds", verdict("certificate is not trusted"), notTrusted},
-		{"macOS, a revoked certificate", verdict("certificate is revoked"), "redis.conn.failed"},
-		{"macOS, a policy it will not pass", verdict("certificate is not standards compliant"), "redis.conn.failed"},
 		{"a signature algorithm Go's verifier refuses", &tls.CertificateVerificationError{
 			Err: x509.InsecureAlgorithmError(x509.SHA1WithRSA)}, "redis.conn.failed"},
 	} {
