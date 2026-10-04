@@ -204,7 +204,7 @@ func schemaFullyVisible(ctx context.Context, db *sql.DB, schema string) bool {
 		return true
 	}
 	defer func() { _ = rows.Close() }()
-	wide := []string{"ON *.*", "ON `" + schema + "`.*", "ON " + schema + ".*"}
+	wide := append([]string{"ON *.*", "ON " + schema + ".*"}, grantedAs(schema)...)
 	for rows.Next() {
 		var line string
 		if err := rows.Scan(&line); err != nil {
@@ -225,6 +225,23 @@ func schemaFullyVisible(ctx context.Context, db *sql.DB, schema string) bool {
 		}
 	}
 	return rows.Err() != nil
+}
+
+// grantedAs is how SHOW GRANTS spells a grant on every table of schema: the
+// name in backticks with any inside doubled, and again with the pattern
+// characters escaped.
+//
+// **A grant is made on a pattern, and the way to grant on a name that holds
+// an underscore is to escape it.** An unescaped _ matches any one character,
+// so GRANT ... ON `my\_app`.* is what a careful grant on my_app is written as,
+// and it is printed back as `my\_app`.* — measured against the 8.4 release of
+// the one server and the 11.4 of the other. Matched on the plain name alone, a
+// schema with an underscore in its name was reported as one the account may be
+// missing tables from, under a grant that covers all of it.
+func grantedAs(schema string) []string {
+	quoted := strings.ReplaceAll(schema, "`", "``")
+	literal := strings.NewReplacer(`\`, `\\`, "_", `\_`, "%", `\%`).Replace(quoted)
+	return []string{"ON `" + quoted + "`.*", "ON `" + literal + "`.*"}
 }
 
 // partialListing is the caveat both listings carry when the grants may be

@@ -360,6 +360,38 @@ func TestTheUsageBaselineIsNotAWideGrant(t *testing.T) {
 	}
 }
 
+// A grant on a schema whose name holds an underscore is written with the
+// underscore escaped when it is meant literally, and SHOW GRANTS prints it
+// back that way. The same grant on the plain name is a pattern, and prints as
+// written. Either covers the whole schema, and neither is a reason to say
+// tables may be missing.
+func TestASchemaWideGrantOnANameWithPatternCharactersIsWide(t *testing.T) {
+	db := fakeDB(t, nil, nil)
+	for _, tc := range []struct {
+		what, schema string
+		grants       []string
+		visible      bool
+	}{
+		{"an escaped underscore", "my_app", []string{"GRANT SELECT ON `my\\_app`.* TO `me`@`%`"}, true},
+		{"a plain underscore", "my_app", []string{"GRANT SELECT ON `my_app`.* TO `me`@`%`"}, true},
+		{"an escaped percent sign", "100%_pure", []string{"GRANT SELECT ON `100\\%\\_pure`.* TO `me`@`%`"}, true},
+		{"a backtick, doubled", "a`b", []string{"GRANT SELECT ON `a``b`.* TO `me`@`%`"}, true},
+		{"a per-table grant under such a name", "my_app", []string{"GRANT SELECT ON `my\\_app`.`orders` TO `me`@`%`"}, false},
+		{"a grant on another schema", "my_app", []string{"GRANT SELECT ON `my\\_other`.* TO `me`@`%`"}, false},
+	} {
+		t.Run(tc.what, func(t *testing.T) {
+			fakeRoutes = []struct {
+				match  string
+				result fakeResult
+			}{grantRoute(append([]string{"GRANT USAGE ON *.* TO `me`@`%`"}, tc.grants...)...)}
+			t.Cleanup(func() { fakeRoutes = nil })
+			if got := schemaFullyVisible(context.Background(), db, tc.schema); got != tc.visible {
+				t.Errorf("schemaFullyVisible(%q) = %v, want %v for %v", tc.schema, got, tc.visible, tc.grants)
+			}
+		})
+	}
+}
+
 // And a schema whose shape may be missing tables says so, wrapped the way
 // plugins/kube's quotaView wraps its table — a Tree has nowhere to carry a
 // caveat of its own.
