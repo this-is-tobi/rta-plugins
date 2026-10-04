@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"io/fs"
 	"strconv"
+	"strings"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
 )
@@ -47,12 +49,14 @@ func quoted(name string) string {
 // for a failure on a file whose name came from a key or from a directory
 // somebody else filled. The error words its path raw — "mkdir /out/a\x1b[2J:
 // permission denied" — which no part of a message built around it can undo, so
-// the path is spelled here and the operating system's reason kept as it is. An
-// error that is not one reads as it always did.
+// the path is spelled here and everything else the error says kept as it is,
+// the operating system's reason and any words a caller wrapped around it
+// included. An error that is not one reads as it always did.
 func fsReason(err error) string {
-	pathErr, ok := err.(*fs.PathError)
-	if !ok {
-		return err.Error()
+	text := err.Error()
+	var pathErr *fs.PathError
+	if !errors.As(err, &pathErr) || pathErr.Path == "" {
+		return text
 	}
-	return pathErr.Op + " " + plugin.ListedName(pathErr.Path) + ": " + pathErr.Err.Error()
+	return strings.ReplaceAll(text, pathErr.Path, plugin.ListedName(pathErr.Path))
 }

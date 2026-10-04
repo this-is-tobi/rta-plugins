@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
@@ -157,6 +158,11 @@ func TestTheHelpersShowAPlainNameAsItWasAndAnOddOneQuoted(t *testing.T) {
 	odd := &fs.PathError{Op: "mkdir", Path: "/out/" + escKey, Err: errors.New("not a directory")}
 	if got, want := fsReason(odd), `mkdir "/out/esc\x1b[31mred\nline": not a directory`; got != want {
 		t.Errorf("fsReason(odd path) = %s, want %s", got, want)
+	}
+	// Wrapped, the words around it stay and the path is still shown as a name.
+	if got, want := fsReason(fmt.Errorf("walking: %w", odd)),
+		`walking: mkdir "/out/esc\x1b[31mred\nline": not a directory`; got != want {
+		t.Errorf("fsReason(wrapped odd path) = %s, want %s", got, want)
 	}
 	plain := &fs.PathError{Op: "open", Path: "/out/" + plainKey, Err: errors.New("permission denied")}
 	if got := fsReason(plain); got != plain.Error() {
