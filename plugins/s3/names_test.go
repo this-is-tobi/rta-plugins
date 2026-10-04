@@ -265,6 +265,25 @@ func TestAStoppedListingKeepsTheCursorAKeyAndShowsTheKeyQuoted(t *testing.T) {
 	}
 }
 
+// The sentence that says a listing stopped quoted its key with %q, which wrote
+// an escape sequence out and left a Braille blank raw: the key it stopped at,
+// and the same key without the blank, read alike in it.
+func TestAStoppedListingNamesAKeyEndingInABlankByItsCodePoint(t *testing.T) {
+	blank := "prod/db" + brailleBlank
+	srv := serveNames(t, bucketContents{keys: []string{blank, "zzz"}})
+	tbl := listTable(t, srv, map[string]any{"limit": 1})
+
+	if tbl.Page == nil || tbl.Page.Next != blank {
+		t.Fatalf("cursor = %+v, want the key as the server holds it", tbl.Page)
+	}
+	if len(tbl.Warnings) != 1 {
+		t.Fatalf("warnings = %+v, want the one that says it stopped", tbl.Warnings)
+	}
+	if want := `stopped after 1 object; more keys follow "prod/db` + brailleBlankShown + `"`; tbl.Warnings[0].Message != want {
+		t.Errorf("message = %q, want %q", tbl.Warnings[0].Message, want)
+	}
+}
+
 func TestATreeLabelsAKeyThatDoesNotDrawAsItselfQuoted(t *testing.T) {
 	srv := serveNames(t, bucketContents{keys: []string{
 		"dir\x1b[31m/leaf\nname", "plain dir é/file é.txt", "pre\x1b[2J/a.txt",
@@ -317,6 +336,21 @@ func TestAMissingNameIsShownInARefusalAsAListingWouldShowIt(t *testing.T) {
 			`"shop" already exists`},
 		{"a bucket with no policy", minio.ErrorResponse{Code: minio.NoSuchBucketPolicy, BucketName: oddBucket},
 			escShown + " has no bucket policy set"},
+		// %q wrote the escape sequence and the newline above out already, so those
+		// cases hold without the helper; a bucket ending in a character that draws
+		// as nothing is what the helper changed, in each of the four refusals.
+		{"an object in a bucket ending in a character that draws as nothing",
+			minio.ErrorResponse{Code: minio.NoSuchKey, Key: "k", BucketName: "shop" + brailleBlank},
+			`no object "k" in "shop` + brailleBlankShown + `"`},
+		{"a bucket that is not there, ending in one", minio.ErrorResponse{Code: minio.NoSuchBucket,
+			BucketName: "shop" + brailleBlank},
+			`127.0.0.1:9000 has no bucket "shop` + brailleBlankShown + `"`},
+		{"a bucket that exists, ending in one", minio.ErrorResponse{Code: minio.BucketAlreadyExists,
+			BucketName: "shop" + brailleBlank},
+			`"shop` + brailleBlankShown + `" already exists`},
+		{"a bucket with no policy, ending in one", minio.ErrorResponse{Code: minio.NoSuchBucketPolicy,
+			BucketName: "shop" + brailleBlank},
+			`"shop` + brailleBlankShown + `" has no bucket policy set`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := classify(tc.err, r); got.Message != tc.want {
@@ -399,6 +433,61 @@ func TestAnObjectIsNamedByAnAddressWhoseKeyIsQuotedWhenItNeedsIt(t *testing.T) {
 						t.Errorf("message = %q, want it to open with %q", got, tc.want)
 					}
 				} else if got != tc.want {
+					t.Errorf("answered %q, want %q", got, tc.want)
+				}
+			})
+		}
+	}
+}
+
+// A copy or a move names two objects, and the key it lands on is the caller's
+// to choose as much as the one it starts from: the destination is an address
+// too, in the preview, the receipt and the refusal that says the source stayed.
+func TestADestinationIsNamedByAnAddressAsTheSourceIs(t *testing.T) {
+	for _, name := range []struct{ key, address string }{{escKey, escAddress}, {plainKey, plainAddress}} {
+		for _, tc := range []struct {
+			name   string
+			capID  string
+			run    plugin.Handler
+			dry    bool
+			bucket bucketContents
+			want   string
+			isErr  bool
+		}{
+			{"a preview of copy", "s3.object.copy", runObjectCopy, true, bucketContents{},
+				"would copy test-bucket/src to " + name.address, false},
+			{"copy", "s3.object.copy", runObjectCopy, false, bucketContents{},
+				"copied test-bucket/src to " + name.address, false},
+			{"a preview of rename", "s3.object.rename", runObjectRename, true, bucketContents{},
+				"would move test-bucket/src to " + name.address, false},
+			{"rename", "s3.object.rename", runObjectRename, false, bucketContents{},
+				"moved test-bucket/src to " + name.address, false},
+			{"rename that could not remove its source", "s3.object.rename", runObjectRename, false,
+				bucketContents{refuseDelete: true},
+				"copied to " + name.address + " but could not remove the source test-bucket/src: ", true},
+		} {
+			t.Run(tc.name+" "+strconv.Quote(name.key), func(t *testing.T) {
+				srv := serveNames(t, tc.bucket)
+				values := map[string]any{"bucket": "test-bucket", "key": "src", "dest-key": name.key}
+				r := reqFor(t, tc.capID, endpointOf(t, srv), values)
+				if tc.dry {
+					r = dryReq(t, tc.capID, endpointOf(t, srv), values)
+				}
+				v, err := tc.run(context.Background(), r)
+				var got string
+				var verr *view.Error
+				switch {
+				case tc.isErr:
+					if !errors.As(err, &verr) {
+						t.Fatalf("err = %v, want a refusal", err)
+					}
+					got = verr.Message
+				case err != nil:
+					t.Fatal(err)
+				default:
+					got = v.(view.Text).Body
+				}
+				if tc.isErr && !strings.HasPrefix(got, tc.want) || !tc.isErr && got != tc.want {
 					t.Errorf("answered %q, want %q", got, tc.want)
 				}
 			})
