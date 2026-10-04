@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -474,9 +473,6 @@ func TestTheClientsMajorIsReadOffItsVersionLine(t *testing.T) {
 // Asked of the binary itself, a fake standing in for it: what it prints is
 // read, and one that fails to answer is a version not known.
 func TestTheClientIsAskedItsVersion(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("the fake client is a shell script")
-	}
 	dir := t.TempDir()
 	fake := func(name, body string) string {
 		path := filepath.Join(dir, name)

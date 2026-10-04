@@ -4,7 +4,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -103,15 +102,9 @@ func (t *transport) addHomeDefaults() {
 	}
 }
 
-// libpqDir is where libpq looks for its files: ~/.postgresql, and on Windows
-// %APPDATA%\postgresql. "" when the home directory is not known.
+// libpqDir is where libpq looks for its files: ~/.postgresql. "" when the
+// home directory is not known.
 func libpqDir() string {
-	if runtime.GOOS == "windows" {
-		if appData := os.Getenv("APPDATA"); appData != "" {
-			return filepath.Join(appData, "postgresql")
-		}
-		return ""
-	}
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
 		return ""

@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -15,9 +14,6 @@ import (
 // cannot be read is the home directory's to fix, not sslrootcert's, which
 // names nothing.
 func TestARootCertificateSSLHomeFoundIsHeldToTheSameRulesAndNamesSSLHome(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("libpq's directory is under %APPDATA% there")
-	}
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	dir := filepath.Join(home, ".postgresql")
