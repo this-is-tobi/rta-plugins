@@ -49,7 +49,7 @@ A binary on your `$PATH` is not consent: rta loads a plugin by running it, so a 
 
 ## How a release works
 
-Every plugin is versioned on its own. A release is tagged `plugins/<name>/v<x.y.z>` — `plugins/pg/v0.3.0` — which is also what `go install github.com/this-is-tobi/rta-plugins/plugins/pg@v0.3.0` resolves. release-please opens one pull request for every plugin a merged commit touched; merging it cuts one release per plugin, six archives each (`darwin`, `linux`, `windows` × `amd64`, `arm64`), with SLSA provenance, an SBOM and a cosign signature on the checksums file. The pipeline then regenerates `index/<name>.yaml` from the binaries it just built and commits it — a manifest is never written by hand.
+Every plugin is versioned on its own. A release is tagged `plugins/<name>/v<x.y.z>` — `plugins/pg/v0.3.0` — which is also what `go install github.com/this-is-tobi/rta-plugins/plugins/pg@v0.3.0` resolves. release-please opens one pull request for every plugin a merged commit touched; merging it cuts one release per plugin, four archives each (`darwin`, `linux` × `amd64`, `arm64`), with SLSA provenance, an SBOM and a cosign signature on the checksums file. The pipeline then regenerates `index/<name>.yaml` from the binaries it just built and commits it — a manifest is never written by hand.
 
 Verify a release's checksums file:
 
