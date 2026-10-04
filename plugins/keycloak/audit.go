@@ -171,7 +171,7 @@ func (s *session) auditBootstrapAdmin(ctx context.Context, r *findings.Report) {
 		return
 	}
 	r.Add(grpRealm, "bootstrap-admin", findings.Fail,
-		"the temporary bootstrap administrator still exists: "+strings.Join(names, ", ")+
+		"the temporary bootstrap administrator still exists: "+listedAll(names)+
 			" — create a permanent administrator and delete it", refBootstrapAdmin)
 }
 
@@ -248,7 +248,7 @@ func (s *session) auditSecondFactor(ctx context.Context, r *findings.Report, rea
 		if len(shown) > 5 {
 			shown = shown[:5]
 		}
-		who := strings.Join(shown, ", ")
+		who := listedAll(shown)
 		if len(unread) > 5 {
 			who += fmt.Sprintf(" and %d more", len(unread)-5)
 		}
@@ -296,9 +296,9 @@ func gradeBrowserFlow(execs []executionRep) (string, string) {
 	}
 	switch {
 	case len(enforced) > 0:
-		return findings.OK, "a second factor is required of every browser login: " + strings.Join(enforced, ", ")
+		return findings.OK, "a second factor is required of every browser login: " + listedAll(enforced)
 	case len(offered) > 0:
-		return findings.Warn, "a second factor is offered, not required: " + strings.Join(offered, ", ") +
+		return findings.Warn, "a second factor is offered, not required: " + listedAll(offered) +
 			" runs only for users who configured one (conditional sub-flow, Keycloak's default)"
 	}
 	return findings.Fail, "no second-factor step is enabled in the browser flow — a password is the whole login"
@@ -329,7 +329,7 @@ func gradeCoverage(examined, with int, without []string) (string, string) {
 	if len(shown) > 5 {
 		shown = shown[:5]
 	}
-	who := strings.Join(shown, ", ")
+	who := listedAll(shown)
 	if len(without) > 5 {
 		who += fmt.Sprintf(" and %d more", len(without)-5)
 	}
@@ -471,7 +471,7 @@ func (s *session) auditClients(ctx context.Context, r *findings.Report, master b
 		}
 		if len(apps) > 0 {
 			r.Add(grpClients, "master-realm", findings.Warn,
-				"the master realm serves application clients: "+strings.Join(apps, ", ")+
+				"the master realm serves application clients: "+listedAll(apps)+
 					" — an application's users and an administrator's belong in different realms", refMasterRealm)
 		}
 	}
@@ -505,7 +505,7 @@ func builtinClient(id string) bool {
 // own origin rather than a destination, and the consoles' PKCE and scope
 // settings are Keycloak's to set, not the realm owner's.
 func auditClient(r *findings.Report, c clientRep) {
-	check := func(kind string) string { return c.ClientID + "/" + kind }
+	check := func(kind string) string { return listed(c.ClientID) + "/" + kind }
 	builtin := builtinClient(c.ClientID)
 
 	for _, u := range c.RedirectURIs {
@@ -516,10 +516,10 @@ func auditClient(r *findings.Report, c clientRep) {
 				"redirect URI "+u+" — an authorization code can be sent anywhere", refRedirect)
 		case strings.HasPrefix(u, "http://") && !localhostURL(u):
 			r.Add(grpClients, check("redirect"), findings.Fail,
-				"redirect URI "+u+" — the authorization code travels in the clear", refCleartext)
+				"redirect URI "+listed(u)+" — the authorization code travels in the clear", refCleartext)
 		case strings.Contains(u, "*"):
 			r.Add(grpClients, check("redirect"), findings.Warn,
-				"redirect URI "+u+" — a wildcard; RFC 9700 wants exact matching, and any path under it receives the code", refRedirect)
+				"redirect URI "+listed(u)+" — a wildcard; RFC 9700 wants exact matching, and any path under it receives the code", refRedirect)
 		}
 	}
 	for _, o := range c.WebOrigins {
@@ -575,7 +575,7 @@ func localhostURL(u string) bool {
 // nobody managed to look at.
 func (s *session) auditServiceAccount(ctx context.Context, r *findings.Report, c clientRep) {
 	unread := func(what string, verr *view.Error) {
-		r.Add(grpClients, c.ClientID+"/service-account", findings.Info,
+		r.Add(grpClients, listed(c.ClientID)+"/service-account", findings.Info,
 			what+" could not be read: "+verr.Message+" — what it may do was not examined",
 			findings.Reference{})
 	}
@@ -596,9 +596,9 @@ func (s *session) auditServiceAccount(ctx context.Context, r *findings.Report, c
 		}
 		for _, role := range m.Mappings {
 			if role.Name == "realm-admin" || strings.HasPrefix(role.Name, "manage-") || role.Name == "impersonation" {
-				manage = append(manage, role.Name)
+				manage = append(manage, listed(role.Name))
 			} else {
-				viewer = append(viewer, role.Name)
+				viewer = append(viewer, listed(role.Name))
 			}
 		}
 	}
@@ -611,10 +611,10 @@ func (s *session) auditServiceAccount(ctx context.Context, r *findings.Report, c
 	sort.Strings(viewer)
 	switch {
 	case len(manage) > 0:
-		r.Add(grpClients, c.ClientID+"/service-account", findings.Warn,
+		r.Add(grpClients, listed(c.ClientID)+"/service-account", findings.Warn,
 			"its service account can administer the realm: "+strings.Join(manage, ", "), refExcessivePriv)
 	case len(viewer) > 0:
-		r.Add(grpClients, c.ClientID+"/service-account", findings.Info,
+		r.Add(grpClients, listed(c.ClientID)+"/service-account", findings.Info,
 			"its service account can read the realm: "+strings.Join(viewer, ", "), refExcessivePriv)
 	}
 }
@@ -741,7 +741,7 @@ func (s *session) auditAdmins(ctx context.Context, r *findings.Report) {
 		if len(users) == 1 {
 			holds = "holds"
 		}
-		detail := fmt.Sprintf("%s %s it directly: %s", findings.Plural(len(users), "account"), holds, strings.Join(names, ", "))
+		detail := fmt.Sprintf("%s %s it directly: %s", findings.Plural(len(users), "account"), holds, listedAll(names))
 		status := findings.Info
 		if serviceAccounts > 0 {
 			status = findings.Warn

@@ -4,7 +4,6 @@ import (
 	"context"
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
@@ -78,7 +77,7 @@ func (s *session) sessionStats(ctx context.Context) (view.View, *view.Error) {
 	t := columns(col("Client"), view.Column{Name: "Active", Kind: view.KindNumber},
 		view.Column{Name: "Offline", Kind: view.KindNumber})
 	for _, st := range stats {
-		t.Rows = append(t.Rows, []string{st.ClientID, st.Active, st.Offline})
+		t.Rows = append(t.Rows, []string{listed(st.ClientID), st.Active, st.Offline})
 	}
 	return finish(t), nil
 }
@@ -92,8 +91,8 @@ func sessionTable(sessions []userSessionRep) view.Table {
 			clients = append(clients, c)
 		}
 		sort.Strings(clients)
-		t.Rows = append(t.Rows, []string{se.Username, se.IPAddress, stamp(se.Start), stamp(se.LastAccess),
-			strings.Join(clients, ", ")})
+		t.Rows = append(t.Rows, []string{listed(se.Username), se.IPAddress, stamp(se.Start), stamp(se.LastAccess),
+			listedAll(clients)})
 	}
 	return finish(t)
 }

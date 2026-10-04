@@ -50,7 +50,7 @@ func (s *session) clientTable(ctx context.Context) (view.View, *view.Error) {
 	sort.Slice(clients, func(i, j int) bool { return clients[i].ClientID < clients[j].ClientID })
 	t := columns(col("Client"), col("Kind"), col("Flows"), col("PKCE"), col("Full scope"), col("Enabled"))
 	for _, c := range clients {
-		t.Rows = append(t.Rows, []string{c.ClientID, c.kind(), flows(c), firstOf(c.pkce(), "none"),
+		t.Rows = append(t.Rows, []string{listed(c.ClientID), c.kind(), flows(c), firstOf(listed(c.pkce()), "none"),
 			yesNo(c.FullScopeAllowed), yesNo(c.Enabled)})
 	}
 	return finish(t), nil
@@ -107,8 +107,8 @@ func runClientShow(ctx context.Context, req plugin.Request) (view.View, error) {
 			p.PutAs("redirects", "redirect uris and web origins", originTable(c))
 		}
 		p.PutAs("scopes", "scopes", view.KeyValue{Pairs: []view.Pair{
-			{Key: "default", Value: strings.Join(c.DefaultClientScopes, ", ")},
-			{Key: "optional", Value: strings.Join(c.OptionalClientScopes, ", ")},
+			{Key: "default", Value: listedAll(c.DefaultClientScopes)},
+			{Key: "optional", Value: listedAll(c.OptionalClientScopes)},
 		}})
 		if settings := clientSettings(c); len(settings.Pairs) > 0 {
 			p.PutAs("settings", "settings", settings)
@@ -145,30 +145,30 @@ func clientSummary(c clientRep) view.View {
 			kv.Pairs = append(kv.Pairs, view.Pair{Key: key, Value: value})
 		}
 	}
-	add("client", c.ClientID)
-	add("name", c.Name)
+	add("client", listed(c.ClientID))
+	add("name", listed(c.Name))
 	add("description", c.Description)
 	add("kind", c.kind()+" · "+c.Protocol)
 	add("enabled", yesNo(c.Enabled))
 	add("flows", flows(c))
-	add("pkce", firstOf(c.pkce(), "not enforced"))
+	add("pkce", firstOf(listed(c.pkce()), "not enforced"))
 	add("full scope", yesNo(c.FullScopeAllowed))
 	add("consent required", yesNo(c.ConsentRequired))
 	if !c.PublicClient && !c.BearerOnly {
 		add("authenticates with", c.ClientAuthenticatorType)
 	}
-	add("root url", c.RootURL)
-	add("base url", c.BaseURL)
+	add("root url", listed(c.RootURL))
+	add("base url", listed(c.BaseURL))
 	return kv
 }
 
 func originTable(c clientRep) view.View {
 	t := columns(col("Kind"), col("Value"))
 	for _, u := range c.RedirectURIs {
-		t.Rows = append(t.Rows, []string{"redirect", u})
+		t.Rows = append(t.Rows, []string{"redirect", listed(u)})
 	}
 	for _, o := range c.WebOrigins {
-		t.Rows = append(t.Rows, []string{"web origin", o})
+		t.Rows = append(t.Rows, []string{"web origin", listed(o)})
 	}
 	return finish(t)
 }
@@ -196,7 +196,7 @@ func clientSettings(c clientRep) view.KeyValue {
 		{"login_theme", "login theme"},
 	} {
 		if v, ok := c.Attributes[a.key]; ok && v != "" {
-			kv.Pairs = append(kv.Pairs, view.Pair{Key: a.label, Value: v})
+			kv.Pairs = append(kv.Pairs, view.Pair{Key: a.label, Value: listed(v)})
 		}
 	}
 	if v := c.Attributes["client.secret.creation.time"]; v != "" {

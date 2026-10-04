@@ -42,7 +42,7 @@ func runRoleList(ctx context.Context, req plugin.Request) (view.View, error) {
 		sort.Slice(roles, func(i, j int) bool { return roles[i].Name < roles[j].Name })
 		t := columns(col("Role"), col("Composite"), col("Description"))
 		for _, r := range roles {
-			t.Rows = append(t.Rows, []string{r.Name, yesNo(r.Composite), description(r.Description)})
+			t.Rows = append(t.Rows, []string{listed(r.Name), yesNo(r.Composite), description(r.Description)})
 		}
 		return finish(t), nil
 	})

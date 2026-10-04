@@ -53,7 +53,7 @@ func runUserList(ctx context.Context, req plugin.Request) (view.View, error) {
 		t := columns(col("Username"), col("Email"), col("Enabled"), col("Verified"), col("OTP"),
 			view.Column{Name: "Created", Kind: view.KindTimestamp})
 		for _, u := range users {
-			t.Rows = append(t.Rows, []string{u.Username, u.Email, yesNo(u.Enabled), yesNo(u.EmailVerified),
+			t.Rows = append(t.Rows, []string{listed(u.Username), listed(u.Email), yesNo(u.Enabled), yesNo(u.EmailVerified),
 				yesNo(u.TOTP), stamp(u.CreatedTimestamp)})
 		}
 		if more {
@@ -122,7 +122,7 @@ func runUserShow(ctx context.Context, req plugin.Request) (view.View, error) {
 		} else if len(groups) > 0 {
 			t := columns(col("Group"), col("Path"))
 			for _, g := range groups {
-				t.Rows = append(t.Rows, []string{g.Name, g.Path})
+				t.Rows = append(t.Rows, []string{listed(g.Name), listed(g.Path)})
 			}
 			p.PutAs("groups", "groups", finish(t))
 		}
@@ -169,10 +169,10 @@ func userProfile(u userRep) view.View {
 			kv.Pairs = append(kv.Pairs, view.Pair{Key: key, Value: value})
 		}
 	}
-	add("username", u.Username)
+	add("username", listed(u.Username))
 	add("id", u.ID)
-	add("email", u.Email)
-	add("name", strings.TrimSpace(u.FirstName+" "+u.LastName))
+	add("email", listed(u.Email))
+	add("name", listed(strings.TrimSpace(u.FirstName+" "+u.LastName)))
 	state := "enabled"
 	if !u.Enabled {
 		state = "disabled"
@@ -182,7 +182,7 @@ func userProfile(u userRep) view.View {
 	add("required actions", strings.Join(u.RequiredActions, ", "))
 	add("federated from", u.FederationLink)
 	if u.ServiceAccountClientID != "" {
-		add("service account of", u.ServiceAccountClientID)
+		add("service account of", listed(u.ServiceAccountClientID))
 	}
 	return kv
 }
@@ -190,7 +190,7 @@ func userProfile(u userRep) view.View {
 func credentialTable(creds []credentialRep) view.View {
 	t := columns(col("Type"), col("Label"), view.Column{Name: "Created", Kind: view.KindTimestamp})
 	for _, c := range creds {
-		t.Rows = append(t.Rows, []string{c.Type, c.UserLabel, stamp(c.CreatedDate)})
+		t.Rows = append(t.Rows, []string{c.Type, listed(c.UserLabel), stamp(c.CreatedDate)})
 	}
 	return finish(t)
 }
@@ -210,7 +210,7 @@ func (s *session) effectiveRoles(ctx context.Context, id string) (view.View, *vi
 	}
 	t := columns(col("Scope"), col("Role"))
 	for _, r := range sortedRoles(realmRoles) {
-		t.Rows = append(t.Rows, []string{"realm", r})
+		t.Rows = append(t.Rows, []string{"realm", listed(r)})
 	}
 	clients := make([]string, 0, len(mappings.ClientMappings))
 	for _, m := range mappings.ClientMappings {
@@ -223,7 +223,7 @@ func (s *session) effectiveRoles(ctx context.Context, id string) (view.View, *vi
 				continue
 			}
 			for _, r := range sortedRoles(m.Mappings) {
-				t.Rows = append(t.Rows, []string{c, r})
+				t.Rows = append(t.Rows, []string{listed(c), listed(r)})
 			}
 		}
 	}
