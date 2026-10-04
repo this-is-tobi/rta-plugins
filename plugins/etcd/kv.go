@@ -161,7 +161,7 @@ func kvListTable(kvs []*mvccpb.KeyValue, limit int, sf plugin.Surface) view.Tabl
 			// nor tell was a continuation. Said where it reads the table.
 			t.Warnings = append(t.Warnings, view.Error{
 				Code:    "etcd.kv.list.partial",
-				Message: fmt.Sprintf("stopped after %s; more keys follow %q", format.CountOf(limit, "key"), last),
+				Message: fmt.Sprintf("stopped after %s; more keys follow %s", format.CountOf(limit, "key"), quoted(last)),
 				Hint: "pass " + sf.InputTo("after", last) + " for the next page, or narrow it with " +
 					sf.ArgumentName("prefix") + " or raise " + sf.InputName("limit"),
 			})
@@ -172,8 +172,10 @@ func kvListTable(kvs []*mvccpb.KeyValue, limit int, sf plugin.Surface) view.Tabl
 			lease = leaseID(kv.Lease)
 		}
 		last = string(kv.Key)
+		// The cursor and the hint beside it keep the key as etcd holds it, since
+		// that is what the next page starts after; only what is drawn is listed.
 		t.Rows = append(t.Rows, []string{
-			last,
+			plugin.ListedName(last),
 			strconv.FormatInt(kv.Version, 10),
 			lease,
 		})
@@ -214,11 +216,15 @@ func kvTreeView(ctx context.Context, c *clientv3.Client, req plugin.Request) (vi
 	if verr != nil {
 		return nil, verr
 	}
+	return keyTree(resp.Kvs, req.String("prefix"), limit, req.Int("depth"), req.Surface()), nil
+}
 
-	prefix := req.String("prefix")
+// keyTree is split from the fetch so what is drawn, the labels above all, is
+// assertable without a cluster.
+func keyTree(kvs []*mvccpb.KeyValue, prefix string, limit, depth int, sf plugin.Surface) view.Tree {
 	root := &treeNode{}
 	truncated := false
-	for i, kv := range resp.Kvs {
+	for i, kv := range kvs {
 		if i == limit {
 			truncated = true
 			break
@@ -227,22 +233,22 @@ func kvTreeView(ctx context.Context, c *clientv3.Client, req plugin.Request) (vi
 		root.insert(splitKey(rel))
 	}
 
-	label := prefix
-	if label == "" {
-		label = "/"
+	label := "/"
+	if prefix != "" {
+		label = plugin.ListedName(prefix)
 	}
-	w := &treeRender{maxDepth: req.Int("depth"), sf: req.Surface()}
+	w := &treeRender{maxDepth: depth, sf: sf}
 	children := w.expand(root, 1)
 
 	detail := format.CountOf(root.keys, "key")
 	switch {
 	case truncated:
 		detail += fmt.Sprintf(" — stopped at %d; narrow it with %s or raise %s", limit,
-			req.Surface().ArgumentName("prefix"), req.Surface().InputName("limit"))
+			sf.ArgumentName("prefix"), sf.InputName("limit"))
 	case w.stopped != "":
 		detail += " — " + w.stopped
 	}
-	return view.Tree{Roots: []view.Node{{Label: label, Detail: detail, Children: children}}}, nil
+	return view.Tree{Roots: []view.Node{{Label: label, Detail: detail, Children: children}}}
 }
 
 // splitKey drops empty segments, so a key written with a leading or doubled
@@ -318,11 +324,12 @@ func (w *treeRender) expand(n *treeNode, depth int) []view.Node {
 		}
 		w.nodes++
 		c := n.children[name]
+		listed := plugin.ListedName(name)
 		if c.leaf && len(c.children) == 0 {
-			out = append(out, view.Node{Label: name})
+			out = append(out, view.Node{Label: listed})
 			continue
 		}
-		node := view.Node{Label: name + "/", Detail: format.CountOf(c.keys, "key")}
+		node := view.Node{Label: listed + "/", Detail: format.CountOf(c.keys, "key")}
 		if depth >= w.maxDepth {
 			// Collapsed, not dropped. The count was accumulated on the way in,
 			// so a level past the depth still reports how much is under it —
@@ -390,13 +397,37 @@ func kvGetView(ctx context.Context, c *clientv3.Client, req plugin.Request) (vie
 		return nil, classify(err, req)
 	}
 	if len(resp.Kvs) == 0 {
-		return nil, view.Errorf("etcd.key.notfound", "no key %q", key).
-			WithHint("`" + req.Surface().Call("etcd.kv.list",
-				append([]plugin.Arg{{Name: "prefix", Value: key, Positional: true}}, reachArgs(req)...)...) +
-				"` shows what is there — this is an exact match, not a prefix")
+		return nil, noSuchKey(req, key)
 	}
 	kv := resp.Kvs[0]
 	return kvGetResult(string(kv.Key), kv.Value, kv.Version, kv.CreateRevision, kv.ModRevision, kv.Lease), nil
+}
+
+// noSuchKey is split from the read so its wording is assertable without a
+// cluster. The key in the hint's call is the one the reader would run, so it is
+// given as typed; only the sentence names it as a person reads it.
+func noSuchKey(req plugin.Request, key string) *view.Error {
+	return view.Errorf("etcd.key.notfound", "no key %s", quoted(key)).
+		WithHint("`" + req.Surface().Call("etcd.kv.list",
+			append([]plugin.Arg{{Name: "prefix", Value: key, Positional: true}}, reachArgs(req)...)...) +
+			"` shows what is there — this is an exact match, not a prefix")
+}
+
+// quoted is a key named inside a sentence: in double quotes, as the sentences
+// here have always set one off, and with what a reader would not see written
+// out (plugin.ListedName).
+//
+// A name that does not read as itself comes back from ListedName already
+// quoted, which is the form to use. One that does is quoted here, as %q did —
+// and %q alone is not enough, since it writes an escape and a newline out and
+// leaves a Hangul filler, a Braille blank or a variation selector as they are,
+// which draw as nothing and make "prod/db" and the same name followed by one
+// read alike.
+func quoted(name string) string {
+	if listed := plugin.ListedName(name); listed != name {
+		return listed
+	}
+	return strconv.Quote(name)
 }
 
 // kvGetResult is split from the fetch so the shape of the answer — and in
@@ -410,7 +441,7 @@ func kvGetResult(key string, value []byte, version, created, modified, lease int
 	}
 	return view.KeyValue{
 		Pairs: []view.Pair{
-			{Key: "key", Value: key},
+			{Key: "key", Value: plugin.ListedName(key)},
 			{Key: "value", Value: string(value)},
 			{Key: "size", Value: format.Bytes(len(value))},
 			{Key: "version", Value: strconv.FormatInt(version, 10)},

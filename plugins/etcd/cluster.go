@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
+	"go.etcd.io/etcd/api/v3/etcdserverpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 
 	"github.com/this-is-tobi/rta/pkg/format"
@@ -237,6 +239,19 @@ func memberTable(ctx context.Context, c *clientv3.Client, req plugin.Request) (v
 	if err != nil {
 		return view.Table{}, classify(err, req)
 	}
+	return memberListTable(resp.Members), nil
+}
+
+// memberListTable is split from the fetch so what a member's name and URLs
+// are drawn as is assertable without a cluster.
+//
+// **A member's name and its URLs are whatever the member says they are.** The
+// name is its own --name, never checked beyond being given, and a member
+// publishes the URLs it advertises to the cluster itself, so a stranger who
+// runs one — or a member that is compromised — chooses both, and what the
+// table prints is shown through plugin.ListedName so that an escape sequence
+// or a newline in either is written out rather than drawn.
+func memberListTable(members []*etcdserverpb.Member) view.Table {
 	t := view.Table{Columns: []view.Column{
 		{Name: "ID"},
 		{Name: "Name"},
@@ -244,12 +259,10 @@ func memberTable(ctx context.Context, c *clientv3.Client, req plugin.Request) (v
 		{Name: "Peer URLs"},
 		{Name: "State", Kind: view.KindStatus},
 	}}
-	for _, m := range resp.Members {
-		name, state := m.Name, "started"
-		if name == "" {
-			// etcd leaves the name empty until a member has joined and caught
-			// up. Rendering that as a blank cell would read like missing data.
-			name, state = "-", "unstarted"
+	for _, m := range members {
+		name, state := memberName(m.Name), "started"
+		if m.Name == "" {
+			state = "unstarted"
 		}
 		if m.IsLearner {
 			state = "learner"
@@ -260,18 +273,28 @@ func memberTable(ctx context.Context, c *clientv3.Client, req plugin.Request) (v
 		})
 	}
 	t.Total = len(t.Rows)
-	return t, nil
+	return t
+}
+
+// memberName is a member's name as a table shows it. etcd leaves the name
+// empty until a member has joined and caught up, and rendering that as a blank
+// cell would read like missing data.
+func memberName(name string) string {
+	if name == "" {
+		return "-"
+	}
+	return plugin.ListedName(name)
 }
 
 func joinURLs(urls []string) string {
 	if len(urls) == 0 {
 		return "-"
 	}
-	out := urls[0]
-	for _, u := range urls[1:] {
-		out += ", " + u
+	listed := make([]string, len(urls))
+	for i, u := range urls {
+		listed[i] = plugin.ListedName(u)
 	}
-	return out
+	return strings.Join(listed, ", ")
 }
 
 func leaseListCapability() plugin.Capability {
