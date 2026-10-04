@@ -174,7 +174,7 @@ func TestACertificateThePlatformDoesNotTrustIsNamedAsUntrusted(t *testing.T) {
 			sdktest.SystemVerdict("sso", sdktest.VerdictNotTrusted), "keycloak.tls.rejected"},
 		{"the system's verifier, a revoked certificate", "darwin",
 			sdktest.SystemVerdict("sso", sdktest.VerdictRevoked), "keycloak.tls.rejected"},
-		{"a revoked certificate's words elsewhere", "windows",
+		{"a revoked certificate's words elsewhere", "linux",
 			sdktest.SystemVerdict("sso", sdktest.VerdictRevoked), "keycloak.tls.rejected"},
 		{"the system's verifier, a rule of its own", "darwin",
 			sdktest.SystemVerdict("sso", sdktest.VerdictNotStandardsCompliant), "keycloak.tls.rejected"},
