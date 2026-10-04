@@ -15,7 +15,6 @@ import (
 	stdnet "net"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -24,6 +23,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
+	"github.com/this-is-tobi/rta/pkg/sdk/sdktest"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
@@ -491,18 +491,9 @@ func TestTheDryRunRefusesTheCAAsTheRunWould(t *testing.T) {
 // revocation check off. Such a verdict keeps the system's words, and the one
 // hint that does send the reader to a CA file says what naming one costs.
 func TestOnlyAnUnknownIssuerIsAnsweredWithTheCA(t *testing.T) {
+	sdktest.VerifierSystem(t, "darwin")
 	r := req(t, "mariadb.overview", map[string]any{"host": "db.internal", "tls": "true"})
-	open, closing := string(rune(0x201c)), string(rune(0x201d))
-	verdict := func(words string) error {
-		return &tls.CertificateVerificationError{
-			Err: errors.New("x509: " + open + "db.internal" + closing + " " + words)}
-	}
-	// The system's words for a chain to no anchor it holds are read as
-	// untrusted where the system gave them, and are nobody's words elsewhere.
-	notTrusted := "mariadb.tls.rejected"
-	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
-		notTrusted = "mariadb.tls.untrusted"
-	}
+	closing := string(rune(0x201d))
 	for _, tc := range []struct {
 		name string
 		err  error
@@ -510,11 +501,17 @@ func TestOnlyAnUnknownIssuerIsAnsweredWithTheCA(t *testing.T) {
 	}{
 		{"Go's verifier, an issuer in no pool", x509.UnknownAuthorityError{}, "mariadb.tls.untrusted"},
 		{"no pool to read at all", x509.SystemRootsError{}, "mariadb.tls.untrusted"},
-		{"macOS, a chain to no anchor it holds", verdict("certificate is not trusted"), notTrusted},
-		{"macOS, a revoked certificate", verdict("certificate is revoked"), "mariadb.tls.rejected"},
-		{"macOS, a policy it will not pass", verdict("certificate is not standards compliant"), "mariadb.tls.rejected"},
+		{"macOS, a chain to no anchor it holds",
+			sdktest.SystemVerdict("db.internal", sdktest.VerdictNotTrusted), "mariadb.tls.untrusted"},
+		{"macOS, a chain to no anchor it holds, the certificate sent",
+			sdktest.SystemVerdict("db.internal", sdktest.VerdictNotTrusted, namedLeaf()), "mariadb.tls.untrusted"},
+		{"macOS, a revoked certificate",
+			sdktest.SystemVerdict("db.internal", sdktest.VerdictRevoked), "mariadb.tls.rejected"},
+		{"macOS, a policy it will not pass",
+			sdktest.SystemVerdict("db.internal", sdktest.VerdictNotStandardsCompliant), "mariadb.tls.rejected"},
 		{"a revoked certificate named to look untrusted",
-			verdict("certificate is not trusted" + closing + " certificate is revoked"), "mariadb.tls.rejected"},
+			sdktest.SystemVerdict("db.internal"+closing+" certificate is not trusted", sdktest.VerdictRevoked),
+			"mariadb.tls.rejected"},
 		{"a signature algorithm Go's verifier refuses", &tls.CertificateVerificationError{
 			Err: x509.InsecureAlgorithmError(x509.SHA1WithRSA)}, "mariadb.tls.rejected"},
 	} {
@@ -539,6 +536,29 @@ func TestOnlyAnUnknownIssuerIsAnsweredWithTheCA(t *testing.T) {
 			}
 			if !strings.Contains(verr.Hint, "--ca-file") || !strings.Contains(verr.Hint, "replaces the system's") {
 				t.Errorf("hint = %q, want the CA file named and what naming one replaces", verr.Hint)
+			}
+			if !strings.Contains(verr.Hint, r.Surface().CAHint("ca-file")) {
+				t.Errorf("hint = %q, want the CA hint the SDK words, which says what naming a CA costs", verr.Hint)
+			}
+		})
+	}
+}
+
+// The system's words are a verdict only where the system gave them. Under any
+// other verifier the same sentence is nobody's, and a certificate is not
+// called untrusted, or revoked, or refused for its policy on the strength of
+// a string that came from somewhere else.
+func TestTheSystemsWordsAreNotAVerdictUnderAnotherVerifier(t *testing.T) {
+	sdktest.VerifierSystem(t, "linux")
+	r := req(t, "mariadb.overview", map[string]any{"host": "db.internal", "tls": "true"})
+	for _, verdict := range []sdktest.Verdict{
+		sdktest.VerdictNotTrusted, sdktest.VerdictRevoked, sdktest.VerdictNotStandardsCompliant,
+	} {
+		t.Run(string(verdict), func(t *testing.T) {
+			got := classify(sdktest.SystemVerdict("db.internal", verdict, namedLeaf()), r)
+			if got.Code != "mariadb.tls.rejected" || strings.Contains(got.Hint, "ca-file") {
+				t.Errorf("got %s %q, want the words quoted as a certificate that does not verify, and no CA offered",
+					got.Code, got.Hint)
 			}
 		})
 	}
