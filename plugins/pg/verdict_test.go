@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -166,6 +167,30 @@ func TestACertificateApplesPolicyRefusesIsAnsweredWithTheRuleAndNeverACAFile(t *
 					noWayRound(t, name+": hint", verr.Hint)
 				}
 			})
+		}
+	}
+}
+
+// The hint beside a refusal that is none of the ones with a cure of their own
+// says what a certificate is checked for, and names sslmode's verify-full as
+// the mode that checks the host too. Through a forward sslmode is not the
+// caller's: the host sets it to disable and refuses one given, so the hint sent
+// its reader to a setting that opens no forward at all, for a certificate
+// that was being checked at verify-full already.
+func TestARefusedCertificateThroughAForwardDoesNotOfferTheModeTheHostRefuses(t *testing.T) {
+	sdktest.VerifierSystem(t, "darwin")
+	for name, err := range map[string]error{
+		"an expired certificate": &tls.CertificateVerificationError{Err: x509.CertificateInvalidError{
+			Cert: leafValidFor(time.Hour, time.Now()), Reason: x509.Expired}},
+		"a revoked one": sdktest.SystemVerdict("db.internal", sdktest.VerdictRevoked),
+	} {
+		forwarded := refusalOf(t, err, verdictRequest(t, verdictCalls[2].values, verdictCalls[2].tunnel))
+		if forwarded.Code != "pg.tls.rejected" || strings.Contains(forwarded.Hint, "sslmode") {
+			t.Errorf("%s through a forward: %s %q, want a hint that names no sslmode", name, forwarded.Code, forwarded.Hint)
+		}
+		direct := refusalOf(t, err, verdictRequest(t, verdictCalls[0].values, verdictCalls[0].tunnel))
+		if !strings.Contains(direct.Hint, "--sslmode verify-full for the host in --host too") {
+			t.Errorf("%s directly: hint = %q, want verify-full named as the mode that checks the host", name, direct.Hint)
 		}
 	}
 }

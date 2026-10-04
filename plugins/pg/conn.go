@@ -586,9 +586,18 @@ func classify(err error, req plugin.Request) *view.Error {
 		if hint := plugin.CertPolicyHint(err); hint != "" {
 			return rejected.WithHint(hint)
 		}
-		return rejected.WithHint("a certificate is checked for its dates and the use it was issued for, as " +
-			"well as for who issued it, and with " + sf.SettingTo("sslmode", "verify-full") + " for the host in " +
-			sf.SettingName("host") + " too")
+		hint := "a certificate is checked for its dates and the use it was issued for, as well as for who issued it"
+		// **Not through a forward, where sslmode is not the caller's to give.**
+		// The host sets it to disable beside a forward and refuses one given
+		// there, so the mode a certificate is checked at (verify-full, which
+		// the CA or the name that turned TLS on asks for) is already the one
+		// in force, and a hint naming the setting sent its reader to one that
+		// opens no forward at all (tlsRequired).
+		if req.Tunnel() == plugin.TunnelNone {
+			hint += ", and with " + sf.SettingTo("sslmode", "verify-full") + " for the host in " +
+				sf.SettingName("host") + " too"
+		}
+		return rejected.WithHint(hint)
 	}
 	return view.Errorf("pg.conn.failed", "could not connect to %s: %v", where, err).
 		WithHint(sf.SettingsHint("pg.status"))
