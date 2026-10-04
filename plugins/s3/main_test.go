@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"syscall"
@@ -227,33 +226,37 @@ func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
 // question of trust, and none is a server that could not be reached.
 func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
 	r := req(t, "s3.overview", map[string]any{"endpoint": "s3.internal:9000"})
-	open, closing := string(rune(0x201c)), string(rune(0x201d))
-	onMac := "s3.tls.rejected"
-	if runtime.GOOS == "darwin" {
-		onMac = "s3.tls.untrusted"
-	}
+	gos := func(err error) error { return &tls.CertificateVerificationError{Err: err} }
 	for _, tc := range []struct {
-		name string
-		err  error
-		want string
+		name   string
+		system string
+		err    error
+		want   string
 	}{
-		{"Go's own verifier", x509.UnknownAuthorityError{}, "s3.tls.untrusted"},
-		{"the system's verifier, a chain it cannot anchor",
-			errors.New("x509: " + open + "minio" + closing + " certificate is not trusted"), onMac},
-		{"the system's verifier, a revoked certificate",
-			errors.New("x509: " + open + "minio" + closing + " certificate is revoked"), "s3.tls.rejected"},
-		{"a name it is not for", x509.HostnameError{Certificate: &x509.Certificate{}, Host: "s3.internal"},
-			"s3.tls.rejected"},
+		{"Go's own verifier", "linux", gos(x509.UnknownAuthorityError{}), "s3.tls.untrusted"},
+		{"Go's own verifier on a Mac", "darwin", gos(x509.UnknownAuthorityError{}), "s3.tls.untrusted"},
+		{"the system's verifier, a chain it cannot anchor", "darwin",
+			sdktest.SystemVerdict("minio", sdktest.VerdictNotTrusted), "s3.tls.untrusted"},
+		// The same words are never a verdict on trust where Go's own verifier
+		// ran: nothing there words anything so.
+		{"those words, from a system that is not one", "linux",
+			sdktest.SystemVerdict("minio", sdktest.VerdictNotTrusted), "s3.tls.rejected"},
+		{"the system's verifier, a revoked certificate", "darwin",
+			sdktest.SystemVerdict("minio", sdktest.VerdictRevoked), "s3.tls.rejected"},
+		{"a name it is not for", "linux",
+			gos(x509.HostnameError{Certificate: &x509.Certificate{}, Host: "s3.internal"}), "s3.tls.rejected"},
 	} {
-		err := &url.Error{Op: "Get", URL: "https://s3.internal:9000/",
-			Err: &tls.CertificateVerificationError{Err: tc.err}}
-		got := classify(err, r)
-		if got.Code != tc.want {
-			t.Errorf("%s: classified %s, want %s", tc.name, got.Code, tc.want)
-		}
-		if got.Code == "s3.tls.rejected" && !strings.Contains(got.Message, tc.err.Error()) {
-			t.Errorf("%s: %q does not quote the verdict", tc.name, got.Message)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			sdktest.VerifierSystem(t, tc.system)
+			err := &url.Error{Op: "Get", URL: "https://s3.internal:9000/", Err: tc.err}
+			got := classify(err, r)
+			if got.Code != tc.want {
+				t.Errorf("classified %s, want %s", got.Code, tc.want)
+			}
+			if verdict := errors.Unwrap(tc.err).Error(); got.Code == "s3.tls.rejected" && !strings.Contains(got.Message, verdict) {
+				t.Errorf("%q does not quote the verdict %q", got.Message, verdict)
+			}
+		})
 	}
 }
 
@@ -263,17 +266,17 @@ func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
 // verify — never a port nothing listens on or a host no route reaches, as
 // the dial's words, read first, would have had it.
 func TestACertificatesOwnNamesAreNeverReadAsTheDialsFailure(t *testing.T) {
+	sdktest.VerifierSystem(t, "darwin")
 	r := req(t, "s3.overview", map[string]any{"endpoint": "minio.internal:9000"})
-	open, closing := string(rune(0x201c)), string(rune(0x201d))
 	for _, verdict := range []error{
-		x509.HostnameError{Certificate: &x509.Certificate{DNSNames: []string{syscall.ECONNREFUSED.Error()}},
-			Host: "minio.internal"},
-		x509.HostnameError{Certificate: &x509.Certificate{DNSNames: []string{syscall.EHOSTUNREACH.Error()}},
-			Host: "minio.internal"},
-		errors.New("x509: " + open + syscall.ECONNREFUSED.Error() + closing + " certificate is revoked"),
+		&tls.CertificateVerificationError{Err: x509.HostnameError{
+			Certificate: &x509.Certificate{DNSNames: []string{syscall.ECONNREFUSED.Error()}}, Host: "minio.internal"}},
+		&tls.CertificateVerificationError{Err: x509.HostnameError{
+			Certificate: &x509.Certificate{DNSNames: []string{syscall.EHOSTUNREACH.Error()}}, Host: "minio.internal"}},
+		sdktest.SystemVerdict(syscall.ECONNREFUSED.Error(), sdktest.VerdictRevoked),
+		sdktest.SystemVerdict(syscall.EHOSTUNREACH.Error(), sdktest.VerdictNotStandardsCompliant),
 	} {
-		err := &url.Error{Op: "Get", URL: "https://minio.internal:9000/",
-			Err: &tls.CertificateVerificationError{Err: verdict}}
+		err := &url.Error{Op: "Get", URL: "https://minio.internal:9000/", Err: verdict}
 		if got := classify(err, r); got.Code != "s3.tls.rejected" {
 			t.Errorf("%v: classified %s %q, want s3.tls.rejected", verdict, got.Code, got.Message)
 		}
