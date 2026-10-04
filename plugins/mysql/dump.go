@@ -466,8 +466,7 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 // The client gives the operating system's error as its number, in
 // parentheses — "(110) when trying to connect" — and it ran on this
 // machine, so the number is this platform's own errno: ETIMEDOUT's for a
-// timeout, and on Windows a Winsock error's, which the SDK's predicates
-// read there. No route is read by it too, with plugin.DialUnroutable as
+// timeout. No route is read by it too, with plugin.DialUnroutable as
 // the pre-flight's own dial is: a route that went down in between, (113)
 // from the MySQL client on Linux, was "is the server up, and are the host
 // and port right?" about a port no packet reached.
