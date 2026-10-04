@@ -500,7 +500,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	// name given and not matched is the certificate's to explain, below.
 	var hostErr x509.HostnameError
 	if errors.As(err, &hostErr) && req.Tunnel() != plugin.TunnelNone && serverName(req) == "" {
-		return forwardName(req, hostErr)
+		return plugin.ForwardNameRefusal(req, "etcd.tls.forward", endpointOf(req), "member", hostErr)
 	}
 	var verifyErr *tls.CertificateVerificationError
 	if errors.As(err, &verifyErr) {
@@ -558,18 +558,6 @@ func classify(err error, req plugin.Request) *view.Error {
 // serverName is the name the certificate is checked for in place of the
 // endpoint's host, or "" for the host.
 func serverName(req plugin.Request) string { return strings.TrimSpace(req.String("tls-server-name")) }
-
-// forwardName is the refusal for a certificate checked for the end of a
-// forward the host opened — 127.0.0.1 — and not for the name the member
-// answers as, which the certificate names instead.
-func forwardName(req plugin.Request, hostErr x509.HostnameError) *view.Error {
-	return view.Errorf("etcd.tls.forward", "the certificate behind %s is for %s, not for %s, "+
-		"where the forward ends", req.Reached(endpointOf(req)), plugin.CertNames(hostErr.Certificate), hostErr.Host).
-		WithHint("a forward always ends at 127.0.0.1, so the certificate is checked for the name the member " +
-			"answers as instead: " + req.Surface().SettingName("tls-server-name") + ", which the profile can " +
-			"hold beside its forward, names it — one the certificate is for — and it is checked as strictly " +
-			"as the host it replaces")
-}
 
 // clientPort is the port etcd serves its clients on.
 const clientPort = "2379"
