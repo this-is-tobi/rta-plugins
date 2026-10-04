@@ -47,7 +47,7 @@ func runPointsCount(ctx context.Context, req plugin.Request) (view.View, error) 
 		kind = "exact"
 	}
 	return view.KeyValue{Pairs: []view.Pair{
-		{Key: "collection", Value: name},
+		{Key: "collection", Value: plugin.ListedName(name)},
 		{Key: "points", Value: strconv.FormatInt(out.Count, 10)},
 		{Key: "count", Value: kind},
 	}}, nil
@@ -162,17 +162,24 @@ func runPointsScroll(ctx context.Context, req plugin.Request) (view.View, error)
 	}
 	sort.Strings(names)
 
+	// A field's name is a column's, and the mask below is matched against the
+	// column by name: both are the one listed spelling, never the raw field
+	// beside it, which would leave a column the mask no longer names.
+	fields := make([]string, len(names))
+	for i, k := range names {
+		fields[i] = plugin.ListedName(k)
+	}
 	cols := []view.Column{{Name: "ID"}}
 	if withVectors {
 		cols = append(cols, view.Column{Name: "Vector"})
 	}
-	for _, k := range names {
-		cols = append(cols, view.Column{Name: k})
+	for _, f := range fields {
+		cols = append(cols, view.Column{Name: f})
 	}
 	t := view.Table{Columns: cols}
 
 	for _, p := range out.Points {
-		row := []string{fmt.Sprint(p.ID)}
+		row := []string{plugin.ListedName(fmt.Sprint(p.ID))}
 		if withVectors {
 			row = append(row, vectorSummary(p.Vector))
 		}
@@ -199,7 +206,7 @@ func runPointsScroll(ctx context.Context, req plugin.Request) (view.View, error)
 	// Every payload column carries stored data, so all of them are redacted
 	// and the id is not. Which points were read is what the record is for;
 	// what they contained is not something to leave in a scrollback.
-	t.Redacted = append([]string{}, names...)
+	t.Redacted = append([]string{}, fields...)
 	if withVectors {
 		t.Redacted = append(t.Redacted, "Vector")
 	}
@@ -223,7 +230,7 @@ func vectorSummary(raw json.RawMessage) string {
 		}
 		parts := make([]string, 0, len(named))
 		for name, v := range named {
-			parts = append(parts, fmt.Sprintf("%s:%dd", name, len(v)))
+			parts = append(parts, fmt.Sprintf("%s:%dd", plugin.ListedName(name), len(v)))
 		}
 		sort.Strings(parts)
 		return strings.Join(parts, " ")
