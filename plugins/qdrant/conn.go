@@ -476,7 +476,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	// set: a name given and not matched is the certificate's to explain.
 	var hostErr x509.HostnameError
 	if errors.As(err, &hostErr) && req.Tunnel() != plugin.TunnelNone && serverName(req) == "" {
-		return forwardName(req, hostErr)
+		return plugin.ForwardNameRefusal(req, "qdrant.tls.forward", req.String("endpoint"), "instance", hostErr)
 	}
 	var verifyErr *tls.CertificateVerificationError
 	if errors.As(err, &verifyErr) {
@@ -535,18 +535,6 @@ func classify(err error, req plugin.Request) *view.Error {
 	}
 	return view.Errorf("qdrant.conn.failed", "could not reach %s: %v", where, err).
 		WithHint(sf.SettingsHint("qdrant.overview"))
-}
-
-// forwardName is the refusal for a certificate checked for the end of a
-// forward the host opened — 127.0.0.1 — and not for the name the instance
-// answers as, which the certificate names instead.
-func forwardName(req plugin.Request, hostErr x509.HostnameError) *view.Error {
-	return view.Errorf("qdrant.tls.forward", "the certificate behind %s is for %s, not for %s, "+
-		"where the forward ends", req.Reached(req.String("endpoint")), plugin.CertNames(hostErr.Certificate), hostErr.Host).
-		WithHint("a forward always ends at 127.0.0.1, so the certificate is checked for the name the instance " +
-			"answers as instead: " + req.Surface().SettingName("tls-server-name") + ", which the profile can " +
-			"hold beside its forward, names it — one the certificate is for — and it is checked as strictly " +
-			"as the host it replaces")
 }
 
 func hostOnly(endpoint string) string {
