@@ -397,10 +397,16 @@ func renderDDL(req plugin.Request, schema string, tables []schemaTable, om dropp
 
 		// Aligned on the widest name and type, so a column list reads as a
 		// column list rather than as ragged prose.
+		//
+		// **A type is a name a stranger chose as much as a table is**: whoever
+		// may create an enum, a domain or a composite names it, and format_type
+		// writes that name between quotes with the escape sequence and the
+		// newline still in it, qualified by its schema when it is not on the
+		// search path. So it is written out as the server's own statements are.
 		var nameW, typeW int
 		for _, c := range t.columns {
 			nameW = max(nameW, len(sqlIdentifier(c.name)))
-			typeW = max(typeW, len(c.typ))
+			typeW = max(typeW, len(writtenOut(c.typ)))
 		}
 		// code and note are kept apart all the way to the write, because a
 		// trailing `-- ...` swallows whatever follows it on the line. The
@@ -412,7 +418,7 @@ func renderDDL(req plugin.Request, schema string, tables []schemaTable, om dropp
 		lines := make([]ddlLine, 0, len(t.columns)+len(t.keys))
 		for _, c := range t.columns {
 			line := ddlLine{code: fmt.Sprintf("    %-*s %-*s", nameW,
-				sqlIdentifier(c.name), typeW, c.typ)}
+				sqlIdentifier(c.name), typeW, writtenOut(c.typ))}
 			if c.notNull {
 				line.code += " NOT NULL"
 			}
