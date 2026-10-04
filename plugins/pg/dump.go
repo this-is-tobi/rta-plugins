@@ -396,5 +396,13 @@ func primaryKeyOf(ctx context.Context, q querier, oid uint32) ([]string, error) 
 }
 
 // sqlLiteral is s as a standard-conforming string literal, for a query a hint
-// hands to a reader to paste.
-func sqlLiteral(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
+// hands to a reader to paste. A name that does not read as itself is written
+// in SQL's own escape (sqlnames.go), as the schema description writes it: the
+// renderer strips an escape sequence from a hint on the way to the terminal, so
+// the literal that was pasted would name another table's policies.
+func sqlLiteral(s string) string {
+	if !readsAsItself(s) {
+		return unicodeEscaped(s, '\'')
+	}
+	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
+}
