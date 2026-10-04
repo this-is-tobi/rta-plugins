@@ -199,7 +199,7 @@ func activityView(ctx context.Context, db *sql.DB, req plugin.Request, withState
 			return nil, classify(err, req)
 		}
 		row := []string{
-			strconv.FormatInt(id, 10), user, host, dbName, command,
+			strconv.FormatInt(id, 10), listed(user), listed(host), listed(dbName), command,
 			format.Duration(time.Duration(seconds) * time.Second), state,
 		}
 		if withStatements {

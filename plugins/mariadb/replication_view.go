@@ -62,7 +62,7 @@ func hostsTable(hosts []map[string]string) view.Table {
 		t.Columns = append(t.Columns, view.Column{Name: "UUID"})
 	}
 	for _, h := range hosts {
-		row := []string{dash(h["server_id"]), dash(h["host"]), dash(h["port"])}
+		row := []string{dash(h["server_id"]), dash(listed(h["host"])), dash(h["port"])}
 		if withID {
 			row = append(row, dash(h["replica_uuid"]))
 		}
@@ -102,7 +102,7 @@ func binlogText(st state) string {
 	case st.unread[sectionBinlog] != nil:
 		return "on, position unreadable"
 	case st.binlog["file"] != "":
-		return st.binlog["file"] + ":" + st.binlog["position"]
+		return listed(st.binlog["file"] + ":" + st.binlog["position"])
 	}
 	return "on"
 }
