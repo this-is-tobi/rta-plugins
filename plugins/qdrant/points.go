@@ -165,9 +165,19 @@ func runPointsScroll(ctx context.Context, req plugin.Request) (view.View, error)
 	// A field's name is a column's, and the mask below is matched against the
 	// column by name: both are the one listed spelling, never the raw field
 	// beside it, which would leave a column the mask no longer names.
+	//
+	// **A field named like a column of the table's own is quoted too.** The
+	// mask has only the name to go by, so a field called ID beside the id
+	// column was one name for two columns: the id, which this table leaves
+	// readable because which points were read is the point of it, came back
+	// masked with the field's values. Quoted, it is the one name it was not.
+	own := map[string]bool{"ID": true, "Vector": withVectors}
 	fields := make([]string, len(names))
 	for i, k := range names {
 		fields[i] = plugin.ListedName(k)
+		if own[fields[i]] {
+			fields[i] = strconv.Quote(fields[i])
+		}
 	}
 	cols := []view.Column{{Name: "ID"}}
 	if withVectors {

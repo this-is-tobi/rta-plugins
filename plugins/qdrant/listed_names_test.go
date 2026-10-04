@@ -167,6 +167,57 @@ func TestAPayloadFieldWithAnOddNameIsAColumnListedAndMasked(t *testing.T) {
 	}
 }
 
+// The mask goes by a column's name, so a payload field called ID was the id
+// column's name twice: the id came back masked beside the field's values, and
+// which points were read — the one thing this table leaves readable — was
+// hidden with them. A field named like a column the table has of its own is
+// quoted, and the id and the vector keep the names they have.
+func TestAPayloadFieldNamedLikeATablesOwnColumnDoesNotMaskThatColumn(t *testing.T) {
+	for _, vectors := range []bool{false, true} {
+		f := newFakeQdrant(t, map[string]string{
+			"/collections/docs/points/scroll": envelope(asJSON(t, map[string]any{
+				"points": []map[string]any{{"id": 7, "vector": []float64{0.5, 0.25}, "payload": map[string]any{
+					"ID": "secret one", "Vector": "secret two", "title": "secret three"}}},
+				"next_page_offset": nil,
+			})),
+		})
+		v, err := runPointsScroll(context.Background(), reqAt(t, f, "qdrant.points.scroll",
+			map[string]any{"collection": "docs", "vectors": vectors}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		tbl := v.(view.Table)
+		seen := map[string]bool{}
+		for _, c := range tbl.Columns {
+			if seen[c.Name] {
+				t.Errorf("vectors=%v: %q names two columns of %v", vectors, c.Name, tbl.Columns)
+			}
+			seen[c.Name] = true
+		}
+		if !seen["ID"] || tbl.IsRedacted("ID") {
+			t.Errorf("vectors=%v: the id column is missing or masked: columns = %v, redacted = %q",
+				vectors, tbl.Columns, tbl.Redacted)
+		}
+		if vectors && (!seen["Vector"] || !tbl.IsRedacted("Vector")) {
+			t.Errorf("the vector column is missing or shown: columns = %v, redacted = %q", tbl.Columns, tbl.Redacted)
+		}
+		for _, field := range []string{`"ID"`, "title"} {
+			if !seen[field] || !tbl.IsRedacted(field) {
+				t.Errorf("vectors=%v: payload field %s is not a masked column of %v (redacted = %q)",
+					vectors, field, tbl.Columns, tbl.Redacted)
+			}
+		}
+		wantVector := "Vector"
+		if vectors {
+			wantVector = `"Vector"`
+		}
+		if !seen[wantVector] || !tbl.IsRedacted(wantVector) {
+			t.Errorf("vectors=%v: payload field Vector is not the masked column %s of %v (redacted = %q)",
+				vectors, wantVector, tbl.Columns, tbl.Redacted)
+		}
+	}
+}
+
 func TestAPointIDThatIsNeitherANumberNorAUUIDIsListed(t *testing.T) {
 	f := newFakeQdrant(t, map[string]string{
 		"/collections/docs/points/scroll": envelope(asJSON(t, map[string]any{
