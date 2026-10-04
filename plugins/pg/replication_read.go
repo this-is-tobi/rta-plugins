@@ -12,7 +12,7 @@ import (
 // every role may make are errors when they fail; the ones a role without
 // pg_monitor may be refused are said less of instead (see optional), so a
 // monitoring role that cannot see a column still gets the rest of the answer.
-func readReplication(ctx context.Context, conn *pgx.Conn) (replicationFacts, error) {
+func readReplication(ctx context.Context, conn querier) (replicationFacts, error) {
 	var f replicationFacts
 	var err error
 	if f.server, err = readServerFacts(ctx, conn); err != nil {
@@ -50,7 +50,7 @@ func distance(ahead, behind string) string {
 
 const primarySQL = `select pg_current_wal_lsn()::text, pg_walfile_name(pg_current_wal_lsn())`
 
-func readPrimary(ctx context.Context, conn *pgx.Conn, f *replicationFacts) error {
+func readPrimary(ctx context.Context, conn querier, f *replicationFacts) error {
 	p := &f.primary
 	err := conn.QueryRow(ctx, primarySQL).Scan(&p.lsn, &p.walFile)
 	if err != nil {
@@ -71,7 +71,7 @@ var standbySQL = `
 
 const checkpointSQL = `select timeline_id from pg_control_checkpoint()`
 
-func readStandby(ctx context.Context, conn *pgx.Conn, f *replicationFacts) error {
+func readStandby(ctx context.Context, conn querier, f *replicationFacts) error {
 	s := &f.standby
 	err := conn.QueryRow(ctx, standbySQL).
 		Scan(&s.receiveLSN, &s.replayLSN, &s.gap, &s.replayedAt, &s.paused)
@@ -106,7 +106,7 @@ var receiverSQL = `
 	       ` + distance("latest_end_lsn", "pg_last_wal_replay_lsn()") + `
 	from pg_stat_wal_receiver`
 
-func readReceiver(ctx context.Context, conn *pgx.Conn, f *replicationFacts) error {
+func readReceiver(ctx context.Context, conn querier, f *replicationFacts) error {
 	r := &f.receiver
 	var status *string
 	err := conn.QueryRow(ctx, receiverSQL).
@@ -141,7 +141,7 @@ func standbysSQL(recovering bool) string {
 		order by s.application_name, s.pid`
 }
 
-func readStandbys(ctx context.Context, conn *pgx.Conn, recovering bool) ([]standbyRow, error) {
+func readStandbys(ctx context.Context, conn querier, recovering bool) ([]standbyRow, error) {
 	rows, err := conn.Query(ctx, standbysSQL(recovering))
 	if err != nil {
 		return nil, err
@@ -184,7 +184,7 @@ func slotsSQL(server serverFacts) string {
 		order by r.slot_name`
 }
 
-func readSlots(ctx context.Context, conn *pgx.Conn, server serverFacts) ([]slotRow, error) {
+func readSlots(ctx context.Context, conn querier, server serverFacts) ([]slotRow, error) {
 	rows, err := conn.Query(ctx, slotsSQL(server))
 	if err != nil {
 		return nil, err

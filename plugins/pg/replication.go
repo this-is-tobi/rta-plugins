@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -171,7 +170,7 @@ const serverSQL = `
 	       current_setting('wal_level'), current_setting('max_wal_senders'),
 	       current_setting('synchronous_standby_names'), current_setting('synchronous_commit')`
 
-func readServerFacts(ctx context.Context, conn *pgx.Conn) (serverFacts, error) {
+func readServerFacts(ctx context.Context, conn querier) (serverFacts, error) {
 	var f serverFacts
 	var num, senders, syncNames string
 	err := conn.QueryRow(ctx, serverSQL).
