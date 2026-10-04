@@ -59,9 +59,9 @@ HOST_OS       := $(shell go env GOOS)
 HOST_ARCH     := $(shell go env GOARCH)
 HOST_PLATFORM := $(HOST_OS)/$(HOST_ARCH)
 
-# Every target a release ships. Six archives per plugin, built by `release`
-# and compiled to /dev/null by `cross`.
-RELEASE_TARGETS := darwin/arm64 darwin/amd64 linux/arm64 linux/amd64 windows/amd64 windows/arm64
+# Every target a release ships. One archive per plugin per target, built by
+# `release` and compiled to /dev/null by `cross`.
+RELEASE_TARGETS := darwin/arm64 darwin/amd64 linux/arm64 linux/amd64
 
 # A git identity for the generated local index, which is a real repository
 # because attaching one is a clone.
@@ -413,13 +413,13 @@ index: build ## Generate an attachable index from the binaries just built, for t
 
 ##@ Release
 
-# One plugin, one version, six archives — what CD runs per released plugin.
+# One plugin, one version, one archive per target — what CD runs per released
+# plugin.
 #
 # The archive holds the binary at its root under the name rta discovers it
-# by (`rta-plugin-<name>`, `.exe` on Windows), plus LICENSE and NOTICE. A
-# .tar.gz and never a zip: rta extracts one member from a gzipped tar and
-# has no zip reader, so a zip is an artifact `rta plugin install` cannot
-# open, on the one platform nobody developing on Linux or macOS would notice.
+# by (`rta-plugin-<name>`), plus LICENSE and NOTICE. A .tar.gz and never a
+# zip: rta extracts one member from a gzipped tar and has no zip reader, so a
+# zip is an artifact `rta plugin install` cannot open.
 release: name-check ## Build every release archive for PLUGIN at VERSION into dist/<PLUGIN>
 	@test -n "$(PLUGIN)" || { echo "release needs PLUGIN=<name>"; exit 1; }
 	@test -n "$(VERSION)" || { echo "release needs VERSION=<x.y.z>"; exit 1; }
@@ -427,7 +427,6 @@ release: name-check ## Build every release archive for PLUGIN at VERSION into di
 	epoch=$$(git log -1 --format=%ct 2>/dev/null || date +%s); v="$(VERSION)"; \
 	for t in $(RELEASE_TARGETS); do \
 		os=$${t%/*}; arch=$${t#*/}; bin=rta-plugin-$(PLUGIN); \
-		[ "$$os" = windows ] && bin=$$bin.exe; \
 		stage=$$(mktemp -d); \
 		(cd plugins/$(PLUGIN) && CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch $(GOBUILD) -o "$$stage/$$bin" .) || exit 1; \
 		cp LICENSE NOTICE "$$stage/"; \
