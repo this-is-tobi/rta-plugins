@@ -323,6 +323,53 @@ func TestEventsNameWhatWasTypedAtALoginAndTheResourceAnAdminTouched(t *testing.T
 	})
 }
 
+// Behind a reverse proxy the address Keycloak records is the one in the request's
+// X-Forwarded-For header, which the request's sender wrote.
+func TestAnAddressAProxyPassedOnIsListedAsAReaderCanTellApart(t *testing.T) {
+	eachNaming(t, func(t *testing.T, n naming) {
+		f := newFakeKeycloak(t)
+		f.answer("/events", []obj{{"time": 1789330617603, "type": "LOGIN_ERROR", "ipAddress": n.name("evaddr")}})
+		events := table(t, run(t, f, "keycloak.event.list", map[string]any{}))
+		n.reads(t, events, n.seen("evaddr"))
+		if events.Rows[0][4] != n.seen("evaddr") {
+			t.Errorf("event address cell = %q, want %s", events.Rows[0][4], n.seen("evaddr"))
+		}
+
+		f.answer("/admin-events", []obj{{"time": 1789330617603, "operationType": "CREATE", "resourceType": "CLIENT",
+			"resourcePath": "clients/c1", "authDetails": obj{"userId": aliceID, "ipAddress": n.name("adminaddr")}}})
+		admin := table(t, run(t, f, "keycloak.event.admin", map[string]any{}))
+		n.reads(t, admin, n.seen("adminaddr"))
+		if admin.Rows[0][5] != n.seen("adminaddr") {
+			t.Errorf("admin event address cell = %q, want %s", admin.Rows[0][5], n.seen("adminaddr"))
+		}
+
+		f.answer("/users/"+aliceID+"/sessions", []obj{{"username": "alice", "ipAddress": n.name("sessaddr"),
+			"start": 1789330617603, "lastAccess": 1789330617603}})
+		sessions := table(t, run(t, f, "keycloak.session.list", map[string]any{"user": "alice"}))
+		n.reads(t, sessions, n.seen("sessaddr"))
+		if sessions.Rows[0][1] != n.seen("sessaddr") {
+			t.Errorf("session address cell = %q, want %s", sessions.Rows[0][1], n.seen("sessaddr"))
+		}
+	})
+}
+
+// A real address is plain text and an event nobody recorded one for has none:
+// neither is put in quotes.
+func TestARealAddressIsShownAsItIsAndNoAddressStaysEmpty(t *testing.T) {
+	f := newFakeKeycloak(t)
+	f.answer("/events", []obj{
+		{"time": 1789330617604, "type": "LOGIN", "ipAddress": "203.0.113.7"},
+		{"time": 1789330617603, "type": "LOGIN", "ipAddress": "2001:db8::1"},
+		{"time": 1789330617602, "type": "LOGIN"},
+	})
+	events := table(t, run(t, f, "keycloak.event.list", map[string]any{}))
+	for i, want := range []string{"203.0.113.7", "2001:db8::1", ""} {
+		if got := events.Rows[i][4]; got != want {
+			t.Errorf("event %d address = %q, want %q", i, got, want)
+		}
+	}
+}
+
 func TestTheOverviewNamesTheRealmAndItsBrowserFlowAsAReaderCanTellApart(t *testing.T) {
 	eachNaming(t, func(t *testing.T, n naming) {
 		f := newFakeKeycloak(t)

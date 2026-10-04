@@ -56,7 +56,7 @@ func runEventList(ctx context.Context, req plugin.Request) (view.View, error) {
 			col("Client"), col("Address"), col("Error"))
 		for _, e := range events {
 			t.Rows = append(t.Rows, []string{stamp(e.Time), e.Type, listed(firstOf(e.Details["username"], e.UserID)),
-				listed(e.ClientID), e.IPAddress, e.Error})
+				listed(e.ClientID), listed(e.IPAddress), e.Error})
 		}
 		if more {
 			sf := req.Surface()
@@ -95,7 +95,7 @@ func runEventAdmin(ctx context.Context, req plugin.Request) (view.View, error) {
 			col("Path"), col("By"), col("Address"), col("Error"))
 		for _, e := range events {
 			t.Rows = append(t.Rows, []string{stamp(e.Time), e.OperationType, e.ResourceType, listed(e.ResourcePath),
-				e.AuthDetails.UserID, e.AuthDetails.IPAddress, e.Error})
+				e.AuthDetails.UserID, listed(e.AuthDetails.IPAddress), e.Error})
 		}
 		if more {
 			t = stoppedAt(t, limit, "event", req.Surface(), "")
