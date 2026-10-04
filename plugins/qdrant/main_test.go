@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -522,30 +521,19 @@ func (timeoutError) Error() string   { return "i/o timeout" }
 func (timeoutError) Timeout() bool   { return true }
 func (timeoutError) Temporary() bool { return true }
 
-// macOS verifies against the system's trust store itself when no ca-file is
-// set and reports a chain it cannot anchor as a bare error: that is still a
-// certificate nothing here trusts, and the answer is the CA. Every other
-// verdict it gives untyped is its own reason and is quoted in its words: a
-// revoked certificate answered with the CA file to name was answered with the
-// way around the revocation check. Elsewhere an untyped verdict is never a
-// question of trust, and none is a server that could not be reached.
+// Go's own verifier types three of its refusals, and a certificate that fails
+// any of them is named for why: an unknown issuer is the CA to name, a name it
+// is not for and a date it is not valid on are each the certificate's own
+// reason, quoted in the verifier's words. The verdicts only a Mac's system
+// verifier gives, untyped, are verdicts_test.go's.
 func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
 	r := req(t, "qdrant.overview", map[string]any{"endpoint": "qdrant.internal:6333"})
-	open, closing := string(rune(0x201c)), string(rune(0x201d))
-	onMac := "qdrant.tls.rejected"
-	if runtime.GOOS == "darwin" {
-		onMac = "qdrant.tls.untrusted"
-	}
 	for _, tc := range []struct {
 		name string
 		err  error
 		want string
 	}{
 		{"Go's own verifier", x509.UnknownAuthorityError{}, "qdrant.tls.untrusted"},
-		{"the system's verifier, a chain it cannot anchor",
-			errors.New("x509: " + open + "qdrant" + closing + " certificate is not trusted"), onMac},
-		{"the system's verifier, a revoked certificate",
-			errors.New("x509: " + open + "qdrant" + closing + " certificate is revoked"), "qdrant.tls.rejected"},
 		{"a name it is not for", x509.HostnameError{Certificate: &x509.Certificate{}, Host: "qdrant.internal"},
 			"qdrant.tls.rejected"},
 		{"a date it is not valid on", x509.CertificateInvalidError{Cert: &x509.Certificate{}, Reason: x509.Expired},
@@ -643,17 +631,18 @@ func TestAnAlertForAPlainHTTPRequestIsReadAsTheScheme(t *testing.T) {
 // verify — never a port nothing listens on or a host no route reaches, as
 // the dial's words, read first, would have had it.
 func TestACertificatesOwnNamesAreNeverReadAsTheDialsFailure(t *testing.T) {
+	sdktest.VerifierSystem(t, "darwin")
 	r := req(t, "qdrant.overview", map[string]any{"endpoint": "qdrant.internal:6333"})
-	open, closing := string(rune(0x201c)), string(rune(0x201d))
+	named := func(dnsName string) error {
+		return &tls.CertificateVerificationError{Err: x509.HostnameError{
+			Certificate: &x509.Certificate{DNSNames: []string{dnsName}}, Host: "qdrant.internal"}}
+	}
 	for _, verdict := range []error{
-		x509.HostnameError{Certificate: &x509.Certificate{DNSNames: []string{syscall.ECONNREFUSED.Error()}},
-			Host: "qdrant.internal"},
-		x509.HostnameError{Certificate: &x509.Certificate{DNSNames: []string{syscall.EHOSTUNREACH.Error()}},
-			Host: "qdrant.internal"},
-		errors.New("x509: " + open + syscall.ECONNREFUSED.Error() + closing + " certificate is revoked"),
+		named(syscall.ECONNREFUSED.Error()),
+		named(syscall.EHOSTUNREACH.Error()),
+		sdktest.SystemVerdict(syscall.ECONNREFUSED.Error(), sdktest.VerdictRevoked),
 	} {
-		err := &url.Error{Op: "Get", URL: "https://qdrant.internal:6333/",
-			Err: &tls.CertificateVerificationError{Err: verdict}}
+		err := &url.Error{Op: "Get", URL: "https://qdrant.internal:6333/", Err: verdict}
 		if got := classify(err, r); got.Code != "qdrant.tls.rejected" {
 			t.Errorf("%v: classified %s %q, want qdrant.tls.rejected", verdict, got.Code, got.Message)
 		}
