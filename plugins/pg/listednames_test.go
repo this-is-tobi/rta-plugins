@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -362,5 +363,82 @@ func TestASlotsDatabaseIsWrittenOut(t *testing.T) {
 	}
 	if want := []string{oddShown, plainName, "-"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("databases = %q, want %q", got, want)
+	}
+}
+
+// The refusals that name the table a dump read — a result too big to return and
+// an empty one that row-level security may have emptied — write it as a list
+// does, and a table that reads as itself is named as it was.
+func TestTheSizeAndPolicyRefusalsOfADumpNameTheTableWrittenOut(t *testing.T) {
+	dump := func(rel relation, rows [][]any, extra ...answer) *view.Error {
+		q := append(script{
+			{match: "pg_index"},
+			{match: "pg_attribute", cols: []string{"attname"}, rows: [][]any{{"body"}}},
+			{match: "limit $1", cols: []string{"body"}, rows: rows},
+		}, extra...)
+		_, verr := dumpRows(context.Background(), q, reqFor(t, "pg.table.dump", map[string]any{"table": "x"}), rel)
+		if verr == nil {
+			t.Fatal("the dump was not refused")
+		}
+		return verr
+	}
+	huge := [][]any{{strings.Repeat("x", maxBytes+1)}}
+	policy := answer{match: "relrowsecurity", rows: [][]any{{true, false}}}
+
+	for rel, name := range map[relation]string{
+		{oid: 1, schema: oddName, name: plainName}:      oddShown + "." + plainName,
+		{oid: 2, schema: "my schema é", name: oddName}:  "my schema é." + oddShown,
+		{oid: 3, schema: "my schema é", name: "orders"}: "my schema é.orders",
+	} {
+		toolarge := dump(rel, huge)
+		if toolarge.Code != "pg.dump.toolarge" || !strings.HasPrefix(toolarge.Message, "the rows of "+name+" are over") {
+			t.Errorf("got %s %q, want pg.dump.toolarge naming %s", toolarge.Code, toolarge.Message, name)
+		}
+		bare(t, "the refusal", toolarge.Message+toolarge.Hint)
+
+		rls := dump(rel, nil, policy)
+		if rls.Code != "pg.dump.rls" || !strings.HasPrefix(rls.Message, name+" returned no rows") {
+			t.Errorf("got %s %q, want pg.dump.rls naming %s", rls.Code, rls.Message, name)
+		}
+		bare(t, "the refusal", rls.Message+rls.Hint)
+	}
+}
+
+// The schema a description is too big to return is named the way a message
+// always named it when it reads as itself, and written out when it does not —
+// including by a character %q leaves raw, because strconv counts a Hangul
+// filler printable and a reader sees nothing of it.
+func TestTheSchemaADescriptionIsTooBigToReturnIsNamedWrittenOut(t *testing.T) {
+	columns := make([][]any, 50000)
+	for i := range columns {
+		columns[i] = []any{"big", fmt.Sprintf("column_%06d", i), "text", false, false}
+	}
+	describe := func(schema string) *view.Error {
+		q := script{
+			{match: "select nspname from pg_namespace", cols: []string{"nspname"}, rows: [][]any{{schema}}},
+			{match: "select c.relname, c.relkind = 'p'", cols: []string{"relname", "partitioned"},
+				rows: [][]any{{"big", false}}},
+			{match: "format_type(a.atttypid", rows: columns},
+			{match: "pg_get_constraintdef"},
+			{match: "pg_get_indexdef"},
+			{match: "from pg_proc p", rows: [][]any{{int64(0), int64(0), int64(0), int64(0)}}},
+		}
+		_, verr := schemaDDL(context.Background(), q,
+			reqFor(t, "pg.schema.dump", map[string]any{"schema": schema}))
+		if verr == nil {
+			t.Fatal("the description was not refused")
+		}
+		return verr.(*view.Error)
+	}
+	for schema, want := range map[string]string{
+		oddName:           "the description of schema " + oddShown + " is ",
+		"hangul\u3164end": `the description of schema "hangul\u3164end" is `,
+		"my schema é":     `the description of schema "my schema é" is `,
+	} {
+		verr := describe(schema)
+		if verr.Code != "pg.schema.toolarge" || !strings.HasPrefix(verr.Message, want) {
+			t.Errorf("got %s %q, want pg.schema.toolarge opening %q", verr.Code, verr.Message, want)
+		}
+		bare(t, "the refusal", verr.Message+verr.Hint)
 	}
 }
