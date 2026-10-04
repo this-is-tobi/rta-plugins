@@ -7,7 +7,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -64,9 +63,6 @@ func TestThePreflightRecordsTheCertificateItVerified(t *testing.T) {
 // dry run shows which, naming the fingerprint it cannot know yet as what it
 // will be.
 func TestTheDryRunShowsWhichSpellingTheClientTakes(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("the stand-in client is a shell script")
-	}
 	ca := writeFile(t, "ca.pem", newPrivateCA(t).pem)
 	fixture := writeFile(t, "app.sql", []byte("select 1;\n"))
 	for client, tc := range map[string]struct{ help, want, without string }{

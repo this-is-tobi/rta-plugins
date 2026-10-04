@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"syscall"
@@ -119,9 +118,6 @@ func TestTheRestoreChildConnectsWithinThePluginsBound(t *testing.T) {
 // bare colon, ::1 read ::1:3306, which no reader could split into an address
 // and a port.
 func TestTheRestoreNamesAnIPv6ServerBracketed(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("the stand-in client is a shell script")
-	}
 	dir := t.TempDir()
 	for _, tool := range restoreTools {
 		if err := os.WriteFile(filepath.Join(dir, tool), []byte("#!/bin/sh\n"), 0o755); err != nil {

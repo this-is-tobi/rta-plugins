@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -18,9 +17,6 @@ import (
 // them named a port nothing listens on; the profile is what reaches the same
 // server, and beside a direct address it says whose credentials were used.
 func TestARestoreNamesTheServerAsTheReaderReachesItAgain(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("the stand-in client is a shell script")
-	}
 	dir := t.TempDir()
 	for _, tool := range restoreTools {
 		if err := os.WriteFile(filepath.Join(dir, tool), []byte("#!/bin/sh\n"), 0o755); err != nil {
