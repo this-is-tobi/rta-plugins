@@ -7,39 +7,39 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: pg
-version: 0.5.0
+version: 0.6.0
 summary: "PostgreSQL: connection health, replication, schema, rows and activity"
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/pg
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.5.0/rta-plugin-pg_0.5.0_darwin_amd64.tar.gz
-  sha256: a1852e4e8713a7bcaffcd1597fc355dd414b694a777a12f825ec8ea45ac7c44e
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.6.0/rta-plugin-pg_0.6.0_darwin_amd64.tar.gz
+  sha256: 8b99d93bcc8a68dfdf64066383482873416974448d635e0afab98fe94c4f758d
   bin: rta-plugin-pg
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.5.0/rta-plugin-pg_0.5.0_darwin_arm64.tar.gz
-  sha256: 89dbc91cf6f4f1e8309c13e2bc89c5cc042562616a1eee41e38dedd807c9c4cc
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.6.0/rta-plugin-pg_0.6.0_darwin_arm64.tar.gz
+  sha256: ec9803275cd15edb8217ca929bcf7bde40a52efa4c78e5e4eeea16368a309dc5
   bin: rta-plugin-pg
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.5.0/rta-plugin-pg_0.5.0_linux_amd64.tar.gz
-  sha256: 9d3cb7e885deba616fa3396bf0f13740364a1778ec147f5722fd859a1993aa09
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.6.0/rta-plugin-pg_0.6.0_linux_amd64.tar.gz
+  sha256: 73004aa3a72e59fb569fb9cdcfeda73b8cd89fd81ac2434e78f2187cfdb208c6
   bin: rta-plugin-pg
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.5.0/rta-plugin-pg_0.5.0_linux_arm64.tar.gz
-  sha256: ae3f882ef3a2a0bf0dd96cc88c83377a81d3bc833546a07a984b511ece6e46ce
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.6.0/rta-plugin-pg_0.6.0_linux_arm64.tar.gz
+  sha256: 5fa3deba40666f4887de1a3d102ede8124d1ca7278777b7d4edae436617a12a2
   bin: rta-plugin-pg
 - os: windows
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.5.0/rta-plugin-pg_0.5.0_windows_amd64.tar.gz
-  sha256: 92fdc06368abe946ce6e51838300fe772b42cb3b35927435f3e57a8c9a182eaa
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.6.0/rta-plugin-pg_0.6.0_windows_amd64.tar.gz
+  sha256: 339662602bcfd8597988642a6cde474574652cd81b607ca4199d3dfd44b5353d
   bin: rta-plugin-pg.exe
 - os: windows
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.5.0/rta-plugin-pg_0.5.0_windows_arm64.tar.gz
-  sha256: d9cf15830d69d0135581768780a19d1beab9bad2e9c9ba9dcd18433c22846633
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.6.0/rta-plugin-pg_0.6.0_windows_arm64.tar.gz
+  sha256: 0a3a3f3ac7ac44977fc4dcd0fdcb9acfe02dbc8c2380ded2cdc64974cdb9c125
   bin: rta-plugin-pg.exe
 capabilities:
 - id: pg.status

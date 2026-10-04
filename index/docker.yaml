@@ -7,39 +7,39 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: docker
-version: 0.2.23
+version: 0.2.24
 summary: "Containers and images: what is running, what is stale, and the daily tidy-up"
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/docker
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.2.23/rta-plugin-docker_0.2.23_darwin_amd64.tar.gz
-  sha256: 8234b41ec95c5d199eb934096a3d0efc6165c13f504c2d80674dd230ef3b395a
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.2.24/rta-plugin-docker_0.2.24_darwin_amd64.tar.gz
+  sha256: f87ccdc30e35ee77ed1678d673a762eb0f2e38b7eac090e7cf0b87e50a34db80
   bin: rta-plugin-docker
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.2.23/rta-plugin-docker_0.2.23_darwin_arm64.tar.gz
-  sha256: c1b1ccfb84abd881de4bf95dd61147cc700f03587fdad89dfc2fa7bce6754b1a
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.2.24/rta-plugin-docker_0.2.24_darwin_arm64.tar.gz
+  sha256: cd6bcb73ee3aeb162a65d08089014e0b9373f5558f548eb257f4bf0f4abcb667
   bin: rta-plugin-docker
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.2.23/rta-plugin-docker_0.2.23_linux_amd64.tar.gz
-  sha256: 41b4b93e243c8dbf90ac53ae2b68461d581f00b1df6f2f94568d948eb54dd141
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.2.24/rta-plugin-docker_0.2.24_linux_amd64.tar.gz
+  sha256: 8ec672e61f7abf289f6fc58176167a46fbe599a56cb87fd98a67f0be9fe5ad45
   bin: rta-plugin-docker
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.2.23/rta-plugin-docker_0.2.23_linux_arm64.tar.gz
-  sha256: b98201d8bfb07e0123940a2c6392d43da383f55c6312ed5d68483ccfeba4953e
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.2.24/rta-plugin-docker_0.2.24_linux_arm64.tar.gz
+  sha256: 6e866c1901b864c22e27c765a90f9b921df67349d56b59ff3e850ec753b07560
   bin: rta-plugin-docker
 - os: windows
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.2.23/rta-plugin-docker_0.2.23_windows_amd64.tar.gz
-  sha256: 6416793f173d67aae49fb1239d606b747fcbead39134735521aaec18d9210b7f
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.2.24/rta-plugin-docker_0.2.24_windows_amd64.tar.gz
+  sha256: 4c58bbdd47c2da0ff4a7204cb33d518b89148971c06467f7380a5d91b9cdf488
   bin: rta-plugin-docker.exe
 - os: windows
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.2.23/rta-plugin-docker_0.2.23_windows_arm64.tar.gz
-  sha256: 2236c32ba351b4550733b889ab10eaa32fafc8ddbed7063619ddd2570245be17
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.2.24/rta-plugin-docker_0.2.24_windows_arm64.tar.gz
+  sha256: be7d11b5cceea01e082d02645bae3283ae8448cde84a45ec9d8647fc82401962
   bin: rta-plugin-docker.exe
 capabilities:
 - id: docker.container.list
