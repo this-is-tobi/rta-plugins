@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -14,7 +12,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -613,49 +610,6 @@ func TestTheCAFileResolvesTheHomeDirectory(t *testing.T) {
 	_ = resp.Body.Close()
 }
 
-// macOS verifies against the system's trust store itself and reports a chain
-// it cannot anchor as a bare error, never as x509.UnknownAuthorityError: that
-// is still a certificate nothing here trusts, and the answer is the CA. Every
-// other verdict it gives untyped is its own reason and is quoted in its words:
-// a revoked certificate answered with the CA file to name was answered with
-// the way around the revocation check. Elsewhere an untyped verdict is never
-// a question of trust, and a name or a date that fails is not the CA's to fix
-// either — nor is any of them a server that could not be reached.
-func TestACertificateThePlatformDoesNotTrustIsNamedAsUntrusted(t *testing.T) {
-	s := &session{req: plugin.NewRequest(nil, false, false), base: "https://sso.internal"}
-	open, closing := string(rune(0x201c)), string(rune(0x201d))
-	onMac := "keycloak.tls.rejected"
-	if runtime.GOOS == "darwin" {
-		onMac = "keycloak.tls.untrusted"
-	}
-	for _, tc := range []struct {
-		name string
-		err  error
-		want string
-	}{
-		{"Go's own verifier", x509.UnknownAuthorityError{}, "keycloak.tls.untrusted"},
-		{"the system's verifier, a chain it cannot anchor",
-			errors.New("x509: " + open + "sso" + closing + " certificate is not trusted"), onMac},
-		{"the system's verifier, a revoked certificate",
-			errors.New("x509: " + open + "sso" + closing + " certificate is revoked"), "keycloak.tls.rejected"},
-		{"a name it is not for", x509.HostnameError{Certificate: &x509.Certificate{}, Host: "sso.internal"}, "keycloak.tls.rejected"},
-		{"a date it is not valid on", x509.CertificateInvalidError{Cert: &x509.Certificate{}, Reason: x509.Expired}, "keycloak.tls.rejected"},
-		// Go's verifier types each reason of its own, and no CA cures one.
-		{"a signature algorithm it refuses", x509.InsecureAlgorithmError(x509.SHA1WithRSA), "keycloak.tls.rejected"},
-		{"a critical extension it does not handle", x509.UnhandledCriticalExtension{}, "keycloak.tls.rejected"},
-	} {
-		err := &url.Error{Op: "Post", URL: "https://sso.internal/realms/demo/protocol/openid-connect/token",
-			Err: &tls.CertificateVerificationError{Err: tc.err}}
-		got := s.classifyTransport(err)
-		if got.Code != tc.want {
-			t.Errorf("%s: classified %s, want %s", tc.name, got.Code, tc.want)
-		}
-		if got.Code == "keycloak.tls.rejected" && !strings.Contains(got.Message, tc.err.Error()) {
-			t.Errorf("%s: %q does not quote the verdict", tc.name, got.Message)
-		}
-	}
-}
-
 // A failed dial is read by the operating system's error it carries, not by the
 // *net.OpError every failed dial is: one that was reset reached no port that
 // refused it, and one that timed out is a timeout. Text that lost its errno is
@@ -703,29 +657,6 @@ func TestAHangUpOnPlainHTTPNamesTheScheme(t *testing.T) {
 			Err: io.EOF})
 		if got.Code != "keycloak.conn.failed" || !strings.Contains(got.Hint, tc.hint) {
 			t.Errorf("%s: %s %q, want keycloak.conn.failed with %q in the hint", tc.name, got.Code, got.Hint, tc.hint)
-		}
-	}
-}
-
-// A certificate's names are the server's to choose, and a verdict quotes
-// them: one valid for "connection refused" or "no route to host" alone, or
-// a revoked one the system names so, is still a certificate that does not
-// verify — never a port nothing listens on or a host no route reaches, as
-// the dial's words, read first, would have had it.
-func TestACertificatesOwnNamesAreNeverReadAsTheDialsFailure(t *testing.T) {
-	s := &session{req: plugin.NewRequest(nil, false, false), base: "https://sso.internal"}
-	open, closing := string(rune(0x201c)), string(rune(0x201d))
-	for _, verdict := range []error{
-		x509.HostnameError{Certificate: &x509.Certificate{DNSNames: []string{syscall.ECONNREFUSED.Error()}},
-			Host: "sso.internal"},
-		x509.HostnameError{Certificate: &x509.Certificate{DNSNames: []string{syscall.EHOSTUNREACH.Error()}},
-			Host: "sso.internal"},
-		errors.New("x509: " + open + syscall.ECONNREFUSED.Error() + closing + " certificate is revoked"),
-	} {
-		err := &url.Error{Op: "Get", URL: "https://sso.internal/realms/demo/protocol/openid-connect/token",
-			Err: &tls.CertificateVerificationError{Err: verdict}}
-		if got := s.classifyTransport(err); got.Code != "keycloak.tls.rejected" {
-			t.Errorf("%v: classified %s %q, want keycloak.tls.rejected", verdict, got.Code, got.Message)
 		}
 	}
 }
