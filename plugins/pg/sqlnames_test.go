@@ -217,3 +217,46 @@ func TestTheSchemaDescriptionKeepsAPlainNameAsItWas(t *testing.T) {
 		t.Errorf("description lacks the columns as they were:\n%s", body)
 	}
 }
+
+// A column's type is a name a stranger chose too: whoever may create an enum,
+// a domain or a composite names it, and format_type writes that name inside a
+// pair of quotes with the escape sequence and the newline in it, qualified when
+// the type is not on the search path. It is written as the statements are, in
+// SQL's own escape, and a type that reads as itself is left as the server
+// wrote it.
+func TestTheSchemaDescriptionWritesAnOddTypeNameAsSQLsOwnEscape(t *testing.T) {
+	tables := []schemaTable{{
+		name: plainName,
+		columns: []schemaColumn{
+			{name: "id", typ: "bigint"},
+			{name: "kind", typ: "\"typ\x1b[31mred\nline\""},
+			{name: "tags", typ: "\"dom\x1b[7m\nx\"[]"},
+			{name: "other", typ: "\"sch\x1b[2Jema\nx\".\"typ3\x1b[1m\nq\""},
+			{name: "mood", typ: `"café type"`},
+			{name: "price", typ: "numeric(10,2)"},
+		},
+	}}
+	body := renderDDL(req(t, map[string]any{"database": "app", "host": "db.internal", "port": 5432}),
+		plainName, tables, dropped{})
+
+	if strings.ContainsAny(body, "\x1b") {
+		t.Errorf("an escape sequence reaches the description:\n%q", body)
+	}
+	for _, want := range []string{
+		`"kind"  U&"typ\001b[31mred\000aline",`,
+		`"tags"  U&"dom\001b[7m\000ax"[],`,
+		`"other" U&"sch\001b[2Jema\000ax".U&"typ3\001b[1m\000aq",`,
+		`"mood"  "café type",`,
+		`"price" numeric(10,2)`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("description lacks %q:\n%s", want, body)
+		}
+	}
+	for _, line := range strings.Split(body, "\n") {
+		if trim := strings.TrimSpace(line); trim != "" && !strings.HasPrefix(trim, "--") &&
+			!strings.HasPrefix(trim, "CREATE ") && !strings.HasPrefix(trim, ");") && !strings.HasPrefix(trim, "\"") {
+			t.Errorf("a line that is no statement's and no comment's: %q", line)
+		}
+	}
+}
