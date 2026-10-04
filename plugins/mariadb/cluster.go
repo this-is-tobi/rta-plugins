@@ -177,7 +177,7 @@ func galeraPairs(v map[string]string) view.KeyValue {
 	add("last committed", v["wsrep_last_committed"])
 	add("connected", v["wsrep_connected"])
 	add("ready", v["wsrep_ready"])
-	add("members", v["wsrep_incoming_addresses"])
+	add("members", listed(v["wsrep_incoming_addresses"]))
 	if cur, avg := v["wsrep_local_recv_queue"], v["wsrep_local_recv_queue_avg"]; cur != "" || avg != "" {
 		add("recv queue", cur+" (avg "+avg+")")
 	}

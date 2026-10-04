@@ -159,3 +159,20 @@ func TestAServerWithoutGaleraHasNoClusterSection(t *testing.T) {
 		}
 	}
 }
+
+// The members are the addresses the cluster reports, each set by its own node's
+// operator: a list that holds one that does not read as itself is shown quoted,
+// and an ordinary list as it always was.
+func TestTheClustersMembersShowAnOddAddressQuotedAndAnOrdinaryListAsItIs(t *testing.T) {
+	members := func(addresses string) string {
+		for _, p := range galeraPairs(map[string]string{"wsrep_incoming_addresses": addresses}).Pairs {
+			if p.Key == "members" {
+				return p.Value
+			}
+		}
+		t.Fatal("no members pair")
+		return ""
+	}
+	shownAs(t, "an odd address", members(oddName+":3306,10.0.0.2:3306"), `"esc\x1b[31mred\nline:3306,10.0.0.2:3306"`)
+	shownAs(t, "an ordinary list", members("10.0.0.1:3306,"+ordinaryName+":3306"), "10.0.0.1:3306,"+ordinaryName+":3306")
+}
