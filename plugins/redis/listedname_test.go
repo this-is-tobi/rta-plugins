@@ -102,12 +102,16 @@ func TestAKeyThatIsNotThereOrNotRenderedIsNamedQuoted(t *testing.T) {
 		"TYPE " + plainName: "+none\r\n", "TTL " + plainName: ":-2\r\n",
 		"TYPE " + blank: "+none\r\n", "TTL " + blank: ":-2\r\n",
 		"TYPE stream:" + oddName: "+stream\r\n", "TTL stream:" + oddName: ":-1\r\n",
+		"TYPE stream:" + blank: "+stream\r\n", "TTL stream:" + blank: ":-1\r\n",
+		"TYPE stream:" + plainName: "+stream\r\n", "TTL stream:" + plainName: ":-1\r\n",
 	})
 	for _, tc := range []struct{ key, want string }{
 		{oddName, "no key " + oddShown + " on "},
 		{plainName, `no key "` + plainName + `" on `},
 		{blank, `no key "prod\u2800" on `},
 		{"stream:" + oddName, `"stream:esc\x1b[31mred\nbreak" is a stream`},
+		{"stream:" + blank, `"stream:prod\u2800" is a stream`},
+		{"stream:" + plainName, `"stream:` + plainName + `" is a stream`},
 	} {
 		_, err := run(t, "redis.key.get", srv, map[string]any{"key": tc.key})
 		ve := view.AsError(err, "x")
@@ -169,10 +173,13 @@ func TestASlowlogCommandAndClientNameAreShownQuoted(t *testing.T) {
 	}
 }
 
-// A client chooses its own name (CLIENT SETNAME), though a Redis server holds
-// it to printable characters and so cannot hold a newline in one: the line a
-// client is listed on would be two. What it cannot refuse is a name that
-// draws as something else, an escape or a bidirectional override.
+// A client chooses its own name (CLIENT SETNAME), and Redis itself holds it to
+// the printable ASCII between ! and ~: an escape, a bidirectional override and
+// an accent are all refused, so the name that reaches this table drawn as
+// another one comes from a Redis-compatible server or proxy that does not
+// check. A newline could not be in a name there either way, since the line a
+// client is listed on would be two, so this one holds an escape and an
+// override.
 func TestAClientNameIsShownQuotedAndAnEmptyOneIsStillADash(t *testing.T) {
 	const odd = "esc\x1b[31mred\u202e"
 	table := clientTable("id=3 addr=10.0.0.1:5000 name=" + odd + " age=5 idle=1 db=0 cmd=get\n" +
