@@ -3,7 +3,7 @@
 # release-please computes each changed plugin's version from conventional
 # commits, writes its changelog and publishes its release, which is what
 # makes the tag `plugins/<name>/v<x.y.z>` exist. One matrix leg per released
-# plugin then builds the six archives and attaches them to that release;
+# plugin then builds its archives and attaches them to that release;
 # attest-go attests each release by its tag. Last, one job reads the binaries
 # just built and regenerates the index entries under index/ — a manifest is never written
 # by hand — and commits them to main with this repository's own App. No
@@ -74,7 +74,7 @@ jobs:
         cache: true
         cache-dependency-path: ${{ matrix.path }}/go.sum
 
-    - name: Build the six archives
+    - name: Build the release archives
       env:
         PLUGIN_PATH: ${{ matrix.path }}
         VERSION: ${{ fromJSON(needs.release.outputs.release-outputs)[format('{0}--version', matrix.path)] }}
