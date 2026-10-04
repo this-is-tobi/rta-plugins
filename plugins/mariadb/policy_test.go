@@ -17,9 +17,9 @@ import (
 // words are all there is where the length does not explain the refusal.
 func TestACertificateAppleRefusesForItsLengthSaysSo(t *testing.T) {
 	sdktest.VerifierSystem(t, "darwin")
-	leaf := func(valid time.Duration) *x509.Certificate {
+	leaf := func(valid time.Duration, names ...string) *x509.Certificate {
 		issued := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-		return &x509.Certificate{DNSNames: []string{"db.internal"}, NotBefore: issued, NotAfter: issued.Add(valid)}
+		return &x509.Certificate{DNSNames: names, NotBefore: issued, NotAfter: issued.Add(valid)}
 	}
 	const day = 24 * time.Hour
 	for _, tc := range []struct {
@@ -27,9 +27,13 @@ func TestACertificateAppleRefusesForItsLengthSaysSo(t *testing.T) {
 		sent []*x509.Certificate
 		says bool
 	}{
-		{"ten years", []*x509.Certificate{leaf(3653 * day)}, true},
-		{"a day over the limit", []*x509.Certificate{leaf(826 * day)}, true},
-		{"within the limit", []*x509.Certificate{leaf(825 * day)}, false},
+		{"ten years", []*x509.Certificate{leaf(3653*day, "db.internal")}, true},
+		{"a day over the limit", []*x509.Certificate{leaf(826*day, "db.internal")}, true},
+		{"within the limit", []*x509.Certificate{leaf(825*day, "db.internal")}, false},
+		// What a server generates for itself: ten years, and no name. A mode
+		// that checks the chain without a name would get past the system's
+		// refusal, and the cure is the certificate all the same.
+		{"ten years, naming no host", []*x509.Certificate{leaf(3653 * day)}, true},
 		{"nothing sent", nil, false},
 	} {
 		for _, surface := range surfaces {
