@@ -339,7 +339,7 @@ func sectionPairs(s map[string]string) view.KeyValue {
 	sort.Strings(keys)
 	kv := view.KeyValue{}
 	for _, k := range keys {
-		kv.Pairs = append(kv.Pairs, view.Pair{Key: k, Value: s[k]})
+		kv.Pairs = append(kv.Pairs, view.Pair{Key: plugin.ListedName(k), Value: s[k]})
 	}
 	return kv
 }
@@ -385,9 +385,9 @@ func clientTable(raw string) view.Table {
 				f[k] = v
 			}
 		}
-		name := f["name"]
-		if name == "" {
-			name = "-"
+		name := "-"
+		if f["name"] != "" {
+			name = plugin.ListedName(f["name"])
 		}
 		t.Rows = append(t.Rows, []string{f["id"], f["addr"], name,
 			seconds(f["age"]), seconds(f["idle"]), f["db"], f["cmd"]})
