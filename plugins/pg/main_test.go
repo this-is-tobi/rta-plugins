@@ -15,7 +15,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"syscall"
@@ -531,24 +530,16 @@ func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
 }
 
 // A certificate is answered with the CA to name only when it is an unknown
-// issuer's. macOS's own verifier, asked whenever no sslrootcert is named,
-// gives most of its verdicts untyped, and every one was read as untrusted: a
-// revoked certificate was answered with the CA file that turns the system's
-// revocation check off. Such a verdict keeps the system's words, and the one
-// hint that does send the reader to a CA file says what naming one costs.
+// issuer's, as Go's own verifier types it, which it does on every system.
+// macOS's own verifier, asked whenever no sslrootcert is named, gives most of
+// its verdicts untyped, and every one was read as untrusted: a revoked
+// certificate was answered with the CA file that turns the system's
+// revocation check off. Those verdicts are verdict_test.go's, which injects
+// them so that they are tried on every system and not on a Mac alone; what is
+// here is every other certificate Go refuses, which is a refusal in the
+// verifier's words and no reason to name a CA.
 func TestOnlyAnUnknownIssuerIsAnsweredWithTheCA(t *testing.T) {
 	r := req(t, map[string]any{"host": "db.internal", "port": 5432})
-	open, closing := string(rune(0x201c)), string(rune(0x201d))
-	verdict := func(words string) error {
-		return &tls.CertificateVerificationError{
-			Err: errors.New("x509: " + open + "db.internal" + closing + " " + words)}
-	}
-	// The system's words for a chain to no anchor it holds are read as
-	// untrusted where the system gave them, and are nobody's words elsewhere.
-	notTrusted := "pg.tls.rejected"
-	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
-		notTrusted = "pg.tls.untrusted"
-	}
 	for _, tc := range []struct {
 		name string
 		err  error
@@ -558,11 +549,6 @@ func TestOnlyAnUnknownIssuerIsAnsweredWithTheCA(t *testing.T) {
 		{"no pool to read at all", x509.SystemRootsError{}, "pg.tls.untrusted"},
 		{"the same, inside the driver's error", fmt.Errorf("tls error: %w",
 			&tls.CertificateVerificationError{Err: x509.UnknownAuthorityError{}}), "pg.tls.untrusted"},
-		{"macOS, a chain to no anchor it holds", verdict("certificate is not trusted"), notTrusted},
-		{"macOS, a revoked certificate", verdict("certificate is revoked"), "pg.tls.rejected"},
-		{"macOS, a policy it will not pass", verdict("certificate is not standards compliant"), "pg.tls.rejected"},
-		{"a revoked certificate named to look untrusted",
-			verdict("certificate is not trusted" + closing + " certificate is revoked"), "pg.tls.rejected"},
 		{"a signature algorithm Go's verifier refuses", &tls.CertificateVerificationError{
 			Err: x509.InsecureAlgorithmError(x509.SHA1WithRSA)}, "pg.tls.rejected"},
 	} {
