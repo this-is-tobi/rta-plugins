@@ -66,6 +66,9 @@ type fakeKeycloak struct {
 	// half-provisioned setup rather than a broken server. The roles are
 	// granted separately, so seeing part of a realm is the common case.
 	deny []string
+	// bodies answers a path with a body of the test's own in place of the
+	// fixture, for the realm that holds a name no fixture does.
+	bodies map[string][]byte
 }
 
 const fakeSecret = "fake-client-secret"
@@ -162,6 +165,21 @@ func (f *fakeKeycloak) route(path string, q map[string][]string) ([]byte, bool) 
 			return v[0]
 		}
 		return ""
+	}
+	f.mu.Lock()
+	body, ok := f.bodies[path]
+	f.mu.Unlock()
+	if ok {
+		// A lookup by name is answered as the server does, from the list the
+		// test gave, so a call that resolves one hostile client or user
+		// finds it and no other.
+		switch path {
+		case "/clients":
+			return filtered(body, "clientId", first("clientId")), true
+		case "/users":
+			return filtered(body, "username", first("username")), true
+		}
+		return body, true
 	}
 	switch path {
 	case "", "/":

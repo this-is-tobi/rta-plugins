@@ -67,7 +67,7 @@ func (s *session) flowTable(ctx context.Context) (view.View, *view.Error) {
 		if !f.TopLevel {
 			continue
 		}
-		t.Rows = append(t.Rows, []string{f.Alias, strings.Join(bindings[f.Alias], ", "), yesNo(f.BuiltIn), f.Description})
+		t.Rows = append(t.Rows, []string{listed(f.Alias), strings.Join(bindings[f.Alias], ", "), yesNo(f.BuiltIn), f.Description})
 	}
 	return finish(t), nil
 }
@@ -119,7 +119,7 @@ func executionTree(execs []executionRep) view.View {
 	var roots []view.Node
 	var path []*view.Node
 	for _, e := range execs {
-		node := view.Node{Label: e.DisplayName, Detail: strings.ToLower(e.Requirement)}
+		node := view.Node{Label: listed(e.DisplayName), Detail: strings.ToLower(e.Requirement)}
 		if e.Level >= len(path) {
 			e.Level = len(path)
 		}

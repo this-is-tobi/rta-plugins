@@ -56,7 +56,7 @@ func compactOverview(ctx context.Context, s *session) (view.View, error) {
 	if !realm.Enabled {
 		state = "disabled"
 	}
-	add("realm", realm.Realm+" · "+state)
+	add("realm", listed(realm.Realm)+" · "+state)
 	// The version is on /admin/serverinfo, which Keycloak answers in full
 	// to a master-realm admin and as a stripped-down document — themes,
 	// providers, no systemInfo — to anyone else. Silent rather than an
@@ -77,7 +77,7 @@ func compactOverview(ctx context.Context, s *session) (view.View, error) {
 	add("ssl required", realm.SSLRequired)
 	add("self-registration", yesNo(realm.RegistrationAllowed)+" · verify email: "+yesNo(realm.VerifyEmail))
 	add("events", "login "+onOff(realm.EventsEnabled)+" · admin "+onOff(realm.AdminEventsEnabled))
-	add("browser flow", realm.BrowserFlow)
+	add("browser flow", listed(realm.BrowserFlow))
 	return kv, nil
 }
 

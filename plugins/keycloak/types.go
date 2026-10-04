@@ -2,7 +2,10 @@ package main
 
 import (
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/this-is-tobi/rta/pkg/plugin"
 )
 
 // The Admin REST representations this plugin reads, each declaring only the
@@ -232,6 +235,38 @@ type userSessionRep struct {
 	Start      int64             `json:"start"`
 	LastAccess int64             `json:"lastAccess"`
 	Clients    map[string]string `json:"clients"`
+}
+
+// listed is a name somebody chose — a username, a client id, a role, a flow's
+// alias, a URL a client registered — as a reader of a row or a tree sees it
+// (plugin.ListedName): as it is when it reads as itself, quoted with each
+// character that would not draw written out when it does not. Every one of
+// these is a string somebody other than its reader decides — an account
+// holder, a client that registered itself, whoever typed at a login form, an
+// administrator — and the renderer cleans a cell by dropping what it cannot
+// draw, which turns a name holding an escape sequence into another, ordinary
+// one.
+//
+// An empty name stays empty: ListedName writes the two quotes of an empty
+// string, which for a field a record may not have (an email, a credential's
+// label, the user of an event nobody logged in as) is a cell that claims to
+// hold one. None of the fields listed here is a name that is meaningfully the
+// empty string, so a record without one has nothing to show.
+func listed(name string) string {
+	if name == "" {
+		return ""
+	}
+	return plugin.ListedName(name)
+}
+
+// listedAll is names for a sentence or a cell holding several: each as
+// listed shows it, joined the way the plugin joins any list.
+func listedAll(names []string) string {
+	shown := make([]string, len(names))
+	for i, name := range names {
+		shown[i] = listed(name)
+	}
+	return strings.Join(shown, ", ")
 }
 
 // stamp renders one of Keycloak's millisecond timestamps for a
