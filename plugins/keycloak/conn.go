@@ -471,7 +471,7 @@ func (s *session) classifyTransport(err error) *view.Error {
 	// name given and not matched is the certificate's to explain.
 	var hostErr x509.HostnameError
 	if errors.As(err, &hostErr) && s.req.Tunnel() != plugin.TunnelNone && serverName(s.req) == "" {
-		return forwardName(s.req, hostErr)
+		return plugin.ForwardNameRefusal(s.req, "keycloak.tls.forward", s.req.String("url"), "server", hostErr)
 	}
 	var verifyErr *tls.CertificateVerificationError
 	if errors.As(err, &verifyErr) {
@@ -557,18 +557,6 @@ func (s *session) plainHTTPHint(how string) string {
 	}
 	return "a Keycloak serving only HTTPS on that port " + how + " — " +
 		"an https:// URL is what makes the call TLS: " + s.req.Surface().SettingName("url") + " names the scheme"
-}
-
-// forwardName is the refusal for a certificate checked for the end of a
-// forward the host opened — 127.0.0.1 — and not for the name the server
-// answers as, which the certificate names instead.
-func forwardName(req plugin.Request, hostErr x509.HostnameError) *view.Error {
-	return view.Errorf("keycloak.tls.forward", "the certificate behind %s is for %s, not for %s, "+
-		"where the forward ends", req.Reached(req.String("url")), plugin.CertNames(hostErr.Certificate), hostErr.Host).
-		WithHint("a forward always ends at 127.0.0.1, so the certificate is checked for the name the server " +
-			"answers as instead: " + req.Surface().SettingName("tls-server-name") + ", which the profile can " +
-			"hold beside its forward, names it — one the certificate is for — and it is checked as strictly " +
-			"as the host it replaces")
 }
 
 // reached names the server as its reader reaches it again, for what the server
