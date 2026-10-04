@@ -105,7 +105,7 @@ func keyListView(ctx context.Context, c *client, req plugin.Request) (view.View,
 		if err != nil {
 			return nil, classify(err, c.addr, c.req)
 		}
-		t.Rows = append(t.Rows, []string{k, typ.text(), ttlText(ttl.num)})
+		t.Rows = append(t.Rows, []string{plugin.ListedName(k), typ.text(), ttlText(ttl.num)})
 	}
 	t.Total = len(t.Rows)
 	if len(t.Rows) == 0 {
@@ -118,6 +118,17 @@ func keyListView(ctx context.Context, c *client, req plugin.Request) (view.View,
 			req.Surface().InputName("limit")})
 	}
 	return t, nil
+}
+
+// quotedName is a key as a message names it: in quotes, as %q always put it,
+// and in ListedName's spelling when the key holds a character a reader would
+// not see as itself — a Braille blank or a zero-width mark, which %q leaves
+// as they are, so that "prod" and a "prod" with one after it read alike.
+func quotedName(name string) string {
+	if listed := plugin.ListedName(name); listed != name {
+		return listed
+	}
+	return strconv.Quote(name)
 }
 
 func ttlText(ttl int64) string {
@@ -247,11 +258,15 @@ func (w *treeRender) expand(n *treeNode, depth int) []view.Node {
 		}
 		w.nodes++
 		c := n.children[name]
+		// The segment is the name a stranger chose and the separator is the
+		// caller's, so only the segment is quoted: a folder reads `"odd\x1b":`
+		// and stays a folder, as fs's tree draws one.
+		listed := plugin.ListedName(name)
 		if c.leaf && len(c.children) == 0 {
-			out = append(out, view.Node{Label: name})
+			out = append(out, view.Node{Label: listed})
 			continue
 		}
-		node := view.Node{Label: name + w.sep, Detail: format.CountOf(c.keys, "key")}
+		node := view.Node{Label: listed + w.sep, Detail: format.CountOf(c.keys, "key")}
 		if depth >= w.maxDepth {
 			node.Detail += " — not expanded, raise " + w.sf.InputName("depth")
 		} else {
@@ -307,7 +322,7 @@ func keyGetView(ctx context.Context, c *client, req plugin.Request) (view.View, 
 		return nil, classify(err, c.addr, c.req)
 	}
 	pairs := []view.Pair{
-		{Key: "key", Value: key},
+		{Key: "key", Value: plugin.ListedName(key)},
 		{Key: "type", Value: typ.text()},
 		{Key: "ttl", Value: ttlText(ttl.num)},
 	}
@@ -315,7 +330,7 @@ func keyGetView(ctx context.Context, c *client, req plugin.Request) (view.View, 
 	var redacted []string
 	switch typ.text() {
 	case "none":
-		return nil, view.Errorf("redis.key.notfound", "no key %q on %s", key, c.reached).
+		return nil, view.Errorf("redis.key.notfound", "no key %s on %s", quotedName(key), c.reached).
 			WithHint("`" + c.sf.Call("redis.key.list", append([]plugin.Arg{
 				{Name: "pattern", Value: "<pattern>", Positional: true}}, reachArgs(req)...)...) +
 				"` shows what exists")
@@ -338,8 +353,12 @@ func keyGetView(ctx context.Context, c *client, req plugin.Request) (view.View, 
 				pairs = append(pairs, view.Pair{Key: "…", Value: format.CountOf(len(kv)-maxValueItems, "more field") + " not shown"})
 				break
 			}
-			pairs = append(pairs, view.Pair{Key: "field " + p[0], Value: p[1]})
-			redacted = append(redacted, "field "+p[0])
+			// One string for both: Redacted is matched against a pair's key, so a
+			// field named one way in the pair and another in the mask would show
+			// its value in the clear.
+			label := "field " + plugin.ListedName(p[0])
+			pairs = append(pairs, view.Pair{Key: label, Value: p[1]})
+			redacted = append(redacted, label)
 		}
 		return view.KeyValue{Pairs: pairs, Redacted: redacted}, nil
 	case "list":
@@ -368,7 +387,7 @@ func keyGetView(ctx context.Context, c *client, req plugin.Request) (view.View, 
 		n, _ := c.do(ctx, "ZCARD", key)
 		return collectionView(pairs, items, n.num), nil
 	default:
-		return nil, view.Errorf("redis.key.type", "%q is a %s, which this does not render", key, typ.text()).
+		return nil, view.Errorf("redis.key.type", "%s is a %s, which this does not render", quotedName(key), typ.text()).
 			WithHint("streams and modules' own types need their own client")
 	}
 	pairs = append(pairs, view.Pair{Key: "value", Value: value})

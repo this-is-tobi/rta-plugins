@@ -118,14 +118,18 @@ func slowlogView(ctx context.Context, c *client, req plugin.Request) (view.View,
 			name = e.items[5].text()
 		}
 		if name != "" {
-			client += " (" + name + ")"
+			client += " (" + plugin.ListedName(name) + ")"
+		}
+		argv := e.items[3].strings()
+		for i, arg := range argv {
+			argv[i] = plugin.ListedName(arg)
 		}
 		t.Rows = append(t.Rows, []string{
 			e.items[0].text(),
 			time.Unix(e.items[1].num, 0).Format("2006-01-02 15:04:05"),
 			span(time.Duration(e.items[2].num) * time.Microsecond),
 			client,
-			strings.Join(e.items[3].strings(), " "),
+			strings.Join(argv, " "),
 		})
 	}
 	t.Total = len(t.Rows)

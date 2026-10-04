@@ -10,6 +10,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"math/big"
 	stdnet "net"
 	"os"
@@ -225,14 +226,21 @@ func readCommand(r *bufio.Reader) ([]string, error) {
 	}
 	args := make([]string, 0, n)
 	for i := 0; i < n; i++ {
-		if _, err := r.ReadString('\n'); err != nil {
-			return nil, err
-		}
-		v, err := r.ReadString('\n')
+		lenLine, err := r.ReadString('\n')
 		if err != nil {
 			return nil, err
 		}
-		args = append(args, strings.TrimRight(v, "\r\n"))
+		size, err := strconv.Atoi(strings.TrimSpace(lenLine[1:]))
+		if err != nil {
+			return nil, err
+		}
+		// By the length the client sent, as a server reads it: an argument is
+		// whatever bytes it holds, a newline among them.
+		buf := make([]byte, size+2)
+		if _, err := io.ReadFull(r, buf); err != nil {
+			return nil, err
+		}
+		args = append(args, string(buf[:size]))
 	}
 	return args, nil
 }
