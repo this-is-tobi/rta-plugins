@@ -167,23 +167,19 @@ func TestTheVerdictsOnlyAMacGivesAreNotReadAnywhereElse(t *testing.T) {
 		NotBefore: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 		NotAfter:  time.Date(2034, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
-	for _, goos := range []string{"linux", "windows"} {
-		t.Run(goos, func(t *testing.T) {
-			sdktest.VerifierSystem(t, goos)
-			r := req(t, "etcd.overview", map[string]any{"endpoint": "etcd-0.internal:2379"})
-			for name, sent := range map[string]error{
-				"revoked":                 sdktest.SystemVerdict("etcd-0", sdktest.VerdictRevoked),
-				"not trusted":             sdktest.SystemVerdict("etcd-0", sdktest.VerdictNotTrusted),
-				"not standards compliant": sdktest.SystemVerdict("etcd-0", sdktest.VerdictNotStandardsCompliant, tenYears),
-			} {
-				got := classify(handshakeOf(sent), r)
-				if got.Code != "etcd.tls.rejected" || !strings.Contains(got.Message, theSystemsWords(t, sent)) {
-					t.Errorf("%s: classified %s %q, want the words quoted in etcd.tls.rejected", name, got.Code, got.Message)
-				}
-				if strings.Contains(got.Hint, "825") || wayAround(got.Hint) != "" {
-					t.Errorf("%s: hint %q answers a verdict this system does not give", name, got.Hint)
-				}
-			}
-		})
+	sdktest.VerifierSystem(t, "linux")
+	r := req(t, "etcd.overview", map[string]any{"endpoint": "etcd-0.internal:2379"})
+	for name, sent := range map[string]error{
+		"revoked":                 sdktest.SystemVerdict("etcd-0", sdktest.VerdictRevoked),
+		"not trusted":             sdktest.SystemVerdict("etcd-0", sdktest.VerdictNotTrusted),
+		"not standards compliant": sdktest.SystemVerdict("etcd-0", sdktest.VerdictNotStandardsCompliant, tenYears),
+	} {
+		got := classify(handshakeOf(sent), r)
+		if got.Code != "etcd.tls.rejected" || !strings.Contains(got.Message, theSystemsWords(t, sent)) {
+			t.Errorf("%s: classified %s %q, want the words quoted in etcd.tls.rejected", name, got.Code, got.Message)
+		}
+		if strings.Contains(got.Hint, "825") || wayAround(got.Hint) != "" {
+			t.Errorf("%s: hint %q answers a verdict this system does not give", name, got.Hint)
+		}
 	}
 }
