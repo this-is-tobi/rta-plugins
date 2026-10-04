@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/this-is-tobi/rta/pkg/format"
+	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
@@ -48,7 +49,7 @@ func rowsToTable(rows *sql.Rows, limit int) (view.Table, error) {
 
 	t := view.Table{Columns: make([]view.Column, len(names))}
 	for i, n := range names {
-		t.Columns[i] = view.Column{Name: n, Kind: kindOf(types[i])}
+		t.Columns[i] = view.Column{Name: listed(n), Kind: kindOf(types[i])}
 	}
 
 	size := 0
@@ -82,6 +83,28 @@ func rowsToTable(rows *sql.Rows, limit int) (view.Table, error) {
 	}
 	t.Total = len(t.Rows)
 	return t, nil
+}
+
+// listed is a name the server handed back, as a row or a label shows it
+// (plugin.ListedName): as it is when it reads as itself, and otherwise quoted,
+// with each character a reader would not see written out.
+//
+// **A name here is somebody else's choice, and cleaning it would show another
+// name.** A table, a column or an account is named by whoever created it, and
+// the renderer strips an escape sequence from a cell on its way to a terminal:
+// a table called `esc` ESC `[31mred` came out as `escred`, which is a table
+// that may well exist beside it, and a newline in a name split its row in two.
+// Quoted, the one place an odd name differs from an ordinary one is the quotes.
+//
+// Nothing stays nothing. An empty value here is a NULL — no database selected,
+// no user, no host — and ListedName draws an empty name as "", which would
+// show a session that selected no database as one whose database is called
+// nothing.
+func listed(name string) string {
+	if name == "" {
+		return ""
+	}
+	return plugin.ListedName(name)
 }
 
 // cell turns one scanned value into text.

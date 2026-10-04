@@ -228,7 +228,7 @@ func databaseTable(ctx context.Context, db *sql.DB, req plugin.Request, limit in
 		if err := rows.Scan(&name, &tables, &size); err != nil {
 			return view.Table{}, classify(err, req)
 		}
-		t.Rows = append(t.Rows, []string{name, strconv.FormatInt(tables, 10), bytesCell(size)})
+		t.Rows = append(t.Rows, []string{listed(name), strconv.FormatInt(tables, 10), bytesCell(size)})
 	}
 	if err := rows.Err(); err != nil {
 		return view.Table{}, classify(err, req)

@@ -128,7 +128,7 @@ func lagStatus(lag, delay int64) string {
 
 func channelName(row map[string]string) string {
 	if n := firstSet(row["channel_name"], row["connection_name"]); n != "" {
-		return n
+		return listed(n)
 	}
 	return "(default)"
 }
@@ -162,16 +162,16 @@ func hostPort(host, port string) string {
 		return "-"
 	}
 	if port == "" {
-		return host
+		return listed(host)
 	}
-	return net.JoinHostPort(host, port)
+	return listed(net.JoinHostPort(host, port))
 }
 
 func position(file, pos string) string {
 	if file == "" {
 		return "-"
 	}
-	return file + ":" + pos
+	return listed(file + ":" + pos)
 }
 
 // errno is named for the class of failure and never for the message. The

@@ -3,6 +3,8 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"github.com/this-is-tobi/rta/pkg/view"
 )
 
 // Group replication is read from a member's own tables, and what a member says
@@ -159,5 +161,25 @@ func TestAMultiPrimaryGroupSaysSo(t *testing.T) {
 	part := groupFrom(false, members("ONLINE", "ONLINE", "ONLINE"), nil)
 	if part.facet.role != "group replication member (multi-primary, 3 members)" {
 		t.Errorf("role = %q", part.facet.role)
+	}
+}
+
+// A member is listed by the host it reports for itself, which is whatever its
+// own operator set: shown quoted where it does not read as itself, in the
+// table and in the sentence that names the member that is falling behind.
+func TestAGroupMemberShowsAnOddHostQuotedAndAnOrdinaryOneAsItIs(t *testing.T) {
+	part := groupFrom(true, []map[string]string{
+		{"member_host": ordinaryName, "member_port": "3306", "member_state": "ONLINE", "member_role": "PRIMARY",
+			"this_server": "1", "member_id": "a"},
+		{"member_host": oddName, "member_port": "3306", "member_state": "RECOVERING", "member_role": "SECONDARY",
+			"this_server": "0", "member_id": "b"},
+	}, []map[string]string{{"member_id": "b", "count_transactions_remote_in_applier_queue": "5000"}})
+	rows := part.section.View.(view.Table).Rows
+	shownAs(t, "this server", rows[0][0], ordinaryName+":3306 (this server)")
+	shownAs(t, "an odd member", rows[1][0], `"esc\x1b[31mred\nline:3306"`)
+	for _, want := range []string{`"esc\x1b[31mred\nline:3306" is RECOVERING`, `"esc\x1b[31mred\nline:3306" has 5000 transactions`} {
+		if !strings.Contains(part.facet.detail, want) {
+			t.Errorf("detail = %q, want it to hold %s", part.facet.detail, want)
+		}
 	}
 }

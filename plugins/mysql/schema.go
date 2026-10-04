@@ -116,7 +116,7 @@ func tableTable(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 		} else {
 			typ = strings.ToLower(typ)
 		}
-		t.Rows = append(t.Rows, []string{name, typ, engine, strconv.FormatInt(estRows, 10), bytesCell(size)})
+		t.Rows = append(t.Rows, []string{listed(name), typ, engine, strconv.FormatInt(estRows, 10), bytesCell(size)})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, classify(err, req)
@@ -233,7 +233,9 @@ func partialListing(code, schema, what string) view.Error {
 	return view.Error{
 		Code: code,
 		Message: "this account holds per-table privileges, and INFORMATION_SCHEMA lists only the " +
-			"tables it holds one on — there may be tables in " + schema + " missing from " + what,
+			"tables it holds one on — there may be tables in " + listed(schema) + " missing from " + what,
+		// The statement is SQL for a reader to run, so it names the database as
+		// it is: a list's quoting would be a different identifier.
 		Hint: "MySQL offers no way to count what it filtered out; a schema-wide grant " +
 			"(GRANT SELECT ON `" + schema + "`.*) makes the listing complete",
 	}
@@ -299,7 +301,7 @@ func schemaTree(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 	}
 
 	limit := req.Int("limit")
-	root := view.Node{Label: schema}
+	root := view.Node{Label: listed(schema)}
 	for i, table := range order {
 		if i == limit {
 			root.Children = append(root.Children, view.Node{
@@ -311,11 +313,11 @@ func schemaTree(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 		}
 		cols := byTable[table]
 		node := view.Node{
-			Label:  table,
+			Label:  listed(table),
 			Detail: format.CountOf(len(cols), "column"),
 		}
 		for _, c := range cols {
-			node.Children = append(node.Children, view.Node{Label: c.name, Detail: columnDetail(c)})
+			node.Children = append(node.Children, view.Node{Label: listed(c.name), Detail: columnDetail(c)})
 		}
 		root.Children = append(root.Children, node)
 	}
@@ -329,7 +331,7 @@ func schemaTree(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 	// found, nothing about this answer is partial.
 	if req.String("table") == "" && !schemaFullyVisible(ctx, db, schema) {
 		return view.Sections{
-			Items:    []view.Section{{ID: "schema", Title: schema, View: tree}},
+			Items:    []view.Section{{ID: "schema", Title: listed(schema), View: tree}},
 			Warnings: []view.Error{partialListing("mysql.schema.partial", schema, "this shape")},
 		}, nil
 	}
@@ -341,7 +343,10 @@ func schemaTree(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 // for, and "not null" is stated rather than its opposite because the default
 // in SQL is nullable and the constraint is the news.
 func columnDetail(c column) string {
-	parts := []string{c.dataType}
+	// The type is the one place a stranger's text rides inside what a column
+	// declares: an ENUM or SET spells its members, and those are whatever the
+	// table's author wrote.
+	parts := []string{listed(c.dataType)}
 	switch c.key {
 	case "PRI":
 		parts = append(parts, "primary key")
