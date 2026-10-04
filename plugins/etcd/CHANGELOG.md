@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.4.0...plugins/etcd/v0.5.0) (2026-10-04)
+
+
+### Features
+
+* **etcd:** a key listing that stopped can be continued from the key it ended at ([9441ddd](https://github.com/this-is-tobi/rta-plugins/commit/9441dddc48cc736a19b07cbd491de09679e4b97d))
+
+
+### Bug Fixes
+
+* **etcd:** a certificate macOS refuses for its length names the rule and its fix ([6913a70](https://github.com/this-is-tobi/rta-plugins/commit/6913a7039c9ff947e1a112856b3c814ef48e5fa1))
+* **etcd:** a key, a member's name and its URLs are listed as a person reads them ([721db36](https://github.com/this-is-tobi/rta-plugins/commit/721db365511f1b7766728f49ed6e848655b0da56))
+* **etcd:** a lease's times read "10m", not "10m0s" ([65fba6e](https://github.com/this-is-tobi/rta-plugins/commit/65fba6eca1676d8f1bde72c0fb985422a9c99893))
+* **etcd:** a member that advertises an http:// URL is not handed a username's token ([15b5377](https://github.com/this-is-tobi/rta-plugins/commit/15b53779396e38e3b04ec02dd3a45299178421d7))
+* **etcd:** a member whose certificate spells a refusal is not a refused connection ([350749b](https://github.com/this-is-tobi/rta-plugins/commit/350749b02e42cd379ce8c9fc1d536690fc04125d))
+* **etcd:** a missing key's suggested listing reaches the cluster the read went to ([267552d](https://github.com/this-is-tobi/rta-plugins/commit/267552dee153621074f5ac2e4574cff59e81028e))
+* **etcd:** a refusal the cluster gave names the profile, not the end of its forward ([c6b043e](https://github.com/this-is-tobi/rta-plugins/commit/c6b043e68c61194580e4dbc7a6bbb164c95b60e8))
+* **etcd:** a timeout, a wrong port and a denied snapshot name the profile, not a forward's end ([76ffc3e](https://github.com/this-is-tobi/rta-plugins/commit/76ffc3e14c230365702fc64513eebfa68baa45e7))
+* **etcd:** a username over an https:// endpoint asks the other members, and a plaintext one says how ([441d29e](https://github.com/this-is-tobi/rta-plugins/commit/441d29e274f7be34902d5b70e51f2e22ad280cdd))
+* **etcd:** an answer the member gave at the handshake names the profile, not its forward's end ([db037b4](https://github.com/this-is-tobi/rta-plugins/commit/db037b4b4ab066aafdd785704d6eb72bc6ba25bd))
+* **etcd:** etcd.kv.get says its value comes back masked, which it does on every surface ([5f08b40](https://github.com/this-is-tobi/rta-plugins/commit/5f08b40373a57d18905ad4489cb0fa4014c9cc3a))
+* **etcd:** etcd.kv.get stops telling its reader to take `grant.allow` ([38be03c](https://github.com/this-is-tobi/rta-plugins/commit/38be03c304264a33a46d57e07c63810ab3db596f))
+* **etcd:** the overview a timeout offers reaches the cluster that did not answer ([62873ee](https://github.com/this-is-tobi/rta-plugins/commit/62873ee67e6f7357669636d8bb7b058b1e1e0298))
+* **etcd:** the overview names the profile, not the end of its forward ([c550a24](https://github.com/this-is-tobi/rta-plugins/commit/c550a24d11e3dfe45657f894811cf0494dcd3d64))
+* **etcd:** the restore line quotes a path that draws as nothing, with the SDK's ShellWord ([ef43837](https://github.com/this-is-tobi/rta-plugins/commit/ef438378ffd5dbb1a137e7a237289481b691de73))
+
+
+### Code Refactoring
+
+* **etcd:** a port that answers nothing names the profile and its forward as every plugin does ([7538b00](https://github.com/this-is-tobi/rta-plugins/commit/7538b0039400597f290f3c61990744abd0fc6043))
+* **etcd:** name the profile, its forward and a certificate's names with the SDK's helpers ([296b846](https://github.com/this-is-tobi/rta-plugins/commit/296b846005eaac968473bb5c74900b8f942c12a2))
+* **etcd:** the refusal for a forward's name is the SDK's, not a copy ([6eb482f](https://github.com/this-is-tobi/rta-plugins/commit/6eb482f02cf64c571259b89581f7903788e638f1))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.34.0 ([b212d16](https://github.com/this-is-tobi/rta-plugins/commit/b212d165ced0e7aaf112a9be37a56178d950cbe2))
+
 ## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.3.20...plugins/etcd/v0.4.0) (2026-10-03)
 
 

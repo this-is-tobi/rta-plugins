@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.4.0...plugins/qdrant/v0.5.0) (2026-10-04)
+
+
+### Features
+
+* **qdrant:** the peers table reports each peer's version, term and commit, from any peer ([a5d80bb](https://github.com/this-is-tobi/rta-plugins/commit/a5d80bbf44fa52e0fa73f565ea295d68504176b6))
+
+
+### Bug Fixes
+
+* **qdrant:** a certificate macOS refuses for its length names the rule and its fix ([38cea42](https://github.com/this-is-tobi/rta-plugins/commit/38cea429b2ae3ac7a2ea52e60c3b7b759cc16ad2))
+* **qdrant:** a certificate the server presented and nothing accepts names the profile ([265620f](https://github.com/this-is-tobi/rta-plugins/commit/265620f065ec807483e62326b58036e8a217c0e9))
+* **qdrant:** a collection, vector, payload field or point id that does not draw as itself is quoted ([345b862](https://github.com/this-is-tobi/rta-plugins/commit/345b86272aa9c4c5dee2704c5fa2f1b97579767d))
+* **qdrant:** a payload field named ID or Vector no longer masks the scroll's own column ([3ba6bd1](https://github.com/this-is-tobi/rta-plugins/commit/3ba6bd1763605180a479bb8871687f10d0c75263))
+* **qdrant:** a read that needs a peer that does not answer says so, not "returned 500" ([992e1bd](https://github.com/this-is-tobi/rta-plugins/commit/992e1bd7bfe01df9dc617e184738114a808678a7))
+* **qdrant:** a refusal the server gave names the profile, not the end of its forward ([b1a8141](https://github.com/this-is-tobi/rta-plugins/commit/b1a8141410c9beca0b8b6aef54f20b1999880dc9))
+* **qdrant:** a rejected API key says where it is read from, not to set it ([20fbfa3](https://github.com/this-is-tobi/rta-plugins/commit/20fbfa369bd0f9c32bf676fa171e8736a16265d2))
+* **qdrant:** a reply that is not JSON names the profile, not the end of its forward ([9bd7604](https://github.com/this-is-tobi/rta-plugins/commit/9bd7604408d5642fd388c32467a7112deacb484a))
+* **qdrant:** a scroll that stopped names the argument that continues it ([0bd0df9](https://github.com/this-is-tobi/rta-plugins/commit/0bd0df95b4352ff2f69b0a86b2aaff9748429984))
+* **qdrant:** qdrant.points.scroll says its payloads and vectors come back masked ([f39254b](https://github.com/this-is-tobi/rta-plugins/commit/f39254b80f136cf46790eab17595a95df36d2004))
+* **qdrant:** qdrant.points.scroll stops telling its reader to take `grant.allow` ([eca2332](https://github.com/this-is-tobi/rta-plugins/commit/eca233220cf2789dfb704685b9c7355992a0a6fe))
+* **qdrant:** the listing a collection not found offers reaches the instance the refusal came from ([12013c9](https://github.com/this-is-tobi/rta-plugins/commit/12013c9898059917d2103830d192e8c1e983ed91))
+* **qdrant:** the overview names the profile, not the end of its forward ([2669cd2](https://github.com/this-is-tobi/rta-plugins/commit/2669cd241368a5cf84bfe8ee826353ed314857ac))
+* **qdrant:** the TLS-only refusal names where the call went once, not inside its own parentheses ([31b60e8](https://github.com/this-is-tobi/rta-plugins/commit/31b60e88a8373ddde440628edd9f045af40b836a))
+
+
+### Code Refactoring
+
+* **qdrant:** name the profile, its forward and the TLS-only answer with the SDK's helpers ([3258328](https://github.com/this-is-tobi/rta-plugins/commit/3258328f538fcbe064045045d616a333922659f2))
+* **qdrant:** the forward-name refusal comes from the SDK, under the same code ([a0feb09](https://github.com/this-is-tobi/rta-plugins/commit/a0feb0959dbed88e2c589884da7c165679e19ac4))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.34.0 ([b212d16](https://github.com/this-is-tobi/rta-plugins/commit/b212d165ced0e7aaf112a9be37a56178d950cbe2))
+
 ## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.3.20...plugins/qdrant/v0.4.0) (2026-10-03)
 
 

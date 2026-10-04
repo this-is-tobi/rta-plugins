@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.3.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.2.23...plugins/cnpg/v0.3.0) (2026-10-04)
+
+
+### Features
+
+* **cnpg:** the status of a cluster with replicas says where their lag and positions are read ([da73e23](https://github.com/this-is-tobi/rta-plugins/commit/da73e2317eb74954c1e8156d5701b5c04e6e1dad))
+
+
+### Bug Fixes
+
+* **cnpg:** a cluster that does not answer and a missing context say what to try ([8bfbbbe](https://github.com/this-is-tobi/rta-plugins/commit/8bfbbbe7f4311e8117db99d75bda2e3ebcd6af83))
+* **cnpg:** the kubectl commands a failure offers ask the context the call read ([9adad9d](https://github.com/this-is-tobi/rta-plugins/commit/9adad9def98c2e6197b40c840a26645e95b33d4d))
+* **cnpg:** the listing a call with no cluster named offers reaches the context it was made in ([55f2de8](https://github.com/this-is-tobi/rta-plugins/commit/55f2de8f8c01ffcaea0528468de61a302295e8b0))
+* **cnpg:** the listings a missing cluster or a bad create answer offers reach the cluster read ([e24eda0](https://github.com/this-is-tobi/rta-plugins/commit/e24eda0cc7e586a26602658e30d579378609f724))
+* **cnpg:** the namespace input is not "to read" on the one call that writes ([06f4785](https://github.com/this-is-tobi/rta-plugins/commit/06f47858f2ff32598465d0d1287932721e8b8212))
+
+
+### Code Refactoring
+
+* **cnpg:** the calls a message hands over give the profile and the context with the SDK's ([ffb0319](https://github.com/this-is-tobi/rta-plugins/commit/ffb0319d6f45e64bab97136f44bb1c7935c9ab78))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.34.0 ([b212d16](https://github.com/this-is-tobi/rta-plugins/commit/b212d165ced0e7aaf112a9be37a56178d950cbe2))
+
 ## [0.2.23](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.2.22...plugins/cnpg/v0.2.23) (2026-10-03)
 
 

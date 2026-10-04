@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.5.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.5.0...plugins/vault/v0.5.1) (2026-10-04)
+
+
+### Bug Fixes
+
+* **vault:** a certificate macOS refuses for its length names the rule and its fix ([d506551](https://github.com/this-is-tobi/rta-plugins/commit/d506551f4bc19f4ce6719a8d2a5f7cd99697c475))
+* **vault:** a certificate the server presented and nothing accepts names the profile ([9e672a0](https://github.com/this-is-tobi/rta-plugins/commit/9e672a0cce2078b5ac938981454d83ce498c0cfb))
+* **vault:** a data entry with no key is refused by its place, not by repeating the secret ([2b6c3d1](https://github.com/this-is-tobi/rta-plugins/commit/2b6c3d1088d6108cbcef48affccf59a521174a47))
+* **vault:** a name that does not draw as itself is listed quoted, not drawn as another ([247428e](https://github.com/this-is-tobi/rta-plugins/commit/247428e3b000236ab5e2f0804282e3cd3e6384bb))
+* **vault:** a refusal the Vault gave names the profile, and its status check reaches that Vault ([1afc460](https://github.com/this-is-tobi/rta-plugins/commit/1afc46023649103ba42553b7db159f043482793f))
+* **vault:** a refusal's message is one line, whatever shape Vault answers in ([1419164](https://github.com/this-is-tobi/rta-plugins/commit/141916422ec654af668d33733779fd345bf690b3))
+* **vault:** a restore's read-back that failed is one line naming the profile ([5b533e9](https://github.com/this-is-tobi/rta-plugins/commit/5b533e9a685a00240bf5d21c109ad88a8865cce6))
+* **vault:** a token that never expires is not shown as out of time ([f8c0ad1](https://github.com/this-is-tobi/rta-plugins/commit/f8c0ad16e0aef7691a6817c9cf0514fd0e40d6d5))
+* **vault:** an overview row for a read that failed is one line naming the profile ([886dbb6](https://github.com/this-is-tobi/rta-plugins/commit/886dbb69fd7628126b0c17a8c182e45fd0c070f3))
+* **vault:** an overview that read nothing says why, unless it was the token's policy ([d70c8fb](https://github.com/this-is-tobi/rta-plugins/commit/d70c8fb85256434f9eb92180e0a96d1fc35db2ad))
+* **vault:** the listing and status check a policy or a snapshot offers reach the Vault it came from ([1ab44b4](https://github.com/this-is-tobi/rta-plugins/commit/1ab44b4df0cc7ee1f8373f5d0fb6b2eb5a428919))
+* **vault:** the refusal of the token lookup does not send its reader back to the token lookup ([a61975e](https://github.com/this-is-tobi/rta-plugins/commit/a61975e150b12b8e0be87293eda8fbab01e06829))
+* **vault:** the snapshot, restore and wrap refusals name the profile, not the end of its forward ([f588bb5](https://github.com/this-is-tobi/rta-plugins/commit/f588bb54065bd7f8f29a7eef0d60d55ac74e5ed8))
+* **vault:** the versions argument says its numbers are written as text ([565e1e4](https://github.com/this-is-tobi/rta-plugins/commit/565e1e4b01c68f8a01cc20b7015cffbdb2f5ba67))
+* **vault:** what a tool says about itself is written for the agent that reads it ([a4584f8](https://github.com/this-is-tobi/rta-plugins/commit/a4584f8562a73d76644980a5c24d7d76c6b1f9fa))
+
+
+### Performance Improvements
+
+* **vault:** a call is one attempt, so a down Vault answers at once, not four seconds late ([2376443](https://github.com/this-is-tobi/rta-plugins/commit/2376443be2c00f5efca8c037988e4a176a64d335))
+
+
+### Code Refactoring
+
+* **vault:** name a certificate's names and the TLS-only answer with the SDK's helpers ([11f6092](https://github.com/this-is-tobi/rta-plugins/commit/11f6092c1e53eea7b3fc4e399b2725b1658eb79d))
+* **vault:** the refusal for a certificate checked at a forward's end is the SDK's ([796ff48](https://github.com/this-is-tobi/rta-plugins/commit/796ff48fac87c9434f9e6aa06ad2b552c0a94227))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.34.0 ([b212d16](https://github.com/this-is-tobi/rta-plugins/commit/b212d165ced0e7aaf112a9be37a56178d950cbe2))
+
 ## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.4.18...plugins/vault/v0.5.0) (2026-10-03)
 
 

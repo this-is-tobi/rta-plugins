@@ -1,5 +1,56 @@
 # Changelog
 
+## [0.6.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.5.0...plugins/pg/v0.6.0) (2026-10-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* **pg:** sslmode verify-ca or verify-full with ssl-home on is refused when ~/.postgresql/root.crl exists. Move the list aside, or drop ssl-home and name the files.
+* **pg:** a client certificate, key or root certificate found under ~/.postgresql is no longer used, by the driver or by the children. Name them with sslcert, sslkey and sslrootcert, or set ssl-home to have rta search libpq's directory.
+
+### Features
+
+* **pg:** sslcert and sslkey name the client certificate, and nothing is read from ~/.postgresql ([6743f34](https://github.com/this-is-tobi/rta-plugins/commit/6743f34d9ea7c1ae4ab84b67b67ea86a7b3a9730))
+* **pg:** tls-server-name names what the certificate is checked for, and turns TLS on in a forward ([b146fff](https://github.com/this-is-tobi/rta-plugins/commit/b146fff5724728163f665fbec8a3936964408aca))
+
+
+### Bug Fixes
+
+* **pg:** a certificate that does not verify is named for why, macOS's length rule for its fix ([bcab8a7](https://github.com/this-is-tobi/rta-plugins/commit/bcab8a7563d0aca6e4609ffa0b1ddacac3ab7a9c))
+* **pg:** a column's type named by a stranger is written in SQL's own escape ([41504fe](https://github.com/this-is-tobi/rta-plugins/commit/41504fe788ccc9e1c36e7c3ea5977fddb119b36c))
+* **pg:** a dump or a restore over TLS through a kube: forward is refused before it connects ([79e65d7](https://github.com/this-is-tobi/rta-plugins/commit/79e65d7746ddc8a0a80872c3d7fb28d5bec356be))
+* **pg:** a name a stranger chose is shown written out when it does not read as itself ([f37de54](https://github.com/this-is-tobi/rta-plugins/commit/f37de54f3e5737e668e10c5383d0b48ee97553ee))
+* **pg:** a refusal the server gave names the profile, not the end of its forward ([8288ca9](https://github.com/this-is-tobi/rta-plugins/commit/8288ca96e0c1e569f2be978269a65119b63a8fbb))
+* **pg:** a restore and a schema description name the server as the reader reaches it again ([cca3b87](https://github.com/this-is-tobi/rta-plugins/commit/cca3b87efd08763a3c58e5b87f4cd4a3ba8e5058))
+* **pg:** a root certificate ssl-home found is named as found, with the way to stop reading it ([cf3bb05](https://github.com/this-is-tobi/rta-plugins/commit/cf3bb05f5add9b97c8d5116ec4d3efb81cd62b93))
+* **pg:** a slot given up on says why, and only the reasons about WAL talk about WAL ([26309fb](https://github.com/this-is-tobi/rta-plugins/commit/26309fb157407b70da5e0e7cba074fbffdd22dfd))
+* **pg:** a TLS refusal the server gave names the profile, not the end of its forward ([6167c09](https://github.com/this-is-tobi/rta-plugins/commit/6167c098293bb9b0b86ce6e19874a0225f6ab2e7))
+* **pg:** fewer synchronous standbys than synchronous_standby_names asks for is a stall ([f798afb](https://github.com/this-is-tobi/rta-plugins/commit/f798afb1cbd9412ad11c7694a7924c9ba9b0a803))
+* **pg:** pg.table.list and pg.activity say when they stopped at their limit ([93cd9d9](https://github.com/this-is-tobi/rta-plugins/commit/93cd9d918540525da38ff769f160b4a165b92fd7))
+* **pg:** pg.table.list refuses a schema that is not there, as pg.schema.dump does ([173f91b](https://github.com/this-is-tobi/rta-plugins/commit/173f91b1d4d425cdb327d2e5558733e2ae913fd7))
+* **pg:** ssl-home beside a revocation list under ~/.postgresql is refused where TLS verifies ([83282af](https://github.com/this-is-tobi/rta-plugins/commit/83282affa4bb17bd12b377bd73686b88f27e9e6f))
+* **pg:** the createdb line a missing restore target offers is one word per value to a shell ([89bfb08](https://github.com/this-is-tobi/rta-plugins/commit/89bfb08c6a6eed459d61b3319f0105b953e12ecf))
+* **pg:** the descriptions an agent reads stop pointing at calls it cannot make ([f29b92d](https://github.com/this-is-tobi/rta-plugins/commit/f29b92d277cff46bef30eb68d38f507d2fb67efb))
+* **pg:** the GRANT the hidden-standby hint offers quotes the role the way SQL does ([5810bbd](https://github.com/this-is-tobi/rta-plugins/commit/5810bbd6c218c54b7ee7d68011ee04d9a16206fd))
+* **pg:** the GRANT the hidden-standby hint offers writes an odd role in SQL's own escape ([2d543ca](https://github.com/this-is-tobi/rta-plugins/commit/2d543cabc72ae687bbdc22614985083f0c566506))
+* **pg:** the listings and status checks a refusal offers reach the server the refusal came from ([64131b9](https://github.com/this-is-tobi/rta-plugins/commit/64131b94919488293d4a83cebab5a684ab14e0bc))
+* **pg:** the policy lookup a hint offers writes an odd table name in SQL's own escape ([0b2c7b2](https://github.com/this-is-tobi/rta-plugins/commit/0b2c7b29ed849f53bee9a6011b39c8324e7e1c6e))
+* **pg:** the policy query a row-level-security refusal offers is for this table and quoted ([d66f781](https://github.com/this-is-tobi/rta-plugins/commit/d66f781454318183d515e57e0882be128699aa9f))
+* **pg:** the schema description writes an odd name as SQL's own escape ([87941e6](https://github.com/this-is-tobi/rta-plugins/commit/87941e6fa9009151a1c3478acf75ee1eb1f1ca87))
+* **pg:** through a forward, a refused certificate's hint stops naming the sslmode the host refuses ([879e7ec](https://github.com/this-is-tobi/rta-plugins/commit/879e7ecb45fc95acb4d94590206d2cb5356cce7c))
+
+
+### Code Refactoring
+
+* **pg:** name the profile and its forward, and what reaches the server, with the SDK's ([bced140](https://github.com/this-is-tobi/rta-plugins/commit/bced140af305a59bba0e158dddb8239a3e8bb02c))
+* **pg:** the certificate-for-another-name refusal is the SDK's, with pg's own code ([06d4e1b](https://github.com/this-is-tobi/rta-plugins/commit/06d4e1b2d4d8290d4a5e0aa12b36a08cea04ca52))
+* **pg:** the views read through a querier, so what they show is testable without a server ([38ca336](https://github.com/this-is-tobi/rta-plugins/commit/38ca33674976a6118abaf2c81cee31d2d41e625d))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.34.0 ([b212d16](https://github.com/this-is-tobi/rta-plugins/commit/b212d165ced0e7aaf112a9be37a56178d950cbe2))
+
 ## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.4.0...plugins/pg/v0.5.0) (2026-10-03)
 
 
