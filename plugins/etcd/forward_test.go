@@ -158,6 +158,11 @@ func TestAForwardRefusalNamesTheSettingForItsSurface(t *testing.T) {
 		if verr.Code != "etcd.tls.forward" || !strings.Contains(verr.Hint, want) {
 			t.Errorf("%s: %s %q, want %q in the hint", sf, verr.Code, verr.Hint, want)
 		}
+		// What answers is etcd's member, which is the one word this plugin gives
+		// the SDK's refusal besides its code and where the call reached.
+		if !strings.Contains(verr.Hint, "the name the member answers as") {
+			t.Errorf("%s: hint %q does not say it is the member's name", sf, verr.Hint)
+		}
 		if !strings.Contains(verr.Message, "(through its ssh: forward) is for a, b, c and 1 more") {
 			t.Errorf("%s: %q does not list the certificate's names", sf, verr.Message)
 		}
