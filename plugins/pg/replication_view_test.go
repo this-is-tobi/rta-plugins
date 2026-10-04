@@ -256,7 +256,9 @@ func TestTheHiddenWarningNamesTheRoleAndWhatGrantsIt(t *testing.T) {
 // The statement the hint offers is one to paste, so the role is quoted the way
 // SQL reads an identifier: a role holding a double quote doubles it, which a
 // bare pair of quotes around the name did not, and the statement named another
-// role or did not parse.
+// role or did not parse. One that does not read as itself is SQL's own escape,
+// since the renderer strips an escape sequence from a hint on the way to the
+// terminal and the statement pasted would grant another role.
 func TestTheGrantTheHiddenWarningOffersQuotesTheRoleAsSQLDoes(t *testing.T) {
 	f := primaryFacts([]standbyRow{hiddenStandby()}, nil)
 	for user, want := range map[string]string{
@@ -265,11 +267,14 @@ func TestTheGrantTheHiddenWarningOffersQuotesTheRoleAsSQLDoes(t *testing.T) {
 		`we"ird`:     "`GRANT pg_monitor TO \"we\"\"ird\"`",
 		`"leading`:   "`GRANT pg_monitor TO \"\"\"leading\"`",
 		`back\slash`: "`GRANT pg_monitor TO \"back\\slash\"`",
+		oddName:      "`GRANT pg_monitor TO U&\"esc\\001b[31mred\\000aline\"`",
 	} {
 		w := hiddenWarning(f, reqFor(t, "pg.replication", map[string]any{"user": user}))
 		if w == nil || !strings.Contains(w.Hint, want) {
 			t.Errorf("role %q: hint = %v, want %s in it", user, w, want)
+			continue
 		}
+		bare(t, "the hint", w.Hint)
 	}
 }
 
