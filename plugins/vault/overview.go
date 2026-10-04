@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"sort"
 
 	vaultapi "github.com/hashicorp/vault/api"
 
@@ -83,7 +82,7 @@ func compactOverview(ctx context.Context, client *vaultapi.Client, req plugin.Re
 	if secret, err := client.Auth().Token().LookupSelfWithContext(ctx); err == nil {
 		read++
 		if policies, ok := secret.Data["policies"]; ok {
-			add("token policies", cell(policies))
+			add("token policies", nameCell(policies))
 		}
 		if ttl, ok := secret.Data["ttl"]; ok {
 			add("token ttl (seconds)", tokenTTL(ttl))
@@ -135,13 +134,7 @@ func detailedOverview(ctx context.Context, client *vaultapi.Client, req plugin.R
 
 	names, err := client.Sys().ListPoliciesWithContext(ctx)
 	if err == nil {
-		sort.Strings(names)
-		t := view.Table{Columns: []view.Column{{Name: "Name"}}}
-		for _, n := range names {
-			t.Rows = append(t.Rows, []string{n})
-		}
-		t.Total = len(t.Rows)
-		put("policies", t, nil)
+		put("policies", policyTable(names), nil)
 	} else {
 		if cause == nil {
 			cause = classify(err, req)

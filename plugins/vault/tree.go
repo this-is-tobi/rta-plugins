@@ -91,6 +91,7 @@ func runKVTree(ctx context.Context, req plugin.Request) (view.View, error) {
 		if start != "" {
 			label += "/" + start
 		}
+		label = plugin.ListedName(label)
 		detail := format.CountOf(w.secrets, "secret")
 		if w.folders > 0 {
 			detail += ", " + format.CountOf(w.folders, "folder")
@@ -162,13 +163,13 @@ func (w *treeWalk) expand(parent string, names []string, depth int) []view.Node 
 		}
 		if !strings.HasSuffix(name, "/") {
 			w.secrets++
-			out = append(out, view.Node{Label: name})
+			out = append(out, view.Node{Label: listedEntry(name)})
 			continue
 		}
 
 		w.folders++
 		folder := strings.TrimSuffix(full, "/")
-		node := view.Node{Label: name}
+		node := view.Node{Label: listedEntry(name)}
 		switch {
 		case depth <= 0:
 			node.Detail = "not expanded — raise " + w.req.Surface().InputName("depth")

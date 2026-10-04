@@ -41,20 +41,22 @@ func runTokenStatus(ctx context.Context, req plugin.Request) (view.View, error) 
 			return nil, verr
 		}
 		kv := view.KeyValue{}
-		add := func(key, dataKey string) {
+		add := func(key, dataKey string, render func(interface{}) string) {
 			if v, ok := secret.Data[dataKey]; ok {
-				kv.Pairs = append(kv.Pairs, view.Pair{Key: key, Value: cell(v)})
+				kv.Pairs = append(kv.Pairs, view.Pair{Key: key, Value: render(v)})
 			}
 		}
-		add("accessor", "accessor")
-		add("display name", "display_name")
-		add("policies", "policies")
-		add("orphan", "orphan")
-		add("renewable", "renewable")
+		add("accessor", "accessor", cell)
+		// A token's display name is built from whoever logged in (userpass-alice),
+		// and its policies are names whoever wrote a policy chose.
+		add("display name", "display_name", nameCell)
+		add("policies", "policies", nameCell)
+		add("orphan", "orphan", cell)
+		add("renewable", "renewable", cell)
 		if v, ok := secret.Data["ttl"]; ok {
 			kv.Pairs = append(kv.Pairs, view.Pair{Key: "ttl (seconds)", Value: tokenTTL(v)})
 		}
-		add("expire time", "expire_time")
+		add("expire time", "expire_time", cell)
 		return kv, nil
 	})
 }
@@ -94,11 +96,34 @@ func runLeaseShow(ctx context.Context, req plugin.Request) (view.View, error) {
 		keys := []string{"id", "issue_time", "expire_time", "last_renewal", "renewable", "ttl"}
 		for _, k := range keys {
 			if v, ok := secret.Data[k]; ok {
-				kv.Pairs = append(kv.Pairs, view.Pair{Key: k, Value: cell(v)})
+				value := cell(v)
+				// A lease's ID opens on the path that issued it, which holds the
+				// role it was issued for: a name its writer chose.
+				if k == "id" {
+					value = nameCell(v)
+				}
+				kv.Pairs = append(kv.Pairs, view.Pair{Key: k, Value: value})
 			}
 		}
 		return kv, nil
 	})
+}
+
+// nameCell is cell for a value that is a name, or a list of them, as a person
+// reads it in a list: each name as plugin.ListedName shows it, and one that is
+// empty as nothing, the way cell shows it.
+func nameCell(v interface{}) string {
+	if list, ok := v.([]interface{}); ok {
+		parts := make([]string, len(list))
+		for i, e := range list {
+			parts[i] = nameCell(e)
+		}
+		return strings.Join(parts, ", ")
+	}
+	if name := cell(v); name != "" {
+		return plugin.ListedName(name)
+	}
+	return ""
 }
 
 // cell renders an arbitrary Vault response value as text — the equivalent
