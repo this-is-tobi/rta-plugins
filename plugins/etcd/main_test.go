@@ -17,7 +17,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"syscall"
@@ -528,21 +527,13 @@ func TestAnUntrustedCertificateIsNamedRatherThanWaitedOn(t *testing.T) {
 	}
 }
 
-// macOS verifies against the system's trust store itself and reports a chain
-// it cannot anchor as a bare error, never as x509.UnknownAuthorityError: that
-// is still a certificate nothing here trusts. Every other verdict it gives
-// untyped is its own reason and is quoted in its words: a revoked certificate
-// answered with the CA file to name was answered with the way around the
-// revocation check. Elsewhere an untyped verdict is never a question of
-// trust. A name or a date that fails is a refusal of its own too, and none is
-// a port serving plaintext.
+// A refusal Go types is read by its type, on every system, and none but an
+// unknown issuer is a question of trust: a name or a date that fails is a
+// refusal of its own, and none is a port serving plaintext. The verdicts only
+// macOS's verifier gives, which Go passes on untyped, are read in
+// verdict_test.go on any system.
 func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
 	r := req(t, "etcd.overview", map[string]any{"endpoint": "etcd-0.internal:2379"})
-	open, closing := string(rune(0x201c)), string(rune(0x201d))
-	onMac := "etcd.tls.rejected"
-	if runtime.GOOS == "darwin" {
-		onMac = "etcd.tls.untrusted"
-	}
 	for _, tc := range []struct {
 		name string
 		err  error
@@ -550,15 +541,6 @@ func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
 	}{
 		{"Go's own verifier", x509.UnknownAuthorityError{}, "etcd.tls.untrusted"},
 		{"no roots to read", x509.SystemRootsError{}, "etcd.tls.untrusted"},
-		{"the system's verifier, a chain it cannot anchor",
-			errors.New("x509: " + open + "etcd-0" + closing + " certificate is not trusted"), onMac},
-		{"the system's verifier, a revoked certificate",
-			errors.New("x509: " + open + "etcd-0" + closing + " certificate is revoked"), "etcd.tls.rejected"},
-		{"the system's verifier, a name that ends like the untrusted verdict",
-			errors.New("x509: " + open + "a" + closing + " certificate is not trusted" + closing +
-				" certificate is revoked"), "etcd.tls.rejected"},
-		{"the system's verifier, a policy it holds the certificate to",
-			errors.New("x509: " + open + "etcd-0" + closing + " certificate is not standards compliant"), "etcd.tls.rejected"},
 		{"a name it is not for", x509.HostnameError{Certificate: &x509.Certificate{}, Host: "etcd-0.internal"}, "etcd.tls.rejected"},
 		{"a date it is not valid on", x509.CertificateInvalidError{Cert: &x509.Certificate{}, Reason: x509.Expired}, "etcd.tls.rejected"},
 		// Go's verifier types each reason of its own, and no CA cures one.
