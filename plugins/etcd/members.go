@@ -122,8 +122,8 @@ func askMembers(ctx context.Context, c *clientv3.Client, req plugin.Request, sel
 		case skip != "":
 			r.notAsked, r.why = true, skip
 		case !tokenSafeAt(req, r.clientURLs[0]):
-			r.notAsked, r.why = true, "advertises "+r.clientURLs[0]+", which is not https://, so the credentials "+
-				"are not sent to it"
+			r.notAsked, r.why = true, "advertises "+plugin.ListedName(r.clientURLs[0])+", which is not https://, so "+
+				"the credentials are not sent to it"
 		default:
 			wg.Add(1)
 			go func() {
@@ -131,7 +131,7 @@ func askMembers(ctx context.Context, c *clientv3.Client, req plugin.Request, sel
 				mctx, cancel := context.WithTimeout(ctx, memberTimeout)
 				defer cancel()
 				if st, err := c.Status(mctx, r.clientURLs[0]); err != nil {
-					r.why = unreachableWhy(err) + " at " + r.clientURLs[0]
+					r.why = unreachableAt(err, r.clientURLs[0])
 				} else {
 					r.st = st
 				}
@@ -184,6 +184,14 @@ func overTLS(req plugin.Request) bool {
 // speaks TLS.
 func tokenSafeAt(req plugin.Request, url string) bool {
 	return req.String("username") == "" || strings.HasPrefix(strings.ToLower(url), "https://")
+}
+
+// unreachableAt is unreachableWhy beside the address the member advertised,
+// which is the part that says which member it is — and is the member's to
+// choose, so it is shown as a list shows a name (plugin.ListedName). The call
+// itself went to the address as advertised.
+func unreachableAt(err error, url string) string {
+	return unreachableWhy(err) + " at " + plugin.ListedName(url)
 }
 
 // unreachableWhy is the shortest true reason a member's own status could not
@@ -243,12 +251,8 @@ func membersTable(rows []memberRow, lead leaderView) view.Table {
 		{Name: "Health", Kind: view.KindStatus},
 	}}
 	for _, r := range rows {
-		name := r.name
-		if name == "" {
-			name = "-"
-		}
 		cells := make([]string, 0, len(t.Columns))
-		cells = append(cells, hexID(r.id), name, roleOf(r, lead), "-", "-", "-", "-", "-", "-", "-")
+		cells = append(cells, hexID(r.id), memberName(r.name), roleOf(r, lead), "-", "-", "-", "-", "-", "-", "-")
 		if r.st != nil {
 			cells[3] = r.st.Version
 			cells[4] = strconv.FormatUint(r.st.RaftTerm, 10)
