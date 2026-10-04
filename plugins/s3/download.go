@@ -279,8 +279,8 @@ func planDownload(sf plugin.Surface, root string, objects []minio.ObjectInfo) ([
 //
 // The check is `filepath.Rel` on the joined path rather than a scan for
 // ".." in the key, because the scan is the version that gets defeated: it
-// has to anticipate encodings, separators and normalisation on three
-// platforms, and Join already does the normalising this needs. Whatever the
+// has to anticipate encodings, separators and normalisation on each
+// platform, and Join already does the normalising this needs. Whatever the
 // key contains, the question asked here is the only one that matters — after
 // resolution, is this path still under the directory the operator named.
 func destinationFor(root, key string) (string, error) {
