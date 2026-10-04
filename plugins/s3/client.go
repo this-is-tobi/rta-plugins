@@ -231,10 +231,11 @@ func classify(err error, req plugin.Request) *view.Error {
 		bucket := cmp.Or(errResp.BucketName, req.String("bucket"))
 		switch errResp.Code {
 		case minio.NoSuchBucket:
-			return view.Errorf("s3.bucket.notfound", "%s has no bucket %q", answered, bucket).
+			return view.Errorf("s3.bucket.notfound", "%s has no bucket %s", answered, quoted(bucket)).
 				WithHint(nextCall(req, "s3.bucket.list") + " shows what is there")
 		case minio.NoSuchKey:
-			return view.Errorf("s3.object.notfound", "no object %q in %q", cmp.Or(errResp.Key, req.String("key")), bucket).
+			return view.Errorf("s3.object.notfound", "no object %s in %s",
+				quoted(cmp.Or(errResp.Key, req.String("key"))), quoted(bucket)).
 				WithHint(nextCall(req, "s3.object.list", plugin.Arg{Name: "bucket", Value: bucket}) +
 					" shows what is there")
 		case minio.NoSuchBucketPolicy:
@@ -251,7 +252,7 @@ func classify(err error, req plugin.Request) *view.Error {
 				WithHint("the secret key is read from $" + plugin.LocalEnvVar("s3.overview", "secret-key") + " or " +
 					sf.SettingName("secret-key") + " — check it, and " + sf.SettingName("access-key"))
 		case minio.BucketAlreadyExists, minio.BucketAlreadyOwnedByYou:
-			return view.Errorf("s3.bucket.exists", "%q already exists", bucket).
+			return view.Errorf("s3.bucket.exists", "%s already exists", quoted(bucket)).
 				WithHint(nextCall(req, "s3.bucket.list") + " shows who owns what this plugin can see")
 		}
 		// Go's own answer, from the listener rather than from the S3 API behind

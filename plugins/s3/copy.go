@@ -58,7 +58,7 @@ func copyFields(bucketHelp, keyHelp string) []plugin.Field {
 // has no conditional-destination option to close it properly.
 func refuseIfTaken(ctx context.Context, client *minio.Client, verb, bucket, key string, req plugin.Request) *view.Error {
 	if _, err := client.StatObject(ctx, bucket, key, minio.StatObjectOptions{}); err == nil {
-		return view.Errorf("s3."+verb+".taken", "%s/%s already exists", bucket, key).
+		return view.Errorf("s3."+verb+".taken", "%s already exists", address(bucket, key)).
 			WithHint("writing over it would destroy what it holds — remove it first: " + rmCall(req, bucket, key))
 	} else if minio.ToErrorResponse(err).StatusCode != 404 {
 		// Anything other than "not there" is not permission to proceed: a 403
@@ -108,7 +108,7 @@ func runObjectCopy(ctx context.Context, req plugin.Request) (view.View, error) {
 		srcBucket, srcKey := req.String("bucket"), req.String("key")
 		dstBucket, dstKey := destination(req)
 		if req.DryRun {
-			return view.Text{Body: "would copy " + srcBucket + "/" + srcKey + " to " + dstBucket + "/" + dstKey}, nil
+			return view.Text{Body: "would copy " + address(srcBucket, srcKey) + " to " + address(dstBucket, dstKey)}, nil
 		}
 		// After the dry-run branch on purpose: a dry run must send nothing at
 		// all, so it predicts the copy without predicting this refusal.
@@ -121,7 +121,7 @@ func runObjectCopy(ctx context.Context, req plugin.Request) (view.View, error) {
 		if err != nil {
 			return nil, classify(err, req)
 		}
-		return view.Text{Body: "copied " + srcBucket + "/" + srcKey + " to " + dstBucket + "/" + dstKey}, nil
+		return view.Text{Body: "copied " + address(srcBucket, srcKey) + " to " + address(dstBucket, dstKey)}, nil
 	})
 }
 
@@ -150,7 +150,7 @@ func runObjectRename(ctx context.Context, req plugin.Request) (view.View, error)
 		srcBucket, srcKey := req.String("bucket"), req.String("key")
 		dstBucket, dstKey := destination(req)
 		if req.DryRun {
-			return view.Text{Body: "would move " + srcBucket + "/" + srcKey + " to " + dstBucket + "/" + dstKey}, nil
+			return view.Text{Body: "would move " + address(srcBucket, srcKey) + " to " + address(dstBucket, dstKey)}, nil
 		}
 		if verr := refuseIfTaken(ctx, client, "rename", dstBucket, dstKey, req); verr != nil {
 			return nil, verr
@@ -167,9 +167,9 @@ func runObjectRename(ctx context.Context, req plugin.Request) (view.View, error)
 		// act on. The underlying reason travels in the message.
 		if err := client.RemoveObject(ctx, srcBucket, srcKey, minio.RemoveObjectOptions{}); err != nil {
 			return nil, view.Errorf("s3.rename.partial",
-				"copied to %s/%s but could not remove the source %s/%s: %v",
-				dstBucket, dstKey, srcBucket, srcKey, err)
+				"copied to %s but could not remove the source %s: %v",
+				address(dstBucket, dstKey), address(srcBucket, srcKey), err)
 		}
-		return view.Text{Body: "moved " + srcBucket + "/" + srcKey + " to " + dstBucket + "/" + dstKey}, nil
+		return view.Text{Body: "moved " + address(srcBucket, srcKey) + " to " + address(dstBucket, dstKey)}, nil
 	})
 }

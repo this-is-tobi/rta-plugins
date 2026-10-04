@@ -141,7 +141,7 @@ func runObjectTree(ctx context.Context, req plugin.Request) (view.View, error) {
 			detail += " — " + w.stopped
 		}
 		return view.Tree{Roots: []view.Node{{
-			Label: label, Detail: detail, Children: children,
+			Label: plugin.ListedName(label), Detail: detail, Children: children,
 		}}}, nil
 	})
 }
@@ -246,12 +246,12 @@ func (w *treeRender) expand(n *treeNode, depth int) []view.Node {
 		w.nodes++
 		c := n.children[name]
 		if c.leaf {
-			out = append(out, view.Node{Label: name, Detail: format.Bytes(c.bytes)})
+			out = append(out, view.Node{Label: plugin.ListedName(name), Detail: format.Bytes(c.bytes)})
 			continue
 		}
 
 		node := view.Node{
-			Label:  name + "/",
+			Label:  plugin.ListedName(name) + "/",
 			Detail: format.CountOf(c.objects, "object") + ", " + format.Bytes(c.bytes),
 		}
 		if depth >= w.maxDepth {

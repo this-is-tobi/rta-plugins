@@ -81,7 +81,7 @@ func runObjectList(ctx context.Context, req plugin.Request) (view.View, error) {
 				sf := req.Surface()
 				t.Warnings = append(t.Warnings, view.Error{
 					Code:    "s3.object.list.partial",
-					Message: fmt.Sprintf("stopped after %s; more keys follow %q", format.CountOf(limit, "object"), last),
+					Message: fmt.Sprintf("stopped after %s; more keys follow %s", format.CountOf(limit, "object"), quoted(last)),
 					Hint: "pass " + sf.InputTo("after", last) + " for the next page, or narrow it with " +
 						sf.InputName("prefix") + " or raise " + sf.InputName("limit"),
 				})
@@ -92,14 +92,14 @@ func runObjectList(ctx context.Context, req plugin.Request) (view.View, error) {
 				// A common-prefix "directory" marker under a non-recursive
 				// listing, not a real object — shown as a folder, not a
 				// zero-byte file nobody wrote.
-				t.Rows = append(t.Rows, []string{obj.Key, "", ""})
+				t.Rows = append(t.Rows, []string{plugin.ListedName(obj.Key), "", ""})
 				continue
 			}
 			// format.Bytes, not the integer. pkg/format exists because "the
 			// first one to show a byte count showed 1392640", and this was it:
 			// a size column nobody can read at a glance is a column that gets
 			// piped into another tool instead of being looked at.
-			t.Rows = append(t.Rows, []string{obj.Key, format.Bytes(obj.Size), obj.LastModified.Format("2006-01-02 15:04")})
+			t.Rows = append(t.Rows, []string{plugin.ListedName(obj.Key), format.Bytes(obj.Size), obj.LastModified.Format("2006-01-02 15:04")})
 		}
 		if verr := ctxErr(ctx, req); verr != nil {
 			return nil, verr
@@ -187,7 +187,7 @@ func runObjectGet(ctx context.Context, req plugin.Request) (view.View, error) {
 
 		if out := req.String("out"); out != "" {
 			if req.DryRun {
-				return view.Text{Body: "would write " + bucket + "/" + key + " to " + out}, nil
+				return view.Text{Body: "would write " + address(bucket, key) + " to " + out}, nil
 			}
 			// O_EXCL, like pg.dump, vault.snapshot and s3.bucket.download:
 			// this is the only path in the tree that used to open a
@@ -234,7 +234,7 @@ func runObjectGet(ctx context.Context, req plugin.Request) (view.View, error) {
 			return nil, classify(err, req)
 		}
 		if len(body) > maxInline {
-			return nil, view.Errorf("s3.object.toolarge", "%s/%s is larger than %d bytes", bucket, key, maxInline).
+			return nil, view.Errorf("s3.object.toolarge", "%s is larger than %d bytes", address(bucket, key), maxInline).
 				WithHint(outHint(req, bucket, key))
 		}
 		// An object is somebody else's bytes, and every renderer strips
@@ -356,7 +356,7 @@ func runObjectSet(ctx context.Context, req plugin.Request) (view.View, error) {
 			if size >= 0 {
 				sized = format.Bytes(size)
 			}
-			return view.Text{Body: fmt.Sprintf("would set %s/%s (%s, %s)", bucket, key, sized, typed)}, nil
+			return view.Text{Body: fmt.Sprintf("would set %s (%s, %s)", address(bucket, key), sized, typed)}, nil
 		}
 		opts := minio.PutObjectOptions{
 			ContentType:  contentType,
@@ -375,7 +375,7 @@ func runObjectSet(ctx context.Context, req plugin.Request) (view.View, error) {
 		if err != nil {
 			return nil, uploadFailure(err, body, req)
 		}
-		return view.Text{Body: "set " + bucket + "/" + key + " (" + format.Bytes(info.Size) + ")"}, nil
+		return view.Text{Body: "set " + address(bucket, key) + " (" + format.Bytes(info.Size) + ")"}, nil
 	})
 }
 
@@ -402,12 +402,12 @@ func runObjectRemove(ctx context.Context, req plugin.Request) (view.View, error)
 	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
 		bucket, key := req.String("bucket"), req.String("key")
 		if req.DryRun {
-			return view.Text{Body: "would remove " + bucket + "/" + key}, nil
+			return view.Text{Body: "would remove " + address(bucket, key)}, nil
 		}
 		if err := client.RemoveObject(ctx, bucket, key, minio.RemoveObjectOptions{}); err != nil {
 			return nil, classify(err, req)
 		}
-		return view.Text{Body: "removed " + bucket + "/" + key}, nil
+		return view.Text{Body: "removed " + address(bucket, key)}, nil
 	})
 }
 

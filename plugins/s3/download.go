@@ -187,7 +187,7 @@ func runBucketDownload(ctx context.Context, req plugin.Request) (view.View, erro
 			{Key: "objects", Value: fmt.Sprintf("%d", len(plan))},
 			{Key: "size", Value: format.Bytes(written)},
 			{Key: "took", Value: time.Since(started).Round(time.Millisecond).String()},
-			{Key: "from", Value: req.String("bucket") + "/" + req.String("prefix")},
+			{Key: "from", Value: address(req.String("bucket"), req.String("prefix"))},
 			{Key: "at rest", Value: "unencrypted, directory 0700 and files 0600 — " +
 				"`rta kv` or `age` if it is going anywhere"},
 		}}, nil
@@ -257,7 +257,7 @@ func planDownload(sf plugin.Surface, root string, objects []minio.ObjectInfo) ([
 		if err != nil {
 			refused++
 			if len(unsafe) < unsafeShown {
-				unsafe = append(unsafe, fmt.Sprintf("%q (%s)", obj.Key, err))
+				unsafe = append(unsafe, fmt.Sprintf("%s (%s)", quoted(obj.Key), err))
 			}
 			continue
 		}
@@ -372,7 +372,7 @@ func fetchAll(ctx context.Context, client *minio.Client, req plugin.Request,
 func fetchOne(ctx context.Context, client *minio.Client, req plugin.Request,
 	t target) (int64, *view.Error) {
 	if err := os.MkdirAll(filepath.Dir(t.path), 0o700); err != nil {
-		return 0, view.Errorf("s3.download.create", "creating %s: %v", filepath.Dir(t.path), err)
+		return 0, view.Errorf("s3.download.create", "creating %s: %s", plugin.ListedName(filepath.Dir(t.path)), fsReason(err))
 	}
 	obj, err := client.GetObject(ctx, req.String("bucket"), t.key, minio.GetObjectOptions{})
 	if err != nil {
@@ -386,12 +386,12 @@ func fetchOne(ctx context.Context, client *minio.Client, req plugin.Request,
 	f, err := os.OpenFile(t.path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if errors.Is(err, os.ErrExist) {
 		return 0, view.Errorf("s3.download.collision",
-			"two object keys resolve to the same local file: %s", t.path).
+			"two object keys resolve to the same local file: %s", plugin.ListedName(t.path)).
 			WithHint("usually a case-insensitive filesystem holding keys that differ only in " +
 				"case — copy to a case-sensitive volume, or narrow it with " + req.Surface().InputName("prefix"))
 	}
 	if err != nil {
-		return 0, view.Errorf("s3.download.create", "creating %s: %v", t.path, err)
+		return 0, view.Errorf("s3.download.create", "creating %s: %s", plugin.ListedName(t.path), fsReason(err))
 	}
 	// Streamed rather than buffered: an object is whatever size it is, and
 	// this is a person's explicit copy of it.
@@ -401,7 +401,7 @@ func fetchOne(ctx context.Context, client *minio.Client, req plugin.Request,
 		return 0, classify(copyErr, req)
 	}
 	if closeErr != nil {
-		return 0, view.Errorf("s3.download.write", "finishing %s: %v", t.path, closeErr)
+		return 0, view.Errorf("s3.download.write", "finishing %s: %s", plugin.ListedName(t.path), fsReason(closeErr))
 	}
 	return n, nil
 }

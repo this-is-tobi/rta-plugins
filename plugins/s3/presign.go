@@ -48,7 +48,7 @@ func runObjectPresign(ctx context.Context, req plugin.Request) (view.View, error
 		// printed without it.
 		if req.DryRun {
 			return view.KeyValue{Pairs: []view.Pair{
-				{Key: "would presign", Value: bucket + "/" + key},
+				{Key: "would presign", Value: address(bucket, key)},
 				{Key: "method", Value: req.String("method")},
 				{Key: "expires in", Value: ttl.String()},
 			}}, nil
