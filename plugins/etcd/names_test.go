@@ -204,12 +204,13 @@ func TestAMemberNameThatDoesNotReadAsItselfIsWrittenOutInTheOverview(t *testing.
 // A member names the address it advertises in the cell that says why it was
 // not asked, or could not be, and that address is the member's to choose.
 func TestAnAdvertisedURLThatDoesNotReadAsItselfIsWrittenOutWhereAMemberIsNotAsked(t *testing.T) {
-	const selfID, otherID = 1, 2
+	const selfID, otherID, plainID = 1, 2, 3
 	odd := "http://" + oddName + ":2379"
 	list := serveGRPC(t, func(s *grpc.Server) {
 		etcdserverpb.RegisterClusterServer(s, &memberListServer{members: []*etcdserverpb.Member{
 			{ID: selfID, Name: "a", ClientURLs: []string{"http://127.0.0.1:1"}},
 			{ID: otherID, Name: "b", ClientURLs: []string{odd}},
+			{ID: plainID, Name: "c", ClientURLs: []string{"http://café:2379"}},
 		}})
 	})
 	c, err := clientv3.New(clientv3.Config{Endpoints: []string{list}, DialTimeout: time.Second})
@@ -234,6 +235,11 @@ func TestAnAdvertisedURLThatDoesNotReadAsItselfIsWrittenOutWhereAMemberIsNotAske
 	}
 	if !drawsAsItself(got) {
 		t.Errorf("health %q holds a character that does not draw as itself", got)
+	}
+	got = memberHealth(rows[2], leaderView{})
+	want = "info — not asked: advertises http://café:2379, which is not https://, so the credentials are not sent to it"
+	if got != want {
+		t.Errorf("health = %q, want an ordinary address unchanged: %q", got, want)
 	}
 }
 
