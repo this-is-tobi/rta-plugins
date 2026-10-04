@@ -2,7 +2,7 @@ module github.com/this-is-tobi/rta-plugins/plugins/redis
 
 go 1.26.6
 
-require github.com/this-is-tobi/rta v0.33.0
+require github.com/this-is-tobi/rta v0.34.0
 
 require (
 	charm.land/glamour/v2 v2.0.1 // indirect
