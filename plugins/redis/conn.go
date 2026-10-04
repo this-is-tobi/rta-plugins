@@ -475,7 +475,7 @@ func classifyDial(err error, addr string, req plugin.Request) *view.Error {
 	var nameErr x509.HostnameError
 	if errors.As(err, &nameErr) {
 		if req.Tunnel() != plugin.TunnelNone && serverName(req) == "" {
-			return forwardName(req, nameErr)
+			return plugin.ForwardNameRefusal(req, "redis.tls.forward", req.String("address"), "server", nameErr)
 		}
 		return nameRefusal(addr, nameErr, req)
 	}
@@ -636,25 +636,6 @@ func nextCall(req plugin.Request, id string, args ...plugin.Arg) string {
 // serverName is the name the certificate is checked for in place of the
 // address's host, or "" for the host.
 func serverName(req plugin.Request) string { return strings.TrimSpace(req.String("tls-server-name")) }
-
-// forwardName is redis.tls.forward: the refusal for a certificate checked
-// for the end of a forward the host opened — 127.0.0.1 — and not for the
-// name the server answers as, which the certificate names instead.
-//
-// **The way through is tls-server-name, never tls set to false.** The
-// forward has set tls to false already, and given by the caller it is an
-// input the forward fills: the host then opens no forward at all, and the
-// call goes to the address config or the default names. Nor anything that
-// checks less: this plugin has no mode that checks the chain alone, which
-// would accept any certificate the CA ever signed.
-func forwardName(req plugin.Request, nameErr x509.HostnameError) *view.Error {
-	return view.Errorf("redis.tls.forward", "the certificate behind %s is for %s, not for %s, "+
-		"where the forward ends", req.Reached(req.String("address")), plugin.CertNames(nameErr.Certificate), nameErr.Host).
-		WithHint("a forward always ends at 127.0.0.1, so the certificate is checked for the name the server " +
-			"answers as instead: " + req.Surface().SettingName("tls-server-name") + ", which the profile can " +
-			"hold beside its forward, names it — one the certificate is for — and it is checked as strictly " +
-			"as the host it replaces")
-}
 
 // loopback reports whether host names this machine, by parse and by name:
 // an operator writes "localhost" about as often as "127.0.0.1".
