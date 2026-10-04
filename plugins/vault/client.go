@@ -405,10 +405,14 @@ var multiError = regexp.MustCompile(`^\d+ errors? occurred:\n`)
 // and plugin.Field has no map type to ask for one directly.
 func dataFields(sf plugin.Surface, pairs []string) (map[string]interface{}, *view.Error) {
 	data := make(map[string]interface{}, len(pairs))
-	for _, pair := range pairs {
+	for i, pair := range pairs {
 		key, value, ok := strings.Cut(pair, "=")
 		if !ok {
-			return nil, view.Errorf("vault.data.invalid", "%q is not key=value", pair).
+			// Where the entry is and never what it holds: an entry with no "="
+			// is most often a value given without its key, which is the secret
+			// itself, and a message is returned to the caller and written to the
+			// agent ledger, which holds this input masked.
+			return nil, view.Errorf("vault.data.invalid", "entry %d of %s is not key=value", i+1, sf.InputName("data")).
 				WithHint(dataHint(sf))
 		}
 		data[key] = value

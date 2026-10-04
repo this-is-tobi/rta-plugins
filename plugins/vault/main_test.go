@@ -269,6 +269,25 @@ func TestDataFieldsRejectsAPairWithNoEquals(t *testing.T) {
 	}
 }
 
+// An entry with no "=" is most often a value given without its key, which is
+// the secret: the refusal says where it is and never repeats it, since the
+// message goes back to the caller and into the agent ledger, which holds the
+// input masked.
+func TestDataFieldsNeverRepeatAnEntryTheyRefuse(t *testing.T) {
+	for _, sf := range []plugin.Surface{plugin.SurfaceCLI, plugin.SurfaceTUI, plugin.SurfaceMCP} {
+		_, verr := dataFields(sf, []string{"user=admin", "hunter2"})
+		if verr == nil || verr.Code != "vault.data.invalid" {
+			t.Fatalf("%s: %v, want vault.data.invalid", sf, verr)
+		}
+		if !strings.Contains(verr.Message, "entry 2 of "+sf.InputName("data")+" is not key=value") {
+			t.Errorf("%s: %q does not say which entry it is", sf, verr.Message)
+		}
+		if strings.Contains(verr.Message, "hunter2") || strings.Contains(verr.Hint, "hunter2") {
+			t.Errorf("%s: %q / %q repeat the entry it refused", sf, verr.Message, verr.Hint)
+		}
+	}
+}
+
 // A value containing '=' itself (a base64 blob, most commonly) must keep
 // everything after the first '=' — strings.Cut splits on the first
 // occurrence, not something re-derived here, but the case is worth pinning
