@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.6.0...plugins/mysql/v0.6.1) (2026-10-05)
+
+
+### Code Refactoring
+
+* **mysql,mariadb:** the client's errno is this platform's own, with no Windows skip in tests ([4f772d3](https://github.com/this-is-tobi/rta-plugins/commit/4f772d36550ef30d017172468bbdc19e99a1f08b))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.35.0 ([37f4999](https://github.com/this-is-tobi/rta-plugins/commit/37f4999177d1401e0d80a7be47a1caacfcde4845))
+
 ## [0.6.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.5.0...plugins/mysql/v0.6.0) (2026-10-04)
 
 
