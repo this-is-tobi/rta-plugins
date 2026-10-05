@@ -7,40 +7,30 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: cnpg
-version: 0.3.0
+version: 0.3.1
 summary: Read the state of CloudNativePG PostgreSQL clusters
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/cnpg
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.3.0/rta-plugin-cnpg_0.3.0_darwin_amd64.tar.gz
-  sha256: c72ef7d57e4d43c116eab3676ae519775c10af038055bc0921a4890f94a2fc18
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.3.1/rta-plugin-cnpg_0.3.1_darwin_amd64.tar.gz
+  sha256: d3e02bbe8d79a525248801fc04a5740c5ebfddd1aeb1b70672cfcc5f89f469fe
   bin: rta-plugin-cnpg
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.3.0/rta-plugin-cnpg_0.3.0_darwin_arm64.tar.gz
-  sha256: a48674fe33f21898ba14df89d5937f1a6339c00c10227493422d4be3c900acdf
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.3.1/rta-plugin-cnpg_0.3.1_darwin_arm64.tar.gz
+  sha256: da68018fe01032159a52cc15eb624b294e9bd0d42ca39771358365a39691ce21
   bin: rta-plugin-cnpg
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.3.0/rta-plugin-cnpg_0.3.0_linux_amd64.tar.gz
-  sha256: e0b89ab49cb66fa8f2acee0642686decf2591cc3205a84dd34a5e48081ca31d2
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.3.1/rta-plugin-cnpg_0.3.1_linux_amd64.tar.gz
+  sha256: 5025ec0f23a5f0fd4568772c8b05c21d0725d018de3dbfd00644989127c24d86
   bin: rta-plugin-cnpg
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.3.0/rta-plugin-cnpg_0.3.0_linux_arm64.tar.gz
-  sha256: d9d9ba7b5b1e54f2adc8aa34d542fa8c82c3f8a097ccf9a006908951bf318841
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.3.1/rta-plugin-cnpg_0.3.1_linux_arm64.tar.gz
+  sha256: 2259c25295d5f5b0062db0387e0cfd76f753d98a8567853999dabf8161713800
   bin: rta-plugin-cnpg
-- os: windows
-  arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.3.0/rta-plugin-cnpg_0.3.0_windows_amd64.tar.gz
-  sha256: 2b722b92b7515cd62257e947aa0c16cac53f7192d4af2a6cc9d17f4a3b2edb85
-  bin: rta-plugin-cnpg.exe
-- os: windows
-  arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.3.0/rta-plugin-cnpg_0.3.0_windows_arm64.tar.gz
-  sha256: 192f35ecc197ddce8d727c28a4fe4135af78aa688c138d6bb067ca9b444a2828
-  bin: rta-plugin-cnpg.exe
 capabilities:
 - id: cnpg.list
   summary: Every CloudNativePG cluster, and whether it is healthy
