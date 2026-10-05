@@ -43,6 +43,7 @@ Image, command, state, restart policy, mounts, networks and environment. **Write
 | input:container      | string, required, completes — the container to inspect                                                                                                                |
 | input:host           | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
 | input:context        | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
+| set a key            | rta config set plugins.docker.host \<value>                                                                                                                           |
 | dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                          |
 
 ## docker.container.list
@@ -61,6 +62,7 @@ Running containers by default; `all` includes the stopped ones, which is usually
 | input:all     | bool, from config plugins.docker.all — include stopped containers                                                                                                        |
 | input:host    | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted    |
 | input:context | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                                  |
+| set a key     | rta config set plugins.docker.all true                                                                                                                                   |
 | dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add docker.container.list\`, or + on it in the TUI, puts it there, re-run every few seconds |
 
 ## docker.container.restart
@@ -80,6 +82,7 @@ Stop then start, keeping the container's id, volumes and configuration. What it 
 | input:container      | string, required, completes — the container to restart                                                                                                                |
 | input:host           | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
 | input:context        | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
+| set a key            | rta config set plugins.docker.host \<value>                                                                                                                           |
 | dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                          |
 
 ## docker.container.rm
@@ -99,6 +102,7 @@ Deletes the container and its writable layer — everything written inside it th
 | input:container      | string, required, completes — the container to remove — it must be stopped                                                                                            |
 | input:host           | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
 | input:context        | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
+| set a key            | rta config set plugins.docker.host \<value>                                                                                                                           |
 | dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                          |
 
 ## docker.container.stop
@@ -118,6 +122,7 @@ Sends SIGTERM and gives the container time to exit before the daemon kills it. R
 | input:container      | string, required, completes — the container to stop                                                                                                                   |
 | input:host           | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
 | input:context        | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
+| set a key            | rta config set plugins.docker.host \<value>                                                                                                                           |
 | dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                          |
 
 ## docker.image.list
@@ -135,6 +140,7 @@ What is on this machine's disk. Dangling images — the untagged leftovers of a 
 | profiles      | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                  |
 | input:host    | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
 | input:context | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
+| set a key     | rta config set plugins.docker.host \<value>                                                                                                                           |
 | dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add docker.image.list\`, or + on it in the TUI, puts it there, re-run every few seconds  |
 
 ## docker.overview
@@ -152,5 +158,6 @@ Whether the daemon answers, how many containers are up against how many exist, a
 | profiles      | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                  |
 | input:host    | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
 | input:context | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
+| set a key     | rta config set plugins.docker.host \<value>                                                                                                                           |
 | dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add docker.overview\`, or + on it in the TUI, puts it there, re-run every few seconds    |
 | input:detail  | bool, default false — return the full detailed view instead of the compact summary                                                                                    |

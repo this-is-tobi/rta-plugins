@@ -52,6 +52,7 @@ Names and counts only, never a point.
 | input:api-key         | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                   |
 | input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                               |
 | input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                      |
+| set a key             | rta config set plugins.qdrant.endpoint 127.0.0.1:6333                                                                                                                                                 |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.collection.list\`, or + on it in the TUI, puts it there, re-run every few seconds                             |
 
 ## qdrant.collection.show
@@ -79,6 +80,7 @@ Configuration only, never a point — this describes the shape of the data and r
 | input:api-key         | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                   |
 | input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                               |
 | input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                      |
+| set a key             | rta config set plugins.qdrant.collection \<value>                                                                                                                                                     |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.collection.show\`, or + on it in the TUI, puts it there, re-run every few seconds                             |
 
 ## qdrant.dump
@@ -105,6 +107,7 @@ Created with O_EXCL at 0600, so an existing file is never written over; a failed
 | input:api-key         | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                   |
 | input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                               |
 | input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                      |
+| set a key             | rta config set plugins.qdrant.collection \<value>                                                                                                                                                     |
 | dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                          |
 
 ## qdrant.overview
@@ -133,6 +136,7 @@ Describes collections and returns no point. Reading points is qdrant.points.scro
 | input:api-key         | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                   |
 | input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                               |
 | input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                      |
+| set a key             | rta config set plugins.qdrant.endpoint 127.0.0.1:6333                                                                                                                                                 |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.overview\`, or + on it in the TUI, puts it there, re-run every few seconds                                    |
 | input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                                    |
 
@@ -160,6 +164,7 @@ A number, never a point. This is the read tier — it says how much is there and
 | input:api-key         | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                   |
 | input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                               |
 | input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                      |
+| set a key             | rta config set plugins.qdrant.collection \<value>                                                                                                                                                     |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.points.count\`, or + on it in the TUI, puts it there, re-run every few seconds                                |
 
 ## qdrant.points.scroll
@@ -193,6 +198,7 @@ The read tier — qdrant.collection.show and qdrant.points.count — describes a
 | input:api-key         | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                                                            |
 | input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                        |
 | input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                                                               |
+| set a key             | rta config set plugins.qdrant.collection \<value>                                                                                                                                                                                              |
 | dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                                                   |
 
 ## qdrant.restore
@@ -220,4 +226,5 @@ Recovery is the server's own: the snapshot carries the collection's config and i
 | input:api-key         | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                    |
 | input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                |
 | input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                       |
+| set a key             | rta config set plugins.qdrant.collection \<value>                                                                                                                                                      |
 | dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                           |
