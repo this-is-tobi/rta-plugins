@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.10](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.4.9...plugins/kube/v0.4.10) (2026-10-05)
+
+
+### Code Refactoring
+
+* **kube:** a credential plugin is named by its path's last element after a slash ([bdabe8a](https://github.com/this-is-tobi/rta-plugins/commit/bdabe8adefccd19a9a857f927687873990d64a56))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.35.0 ([37f4999](https://github.com/this-is-tobi/rta-plugins/commit/37f4999177d1401e0d80a7be47a1caacfcde4845))
+
 ## [0.4.9](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.4.8...plugins/kube/v0.4.9) (2026-10-04)
 
 

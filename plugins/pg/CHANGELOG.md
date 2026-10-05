@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.6.0...plugins/pg/v0.6.1) (2026-10-05)
+
+
+### Code Refactoring
+
+* **pg:** libpq's directory and a client key's mode are read one way, with no Windows branch ([41d6ffa](https://github.com/this-is-tobi/rta-plugins/commit/41d6ffaf8d95d087b64853f89d633cc7277cf44a))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.35.0 ([37f4999](https://github.com/this-is-tobi/rta-plugins/commit/37f4999177d1401e0d80a7be47a1caacfcde4845))
+
 ## [0.6.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.5.0...plugins/pg/v0.6.0) (2026-10-04)
 
 
