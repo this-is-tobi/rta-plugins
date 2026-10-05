@@ -59,6 +59,7 @@ The read tier — etcd.kv.list and etcd.kv.tree — shows names and sizes, which
 | input:key-file        | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for \`cert-file\`                                                                                                      |
 | input:username        | string, default , local (never offered to MCP callers), from config plugins.etcd.username — user to authenticate as, if the cluster has auth enabled                                                                           |
 | input:password        | secret, local (never offered to MCP callers), from $RTA_ETCD_PASSWORD — password for the user                                                                                                                                  |
+| set a key             | rta config set plugins.etcd.endpoint 127.0.0.1:2379                                                                                                                                                                            |
 | dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                                   |
 
 ## etcd.kv.list
@@ -89,6 +90,7 @@ Bounded, and it says when it stopped. A listing that quietly ended at a thousand
 | input:key-file        | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for \`cert-file\`                                                                                                                                                    |
 | input:username        | string, default , local (never offered to MCP callers), from config plugins.etcd.username — user to authenticate as, if the cluster has auth enabled                                                                                                                         |
 | input:password        | secret, local (never offered to MCP callers), from $RTA_ETCD_PASSWORD — password for the user                                                                                                                                                                                |
+| set a key             | rta config set plugins.etcd.limit 200                                                                                                                                                                                                                                        |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.kv.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                                                                                              |
 
 ## etcd.kv.tree
@@ -119,6 +121,7 @@ Names and counts only, never a value. Same read tier as etcd.kv.list, and the re
 | input:key-file        | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for \`cert-file\`                                                                                                                                                 |
 | input:username        | string, default , local (never offered to MCP callers), from config plugins.etcd.username — user to authenticate as, if the cluster has auth enabled                                                                                                                      |
 | input:password        | secret, local (never offered to MCP callers), from $RTA_ETCD_PASSWORD — password for the user                                                                                                                                                                             |
+| set a key             | rta config set plugins.etcd.depth 4                                                                                                                                                                                                                                       |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.kv.tree\`, or + on it in the TUI, puts it there, re-run every few seconds                                                                                                           |
 
 ## etcd.lease.list
@@ -147,6 +150,7 @@ IDs and timings only, never the keys attached to them — the same read/write sp
 | input:key-file        | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for \`cert-file\`                                                                                                                      |
 | input:username        | string, default , local (never offered to MCP callers), from config plugins.etcd.username — user to authenticate as, if the cluster has auth enabled                                                                                           |
 | input:password        | secret, local (never offered to MCP callers), from $RTA_ETCD_PASSWORD — password for the user                                                                                                                                                  |
+| set a key             | rta config set plugins.etcd.limit 200                                                                                                                                                                                                          |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.lease.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                                                             |
 
 ## etcd.member.list
@@ -172,6 +176,7 @@ A member still learning the cluster's state has no name yet and is shown as unst
 | input:key-file        | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for \`cert-file\`                                                                                                    |
 | input:username        | string, default , local (never offered to MCP callers), from config plugins.etcd.username — user to authenticate as, if the cluster has auth enabled                                                                         |
 | input:password        | secret, local (never offered to MCP callers), from $RTA_ETCD_PASSWORD — password for the user                                                                                                                                |
+| set a key             | rta config set plugins.etcd.endpoint 127.0.0.1:2379                                                                                                                                                                          |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.member.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                                          |
 
 ## etcd.overview
@@ -201,6 +206,7 @@ Each member is asked at the client URL it advertises, and a published port or a 
 | input:key-file        | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for \`cert-file\`                                                                                                 |
 | input:username        | string, default , local (never offered to MCP callers), from config plugins.etcd.username — user to authenticate as, if the cluster has auth enabled                                                                      |
 | input:password        | secret, local (never offered to MCP callers), from $RTA_ETCD_PASSWORD — password for the user                                                                                                                             |
+| set a key             | rta config set plugins.etcd.endpoint 127.0.0.1:2379                                                                                                                                                                       |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.overview\`, or + on it in the TUI, puts it there, re-run every few seconds                                                          |
 
 ## etcd.snapshot
@@ -233,4 +239,5 @@ etcd appends a SHA256 of the database to the end of the stream, and rta hashes t
 | input:key-file        | string, default , local (never offered to MCP callers), from config plugins.etcd.key-file — private key for \`cert-file\`                                                                                                                   |
 | input:username        | string, default , local (never offered to MCP callers), from config plugins.etcd.username — user to authenticate as, if the cluster has auth enabled                                                                                        |
 | input:password        | secret, local (never offered to MCP callers), from $RTA_ETCD_PASSWORD — password for the user                                                                                                                                               |
+| set a key             | rta config set plugins.etcd.endpoint 127.0.0.1:2379                                                                                                                                                                                         |
 | dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                                                |

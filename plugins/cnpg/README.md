@@ -45,6 +45,7 @@ Credentials are not read. A Backup's status carries the object-store credential 
 | input:cluster   | string, completes, from config plugins.cnpg.cluster — only this cluster's backups — every one in the namespace when omitted                                         |
 | input:namespace | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                       |
 | input:context   | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                |
+| set a key       | rta config set plugins.cnpg.cluster \<value>                                                                                                                        |
 | dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add cnpg.backup.list\`, or + on it in the TUI, puts it there, re-run every few seconds |
 
 ## cnpg.backup.request
@@ -71,6 +72,7 @@ Refused when the cluster configures no backup at all. CloudNativePG accepts such
 | input:online         | string, one of: true\|false, from config plugins.cnpg.backup.online — hot or cold — only with a \`method\` of volumeSnapshot, and the cluster's own choice when omitted |
 | input:namespace      | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                           |
 | input:context        | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                    |
+| set a key            | rta config set plugins.cnpg.cluster \<value>                                                                                                                            |
 | dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                            |
 
 ## cnpg.list
@@ -89,6 +91,7 @@ One `kubectl get clusters.postgresql.cnpg.io -o json`, rendered with the columns
 | input:all-namespaces | bool — every namespace instead of one                                                                                                                        |
 | input:namespace      | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                |
 | input:context        | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted         |
+| set a key            | rta config set plugins.cnpg.namespace \<value>                                                                                                               |
 | dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add cnpg.list\`, or + on it in the TUI, puts it there, re-run every few seconds |
 
 ## cnpg.status
@@ -107,6 +110,7 @@ Everything the Cluster resource reports about itself, laid out as the questions 
 | input:cluster   | string, required, completes, from config plugins.cnpg.cluster — the cluster to read                                                                            |
 | input:namespace | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                  |
 | input:context   | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted           |
+| set a key       | rta config set plugins.cnpg.cluster \<value>                                                                                                                   |
 | dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add cnpg.status\`, or + on it in the TUI, puts it there, re-run every few seconds |
 
 ## cnpg.storage
@@ -127,4 +131,5 @@ Everything the Cluster resource reports about itself, laid out as the questions 
 | input:cluster   | string, required, completes, from config plugins.cnpg.cluster — the cluster whose volumes to read                                                               |
 | input:namespace | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                   |
 | input:context   | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted            |
+| set a key       | rta config set plugins.cnpg.cluster \<value>                                                                                                                    |
 | dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add cnpg.storage\`, or + on it in the TUI, puts it there, re-run every few seconds |
