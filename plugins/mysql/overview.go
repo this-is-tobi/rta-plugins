@@ -17,6 +17,7 @@ func statusCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "mysql.status",
 		Summary:    "Whether the database answers, and what it is",
+		Keywords:   []string{"ping", "alive", "version", "connection"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "The cheapest possible call: connect, ask the server what it is, disconnect. " +
@@ -125,6 +126,7 @@ func overviewCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "mysql.overview",
 		Summary:    "Everything about this connection at a glance",
+		Keywords:   []string{"summary", "health", "dashboard"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Detailed:   true,
@@ -180,6 +182,7 @@ func databaseListCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "mysql.database.list",
 		Summary:    "List databases on this server, with their sizes",
+		Keywords:   []string{"db", "catalog", "schemas"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "Names, table counts and on-disk sizes. Sizes come from INFORMATION_SCHEMA " +
@@ -192,7 +195,7 @@ func databaseListCapability() plugin.Capability {
 				return databaseTable(ctx, db, req, req.Int("limit"), true)
 			})
 		},
-	}, plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 100, Min: 1, Max: 10000,
+	}, plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 100, Min: 1, Max: 10000,
 		Help: "how many databases to show"})
 }
 

@@ -71,6 +71,7 @@ func dumpCapability() plugin.Capability {
 		ID:        "mysql.dump",
 		HumanOnly: true,
 		Summary:   "Back up one database to a SQL file, for a person at a terminal",
+		Keywords:  []string{"backup", "mysqldump", "export", "snapshot"},
 		Safety:    plugin.Write,
 		// Running it twice at the same --out refuses rather than overwriting.
 		Idempotent: false,

@@ -14,6 +14,7 @@ func replicationCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "mysql.replication.status",
 		Summary:    capabilitySummary,
+		Keywords:   []string{"slave", "master", "gtid", "binlog", "delay"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "Answers \"is replication healthy, where is this server in it, and how far behind is " +
