@@ -59,19 +59,16 @@ func pointsScrollCapability() plugin.Capability {
 		Summary: "Read points out of a collection",
 		// **Write, and it needs a grant naming it.** Nothing here mutates.
 		//
-		// The classification is about what it discloses, and there are two
-		// things being disclosed rather than one.
-		//
-		// The payloads are the obvious half: whatever was indexed, which for
-		// most deployments is chunks of documents — tickets, wikis, contracts,
-		// customer records.
+		// The classification is about what it discloses: the payloads are
+		// whatever was indexed, which for most deployments is chunks of
+		// documents — tickets, wikis, contracts, customer records.
 		//
 		// The vectors are the half people forget. An embedding is not a hash.
 		// It is a lossy but reversible-enough encoding, and inversion attacks
 		// recover substantial parts of the source text from embeddings alone.
-		// Handing back raw vectors is therefore closer to handing back the
-		// documents than to handing back a checksum, which is why --vectors is
-		// off by default even here, inside the write tier.
+		// So a vector is never handed back whole: the column is its dimension
+		// count and first components, which says what the collection is built
+		// from and recovers nothing, and `vectors` is off by default anyway.
 		//
 		// NeedsGrant on top, because this names one collection — so a grant
 		// can name it too, and the narrow consent is actually available.
@@ -85,25 +82,28 @@ func pointsScrollCapability() plugin.Capability {
 		// covering every collection.
 		Scope:      "collection",
 		Idempotent: true,
+		// The call whose answer is the stored payloads: it says so, and they
+		// come back as stored. The grant naming the collection is the control,
+		// and a mask on top of it was a grant that bought an agent ids and
+		// bullets.
+		Reveals: true,
 		Description: "Points from one collection, with their payloads.\n\n" +
-			"**Payload and vector values come back masked (••••••), on every surface.** rta masks " +
-			"every column a plugin marks as secret and this one marks them all, so what the result " +
-			"tells you is which points exist, their ids and the names of their payload fields — " +
-			"not what they hold. `offset` continues from the next point's id.\n\n" +
+			"**Payloads come back as stored, on every surface** — none of it masked, and an " +
+			"agent holding a grant for the collection has it in its context from then on. " +
+			"`offset` continues from the next point's id.\n\n" +
 			"**Classified write for what it discloses, not what it changes.** The payloads are " +
 			"whatever was indexed — for most deployments, chunks of documents.\n\n" +
-			"**Vectors are off by default even here.** An embedding is not a hash: it is a " +
-			"lossy but reversible-enough encoding, and inversion attacks recover substantial " +
-			"parts of the source text from embeddings alone. So `vectors` is a second, separate " +
-			"decision rather than something that rides along with the payload.\n\n" +
+			"**Vectors are off by default even here, and never whole.** An embedding is not a " +
+			"hash: it is a lossy but reversible-enough encoding, and inversion attacks recover " +
+			"substantial parts of the source text from embeddings alone. So `vectors` adds only a " +
+			"column naming each point's dimensions and its first components, which recovers " +
+			"nothing, and the whole vector is not something this call hands out.\n\n" +
 			"The read tier — qdrant.collection.show and qdrant.points.count — describes a " +
 			"collection and counts it, which is usually the question and costs none of this.",
-		Agent: "Points from one collection, up to `limit` (default 10, at most 1000); `offset` continues from " +
-			"the next point's id, which the last page's `page.next` holds. Payload and vector values come " +
-			"back masked (••••••): the result says which points exist, their ids and the names of their " +
-			"payload fields, not what they hold. `vectors` also returns the raw vectors, masked the same " +
-			"way: an embedding is lossy but reversible enough to recover much of its source text, so it " +
-			"is a separate decision. Needs a grant naming the collection.",
+		Agent: "Points from one collection, up to `limit` (default 10, at most 1000), each with its payload; " +
+			"`offset` continues from the next point's id, which the last page's `page.next` holds. " +
+			"`vectors` adds each point's dimensions and first components, never the whole vector. " +
+			"Needs a grant naming the collection.",
 		Run: runPointsScroll,
 	}, collectionField("collection to read from"),
 		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 10, Min: 1, Max: 1000,
@@ -168,15 +168,14 @@ func runPointsScroll(ctx context.Context, req plugin.Request) (view.View, error)
 	}
 	sort.Strings(names)
 
-	// A field's name is a column's, and the mask below is matched against the
-	// column by name: both are the one listed spelling, never the raw field
-	// beside it, which would leave a column the mask no longer names.
+	// A field's name is a column's, in the one listed spelling: the raw name
+	// beside it would draw a control character into a header.
 	//
-	// **A field named like a column of the table's own is quoted too.** The
-	// mask has only the name to go by, so a field called ID beside the id
-	// column was one name for two columns: the id, which this table leaves
-	// readable because which points were read is the point of it, came back
-	// masked with the field's values. Quoted, it is the one name it was not.
+	// **A field named like a column of the table's own is quoted too.** A
+	// column is told apart by its name, so a field called ID beside the id
+	// column was one name for two columns, and a reader of `-o json` or a
+	// script could not say which was which. Quoted, it is the one name it was
+	// not.
 	own := map[string]bool{"ID": true, "Vector": withVectors}
 	fields := make([]string, len(names))
 	for i, k := range names {
@@ -219,20 +218,13 @@ func runPointsScroll(ctx context.Context, req plugin.Request) (view.View, error)
 			Hint:    "pass " + sf.InputTo("offset", next) + " for the next page, or raise " + sf.InputName("limit"),
 		})
 	}
-	// Every payload column carries stored data, so all of them are redacted
-	// and the id is not. Which points were read is what the record is for;
-	// what they contained is not something to leave in a scrollback.
-	t.Redacted = append([]string{}, fields...)
-	if withVectors {
-		t.Redacted = append(t.Redacted, "Vector")
-	}
 	return t, nil
 }
 
 // vectorSummary renders a vector as its dimensions and first few components
 // rather than as several thousand floats. It is the cell on every surface — a
-// view carries the summary, never the whole vector — and the column is masked
-// besides; what this avoids is a terminal filling with numbers nobody can read.
+// view carries the summary, never the whole vector, so nothing a grant on
+// the collection reveals can be inverted into its text.
 func vectorSummary(raw json.RawMessage) string {
 	if len(raw) == 0 {
 		return "-"
