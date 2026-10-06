@@ -14,7 +14,7 @@ The first-party plugins for [rta](https://github.com/this-is-tobi/rta), and the 
 | [`vault`](./plugins/vault/) | HashiCorp Vault | 20 |
 | [`kube`](./plugins/kube/) | Kubernetes, through the `kubectl` you already have | 19 |
 | [`cnpg`](./plugins/cnpg/) | CloudNativePG: clusters, their health, replication, backups and volumes, and asking for a backup now | 5 |
-| [`docker`](./plugins/docker/) | Containers and images over the local daemon socket | 7 |
+| [`docker`](./plugins/docker/) | Containers and images over the local daemon socket | 8 |
 | [`keycloak`](./plugins/keycloak/) | Keycloak: users, clients, roles, flows, sessions and events, and a realm graded against named controls — stdlib HTTP against the Admin REST API, acting as a service account, never an administrator | 12 |
 
 Every one draws the same line in the same place: the read tier describes the thing, and anything that returns a value somebody stored is a write. `mysql.schema` tells you a database's shape and `mysql.query` returns its rows. That is what makes read worth granting.

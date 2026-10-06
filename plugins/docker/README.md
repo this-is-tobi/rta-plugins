@@ -6,6 +6,7 @@ Containers and images: what is running, what is stale, and the daily tidy-up
 
 | Capability               | Safety      | Summary                                                                       |
 |--------------------------|-------------|-------------------------------------------------------------------------------|
+| docker.container.env     | write       | The environment variables one container was started with                      |
 | docker.container.inspect | write       | Everything the daemon knows about one container                               |
 | docker.container.list    | read        | Containers, with state, health, ports and age                                 |
 | docker.container.restart | write       | Restart a container                                                           |
@@ -18,17 +19,41 @@ Containers and images: what is running, what is stale, and the daily tidy-up
 
 Under `plugins: docker:` in rta's configuration, or in a profile's `set:`. An installed plugin's section is pinned to the artifact — `plugins: docker@<digest>:` — and `rta doctor` prints the exact line. The caller always wins, so a configured value is a default, never a lock.
 
-| Key     | Read by                                                                                                                                                   | Help                                                                                  |
-|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
-| all     | docker.container.list                                                                                                                                     | include stopped containers                                                            |
-| context | docker.container.inspect, docker.container.list, docker.container.restart, docker.container.rm, docker.container.stop, docker.image.list, docker.overview | docker context to use — the current one when omitted                                  |
-| host    | docker.container.inspect, docker.container.list, docker.container.restart, docker.container.rm, docker.container.stop, docker.image.list, docker.overview | daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
+| Key     | Read by                                                                                                                                                                         | Help                                                                                  |
+|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
+| all     | docker.container.list                                                                                                                                                           | include stopped containers                                                            |
+| context | docker.container.env, docker.container.inspect, docker.container.list, docker.container.restart, docker.container.rm, docker.container.stop, docker.image.list, docker.overview | docker context to use — the current one when omitted                                  |
+| host    | docker.container.env, docker.container.inspect, docker.container.list, docker.container.restart, docker.container.rm, docker.container.stop, docker.image.list, docker.overview | daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
+
+## docker.container.env
+
+Every variable the container sets, with its value as set — the image's own, every `-e` and every compose-file value.
+
+**The values come back as set, on every surface** — none of it masked, and an agent holding a grant for the container has them in its context from then on. docker.container.inspect shows the names and masks the values, and costs none of this.
+
+**Classified write for what it discloses, not what it changes.** A container's environment carries plaintext credentials by convention, and deciding which variables are secret by their names is a guess, not a rule, so the consent is given once, for the container.
+
+| Field                | Value                                                                                                                                                                 |
+|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                   | docker.container.env                                                                                                                                                  |
+| summary              | The environment variables one container was started with                                                                                                              |
+| safety               | write                                                                                                                                                                 |
+| idempotent           | true                                                                                                                                                                  |
+| cli                  | rta docker container env \<container> \[--host \<string>\] \[--context \<string>\]                                                                                    |
+| mcp-tool             | docker_container_env                                                                                                                                                  |
+| grant required (mcp) | yes — a person must run \`rta grant allow docker.container.env\`, optionally naming one container                                                                     |
+| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                  |
+| input:container      | string, required, completes — the container whose environment to read                                                                                                 |
+| input:host           | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
+| input:context        | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
+| set a key            | rta config set plugins.docker.host \<value>                                                                                                                           |
+| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                          |
 
 ## docker.container.inspect
 
-Image, command, state, restart policy, mounts, networks and environment. **Write rather than Read, and it needs a grant**, because a container's environment carries plaintext credentials by convention — every `-e` and every compose-file value — and deciding which of those are secret by their names is a guess, not a rule. rta would rather ask than guess wrong once.
+Image, command, state, restart policy, mounts, networks and environment. **Write rather than Read, and it needs a grant**, because the command a container was started with carries credentials passed as arguments often enough that no filter on it can be trusted, and rta would rather ask than guess wrong once.
 
-**Environment values come back masked (••••••), on every surface.** The names are shown and every value is marked as secret, so what the result tells you is which variables a container sets, not what they are set to.
+**Environment values come back masked (••••••), on every surface.** The names are shown and every value is marked as secret, so what the result tells you is which variables a container sets, not what they are set to. docker.container.env returns them, under a grant of its own that names the container.
 
 | Field                | Value                                                                                                                                                                 |
 |----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
