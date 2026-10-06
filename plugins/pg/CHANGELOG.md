@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.6.1...plugins/pg/v0.7.0) (2026-10-06)
+
+
+### Features
+
+* **pg:** an agent reads a short text for the four capabilities over its budget ([664ee85](https://github.com/this-is-tobi/rta-plugins/commit/664ee85a94aff101df5b79000033f9edd5d8e1ff))
+* **pg:** search words, examples and the short flags psql and pg_dump already taught ([26bc8a6](https://github.com/this-is-tobi/rta-plugins/commit/26bc8a685dcc6e68a3f0c07388c711e09dff7694))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.36.0 ([690560f](https://github.com/this-is-tobi/rta-plugins/commit/690560f66a757ffbc219fba35a384725820bfdbb))
+* every plugin builds against rta v0.37.0 ([d524fb6](https://github.com/this-is-tobi/rta-plugins/commit/d524fb6f6bbeb64a132b2dbbe007424748539761))
+
 ## [0.6.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.6.0...plugins/pg/v0.6.1) (2026-10-05)
 
 

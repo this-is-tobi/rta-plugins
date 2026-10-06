@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.6.1...plugins/mysql/v0.7.0) (2026-10-06)
+
+
+### Features
+
+* **mysql:** an agent reads a short text for query and replication.status, and so does mariadb ([e5b7f6c](https://github.com/this-is-tobi/rta-plugins/commit/e5b7f6c4b44bb09a579a149107d819a356ee6900))
+* **mysql:** search words, examples and the short flags the mysql client already taught ([2aa1be8](https://github.com/this-is-tobi/rta-plugins/commit/2aa1be8dde8c1cf32f8c0fa15533fec12856deba))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.36.0 ([690560f](https://github.com/this-is-tobi/rta-plugins/commit/690560f66a757ffbc219fba35a384725820bfdbb))
+* every plugin builds against rta v0.37.0 ([d524fb6](https://github.com/this-is-tobi/rta-plugins/commit/d524fb6f6bbeb64a132b2dbbe007424748539761))
+
 ## [0.6.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.6.0...plugins/mysql/v0.6.1) (2026-10-05)
 
 

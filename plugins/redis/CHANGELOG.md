@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.3.1...plugins/redis/v0.4.0) (2026-10-06)
+
+
+### Features
+
+* **redis:** an agent reads a short text for the overview, cluster and key.get ([e4cdf41](https://github.com/this-is-tobi/rta-plugins/commit/e4cdf41a8c30e1a65b44724d8109c0051e4c5151))
+* **redis:** key.get hands the value back as stored, as the reveal it is ([0956f9d](https://github.com/this-is-tobi/rta-plugins/commit/0956f9daf48248315f356407b104c0c98303ff4f))
+* **redis:** search words, examples and the short flags a listing is typed with ([61275ca](https://github.com/this-is-tobi/rta-plugins/commit/61275cafda3c8753aa780b5def81d430c0abdf50))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.36.0 ([690560f](https://github.com/this-is-tobi/rta-plugins/commit/690560f66a757ffbc219fba35a384725820bfdbb))
+* every plugin builds against rta v0.37.0 ([d524fb6](https://github.com/this-is-tobi/rta-plugins/commit/d524fb6f6bbeb64a132b2dbbe007424748539761))
+
 ## [0.3.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.3.0...plugins/redis/v0.3.1) (2026-10-05)
 
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.2.25...plugins/docker/v0.3.0) (2026-10-06)
+
+
+### Features
+
+* **docker:** container.env hands a container's environment back as set, a grant of its own ([640d130](https://github.com/this-is-tobi/rta-plugins/commit/640d130aff986da7b8e03cf7f40617caea9249a1))
+* **docker:** search words, examples and docker ps's -a ([1840902](https://github.com/this-is-tobi/rta-plugins/commit/1840902419a4650fc83e533eab23e35c1d68009d))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.36.0 ([690560f](https://github.com/this-is-tobi/rta-plugins/commit/690560f66a757ffbc219fba35a384725820bfdbb))
+* every plugin builds against rta v0.37.0 ([d524fb6](https://github.com/this-is-tobi/rta-plugins/commit/d524fb6f6bbeb64a132b2dbbe007424748539761))
+
 ## [0.2.25](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.2.24...plugins/docker/v0.2.25) (2026-10-05)
 
 
