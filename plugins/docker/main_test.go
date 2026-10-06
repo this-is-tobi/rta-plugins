@@ -30,5 +30,6 @@ func conformanceInputs(string) map[string]map[string]any {
 		"docker.container.restart": container,
 		"docker.container.rm":      container,
 		"docker.container.inspect": container,
+		"docker.container.env":     container,
 	}
 }

@@ -133,27 +133,37 @@ type inspected struct {
 	} `json:"NetworkSettings"`
 }
 
-func runInspect(ctx context.Context, req plugin.Request) (view.View, error) {
-	c, verr := connectionOf(req)
+// inspectOne is what the daemon says about the container the request names,
+// which runInspect and runEnv both read: the two differ in what they hand
+// back of it, not in how they ask.
+func inspectOne(ctx context.Context, req plugin.Request) (d inspected, name string, c connection, verr *view.Error) {
+	c, verr = connectionOf(req)
 	if verr != nil {
-		return nil, verr
+		return d, "", c, verr
 	}
-	name := strings.TrimSpace(req.String("container"))
-	if verr := checkName("container", name); verr != nil {
-		return nil, verr
+	name = strings.TrimSpace(req.String("container"))
+	if verr = checkName("container", name); verr != nil {
+		return d, name, c, verr
 	}
 	raw, verr := run(ctx, c, "inspect", name)
 	if verr != nil {
-		return nil, verr
+		return d, name, c, verr
 	}
 	var got []inspected
 	if err := json.Unmarshal(raw, &got); err != nil {
-		return nil, view.Errorf("docker.unreadable", "docker's answer could not be read: %v", err)
+		return d, name, c, view.Errorf("docker.unreadable", "docker's answer could not be read: %v", err)
 	}
 	if len(got) == 0 {
-		return nil, c.notFound(name)
+		return d, name, c, c.notFound(name)
 	}
-	d := got[0]
+	return got[0], name, c, nil
+}
+
+func runInspect(ctx context.Context, req plugin.Request) (view.View, error) {
+	d, name, c, verr := inspectOne(ctx, req)
+	if verr != nil {
+		return nil, verr
+	}
 
 	pairs := []view.Pair{
 		{Key: "name", Value: strings.TrimPrefix(d.Name, "/")},
@@ -183,6 +193,12 @@ func runInspect(ctx context.Context, req plugin.Request) (view.View, error) {
 		}
 	}
 
+	// The environment is masked below, and a mask says where the value can be
+	// read: the call that returns it, spelled for whoever is looking at this.
+	if len(d.Config.Env) > 0 {
+		pairs = append(pairs, view.Pair{Key: view.RevealKey, Value: c.sf.Call("docker.container.env",
+			append([]plugin.Arg{{Name: "container", Value: name, Positional: true}}, c.callArgs()...)...)})
+	}
 	sections := []view.Section{
 		{ID: "container", Title: "Container", View: view.KeyValue{Pairs: pairs}},
 	}
@@ -201,23 +217,35 @@ func runInspect(ctx context.Context, req plugin.Request) (view.View, error) {
 		}})
 	}
 	sections = append(sections, view.Section{
-		ID: "environment", Title: "Environment", View: envView(d.Config.Env)})
+		ID: "environment", Title: "Environment", View: envView(d.Config.Env, true)})
 	return view.Sections{Items: sections}, nil
 }
 
-// envView renders the environment.
+// runEnv is the environment of one container, values as set: the reveal that
+// the inspect page's masked column points at.
+func runEnv(ctx context.Context, req plugin.Request) (view.View, error) {
+	d, _, _, verr := inspectOne(ctx, req)
+	if verr != nil {
+		return nil, verr
+	}
+	return envView(d.Config.Env, false), nil
+}
+
+// envView renders the environment, masked or as set.
 //
-// **Every value is marked redacted, and that is not caution for its own
-// sake.** This capability is Write and grant-gated precisely because a
-// container's environment carries plaintext credentials by convention, and
-// the operator who issued that grant asked to see *this container's*
-// environment — not to have it copied into a terminal transcript, a tmux
-// scrollback and, over MCP, a model's context.
+// **Inspect masks every value, and that is not caution for its own sake.** A
+// container's environment carries plaintext credentials by convention, and a
+// grant to look at one container's state is not a grant to copy its
+// credentials into a terminal transcript, a tmux scrollback and, over MCP, a
+// model's context. Redacted names the columns every renderer must mask, so
+// `-o json` and a person's screen agree about it.
 //
-// Redacted names the columns every renderer must mask, so `-o json` and a
-// person's screen agree about it. An operator who genuinely needs a value
-// reads it from the container, which is a deliberate second act.
-func envView(env []string) view.View {
+// **docker.container.env is the other half**: the same table with nothing
+// marked, behind a grant of its own that names the container. Deciding which
+// variables are secret by their names is a guess, so the choice is not made
+// per variable; it is made once, per container, by the person who issues the
+// grant.
+func envView(env []string, masked bool) view.View {
 	if len(env) == 0 {
 		return view.Text{Body: "this container declares no environment variables"}
 	}
@@ -230,12 +258,15 @@ func envView(env []string) view.View {
 		rows = append(rows, []string{name, value})
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i][0] < rows[j][0] })
-	return view.Table{
-		Columns:  []view.Column{{Name: "variable"}, {Name: "value"}},
-		Rows:     rows,
-		Total:    len(rows),
-		Redacted: []string{"value"},
+	t := view.Table{
+		Columns: []view.Column{{Name: "variable"}, {Name: "value"}},
+		Rows:    rows,
+		Total:   len(rows),
 	}
+	if masked {
+		t.Redacted = []string{"value"}
+	}
+	return t
 }
 
 // mutate is the shared shape of stop, restart and rm: name the container,

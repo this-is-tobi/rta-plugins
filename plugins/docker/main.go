@@ -129,27 +129,54 @@ func Plugin() plugin.Plugin {
 				ID:      "docker.container.inspect",
 				Summary: "Everything the daemon knows about one container",
 				Description: "Image, command, state, restart policy, mounts, networks and " +
-					"environment. **Write rather than Read, and it needs a grant**, because a " +
-					"container's environment carries plaintext credentials by convention — every " +
-					"`-e` and every compose-file value — and deciding which of those are secret by " +
-					"their names is a guess, not a rule. rta would rather ask than guess wrong " +
-					"once.\n\n" +
+					"environment. **Write rather than Read, and it needs a grant**, because the " +
+					"command a container was started with carries credentials passed as arguments " +
+					"often enough that no filter on it can be trusted, and rta would rather ask " +
+					"than guess wrong once.\n\n" +
 					"**Environment values come back masked (••••••), on every surface.** The names " +
 					"are shown and every value is marked as secret, so what the result tells you is " +
-					"which variables a container sets, not what they are set to.",
-				// The kv.get precedent: a capability that reveals a secret's
-				// plaintext is Write even with no disk side effect at all.
-				// Env is why. Unlike net.info's masking, which
-				// keys off syntactically certain fields, name-pattern
-				// redaction of free-form environment variables is a heuristic
-				// — so the gate is the grant rather than a filter that will
-				// miss DB_DSN one day.
+					"which variables a container sets, not what they are set to. " +
+					"docker.container.env returns them, under a grant of its own that names the " +
+					"container.",
+				// Write for the command line and the mounts, which this
+				// shows as they are. The environment is the other half of
+				// what a container discloses, and it has its own capability
+				// now: deciding which variables are secret by their names is
+				// a guess, so every value is masked here and the one consent
+				// that unmasks them is the grant on docker.container.env.
 				Safety:     plugin.Write,
 				Idempotent: true,
 				NeedsGrant: true,
 				Scope:      "container",
 				Inputs:     []plugin.Field{nameInput("the container to inspect")},
 				Run:        runInspect,
+			}),
+			cap(plugin.Capability{
+				ID:      "docker.container.env",
+				Summary: "The environment variables one container was started with",
+				Description: "Every variable the container sets, with its value as set — the image's " +
+					"own, every `-e` and every compose-file value.\n\n" +
+					"**The values come back as set, on every surface** — none of it masked, and an " +
+					"agent holding a grant for the container has them in its context from then on. " +
+					"docker.container.inspect shows the names and masks the values, and costs none " +
+					"of this.\n\n" +
+					"**Classified write for what it discloses, not what it changes.** A container's " +
+					"environment carries plaintext credentials by convention, and deciding which " +
+					"variables are secret by their names is a guess, not a rule, so the consent is " +
+					"given once, for the container.",
+				Agent: "The variables one container sets, each with its value. `container` is the exact name " +
+					"or id. Needs a grant naming the container.",
+				// The call whose answer is the values the inspect page masks.
+				// A reveal is its own capability so that every control that
+				// binds to a capability ID — the grant, the ceiling, the
+				// lock, the record — applies to it without a new one.
+				Safety:     plugin.Write,
+				Idempotent: true,
+				NeedsGrant: true,
+				Scope:      "container",
+				Reveals:    true,
+				Inputs:     []plugin.Field{nameInput("the container whose environment to read")},
+				Run:        runEnv,
 			}),
 			cap(plugin.Capability{
 				ID:      "docker.container.stop",
