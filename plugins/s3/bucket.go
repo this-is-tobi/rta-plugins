@@ -11,7 +11,7 @@ import (
 )
 
 func bucketField(help string) plugin.Field {
-	return plugin.Field{Name: "bucket", Type: plugin.String, Required: true, Config: "bucket", Help: help,
+	return plugin.Field{Name: "bucket", Short: "b", Type: plugin.String, Required: true, Config: "bucket", Help: help,
 		Live: true, Suggest: suggestBuckets}
 }
 
@@ -47,6 +47,7 @@ func bucketListCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "s3.bucket.list",
 		Summary:    "List every bucket the configured credentials can see",
+		Keywords:   []string{"ls", "storage", "minio", "stores"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Run:        runBucketList,
@@ -85,6 +86,7 @@ func policyGetCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "s3.policy.get",
 		Summary:    "Show a bucket's policy document",
+		Keywords:   []string{"acl", "permissions", "iam", "access", "json"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Run:        runPolicyGet,

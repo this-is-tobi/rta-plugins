@@ -86,6 +86,7 @@ func destination(req plugin.Request) (bucket, key string) {
 func s3ObjectCopyCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID: "s3.object.copy", Summary: "Copy an object to a new bucket/key", Safety: plugin.Write,
+		Keywords:   []string{"cp", "duplicate", "clone"},
 		NeedsGrant: true, Scope: "key",
 		// Where the copy lands as well as what it copies, as kv.rename
 		// declares new-name. Object names are what the read grants here are
@@ -136,6 +137,7 @@ func runObjectCopy(ctx context.Context, req plugin.Request) (view.View, error) {
 func s3ObjectRenameCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID: "s3.object.rename", Summary: "Move an object to a new bucket/key", Safety: plugin.Write,
+		Keywords:   []string{"mv", "relocate"},
 		NeedsGrant: true, Scope: "key",
 		// s3.object.copy's reason, and the very move kv.rename's own
 		// ScopeAlso was declared for: the object leaves one name for another,

@@ -53,8 +53,12 @@ const (
 
 func s3ObjectTreeCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "s3.object.tree",
-		Summary:    "The shape of a bucket in one call, with objects and bytes per prefix",
+		ID:       "s3.object.tree",
+		Summary:  "The shape of a bucket in one call, with objects and bytes per prefix",
+		Keywords: []string{"hierarchy", "folders", "directories", "du", "usage"},
+		Examples: []plugin.Example{
+			{Title: "where the space goes in a bucket", Inputs: map[string]any{"bucket": "backups", "depth": 2}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "`s3.object.list` groups on \"/\" and answers one level at a time, so " +
@@ -69,11 +73,11 @@ func s3ObjectTreeCapability() plugin.Capability {
 			"says when it stopped rather than looking like a smaller bucket.",
 		Run: runObjectTree,
 	}, bucketField("bucket to walk"),
-		plugin.Field{Name: "prefix", Type: plugin.String, Config: "prefix", Help: "start here rather than at the root",
+		plugin.Field{Name: "prefix", Short: "p", Type: plugin.String, Config: "prefix", Help: "start here rather than at the root",
 			Live: true, Suggest: suggestKeys("prefix")},
-		plugin.Field{Name: "depth", Type: plugin.Int, Config: "depth", Default: 4, Min: 1, Max: 20,
+		plugin.Field{Name: "depth", Short: "d", Type: plugin.Int, Config: "depth", Default: 4, Min: 1, Max: 20,
 			Help: "how many levels to expand"},
-		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: defaultTreeKeys, Min: 1, Max: 100000,
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: defaultTreeKeys, Min: 1, Max: 100000,
 			Help: "how many keys to read before stopping"})
 }
 
