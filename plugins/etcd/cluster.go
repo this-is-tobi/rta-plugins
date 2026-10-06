@@ -20,6 +20,7 @@ func overviewCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "etcd.overview",
 		Summary:    "Whether this cluster is healthy, and what it is made of",
+		Keywords:   []string{"summary", "status", "version", "leader", "quorum"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "The endpoint's own status — version, who it thinks the leader is, its raft " +
@@ -227,6 +228,7 @@ func memberListCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "etcd.member.list",
 		Summary:    "Who is in this cluster, and how each one is reachable",
+		Keywords:   []string{"peers", "nodes", "raft", "leader", "learner"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "Member IDs, names and their client and peer URLs.\n\n" +
@@ -306,8 +308,12 @@ func joinURLs(urls []string) string {
 
 func leaseListCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "etcd.lease.list",
-		Summary:    "Outstanding leases and how long each has left",
+		ID:       "etcd.lease.list",
+		Summary:  "Outstanding leases and how long each has left",
+		Keywords: []string{"ttl", "expiry", "expire", "keepalive"},
+		Examples: []plugin.Example{
+			{Title: "the first fifty leases", Inputs: map[string]any{"limit": 50}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "Every lease the cluster is holding, with its granted TTL and what remains.\n\n" +
@@ -321,7 +327,7 @@ func leaseListCapability() plugin.Capability {
 				return leaseTable(ctx, c, req)
 			})
 		},
-	}, plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 200, Min: 1, Max: 10000,
+	}, plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 200, Min: 1, Max: 10000,
 		Help: "how many leases to show"})
 }
 
