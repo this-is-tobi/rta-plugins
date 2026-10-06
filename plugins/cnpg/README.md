@@ -42,6 +42,7 @@ Credentials are not read. A Backup's status carries the object-store credential 
 | cli             | rta cnpg backup list \[--cluster \<string>\] \[--namespace \<string>\] \[--context \<string>\]                                                                      |
 | mcp-tool        | cnpg_backup_list                                                                                                                                                    |
 | profiles        | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`                                  |
+| example         | rta cnpg backup list --cluster app-db --namespace production   # the backups of one cluster                                                                         |
 | input:cluster   | string, completes, from config plugins.cnpg.cluster — only this cluster's backups — every one in the namespace when omitted                                         |
 | input:namespace | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                       |
 | input:context   | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                |
@@ -88,6 +89,8 @@ One `kubectl get clusters.postgresql.cnpg.io -o json`, rendered with the columns
 | cli                  | rta cnpg list \[--all-namespaces \<bool>\] \[--namespace \<string>\] \[--context \<string>\]                                                                 |
 | mcp-tool             | cnpg_list                                                                                                                                                    |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`                           |
+| example              | rta cnpg list --all-namespaces   # every cluster in every namespace                                                                                          |
+| example              | rta cnpg list --namespace production   # the clusters of one namespace                                                                                       |
 | input:all-namespaces | bool — every namespace instead of one                                                                                                                        |
 | input:namespace      | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                |
 | input:context        | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted         |
@@ -107,6 +110,7 @@ Everything the Cluster resource reports about itself, laid out as the questions 
 | cli             | rta cnpg status \[--cluster \<string>\] \[--namespace \<string>\] \[--context \<string>\]                                                                      |
 | mcp-tool        | cnpg_status                                                                                                                                                    |
 | profiles        | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`                             |
+| example         | rta cnpg status --cluster app-db --namespace production   # one cluster in depth                                                                               |
 | input:cluster   | string, required, completes, from config plugins.cnpg.cluster — the cluster to read                                                                            |
 | input:namespace | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                  |
 | input:context   | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted           |
@@ -128,6 +132,7 @@ Everything the Cluster resource reports about itself, laid out as the questions 
 | cli             | rta cnpg storage \[--cluster \<string>\] \[--namespace \<string>\] \[--context \<string>\]                                                                      |
 | mcp-tool        | cnpg_storage                                                                                                                                                    |
 | profiles        | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`                              |
+| example         | rta cnpg storage --cluster app-db --namespace production   # the volumes of one cluster                                                                         |
 | input:cluster   | string, required, completes, from config plugins.cnpg.cluster — the cluster whose volumes to read                                                               |
 | input:namespace | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                   |
 | input:context   | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted            |

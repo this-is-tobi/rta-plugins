@@ -174,8 +174,12 @@ func backupsFor(items []backupObject, cluster string) []backupObject {
 
 func backupListCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "cnpg.backup.list",
-		Summary:    "Backups taken of a cluster: when, how, where they went, and what failed",
+		ID:       "cnpg.backup.list",
+		Summary:  "Backups taken of a cluster: when, how, where they went, and what failed",
+		Keywords: []string{"barman", "snapshot", "restore", "pitr", "archive"},
+		Examples: []plugin.Example{
+			{Title: "the backups of one cluster", Inputs: map[string]any{"cluster": "app-db", "namespace": "production"}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "The Backup objects themselves, which the Cluster resource does not " +
@@ -189,7 +193,7 @@ func backupListCapability() plugin.Capability {
 			"of them — the names of the secrets holding your keys are not part of any " +
 			"question a backup listing answers.",
 		Run: runBackupList,
-	}, plugin.Field{Name: "cluster", Type: plugin.String, Config: "cluster",
+	}, plugin.Field{Name: "cluster", Short: "c", Type: plugin.String, Config: "cluster",
 		Help: "only this cluster's backups — every one in the namespace when omitted",
 		Live: true, Suggest: suggestClusters})
 }
@@ -263,9 +267,10 @@ func emptyBackupBody(cluster string, s selection) string {
 
 func backupRequestCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:      "cnpg.backup.request",
-		Summary: "Ask the operator to back a cluster up now, using that cluster's own configuration",
-		Safety:  plugin.Write,
+		ID:       "cnpg.backup.request",
+		Summary:  "Ask the operator to back a cluster up now, using that cluster's own configuration",
+		Keywords: []string{"barman", "snapshot", "trigger", "volumesnapshot"},
+		Safety:   plugin.Write,
 		// Not idempotent, and visibly so: two calls are two backups, each
 		// costing a full copy of the database in whatever the cluster pays
 		// for storage.

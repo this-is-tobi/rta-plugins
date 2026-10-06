@@ -97,7 +97,7 @@ func connFields() []plugin.Field {
 // call with neither a flag nor a configured value is refused before it
 // reaches the cluster, naming both ways to supply one.
 func clusterField(help string) plugin.Field {
-	return plugin.Field{Name: "cluster", Type: plugin.String, Required: true, Config: "cluster",
+	return plugin.Field{Name: "cluster", Short: "c", Type: plugin.String, Required: true, Config: "cluster",
 		Help: help, Live: true, Suggest: suggestClusters}
 }
 
@@ -106,7 +106,7 @@ func nsFields() []plugin.Field {
 		// Live, because the Suggest contacts the cluster: that read must be
 		// something a completion press asked for, never something typing
 		// caused. plugins/kube pins the same rule on its own namespace field.
-		{Name: "namespace", Type: plugin.String, Config: "namespace",
+		{Name: "namespace", Short: "n", Type: plugin.String, Config: "namespace",
 			Help: "namespace to look in — the context's own when omitted",
 			Live: true, Suggest: suggestNamespaces},
 	}
@@ -142,6 +142,11 @@ func Plugin() plugin.Plugin {
 		Capabilities: []plugin.Capability{
 			cap(plugin.Capability{
 				ID: "cnpg.list", Summary: "Every CloudNativePG cluster, and whether it is healthy",
+				Keywords: []string{"postgres", "postgresql", "operator", "databases"},
+				Examples: []plugin.Example{
+					{Title: "every cluster in every namespace", Inputs: map[string]any{"all-namespaces": true}},
+					{Title: "the clusters of one namespace", Inputs: map[string]any{"namespace": "production"}},
+				},
 				Safety: plugin.Read, Idempotent: true,
 				Description: "One `kubectl get clusters.postgresql.cnpg.io -o json`, rendered " +
 					"with the columns the CRD itself declares as printer columns — so this and " +
@@ -150,13 +155,17 @@ func Plugin() plugin.Plugin {
 					"problem whatever its phase says. Reads one custom resource and nothing " +
 					"else: no pods, no exec, no logs.",
 				Inputs: []plugin.Field{
-					{Name: "all-namespaces", Type: plugin.Bool,
+					{Name: "all-namespaces", Short: "A", Type: plugin.Bool,
 						Help: "every namespace instead of one"},
 				},
 				Run: runList,
 			}),
 			cap(plugin.Capability{
 				ID: "cnpg.status", Summary: "One cluster in depth: instances, replication, backups, storage",
+				Keywords: []string{"primary", "replicas", "failover", "switchover", "lag", "wal"},
+				Examples: []plugin.Example{
+					{Title: "one cluster in depth", Inputs: map[string]any{"cluster": "app-db", "namespace": "production"}},
+				},
 				Safety: plugin.Read, Idempotent: true,
 				Description: "Everything the Cluster resource reports about itself, laid out as " +
 					"the questions somebody opens it to ask. Instances are listed primary first, " +

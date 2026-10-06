@@ -134,8 +134,12 @@ func pvcsFor(items []pvc) []pvc {
 
 func storageCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "cnpg.storage",
-		Summary:    "The volumes a cluster's data and WAL sit on: size, class, and whether each one is actually bound",
+		ID:       "cnpg.storage",
+		Summary:  "The volumes a cluster's data and WAL sit on: size, class, and whether each one is actually bound",
+		Keywords: []string{"pvc", "disk", "capacity", "bound", "space"},
+		Examples: []plugin.Example{
+			{Title: "the volumes of one cluster", Inputs: map[string]any{"cluster": "app-db", "namespace": "production"}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "`cnpg.status` reports the storage the spec asks for. This reports what " +
