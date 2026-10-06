@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -246,13 +245,14 @@ func TestVectorsAreNotRequestedUnlessAskedFor(t *testing.T) {
 	}
 }
 
-// Payload columns carry whatever was indexed, so every one is redacted and the
-// id is not: which points were read is what the record is for, and what they
-// contained is not something to leave in a scrollback.
-func TestPayloadColumnsAreRedactedAndTheIDIsNot(t *testing.T) {
+// qdrant.points.scroll is the reveal of this plugin: the payloads come back as
+// stored, and the grant naming the collection is the control. The vector is
+// never whole in the answer — its column is the dimensions and the first
+// components — so nothing here is a mask the grant would not lift.
+func TestPayloadsComeBackAsStoredAndTheVectorIsOnlyASummary(t *testing.T) {
 	f := newFakeQdrant(t, map[string]string{
 		"/collections/docs/points/scroll": `{"result":{"points":[
-			{"id":1,"payload":{"text":"a support ticket","customer":"acme"},"vector":[0.1]}
+			{"id":1,"payload":{"text":"a support ticket","customer":"acme"},"vector":[0.1,0.2,0.3,0.4,0.5]}
 		],"next_page_offset":null}}`,
 	})
 	v, err := runPointsScroll(context.Background(),
@@ -261,38 +261,36 @@ func TestPayloadColumnsAreRedactedAndTheIDIsNot(t *testing.T) {
 		t.Fatal(err)
 	}
 	tbl := v.(view.Table)
-
-	for _, col := range []string{"text", "customer", "Vector"} {
-		if !slices.Contains(tbl.Redacted, col) {
-			t.Errorf("column %q is not redacted: %v", col, tbl.Redacted)
+	if len(tbl.Redacted) != 0 {
+		t.Errorf("the reveal masks %v", tbl.Redacted)
+	}
+	row := strings.Join(tbl.Rows[0], " | ")
+	for _, want := range []string{"a support ticket", "acme", "5d"} {
+		if !strings.Contains(row, want) {
+			t.Errorf("row %q does not carry %q", row, want)
 		}
 	}
-	if slices.Contains(tbl.Redacted, "ID") {
-		t.Error("the id is redacted — that hides which points were read from the record")
+	if strings.Contains(row, "0.5") {
+		t.Errorf("row %q carries a component past the first few: the whole vector is never handed back", row)
 	}
 }
 
-// What the description says about a stored value is what the result does with
-// it. rta masks every column a plugin marks redacted, on every surface and for
-// a caller holding a grant too, so an agent granted qdrant.points.scroll was
-// told it reads "points, with their payloads" and got ids and bullets. If a
-// payload is ever returned, this fails and the description has to follow.
-func TestTheDescriptionSaysThePayloadsComeBackMasked(t *testing.T) {
-	f := newFakeQdrant(t, map[string]string{
-		"/collections/docs/points/scroll": `{"result":{"points":[{"id":1,"payload":{"text":"a"}}],"next_page_offset":null}}`,
-	})
-	v, err := runPointsScroll(context.Background(),
-		reqAt(t, f, "qdrant.points.scroll", map[string]any{"collection": "docs"}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	masked := len(v.(view.Table).Redacted) > 0
+// The declaration, the class, the grant and the scope are one decision, and
+// what the descriptions say about the payloads is what the result does with
+// them: it reveals, and says nothing about a mask.
+func TestTheScrollIsADeclaredRevealAndNoDescriptionSaysItMasks(t *testing.T) {
 	for _, c := range Plugin().Capabilities {
 		if c.ID != "qdrant.points.scroll" {
 			continue
 		}
-		if said := strings.Contains(c.Description, "come back masked (••••••), on every surface"); said != masked {
-			t.Errorf("the payloads are redacted = %v, and the description says so = %v", masked, said)
+		if !c.Reveals || c.Safety != plugin.Write || !c.NeedsGrant || c.Scope != "collection" {
+			t.Errorf("qdrant.points.scroll: Reveals=%v Safety=%s NeedsGrant=%v Scope=%q; want a reveal, write, granted, scoped to the collection",
+				c.Reveals, c.Safety, c.NeedsGrant, c.Scope)
+		}
+		for _, text := range []string{c.Description, c.AgentText()} {
+			if strings.Contains(text, "come back masked") || strings.Contains(text, "••••••") {
+				t.Errorf("qdrant.points.scroll says its payloads are masked, and they are not: %.80s…", text)
+			}
 		}
 		return
 	}

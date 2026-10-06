@@ -171,11 +171,11 @@ A number, never a point. This is the read tier — it says how much is there and
 
 Points from one collection, with their payloads.
 
-**Payload and vector values come back masked (••••••), on every surface.** rta masks every column a plugin marks as secret and this one marks them all, so what the result tells you is which points exist, their ids and the names of their payload fields — not what they hold. `offset` continues from the next point's id.
+**Payloads come back as stored, on every surface** — none of it masked, and an agent holding a grant for the collection has it in its context from then on. `offset` continues from the next point's id.
 
 **Classified write for what it discloses, not what it changes.** The payloads are whatever was indexed — for most deployments, chunks of documents.
 
-**Vectors are off by default even here.** An embedding is not a hash: it is a lossy but reversible-enough encoding, and inversion attacks recover substantial parts of the source text from embeddings alone. So `vectors` is a second, separate decision rather than something that rides along with the payload.
+**Vectors are off by default even here, and never whole.** An embedding is not a hash: it is a lossy but reversible-enough encoding, and inversion attacks recover substantial parts of the source text from embeddings alone. So `vectors` adds only a column naming each point's dimensions and its first components, which recovers nothing, and the whole vector is not something this call hands out.
 
 The read tier — qdrant.collection.show and qdrant.points.count — describes a collection and counts it, which is usually the question and costs none of this.
 
