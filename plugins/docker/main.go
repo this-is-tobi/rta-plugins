@@ -94,19 +94,24 @@ func Plugin() plugin.Plugin {
 		Version: version,
 		Capabilities: []plugin.Capability{
 			cap(plugin.Capability{
-				ID:      "docker.container.list",
-				Summary: "Containers, with state, health, ports and age",
+				ID:       "docker.container.list",
+				Summary:  "Containers, with state, health, ports and age",
+				Keywords: []string{"ps", "running", "stopped", "compose"},
+				Examples: []plugin.Example{
+					{Title: "every container, stopped ones too", Inputs: map[string]any{"all": true}},
+				},
 				Description: "Running containers by default; `all` includes the stopped ones, which " +
 					"is usually what somebody wants before a tidy-up. Health is shown separately " +
 					"from state because a container can be up and failing its own healthcheck.",
 				Safety:     plugin.Read,
 				Idempotent: true,
 				Run:        runContainerList,
-			}, plugin.Field{Name: "all", Type: plugin.Bool, Config: "all",
+			}, plugin.Field{Name: "all", Short: "a", Type: plugin.Bool, Config: "all",
 				Help: "include stopped containers"}),
 			cap(plugin.Capability{
-				ID:      "docker.image.list",
-				Summary: "Images, with size and age",
+				ID:       "docker.image.list",
+				Summary:  "Images, with size and age",
+				Keywords: []string{"dangling", "disk", "layers", "prune"},
 				Description: "What is on this machine's disk. Dangling images — the untagged " +
 					"leftovers of a rebuild — are marked, since they are usually the answer to " +
 					"\"where did my disk go\".",
@@ -115,8 +120,9 @@ func Plugin() plugin.Plugin {
 				Run:        runImageList,
 			}),
 			cap(plugin.Capability{
-				ID:      "docker.overview",
-				Summary: "One daemon at a glance: what is running, what is unhealthy, what disk is used",
+				ID:       "docker.overview",
+				Summary:  "One daemon at a glance: what is running, what is unhealthy, what disk is used",
+				Keywords: []string{"summary", "status", "dashboard", "df"},
 				Description: "Whether the daemon answers, how many containers are up against how " +
 					"many exist, anything unhealthy or recently exited, and how much disk images " +
 					"are taking. With `detail`: the containers and the largest images themselves.",
@@ -126,8 +132,12 @@ func Plugin() plugin.Plugin {
 				Run:        runOverview,
 			}),
 			cap(plugin.Capability{
-				ID:      "docker.container.inspect",
-				Summary: "Everything the daemon knows about one container",
+				ID:       "docker.container.inspect",
+				Summary:  "Everything the daemon knows about one container",
+				Keywords: []string{"details", "config", "mounts", "networks", "labels", "debug"},
+				Examples: []plugin.Example{
+					{Title: "one container in full", Inputs: map[string]any{"container": "web"}},
+				},
 				Description: "Image, command, state, restart policy, mounts, networks and " +
 					"environment. **Write rather than Read, and it needs a grant**, because the " +
 					"command a container was started with carries credentials passed as arguments " +
@@ -152,8 +162,12 @@ func Plugin() plugin.Plugin {
 				Run:        runInspect,
 			}),
 			cap(plugin.Capability{
-				ID:      "docker.container.env",
-				Summary: "The environment variables one container was started with",
+				ID:       "docker.container.env",
+				Summary:  "The environment variables one container was started with",
+				Keywords: []string{"variables", "secrets", "credentials", "dotenv"},
+				Examples: []plugin.Example{
+					{Title: "the variables one container was started with", Inputs: map[string]any{"container": "web"}},
+				},
 				Description: "Every variable the container sets, with its value as set — the image's " +
 					"own, every `-e` and every compose-file value.\n\n" +
 					"**The values come back as set, on every surface** — none of it masked, and an " +
@@ -179,8 +193,9 @@ func Plugin() plugin.Plugin {
 				Run:        runEnv,
 			}),
 			cap(plugin.Capability{
-				ID:      "docker.container.stop",
-				Summary: "Stop a running container",
+				ID:       "docker.container.stop",
+				Summary:  "Stop a running container",
+				Keywords: []string{"halt", "shutdown", "sigterm", "down"},
 				Description: "Sends SIGTERM and gives the container time to exit before the daemon " +
 					"kills it. Reversible — `docker start` brings it back with the same id, disk " +
 					"and configuration — which is why this is Write and not Destructive.",
@@ -192,8 +207,9 @@ func Plugin() plugin.Plugin {
 				Run:        runStop,
 			}),
 			cap(plugin.Capability{
-				ID:      "docker.container.restart",
-				Summary: "Restart a container",
+				ID:       "docker.container.restart",
+				Summary:  "Restart a container",
+				Keywords: []string{"reboot", "bounce", "cycle", "reload"},
 				Description: "Stop then start, keeping the container's id, volumes and " +
 					"configuration. What it does lose is whatever was only in the process's memory " +
 					"and whatever was written outside a volume.",
@@ -205,8 +221,9 @@ func Plugin() plugin.Plugin {
 				Run:        runRestart,
 			}),
 			cap(plugin.Capability{
-				ID:      "docker.container.rm",
-				Summary: "Remove a container",
+				ID:       "docker.container.rm",
+				Summary:  "Remove a container",
+				Keywords: []string{"delete", "prune", "cleanup", "destroy"},
 				Description: "Deletes the container and its writable layer — everything written " +
 					"inside it that was not on a volume is gone, and it does not come back. Named " +
 					"volumes survive; anonymous ones do not unless the daemon is asked to keep " +
