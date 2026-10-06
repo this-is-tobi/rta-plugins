@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.3.1...plugins/keycloak/v0.4.0) (2026-10-06)
+
+
+### Features
+
+* **keycloak:** search words, examples and short flags for who and where ([fa66d9e](https://github.com/this-is-tobi/rta-plugins/commit/fa66d9ec6769aa8d38d2f4bdbb229396b79bc41e))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.36.0 ([690560f](https://github.com/this-is-tobi/rta-plugins/commit/690560f66a757ffbc219fba35a384725820bfdbb))
+* every plugin builds against rta v0.37.0 ([d524fb6](https://github.com/this-is-tobi/rta-plugins/commit/d524fb6f6bbeb64a132b2dbbe007424748539761))
+
 ## [0.3.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.3.0...plugins/keycloak/v0.3.1) (2026-10-05)
 
 

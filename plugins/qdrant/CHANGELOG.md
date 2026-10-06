@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.6.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.5.1...plugins/qdrant/v0.6.0) (2026-10-06)
+
+
+### Features
+
+* **qdrant:** an agent reads a short text for the overview, collection.show and points.scroll ([d92d391](https://github.com/this-is-tobi/rta-plugins/commit/d92d391a32e18efb3beda803402384de80a2cf83))
+* **qdrant:** points.scroll hands the payloads back as stored, as the reveal it is ([e21f7ad](https://github.com/this-is-tobi/rta-plugins/commit/e21f7adff2bd51a388418aa20bd272f261a4b480))
+* **qdrant:** search words, examples and short flags for the collection and the page ([19ab434](https://github.com/this-is-tobi/rta-plugins/commit/19ab4348f6e04c0f5a40f15aeb4f9246a4287e2f))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.36.0 ([690560f](https://github.com/this-is-tobi/rta-plugins/commit/690560f66a757ffbc219fba35a384725820bfdbb))
+* every plugin builds against rta v0.37.0 ([d524fb6](https://github.com/this-is-tobi/rta-plugins/commit/d524fb6f6bbeb64a132b2dbbe007424748539761))
+
 ## [0.5.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.5.0...plugins/qdrant/v0.5.1) (2026-10-05)
 
 

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.6.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.5.1...plugins/etcd/v0.6.0) (2026-10-06)
+
+
+### Features
+
+* **etcd:** an agent reads a short text for the overview ([2a046d8](https://github.com/this-is-tobi/rta-plugins/commit/2a046d8846c9242812692dd444fe55dd6a839649))
+* **etcd:** kv.get hands the value back as stored, as the reveal it is ([e4e1fad](https://github.com/this-is-tobi/rta-plugins/commit/e4e1fad91c7ff72a8cfc203ab7bef4d8693b60fd))
+* **etcd:** search words, examples and the short flags a listing is typed with ([ef66b99](https://github.com/this-is-tobi/rta-plugins/commit/ef66b99e69ff8cd778f9f959930a9a5af29966fd))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.36.0 ([690560f](https://github.com/this-is-tobi/rta-plugins/commit/690560f66a757ffbc219fba35a384725820bfdbb))
+* every plugin builds against rta v0.37.0 ([d524fb6](https://github.com/this-is-tobi/rta-plugins/commit/d524fb6f6bbeb64a132b2dbbe007424748539761))
+
 ## [0.5.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.5.0...plugins/etcd/v0.5.1) (2026-10-05)
 
 

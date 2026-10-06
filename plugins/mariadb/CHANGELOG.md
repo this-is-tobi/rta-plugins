@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.6.1...plugins/mariadb/v0.7.0) (2026-10-06)
+
+
+### Features
+
+* **mariadb:** search words, examples and the short flags the mariadb client already taught ([803d828](https://github.com/this-is-tobi/rta-plugins/commit/803d82800b890ab360c139115532a7f990360239))
+* **mysql:** an agent reads a short text for query and replication.status, and so does mariadb ([e5b7f6c](https://github.com/this-is-tobi/rta-plugins/commit/e5b7f6c4b44bb09a579a149107d819a356ee6900))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.36.0 ([690560f](https://github.com/this-is-tobi/rta-plugins/commit/690560f66a757ffbc219fba35a384725820bfdbb))
+* every plugin builds against rta v0.37.0 ([d524fb6](https://github.com/this-is-tobi/rta-plugins/commit/d524fb6f6bbeb64a132b2dbbe007424748539761))
+
 ## [0.6.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.6.0...plugins/mariadb/v0.6.1) (2026-10-05)
 
 

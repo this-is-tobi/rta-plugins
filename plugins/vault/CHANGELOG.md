@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.6.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.5.2...plugins/vault/v0.6.0) (2026-10-06)
+
+
+### Features
+
+* **vault:** kv.get and transit.decrypt declare that they reveal a stored value ([348e3e9](https://github.com/this-is-tobi/rta-plugins/commit/348e3e9a916356f0c6d4fc93def2fbcff12dbecc))
+* **vault:** search words, examples and the short flag a tree is typed with ([8e2dc3b](https://github.com/this-is-tobi/rta-plugins/commit/8e2dc3b4a8e7f137e16ee1c1d683057c08d87dab))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.36.0 ([690560f](https://github.com/this-is-tobi/rta-plugins/commit/690560f66a757ffbc219fba35a384725820bfdbb))
+* every plugin builds against rta v0.37.0 ([d524fb6](https://github.com/this-is-tobi/rta-plugins/commit/d524fb6f6bbeb64a132b2dbbe007424748539761))
+
 ## [0.5.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.5.1...plugins/vault/v0.5.2) (2026-10-05)
 
 

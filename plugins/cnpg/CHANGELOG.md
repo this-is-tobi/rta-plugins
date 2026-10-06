@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.3.1...plugins/cnpg/v0.4.0) (2026-10-06)
+
+
+### Features
+
+* **cnpg:** an agent reads a short text for status, backup.request and storage ([db439e6](https://github.com/this-is-tobi/rta-plugins/commit/db439e68460de0a141b9df34fd08cfd542b7a734))
+* **cnpg:** search words, examples and kubectl's own -n, -A and -c ([4d40a52](https://github.com/this-is-tobi/rta-plugins/commit/4d40a523dc9c40086de61b384bb85c4f473730e5))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.36.0 ([690560f](https://github.com/this-is-tobi/rta-plugins/commit/690560f66a757ffbc219fba35a384725820bfdbb))
+* every plugin builds against rta v0.37.0 ([d524fb6](https://github.com/this-is-tobi/rta-plugins/commit/d524fb6f6bbeb64a132b2dbbe007424748539761))
+
 ## [0.3.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.3.0...plugins/cnpg/v0.3.1) (2026-10-05)
 
 

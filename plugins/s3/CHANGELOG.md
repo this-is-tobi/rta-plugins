@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.6.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.5.2...plugins/s3/v0.6.0) (2026-10-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* **s3:** the ttl of s3.object.presign and the presign.ttl config key are written with a unit (15m, 2h, 1d); a bare number such as 900 is refused instead of read as seconds.
+
+### Features
+
+* **s3:** an agent reads a short text for the bucket-bound objects, and presign's ttl is a duration ([9ad700d](https://github.com/this-is-tobi/rta-plugins/commit/9ad700d7df89df7407b5bb99511beed6791daa6e))
+* **s3:** search words, examples and the short flags a listing is typed with ([5023e86](https://github.com/this-is-tobi/rta-plugins/commit/5023e86602b142f6d90c93dd50e1d5a48324756c))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.36.0 ([690560f](https://github.com/this-is-tobi/rta-plugins/commit/690560f66a757ffbc219fba35a384725820bfdbb))
+* every plugin builds against rta v0.37.0 ([d524fb6](https://github.com/this-is-tobi/rta-plugins/commit/d524fb6f6bbeb64a132b2dbbe007424748539761))
+
 ## [0.5.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.5.1...plugins/s3/v0.5.2) (2026-10-05)
 
 

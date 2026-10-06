@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.4.10...plugins/kube/v0.5.0) (2026-10-06)
+
+
+### Features
+
+* **kube:** an agent reads a short text for four capabilities over its budget ([0925aa5](https://github.com/this-is-tobi/rta-plugins/commit/0925aa5de6c497d8d3e9ea862966be5ce4e9e9da))
+* **kube:** search words, examples and kubectl's own -n and -A ([32dc06b](https://github.com/this-is-tobi/rta-plugins/commit/32dc06b7f2880f3434a6576b869fda76c1f1466e))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.36.0 ([690560f](https://github.com/this-is-tobi/rta-plugins/commit/690560f66a757ffbc219fba35a384725820bfdbb))
+* every plugin builds against rta v0.37.0 ([d524fb6](https://github.com/this-is-tobi/rta-plugins/commit/d524fb6f6bbeb64a132b2dbbe007424748539761))
+
 ## [0.4.10](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.4.9...plugins/kube/v0.4.10) (2026-10-05)
 
 
