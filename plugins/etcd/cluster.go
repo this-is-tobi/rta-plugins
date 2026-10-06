@@ -44,6 +44,13 @@ func overviewCapability() plugin.Capability {
 			"instead of reading as down. A username without TLS asks no other member, and with it " +
 			"asks only those that advertise an https:// URL, so a credential is never sent in the " +
 			"clear to an address the member list supplied.",
+		Agent: "The endpoint's own status (version, leader, raft term, committed and applied index, " +
+			"revision) with its storage, and a row per member read from the member itself: role, term, " +
+			"index, entries behind the leader, revision, database size and health. Storage is graded " +
+			"against the quota (blank before etcd 3.6, which reports none): at the quota etcd refuses " +
+			"every write and still answers reads. Members that disagree about leader or term are not a " +
+			"cluster; one 5000 entries behind is graded. The quorum line counts the voting members that " +
+			"answered against what a write needs. Through a forward only the endpoint's own member is asked.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withClient(ctx, req, func(ctx context.Context, c *clientv3.Client) (view.View, error) {
 				return overviewView(ctx, c, req)
