@@ -26,6 +26,7 @@ func wrapSetCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.wrap.set",
 		Summary:    "Wrap data into a single-use, TTL'd token",
+		Keywords:   []string{"cubbyhole", "share", "handoff", "onetime", "response-wrapping"},
 		Safety:     plugin.Write,
 		NeedsGrant: true,
 		Idempotent: false,
@@ -91,6 +92,7 @@ func wrapGetCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.wrap.get",
 		Summary:    "Unwrap a single-use token, once",
+		Keywords:   []string{"cubbyhole", "redeem", "receive", "handoff"},
 		Safety:     plugin.Write,
 		NeedsGrant: true,
 		// No Scope, and the token is the reason. A scope is written into the

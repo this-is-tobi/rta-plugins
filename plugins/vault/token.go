@@ -15,6 +15,7 @@ func tokenStatusCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.token.status",
 		Summary:    "What the current token can do, and when it expires",
+		Keywords:   []string{"whoami", "lookup", "ttl", "expiry", "renew"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "Always the caller's own token (Vault's own `auth/token/lookup-self`) — " +
@@ -77,6 +78,7 @@ func leaseShowCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.lease.show",
 		Summary:    "A lease's TTL and renewability",
+		Keywords:   []string{"ttl", "renew", "expiry", "dynamic"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "When a leased secret (a database credential, an issued certificate) expires " +

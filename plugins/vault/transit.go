@@ -34,6 +34,7 @@ func transitEncryptCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.transit.encrypt",
 		Summary:    "Encrypt caller-supplied plaintext with a Vault-managed key",
+		Keywords:   []string{"cipher", "kms", "protect", "encryption"},
 		Safety:     plugin.Write,
 		Idempotent: false,
 		Description: "Nothing is revealed that the caller did not already hand over — the plaintext " +
@@ -83,6 +84,7 @@ func transitDecryptCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.transit.decrypt",
 		Summary:    "Decrypt ciphertext back to its plaintext",
+		Keywords:   []string{"cipher", "kms", "reveal", "decryption"},
 		Safety:     plugin.Write,
 		NeedsGrant: true,
 		Scope:      "key",

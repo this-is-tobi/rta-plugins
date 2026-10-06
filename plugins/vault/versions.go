@@ -99,8 +99,12 @@ func versionState(v vaultapi.KVVersionMetadata, current int) string {
 // equivalent of `vault kv metadata get`.
 func kvHistoryCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "vault.kv.history",
-		Summary:    "A secret's versions — which is current, which are deleted or destroyed — never values",
+		ID:       "vault.kv.history",
+		Summary:  "A secret's versions — which is current, which are deleted or destroyed — never values",
+		Keywords: []string{"versions", "audit", "rollback", "metadata"},
+		Examples: []plugin.Example{
+			{Title: "the versions of one secret", Inputs: map[string]any{"path": "app/database"}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "Every version the engine still knows about, when each was written, and whether " +
@@ -157,6 +161,7 @@ func kvDeleteCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.kv.delete",
 		Summary:    "Delete a secret's current version, or the versions named — undoable",
+		Keywords:   []string{"remove", "soft", "trash"},
 		Safety:     plugin.Write,
 		NeedsGrant: true,
 		Scope:      "path",
@@ -202,6 +207,7 @@ func kvUndeleteCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.kv.undelete",
 		Summary:    "Bring back deleted versions of a secret",
+		Keywords:   []string{"restore", "recover", "trash", "rollback"},
 		Safety:     plugin.Write,
 		NeedsGrant: true,
 		Scope:      "path",
@@ -236,6 +242,7 @@ func kvDestroyCapability() plugin.Capability {
 		ID:        "vault.kv.destroy",
 		HumanOnly: true,
 		Summary:   "Destroy versions of a secret for good, for a person at a terminal",
+		Keywords:  []string{"purge", "wipe", "permanent", "erase"},
 		// Destructive for the --yes gate: this is the one operation on a
 		// secret that nothing undoes, and vault.kv.set's whole safety story
 		// is that the version before is still there.
