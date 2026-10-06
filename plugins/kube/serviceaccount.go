@@ -44,6 +44,10 @@ func serviceAccountCapabilities() []plugin.Capability {
 			ID:        "kube.serviceaccount.provision",
 			HumanOnly: true,
 			Summary:   "Mint a scoped ServiceAccount, Role and token for an agent to use",
+			Keywords:  []string{"rbac", "token", "credentials", "privilege", "access"},
+			Examples: []plugin.Example{
+				{Title: "a read-only token for an agent, good for a quarter of an hour", Inputs: map[string]any{"name": "agent-ro", "namespace": "production", "grant": []string{"kube.pod.list", "kube.event.list"}, "ttl": "15m"}},
+			},
 			// HumanOnly, and Write with no NeedsGrant or Scope, the way
 			// keys.backup is declared. HumanOnly is what keeps this out of an
 			// agent's tool list altogether: before the flag existed the
@@ -80,7 +84,7 @@ func serviceAccountCapabilities() []plugin.Capability {
 			Inputs: []plugin.Field{
 				{Name: "name", Type: plugin.String, Positional: true, Required: true,
 					Help: "name for the new ServiceAccount, Role and RoleBinding (all three share it)"},
-				{Name: "namespace", Type: plugin.String, Required: true, Config: "namespace",
+				{Name: "namespace", Short: "n", Type: plugin.String, Required: true, Config: "namespace",
 					// Live for nsFields' reason: this Suggest contacts the
 					// cluster, so it answers a deliberate completion press
 					// only, never a keystroke.
@@ -103,8 +107,9 @@ func serviceAccountCapabilities() []plugin.Capability {
 			Run: runServiceAccountProvision,
 		}),
 		cap(plugin.Capability{
-			ID:      "kube.serviceaccount.list",
-			Summary: "ServiceAccounts this plugin has provisioned, and whether they look expired",
+			ID:       "kube.serviceaccount.list",
+			Summary:  "ServiceAccounts this plugin has provisioned, and whether they look expired",
+			Keywords: []string{"rbac", "tokens", "expired", "agents"},
 			Description: "Only ServiceAccounts carrying provision's own label — not every " +
 				"ServiceAccount in the namespace. A minted token cannot be queried directly (Kubernetes " +
 				"does not persist a TokenRequest token as an object), so \"expired\" here is computed " +
@@ -116,8 +121,9 @@ func serviceAccountCapabilities() []plugin.Capability {
 			Run:        runServiceAccountList,
 		}, nsFields()...),
 		cap(plugin.Capability{
-			ID:      "kube.serviceaccount.revoke",
-			Summary: "Delete a provisioned ServiceAccount, Role and RoleBinding",
+			ID:       "kube.serviceaccount.revoke",
+			Summary:  "Delete a provisioned ServiceAccount, Role and RoleBinding",
+			Keywords: []string{"rbac", "token", "cleanup", "remove"},
 			// Destructive, MCP-reachable, no SurfaceMCP refusal: the opposite
 			// of provision on purpose. Revoking takes access away rather than
 			// minting it, and Destructive already forces the ordinary
@@ -146,7 +152,7 @@ func serviceAccountCapabilities() []plugin.Capability {
 				// grant never named — the label check above guards against
 				// deleting an unrelated object, not against which namespace
 				// an MCP caller may point the Destructive delete at.
-				{Name: "namespace", Type: plugin.String, Required: true, Config: "namespace",
+				{Name: "namespace", Short: "n", Type: plugin.String, Required: true, Config: "namespace",
 					Local: true,
 					// Live for nsFields' reason: a cluster read answers a
 					// press, not a keystroke.

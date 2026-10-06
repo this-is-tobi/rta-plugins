@@ -99,10 +99,10 @@ func nsFields() []plugin.Field {
 		// typing caused — the per-keystroke channel re-evaluates plain
 		// Suggests on every sibling edit, which is exactly the cadence
 		// suggestNamespaces's own comment promises it is not called at.
-		{Name: "namespace", Type: plugin.String, Config: "namespace",
+		{Name: "namespace", Short: "n", Type: plugin.String, Config: "namespace",
 			Help: "namespace to read — the context's own when omitted",
 			Live: true, Suggest: suggestNamespaces},
-		{Name: "all-namespaces", Type: plugin.Bool,
+		{Name: "all-namespaces", Short: "A", Type: plugin.Bool,
 			Help: "every namespace instead of one"},
 	}
 }
@@ -134,8 +134,9 @@ func Plugin() plugin.Plugin {
 	// with a hand-counted capacity would be a number to keep right for nothing.
 	capabilities := []plugin.Capability{ //nolint:prealloc
 		{
-			ID:      "kube.context.list",
-			Summary: "Every context in this machine's kubeconfig, and which one is current",
+			ID:       "kube.context.list",
+			Summary:  "Every context in this machine's kubeconfig, and which one is current",
+			Keywords: []string{"kubectx", "clusters", "switch", "environments"},
 			Description: "Reads the kubeconfig only — no cluster is contacted, so this answers " +
 				"even when every cluster in it is unreachable. The current context is marked, " +
 				"and it is the one every other capability here uses unless config names another.",
@@ -145,8 +146,9 @@ func Plugin() plugin.Plugin {
 			Run:        runContextList,
 		},
 		cap(plugin.Capability{
-			ID:      "kube.context.get",
-			Summary: "The current context in full: cluster, user and default namespace",
+			ID:       "kube.context.get",
+			Summary:  "The current context in full: cluster, user and default namespace",
+			Keywords: []string{"kubectx", "whoami", "cluster", "user"},
 			Description: "What a call from this machine would reach right now. Reads the " +
 				"kubeconfig only; the cluster is not contacted.",
 			Safety:     plugin.Read,
@@ -154,8 +156,9 @@ func Plugin() plugin.Plugin {
 			Run:        runContextGet,
 		}),
 		cap(plugin.Capability{
-			ID:      "kube.namespace.list",
-			Summary: "Namespaces in the cluster, with their status and age",
+			ID:       "kube.namespace.list",
+			Summary:  "Namespaces in the cluster, with their status and age",
+			Keywords: []string{"ns", "projects", "tenants"},
 			Description: "The first capability here that contacts the cluster, so it is also " +
 				"the quickest way to find out whether the current context can reach one.",
 			Safety:     plugin.Read,
@@ -163,8 +166,9 @@ func Plugin() plugin.Plugin {
 			Run:        runNamespaceList,
 		}),
 		cap(plugin.Capability{
-			ID:      "kube.node.list",
-			Summary: "Nodes, with readiness, cordon state and the pressures a kubelet reports",
+			ID:       "kube.node.list",
+			Summary:  "Nodes, with readiness, cordon state and the pressures a kubelet reports",
+			Keywords: []string{"workers", "machines", "drain", "notready", "taints"},
 			Description: "Conditions, not usage — no metrics-server needed, unlike " +
 				"kube.metrics.node. Three statuses and they mean different things: NotReady is " +
 				"a kubelet reporting a problem, Unknown is a kubelet that stopped reporting at " +
@@ -177,8 +181,13 @@ func Plugin() plugin.Plugin {
 			Run:        runNodeList,
 		}),
 		cap(plugin.Capability{
-			ID:      "kube.pod.list",
-			Summary: "Pods in a namespace, with readiness, restarts and age",
+			ID:       "kube.pod.list",
+			Summary:  "Pods in a namespace, with readiness, restarts and age",
+			Keywords: []string{"workloads", "crashloop", "oom", "pending", "containers"},
+			Examples: []plugin.Example{
+				{Title: "unhealthy pods across the cluster", Inputs: map[string]any{"all-namespaces": true, "unhealthy": true}},
+				{Title: "the pods of one namespace", Inputs: map[string]any{"namespace": "production"}},
+			},
 			Description: "One namespace by default — the context's own — or every namespace " +
 				"with `all-namespaces`. Restarts are worth reading: a pod that is Running and " +
 				"has restarted forty times is not healthy, and only one of those two facts " +
@@ -193,8 +202,12 @@ func Plugin() plugin.Plugin {
 		}, append(nsFields(), plugin.Field{Name: "unhealthy", Type: plugin.Bool,
 			Help: "only pods that are not serving — Failed, Pending, Unknown, or Running without every container ready"})...),
 		cap(plugin.Capability{
-			ID:      "kube.deployment.list",
-			Summary: "Deployments in a namespace, with how many replicas are actually ready",
+			ID:       "kube.deployment.list",
+			Summary:  "Deployments in a namespace, with how many replicas are actually ready",
+			Keywords: []string{"rollout", "workloads", "apps", "scale"},
+			Examples: []plugin.Example{
+				{Title: "one namespace's deployments", Inputs: map[string]any{"namespace": "production"}},
+			},
 			Description: "Ready against desired, which is the number that says whether a " +
 				"rollout finished. One namespace by default, or every one with `all-namespaces`.",
 			Safety:     plugin.Read,
@@ -203,8 +216,12 @@ func Plugin() plugin.Plugin {
 			Run:        runDeploymentList,
 		}, nsFields()...),
 		cap(plugin.Capability{
-			ID:      "kube.event.list",
-			Summary: "What the cluster is complaining about, oldest-running problems still visible",
+			ID:       "kube.event.list",
+			Summary:  "What the cluster is complaining about, oldest-running problems still visible",
+			Keywords: []string{"warnings", "errors", "troubleshoot", "failing", "alerts"},
+			Examples: []plugin.Example{
+				{Title: "what is wrong anywhere in the cluster", Inputs: map[string]any{"all-namespaces": true}},
+			},
 			Description: "Warnings only unless `normal`: on a cluster running any active " +
 				"operator the Normal events are routine narration and outnumber the warnings " +
 				"heavily.\n\nAn Event is a counter, not a log line — a recurring problem updates " +
@@ -226,8 +243,12 @@ func Plugin() plugin.Plugin {
 		}, append(nsFields(), plugin.Field{Name: "normal", Type: plugin.Bool,
 			Help: "include Normal events, not only Warnings"})...),
 		cap(plugin.Capability{
-			ID:      "kube.quota.list",
-			Summary: "ResourceQuota pressure per namespace: used against hard, as a percentage",
+			ID:       "kube.quota.list",
+			Summary:  "ResourceQuota pressure per namespace: used against hard, as a percentage",
+			Keywords: []string{"limits", "resourcequota", "capacity", "usage"},
+			Examples: []plugin.Example{
+				{Title: "quota pressure across the cluster", Inputs: map[string]any{"all-namespaces": true}},
+			},
 			Description: "One row per resource a quota tracks, not one row per quota object — " +
 				"cpu, memory and pod-count headroom read as a percentage rather than two numbers " +
 				"to do the division on by hand. LimitRange objects are noted by count rather than " +
@@ -238,8 +259,12 @@ func Plugin() plugin.Plugin {
 			Run:        runQuotaList,
 		}, nsFields()...),
 		cap(plugin.Capability{
-			ID:      "kube.pvc.list",
-			Summary: "PersistentVolumeClaims: capacity, requested size, storage class and phase",
+			ID:       "kube.pvc.list",
+			Summary:  "PersistentVolumeClaims: capacity, requested size, storage class and phase",
+			Keywords: []string{"storage", "volumes", "disk", "pv", "claims"},
+			Examples: []plugin.Example{
+				{Title: "the claims of one namespace", Inputs: map[string]any{"namespace": "production"}},
+			},
 			Description: "Provisioned capacity, not how full a volume actually is — that number " +
 				"lives in kubelet volume stats, a different and more involved mechanism this does " +
 				"not reach. A Pending PVC (no bound PersistentVolume yet) reports its requested " +
@@ -250,8 +275,12 @@ func Plugin() plugin.Plugin {
 			Run:        runPVCList,
 		}, nsFields()...),
 		cap(plugin.Capability{
-			ID:      "kube.cert.list",
-			Summary: "Every TLS certificate this cluster stores as a Secret, and its expiry",
+			ID:       "kube.cert.list",
+			Summary:  "Every TLS certificate this cluster stores as a Secret, and its expiry",
+			Keywords: []string{"tls", "ssl", "expire", "expiration", "secrets", "x509"},
+			Examples: []plugin.Example{
+				{Title: "every certificate the cluster stores", Inputs: map[string]any{"all-namespaces": true}},
+			},
 			Description: "Reads type: kubernetes.io/tls Secrets only, selected server-side so no " +
 				"other secret's data ever leaves the API server for this process. The TLS Secrets " +
 				"it does select arrive whole, tls.key included — Kubernetes cannot project a subset " +
@@ -265,8 +294,12 @@ func Plugin() plugin.Plugin {
 			Run:        runCertList,
 		}, nsFields()...),
 		cap(plugin.Capability{
-			ID:      "kube.metrics.pod",
-			Summary: "Pod CPU/memory usage against each pod's own limit, worst pressure first",
+			ID:       "kube.metrics.pod",
+			Summary:  "Pod CPU/memory usage against each pod's own limit, worst pressure first",
+			Keywords: []string{"top", "oom", "throttling", "limits", "resources"},
+			Examples: []plugin.Example{
+				{Title: "the pods under most pressure, cluster-wide", Inputs: map[string]any{"all-namespaces": true}},
+			},
 			Description: "Needs the metrics-server add-on (metrics.k8s.io); a cluster without it " +
 				"names that in the error rather than a bare \"not found\". Sorted by memory " +
 				"pressure — the failure mode a container hits is OOMKilled, not \"CPU too high\" " +
@@ -277,8 +310,9 @@ func Plugin() plugin.Plugin {
 			Run:        runMetricsPod,
 		}, nsFields()...),
 		cap(plugin.Capability{
-			ID:      "kube.metrics.node",
-			Summary: "Node CPU/memory usage against what the node can actually allocate",
+			ID:       "kube.metrics.node",
+			Summary:  "Node CPU/memory usage against what the node can actually allocate",
+			Keywords: []string{"top", "allocatable", "capacity", "resources"},
 			Description: "Same metrics-server dependency as kube.metrics.pod. Allocatable, not " +
 				"capacity: a node reserves some of its own resources for the kubelet and system " +
 				"daemons, and allocatable is what workloads can actually be scheduled into.",
@@ -287,8 +321,12 @@ func Plugin() plugin.Plugin {
 			Run:        runMetricsNode,
 		}),
 		cap(plugin.Capability{
-			ID:      "kube.metrics.pressure",
-			Summary: "Kernel pressure stall per node: is anything waiting, and is it getting worse",
+			ID:       "kube.metrics.pressure",
+			Summary:  "Kernel pressure stall per node: is anything waiting, and is it getting worse",
+			Keywords: []string{"psi", "contention", "starvation", "throttling"},
+			Examples: []plugin.Example{
+				{Title: "the pressure on one node", Inputs: map[string]any{"node": "worker-1"}},
+			},
 			Description: "Reads the kubelet's own Summary API, not metrics-server. Pressure " +
 				"answers a question a usage percentage cannot: whether work is actually being " +
 				"held up. A node at 90% CPU with nothing waiting is a node being used well.\n\n" +
@@ -312,8 +350,12 @@ func Plugin() plugin.Plugin {
 		}, plugin.Field{Name: "node", Type: plugin.String,
 			Help: "one node instead of every node"}),
 		cap(plugin.Capability{
-			ID:      "kube.pvc.usage",
-			Summary: "How full each PersistentVolumeClaim actually is, worst first",
+			ID:       "kube.pvc.usage",
+			Summary:  "How full each PersistentVolumeClaim actually is, worst first",
+			Keywords: []string{"disk", "space", "capacity", "df", "storage"},
+			Examples: []plugin.Example{
+				{Title: "the claims on one node", Inputs: map[string]any{"node": "worker-1"}},
+			},
 			Description: "The number kube.pvc.list deliberately does not report, because it " +
 				"comes from somewhere else entirely: the kubelet's Summary API, one call per " +
 				"node, rather than the PVC objects themselves.\n\nTwo limits worth knowing. Only " +
@@ -335,8 +377,9 @@ func Plugin() plugin.Plugin {
 		}, plugin.Field{Name: "node", Type: plugin.String,
 			Help: "one node instead of every node"}),
 		cap(plugin.Capability{
-			ID:      "kube.overview",
-			Summary: "One cluster at a glance: where you are pointed and what is not healthy",
+			ID:       "kube.overview",
+			Summary:  "One cluster at a glance: where you are pointed and what is not healthy",
+			Keywords: []string{"summary", "health", "dashboard", "status"},
 			Description: "The context, whether the cluster answers, how many namespaces it " +
 				"has, which nodes are not Ready, and every pod that is not serving — Failed, " +
 				"Pending, Unknown, or Running without every container ready. A finished Job in " +
@@ -370,8 +413,9 @@ func Plugin() plugin.Plugin {
 			// whole subject is which context becomes current. Offering
 			// both would be two spellings of the same argument, one of
 			// which kubectl ignores.
-			ID:      "kube.context.set",
-			Summary: "Switch this machine's current kubeconfig context",
+			ID:       "kube.context.set",
+			Summary:  "Switch this machine's current kubeconfig context",
+			Keywords: []string{"switch", "kubectx", "use", "change"},
 			Description: "Rewrites current-context in the kubeconfig, which is what `kubectl " +
 				"config use-context` does. Every later command on this machine follows it — " +
 				"kubectl's, this plugin's, and anything else reading the same file — which is " +
