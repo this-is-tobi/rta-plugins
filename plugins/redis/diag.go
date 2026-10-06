@@ -17,8 +17,12 @@ func asServerError(err error, target **serverError) bool { return errors.As(err,
 
 func configGetCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:      "redis.config.get",
-		Summary: "What the server is configured with",
+		ID:       "redis.config.get",
+		Summary:  "What the server is configured with",
+		Keywords: []string{"directives", "maxmemory", "settings", "tuning", "persistence"},
+		Examples: []plugin.Example{
+			{Title: "the memory settings", Inputs: map[string]any{"pattern": "maxmemory*"}},
+		},
 		// Write for what it discloses: CONFIG GET * returns requirepass and
 		// masterauth in clear, beside maxmemory and save. There is no
 		// pattern that reliably excludes every credential-shaped directive
@@ -72,8 +76,12 @@ func configView(ctx context.Context, c *client, req plugin.Request) (view.View, 
 
 func slowlogCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:      "redis.slowlog",
-		Summary: "The commands that took longest, with what they were called with",
+		ID:       "redis.slowlog",
+		Summary:  "The commands that took longest, with what they were called with",
+		Keywords: []string{"latency", "performance", "bottleneck", "queries"},
+		Examples: []plugin.Example{
+			{Title: "the ten slowest commands", Inputs: map[string]any{"limit": 10}},
+		},
 		// Write for what it discloses: an entry carries the command line,
 		// arguments included, and a slow SET's argument is a value.
 		Safety:     plugin.Write,
@@ -88,7 +96,7 @@ func slowlogCapability() plugin.Capability {
 				return slowlogView(ctx, c, req)
 			})
 		},
-	}, plugin.Field{Name: "limit", Type: plugin.Int, Config: "slowlog.limit", Default: 25, Min: 1, Max: 1000,
+	}, plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "slowlog.limit", Default: 25, Min: 1, Max: 1000,
 		Help: "how many entries, newest first"})
 }
 
@@ -143,6 +151,7 @@ func memoryCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "redis.memory",
 		Summary:    "Where the memory goes, and what the server thinks about it",
+		Keywords:   []string{"fragmentation", "eviction", "maxmemory", "oom", "usage"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "MEMORY STATS as a table of where the bytes are — dataset, overhead, " +

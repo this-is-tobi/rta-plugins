@@ -18,6 +18,7 @@ func overviewCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "redis.overview",
 		Summary:    "Whether this server is healthy, and what it is made of",
+		Keywords:   []string{"info", "stats", "version", "replication", "uptime"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Detailed:   true,
@@ -356,6 +357,7 @@ func clientListCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "redis.client.list",
 		Summary:    "Who is connected, from where, and what each connection is doing",
+		Keywords:   []string{"connections", "sessions", "monitor", "idle"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "CLIENT LIST as a table: address, name, age, idle time, the last command " +
@@ -416,6 +418,7 @@ func clusterCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "redis.cluster",
 		Summary:    "The cluster as this node sees it: state, slots, and every node's role and health",
+		Keywords:   []string{"slots", "shards", "masters", "replicas", "failover"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "CLUSTER INFO, CLUSTER NODES and CLUSTER SHARDS from one node. A node that " +

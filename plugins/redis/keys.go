@@ -40,8 +40,12 @@ func patternField() plugin.Field {
 
 func keyListCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "redis.key.list",
-		Summary:    "Key names matching a pattern — never their contents",
+		ID:       "redis.key.list",
+		Summary:  "Key names matching a pattern — never their contents",
+		Keywords: []string{"keys", "scan", "glob", "ls"},
+		Examples: []plugin.Example{
+			{Title: "the session keys", Inputs: map[string]any{"pattern": "session:*", "limit": 50}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "Names, types and time to live for every key matching a glob, walked with " +
@@ -55,7 +59,7 @@ func keyListCapability() plugin.Capability {
 			})
 		},
 	}, patternField(),
-		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 200, Min: 1, Max: maxKeys,
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 200, Min: 1, Max: maxKeys,
 			Help: "how many keys to return"})
 }
 
@@ -146,8 +150,12 @@ func ttlText(ttl int64) string {
 
 func keyTreeCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "redis.key.tree",
-		Summary:    "The shape of the keyspace in one call — names only",
+		ID:       "redis.key.tree",
+		Summary:  "The shape of the keyspace in one call — names only",
+		Keywords: []string{"hierarchy", "namespaces", "structure", "ls"},
+		Examples: []plugin.Example{
+			{Title: "the keyspace two levels deep", Inputs: map[string]any{"depth": 2}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "Redis keys are flat, and everybody names them as paths anyway: " +
@@ -162,9 +170,9 @@ func keyTreeCapability() plugin.Capability {
 	}, patternField(),
 		plugin.Field{Name: "separator", Type: plugin.String, Config: "separator", Default: ":",
 			Help: "the character that separates levels in key names"},
-		plugin.Field{Name: "depth", Type: plugin.Int, Config: "depth", Default: 4, Min: 1, Max: 20,
+		plugin.Field{Name: "depth", Short: "d", Type: plugin.Int, Config: "depth", Default: 4, Min: 1, Max: 20,
 			Help: "how many levels to expand"},
-		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: maxKeys, Min: 1, Max: 100000,
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: maxKeys, Min: 1, Max: 100000,
 			Help: "how many keys to walk before stopping"})
 }
 
@@ -279,8 +287,12 @@ func (w *treeRender) expand(n *treeNode, depth int) []view.Node {
 
 func keyGetCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:      "redis.key.get",
-		Summary: "What one key holds",
+		ID:       "redis.key.get",
+		Summary:  "What one key holds",
+		Keywords: []string{"value", "hash", "string", "session", "secret"},
+		Examples: []plugin.Example{
+			{Title: "one key's value", Inputs: map[string]any{"key": "session:42"}},
+		},
 		// Write, and it needs a grant naming it, for what it discloses rather
 		// than what it changes: a session store keeps tokens, a cache keeps
 		// whatever the application put there, and "read any key" is "read
