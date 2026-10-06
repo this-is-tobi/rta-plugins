@@ -60,8 +60,12 @@ func noDatabase(message string, req plugin.Request, how string) *view.Error {
 
 func tableListCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "mariadb.table.list",
-		Summary:    "List tables with their row estimates and sizes",
+		ID:       "mariadb.table.list",
+		Summary:  "List tables with their row estimates and sizes",
+		Keywords: []string{"relations", "disk", "space"},
+		Examples: []plugin.Example{
+			{Title: "the tables of one database", Inputs: map[string]any{"schema": "shop", "limit": 20}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "Names, engines, row estimates and on-disk sizes for one database.\n\n" +
@@ -74,7 +78,7 @@ func tableListCapability() plugin.Capability {
 			})
 		},
 	}, schemaField(),
-		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 200, Min: 1, Max: 10000,
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 200, Min: 1, Max: 10000,
 			Help: "how many tables to show"})
 }
 
@@ -147,8 +151,13 @@ const maxSchemaTables = 500
 
 func schemaCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "mariadb.schema",
-		Summary:    "Describe a database's tables, columns and keys — no values",
+		ID:       "mariadb.schema",
+		Summary:  "Describe a database's tables, columns and keys — no values",
+		Keywords: []string{"ddl", "structure", "erd", "indexes"},
+		Examples: []plugin.Example{
+			{Title: "the tables of one database", Inputs: map[string]any{"schema": "shop"}},
+			{Title: "one table's columns and keys", Inputs: map[string]any{"schema": "shop", "table": "orders"}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "The shape of a database as a tree: every table, its columns with their " +
@@ -164,9 +173,9 @@ func schemaCapability() plugin.Capability {
 			})
 		},
 	}, schemaField(),
-		plugin.Field{Name: "table", Type: plugin.String, Default: "",
+		plugin.Field{Name: "table", Short: "t", Type: plugin.String, Default: "",
 			Help: "expand only this table", Live: true, Suggest: suggestTables},
-		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 100, Min: 1, Max: maxSchemaTables,
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 100, Min: 1, Max: maxSchemaTables,
 			Help: "how many tables to expand"})
 }
 

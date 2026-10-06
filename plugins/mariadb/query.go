@@ -16,8 +16,13 @@ import (
 
 func queryCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:      "mariadb.query",
-		Summary: "Run a read-only query",
+		ID:       "mariadb.query",
+		Summary:  "Run a read-only query",
+		Keywords: []string{"sql", "select", "statement", "rows"},
+		Examples: []plugin.Example{
+			{Title: "count the rows of a table", Inputs: map[string]any{"sql": "select count(*) from orders"}},
+			{Title: "the latest rows of a table", Inputs: map[string]any{"sql": "select * from orders order by created_at desc", "limit": 20}},
+		},
 		// **Write, because it returns rows.** Nothing here mutates: the
 		// transaction below is opened READ ONLY and the server refuses any
 		// statement that would write. That is true, and it is the wrong axis.
@@ -55,7 +60,7 @@ func queryCapability() plugin.Capability {
 		Run: runQuery,
 	}, plugin.Field{Name: "sql", Type: plugin.String, Positional: true, Required: true,
 		Help: "the statement to run"},
-		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 50, Min: 1, Max: 1000,
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 50, Min: 1, Max: 1000,
 			Help: "how many rows to allow before refusing"})
 }
 
@@ -131,8 +136,12 @@ func statementFailure(err error, req plugin.Request) *view.Error {
 
 func activityCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:      "mariadb.activity",
-		Summary: "What every connected session is doing right now",
+		ID:       "mariadb.activity",
+		Summary:  "What every connected session is doing right now",
+		Keywords: []string{"processlist", "processes", "locks", "blocking", "connections", "queries"},
+		Examples: []plugin.Example{
+			{Title: "the ten busiest sessions", Inputs: map[string]any{"limit": 10}},
+		},
 		// Write, and nothing here mutates: **a running query is a place a
 		// value hides.** `select * from patients where mrn = '...'` is a row of
 		// somebody's data wearing a WHERE clause, and this returns the
@@ -154,7 +163,7 @@ func activityCapability() plugin.Capability {
 				return activityView(ctx, db, req, true, true)
 			})
 		},
-	}, plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 50, Min: 1, Max: 1000,
+	}, plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 50, Min: 1, Max: 1000,
 		Help: "how many sessions to show"})
 }
 
