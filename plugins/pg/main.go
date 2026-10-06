@@ -388,6 +388,11 @@ func Plugin() plugin.Plugin {
 					"tier below it describes the database and hands back nothing stored in it. Where the " +
 					"connection is a named profile, every call in this namespace needs one, the read " +
 					"tier included.",
+				Agent: "Runs one SQL statement in a READ ONLY transaction: the server refuses anything that " +
+					"writes, so this cannot change data. Returns the rows as a table, up to `limit` rows " +
+					"(default 200, at most 10000); a larger result, or one over the size bound, is refused " +
+					"rather than shortened, so add a LIMIT or select fewer columns. It returns what the " +
+					"database stores, so it needs a grant from the operator.",
 				Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 					return withConn(ctx, req, func(ctx context.Context, conn *pgx.Conn) (view.View, error) {
 						var out view.View
@@ -458,6 +463,11 @@ func Plugin() plugin.Plugin {
 					"because anyone holding pg.query can already read information_schema.columns, so " +
 					"refusing it would be theatre; what it changes is the record, one ledger line " +
 					"instead of a dozen catalogue queries nobody will reconstruct.",
+				Agent: "Describes one schema's tables: columns, types, nullability, primary and unique keys, " +
+					"foreign keys and plain indexes, as pg_dump writes them. No expression crosses (defaults, " +
+					"check constraints, view and function bodies are left out and counted in the header), so " +
+					"this shows the shape and no stored value, and it is not a restorable dump. `schema` " +
+					"defaults to public; `limit` bounds how many tables are described (default 100).",
 				Run: runSchemaDump,
 			},
 				plugin.Field{Name: "schema", Type: plugin.String, Default: "public", Positional: true,
@@ -514,6 +524,11 @@ func Plugin() plugin.Plugin {
 					"shortened: a truncated dump is a different answer wearing the right shape. Ordered " +
 					"by primary key where there is one, so the first thousand rows are the same thousand " +
 					"next time. `columns` narrows what is read and can never widen it.",
+				Agent: "Reads the rows of one table, in a READ ONLY transaction. `table` must be written " +
+					"schema.table: the grant matches that name exactly, and the grant must name this table. " +
+					"`columns` narrows what is read and never widens it. Ordered by primary key when there is " +
+					"one. At most `limit` rows (default 1000); a larger table, or one over the size bound, is " +
+					"refused rather than shortened.",
 				Run: runTableDump,
 			},
 				// No Config key, deliberately: a Scope input that config can
@@ -701,6 +716,13 @@ func Plugin() plugin.Plugin {
 					"other pg capabilities do not: the connection reaches one server, so it sees a " +
 					"primary's whole replication from the primary and a standby's own position from " +
 					"the standby.",
+				Agent: "Replication state of the one server reached. On a primary: its timeline, WAL " +
+					"position, each connected standby (state, sync state, sent, write, flush and replay " +
+					"positions, lags, bytes of WAL not yet replayed) and the replication slots with the WAL " +
+					"each holds back. On a standby: its upstream and its own received and replayed positions. " +
+					"Positions and states only, never stored values; graded, with an attention list that is " +
+					"left out when healthy. A role without pg_monitor sees standby rows with NULLs and is " +
+					"told so; a lag shown as - was not measured. PostgreSQL 14 or newer.",
 				Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 					return withConn(ctx, req, func(ctx context.Context, conn *pgx.Conn) (view.View, error) {
 						return replicationView(ctx, conn, req)
