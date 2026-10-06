@@ -42,16 +42,16 @@ func connFields() []plugin.Field {
 		// why none of the code below changes to gain it.
 		{Name: "host", Type: plugin.String, Default: "localhost", Config: "host",
 			Local: true, Endpoint: plugin.EndpointHost, Help: "database host"},
-		{Name: "port", Type: plugin.Int, Default: 3306, Config: "port",
+		{Name: "port", Short: "P", Type: plugin.Int, Default: 3306, Config: "port",
 			Local: true, Endpoint: plugin.EndpointPort, Min: 1, Max: 65535, Help: "database port"},
-		{Name: "user", Type: plugin.String, Default: "root", Config: "user",
+		{Name: "user", Short: "u", Type: plugin.String, Default: "root", Config: "user",
 			Local: true, Help: "user to connect as"},
 		// Empty by default rather than a guessed name. MariaDB will connect with
 		// no default database selected, and every capability here that needs
 		// one qualifies its own tables — so the zero-config case reaches a
 		// server and can still describe it, instead of failing on a database
 		// name this plugin invented.
-		{Name: "database", Type: plugin.String, Default: "", Config: "database",
+		{Name: "database", Short: "D", Type: plugin.String, Default: "", Config: "database",
 			Local: true, Help: "database to select (optional — the server is reachable without one)"},
 		// Local for a different reason than the four above: it does not change
 		// where the call goes, it changes whether the transport is protected.
