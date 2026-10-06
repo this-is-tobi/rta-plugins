@@ -150,6 +150,9 @@ func storageCapability() plugin.Capability {
 			"column that looked like usage and was capacity would be worse than no " +
 			"column. `kube.pvc.usage` reports it, graded and worst first, for whoever " +
 			"holds nodes/proxy.",
+		Agent: "Reports what the cluster got, not what its spec asks for: a claim still Pending, one " +
+			"smaller than requested and an expansion that never finished show here and nowhere in the " +
+			"spec. One row per volume, data and WAL. It does not report how full a volume is.",
 		Run: runStorage,
 	}, clusterField("the cluster whose volumes to read"))
 }
