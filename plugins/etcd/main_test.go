@@ -17,7 +17,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"syscall"
 	"testing"
@@ -193,38 +192,43 @@ func TestTheWriteTierIsDisclosureAndOnlyOneHalfIsGrantable(t *testing.T) {
 	}
 }
 
-// The value is the whole point of etcd.kv.get and must still not land in a
-// terminal scrollback or a log by accident. Redacted is what makes every
-// renderer mask it unless somebody asked for it.
-func TestTheValueIsDeclaredRedacted(t *testing.T) {
+// etcd.kv.get is the reveal of this plugin: the call whose answer is the value.
+// A mask on it was a grant that bought an agent ••••••, so the value comes back
+// as stored and the grant, scoped to the key, is the control.
+func TestTheValueComesBackAsStored(t *testing.T) {
 	v := kvGetResult("/registry/secrets/default/api-token", []byte("s3cret"), 1, 1, 1, 0)
 	kv, ok := v.(view.KeyValue)
 	if !ok {
 		t.Fatalf("want KeyValue, got %s", view.TypeOf(v))
 	}
-	if !slices.Contains(kv.Redacted, "value") {
-		t.Errorf("etcd.kv.get does not declare `value` redacted: %v", kv.Redacted)
+	if len(kv.Redacted) != 0 {
+		t.Errorf("etcd.kv.get marks %v redacted, and a mask on the reveal hides the value from every reader", kv.Redacted)
 	}
-	// The key is not redacted, and should not be: knowing a secret exists is
-	// the read tier's job and is already available from etcd.kv.list.
-	if slices.Contains(kv.Redacted, "key") {
-		t.Error("the key is redacted — that hides which secret was read from the record")
+	got := ""
+	for _, p := range kv.Pairs {
+		if p.Key == "value" {
+			got = p.Value
+		}
+	}
+	if got != "s3cret" {
+		t.Errorf("value = %q, want the stored bytes", got)
 	}
 }
 
-// What the description says about the value is what the result does with it.
-// rta masks every field a plugin marks redacted, on every surface and for a
-// caller holding a grant too, and the description promised "the value stored
-// at one key" without saying so: an agent granted the call got `••••••`. If
-// the value is ever returned, this fails, and the description has to follow it.
-func TestTheDescriptionSaysTheValueComesBackMasked(t *testing.T) {
-	declared := slices.Contains(kvGetResult("/k", []byte("v"), 1, 1, 1, 0).(view.KeyValue).Redacted, "value")
+// The declaration, the class, the grant and the scope are one decision: what is
+// handed back is the value itself, so the capability says it reveals, is a
+// write for what it discloses, needs a grant, and that grant names the key.
+func TestTheReadOfAKeyIsADeclaredReveal(t *testing.T) {
 	for _, c := range Plugin().Capabilities {
 		if c.ID != "etcd.kv.get" {
 			continue
 		}
-		if said := strings.Contains(c.Description, "comes back masked"); said != declared {
-			t.Errorf("the value is redacted = %v, and the description says it comes back masked = %v", declared, said)
+		if !c.Reveals || c.Safety != plugin.Write || !c.NeedsGrant || c.Scope != "key" {
+			t.Errorf("etcd.kv.get: Reveals=%v Safety=%s NeedsGrant=%v Scope=%q; want a reveal, write, granted, scoped to the key",
+				c.Reveals, c.Safety, c.NeedsGrant, c.Scope)
+		}
+		if strings.Contains(c.Description, "comes back masked") || strings.Contains(c.AgentText(), "comes back masked") {
+			t.Error("etcd.kv.get says its value comes back masked, and it does not")
 		}
 		return
 	}

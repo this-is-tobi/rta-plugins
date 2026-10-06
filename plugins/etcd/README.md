@@ -34,11 +34,9 @@ Under `plugins: etcd:` in rta's configuration, or in a profile's `set:`. An inst
 
 The value stored at one key, with its version and lease.
 
-**The value comes back masked (••••••), on every surface.** rta masks every field a plugin marks as secret and this one marks `value`, so what the result tells you is that the key exists and its size, version, revisions and lease — not what it holds.
+**The value comes back as stored, on every surface** — it is not masked, and an agent holding a grant for the key has it in its context from then on. The read tier — etcd.kv.list and etcd.kv.tree — shows names and sizes instead, which is usually the question and costs none of this.
 
 **Classified write for what it discloses, not what it changes.** A Kubernetes cluster keeps its Secrets in etcd base64-encoded rather than encrypted, unless encryption at rest was turned on — so reading an arbitrary key here can be reading every secret in the cluster.
-
-The read tier — etcd.kv.list and etcd.kv.tree — shows names and sizes, which is usually the question and costs none of this.
 
 | Field                 | Value                                                                                                                                                                                                                          |
 |-----------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
