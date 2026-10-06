@@ -55,11 +55,11 @@ func connFields() []plugin.Field {
 		// contract and the reason none of the code below changes.
 		{Name: "host", Type: plugin.String, Default: "localhost", Config: "host",
 			Local: true, Endpoint: plugin.EndpointHost, Help: "database host"},
-		{Name: "port", Type: plugin.Int, Default: 5432, Config: "port",
+		{Name: "port", Short: "p", Type: plugin.Int, Default: 5432, Config: "port",
 			Local: true, Endpoint: plugin.EndpointPort, Min: 1, Max: 65535, Help: "database port"},
-		{Name: "user", Type: plugin.String, Default: "postgres", Config: "user",
+		{Name: "user", Short: "U", Type: plugin.String, Default: "postgres", Config: "user",
 			Local: true, Help: "role to connect as"},
-		{Name: "database", Type: plugin.String, Default: "postgres", Config: "database",
+		{Name: "database", Short: "d", Type: plugin.String, Default: "postgres", Config: "database",
 			Local: true, Help: "database to connect to"},
 		// Local for a slightly different reason than the four above: it does
 		// not change *where* the call goes, it changes whether the transport
