@@ -306,6 +306,11 @@ func backupRequestCapability() plugin.Capability {
 			"`method`, `target` and `online` override what the cluster settled on, " +
 			"and are all optional: sending none of them is the ordinary call and means " +
 			"'do what you would have done anyway'.",
+		Agent: "Creates a Backup object for one cluster. The operator takes the backup and chooses where it " +
+			"goes, from the cluster's own backup configuration: nothing here sets a destination. Refused " +
+			"when the cluster configures no backup. `method`, `target` and `online` override the cluster's " +
+			"own choice and are optional; sending none is the ordinary call. Not idempotent: each call " +
+			"makes another backup and costs a full copy. Needs a grant naming the cluster.",
 		Run: runBackupRequest,
 	},
 		clusterField("the cluster to back up"),

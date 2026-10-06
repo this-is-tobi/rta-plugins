@@ -178,6 +178,13 @@ func Plugin() plugin.Plugin {
 					"from the spec. The resource holds no replication positions or lag, so for a " +
 					"cluster with replicas one row says where they are read: the pg plugin's " +
 					"replication page, which connects to the primary.",
+				Agent: "One cluster as its Cluster resource reports it: phase and reason, instances (primary " +
+					"first, by the cluster's own currentPrimary), a switchover in flight, instances sharing a " +
+					"node, unmet conditions only, the last successful backup as an age (not configured is told " +
+					"apart from failing), WAL archiving, certificate expiries graded against 30 days, " +
+					"replication posture, resource bounds and superuser access. Replication positions and lag " +
+					"are not in the resource: the answer points to the PostgreSQL plugin's replication " +
+					"capability, which reads them from the primary. One GET of one resource: no pods, exec or logs.",
 				Inputs: []plugin.Field{clusterField("the cluster to read")},
 				Run:    runStatus,
 			}),
