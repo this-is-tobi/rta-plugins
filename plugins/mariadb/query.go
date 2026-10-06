@@ -47,6 +47,11 @@ func queryCapability() plugin.Capability {
 			"different answer wearing the right shape.\n\n" +
 			"Name a table as `database.table` unless the operator's connection selects a database — " +
 			"without one the server answers an unqualified name with \"No database selected\".",
+		Agent: "Runs one statement in a READ ONLY transaction: the server refuses anything that writes. " +
+			"Returns the rows as a table. Over `limit` rows (default 50, at most 1000) it is refused " +
+			"rather than shortened. Name a table as `database.table` unless the connection selects a " +
+			"database, or the server answers \"No database selected\". It returns what the database " +
+			"stores, so it needs a grant from the operator.",
 		Run: runQuery,
 	}, plugin.Field{Name: "sql", Type: plugin.String, Positional: true, Required: true,
 		Help: "the statement to run"},

@@ -36,6 +36,13 @@ func replicationCapability() plugin.Capability {
 			"its row values, so only its number is returned. The message is what `mariadb.query` returns " +
 			"for SHOW REPLICA STATUS, behind its grant." +
 			clusterNote,
+		Agent: "Replication health of the one server reached: its role (replica, source, both or neither), " +
+			"each thread's state, seconds behind, the position read against the one applied, transactions " +
+			"received and not yet applied, and the connected replicas. A stopped thread fails, with the " +
+			"recorded error number; a running replica warns at a minute behind and fails at ten. Lag is " +
+			"never shown without thread states. One connection sees one server: call it on each member " +
+			"and compare. Positions and states only: an error's text is withheld because it carries row " +
+			"values." + clusterAgentNote,
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withDB(ctx, req, func(ctx context.Context, db *sql.DB) (view.View, error) {
 				st, verr := readState(ctx, db, req)
