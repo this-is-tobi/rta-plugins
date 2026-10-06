@@ -290,22 +290,24 @@ func keyGetCapability() plugin.Capability {
 		NeedsGrant: true,
 		Idempotent: true,
 		Scope:      "key",
+		// The call whose answer is the value: it says so, and the value comes
+		// back as stored. The grant naming the key is the control, and a mask on
+		// top of it was a grant that bought an agent ••••••.
+		Reveals: true,
 		Description: "The value at one key, whatever its type: a string as itself, a hash as " +
 			"its fields, a list, set or sorted set as its members — bounded, and it says " +
 			"when it stopped.\n\n" +
-			"**What it holds comes back masked (••••••), on every surface.** rta masks every field " +
-			"a plugin marks as secret and this one marks the value, a hash's field values and a " +
-			"collection's members, so what the result tells you is the key's type, ttl and size, " +
-			"and a hash's field names — not what is stored.\n\n" +
+			"**What it holds comes back as stored, on every surface** — a hash's field values and a " +
+			"collection's members included, none of it masked, and an agent holding a grant for " +
+			"the key has it in its context from then on. The read tier — redis.key.list and " +
+			"redis.key.tree — shows names, types and TTLs instead, which is usually the question " +
+			"and costs none of this.\n\n" +
 			"**Classified write for what it discloses, not what it changes.** A session store " +
 			"keeps tokens and a cache keeps whatever the application cached, so reading an " +
-			"arbitrary key can be reading somebody's session.\n\n" +
-			"The read tier — redis.key.list and redis.key.tree — shows names, types and TTLs, " +
-			"which is usually the question and costs none of this.",
+			"arbitrary key can be reading somebody's session.",
 		Agent: "The value at one key, whatever its type: a string as itself, a hash as its fields, a list, set " +
-			"or sorted set as its members, bounded, and it says when it stopped. What it holds comes back " +
-			"masked (••••••): the result gives the key's type, ttl and size and a hash's field names, not " +
-			"what is stored. `key` is the exact key. Needs a grant naming the key.",
+			"or sorted set as its members, bounded, and it says when it stopped. `key` is the exact key. " +
+			"Needs a grant naming the key.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withClient(ctx, req, func(ctx context.Context, c *client) (view.View, error) {
 				return keyGetView(ctx, c, req)
@@ -331,7 +333,6 @@ func keyGetView(ctx context.Context, c *client, req plugin.Request) (view.View, 
 		{Key: "ttl", Value: ttlText(ttl.num)},
 	}
 	var value string
-	var redacted []string
 	switch typ.text() {
 	case "none":
 		return nil, view.Errorf("redis.key.notfound", "no key %s on %s", quotedName(key), c.reached).
@@ -357,14 +358,9 @@ func keyGetView(ctx context.Context, c *client, req plugin.Request) (view.View, 
 				pairs = append(pairs, view.Pair{Key: "…", Value: format.CountOf(len(kv)-maxValueItems, "more field") + " not shown"})
 				break
 			}
-			// One string for both: Redacted is matched against a pair's key, so a
-			// field named one way in the pair and another in the mask would show
-			// its value in the clear.
-			label := "field " + plugin.ListedName(p[0])
-			pairs = append(pairs, view.Pair{Key: label, Value: p[1]})
-			redacted = append(redacted, label)
+			pairs = append(pairs, view.Pair{Key: "field " + plugin.ListedName(p[0]), Value: p[1]})
 		}
-		return view.KeyValue{Pairs: pairs, Redacted: redacted}, nil
+		return view.KeyValue{Pairs: pairs}, nil
 	case "list":
 		r, err := c.do(ctx, "LRANGE", key, "0", strconv.Itoa(maxValueItems))
 		if err != nil {
@@ -395,10 +391,7 @@ func keyGetView(ctx context.Context, c *client, req plugin.Request) (view.View, 
 			WithHint("streams and modules' own types need their own client")
 	}
 	pairs = append(pairs, view.Pair{Key: "value", Value: value})
-	// The value is the whole point of the capability and still must not land
-	// in a log or a terminal scrollback by accident. Redacted is what makes
-	// every renderer mask it unless somebody asked for it.
-	return view.KeyValue{Pairs: pairs, Redacted: []string{"value"}}, nil
+	return view.KeyValue{Pairs: pairs}, nil
 }
 
 // collectionView is a list, set or sorted set: the metadata pairs, then the
@@ -410,10 +403,7 @@ func collectionView(meta []view.Pair, items []string, total int64) view.View {
 		truncated = true
 	}
 	meta = append(meta, view.Pair{Key: "members", Value: strconv.FormatInt(total, 10)})
-	// The string and hash cases below mask their own "value" pair; a list,
-	// set or sorted set holds the identical kind of value, one member per
-	// row, and this was the one shape that reached the screen in the clear.
-	t := view.Table{Columns: []view.Column{{Name: "Member"}}, Redacted: []string{"Member"}}
+	t := view.Table{Columns: []view.Column{{Name: "Member"}}}
 	for _, it := range items {
 		t.Rows = append(t.Rows, []string{it})
 	}

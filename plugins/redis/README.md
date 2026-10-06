@@ -124,11 +124,9 @@ The overview already grades the directives that matter most — maxmemory, its p
 
 The value at one key, whatever its type: a string as itself, a hash as its fields, a list, set or sorted set as its members — bounded, and it says when it stopped.
 
-**What it holds comes back masked (••••••), on every surface.** rta masks every field a plugin marks as secret and this one marks the value, a hash's field values and a collection's members, so what the result tells you is the key's type, ttl and size, and a hash's field names — not what is stored.
+**What it holds comes back as stored, on every surface** — a hash's field values and a collection's members included, none of it masked, and an agent holding a grant for the key has it in its context from then on. The read tier — redis.key.list and redis.key.tree — shows names, types and TTLs instead, which is usually the question and costs none of this.
 
 **Classified write for what it discloses, not what it changes.** A session store keeps tokens and a cache keeps whatever the application cached, so reading an arbitrary key can be reading somebody's session.
-
-The read tier — redis.key.list and redis.key.tree — shows names, types and TTLs, which is usually the question and costs none of this.
 
 | Field                 | Value                                                                                                                                                                                                                                           |
 |-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|

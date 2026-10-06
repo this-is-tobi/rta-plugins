@@ -395,7 +395,7 @@ func TestKeyTreeDrawsTheSeparator(t *testing.T) {
 	}
 }
 
-func TestKeyGetMasksTheValueAndRefusesAMissingKey(t *testing.T) {
+func TestKeyGetReturnsTheValueAsStoredAndRefusesAMissingKey(t *testing.T) {
 	srv := newFakeServer(t, map[string]string{
 		"TYPE session:1": "+string\r\n", "TTL session:1": ":300\r\n", "GET session:1": bulk("tok-secret"),
 		"TYPE nope": "+none\r\n", "TTL nope": ":-2\r\n",
@@ -405,8 +405,8 @@ func TestKeyGetMasksTheValueAndRefusesAMissingKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	kv := v.(view.KeyValue)
-	if pairValue(kv, "value") != "tok-secret" || len(kv.Redacted) != 1 || kv.Redacted[0] != "value" {
-		t.Errorf("value not carried and redacted: %+v", kv)
+	if pairValue(kv, "value") != "tok-secret" || len(kv.Redacted) != 0 {
+		t.Errorf("value not carried as stored: %+v", kv)
 	}
 	_, err = run(t, "redis.key.get", srv, map[string]any{"key": "nope"})
 	if ve := view.AsError(err, "x"); ve.Code != "redis.key.notfound" {
@@ -415,26 +415,16 @@ func TestKeyGetMasksTheValueAndRefusesAMissingKey(t *testing.T) {
 }
 
 // What the descriptions say about a stored value is what the result does with
-// it. rta masks every field a plugin marks redacted, on every surface and for a
-// caller holding a grant too, and redis.config.get told its reader that
-// `requirepass` and `masterauth` "come back in clear": they come back as
-// bullets, and redis.key.get promised the value at a key and returned them
-// for it as well. If either is ever returned, this fails and the description
-// has to follow.
+// it. redis.key.get is the reveal, so it declares it and says nothing about a
+// mask; redis.config.get is the one that masks, four credentials that no grant
+// lifts because rta connects with them already, and it says so. If either
+// stops being true, this fails and the description has to follow.
 func TestTheDescriptionsSayWhatComesBackMasked(t *testing.T) {
-	srv := newFakeServer(t, map[string]string{
-		"TYPE session:1": "+string\r\n", "TTL session:1": ":300\r\n", "GET session:1": bulk("tok-secret"),
-	})
-	v, err := run(t, "redis.key.get", srv, map[string]any{"key": "session:1"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	masked := map[string]bool{"redis.key.get": len(v.(view.KeyValue).Redacted) > 0}
 	configured := view.KeyValue{}
 	for name := range secretDirectives {
 		configured.Redacted = append(configured.Redacted, name)
 	}
-	masked["redis.config.get"] = len(configured.Redacted) > 0
+	masked := map[string]bool{"redis.key.get": false, "redis.config.get": len(configured.Redacted) > 0}
 
 	for _, c := range Plugin().Capabilities {
 		want, checked := masked[c.ID]
@@ -444,6 +434,9 @@ func TestTheDescriptionsSayWhatComesBackMasked(t *testing.T) {
 		if said := strings.Contains(c.Description, "masked (••••••), on every surface"); said != want {
 			t.Errorf("%s: masks = %v, and its description says so = %v", c.ID, want, said)
 		}
+		if c.ID == "redis.key.get" && (!c.Reveals || strings.Contains(c.AgentText(), "masked")) {
+			t.Errorf("redis.key.get: Reveals = %v, agent text %q; it hands the value back and says so", c.Reveals, c.AgentText())
+		}
 		delete(masked, c.ID)
 	}
 	for id := range masked {
@@ -451,10 +444,10 @@ func TestTheDescriptionsSayWhatComesBackMasked(t *testing.T) {
 	}
 }
 
-// The asymmetry this test used to miss: string and hash mask their own
-// value, and list, set and sorted set — the identical kind of stored value,
-// one member per row — reached the screen in the clear.
-func TestKeyGetMasksListSetAndZSetMembersToo(t *testing.T) {
+// Every type comes back as stored: a string and a hash as pairs, a list, set
+// and sorted set as one member per row, and none of them carries a mask the
+// grant would not lift.
+func TestKeyGetReturnsListSetAndZSetMembersToo(t *testing.T) {
 	srv := newFakeServer(t, map[string]string{
 		"TYPE mylist": "+list\r\n", "TTL mylist": ":-1\r\n",
 		"LRANGE mylist 0 100": array(bulk("secret-a"), bulk("secret-b")),
@@ -479,14 +472,15 @@ func TestKeyGetMasksListSetAndZSetMembersToo(t *testing.T) {
 				t.Fatal(err)
 			}
 			tbl := sectionOf(t, v.(view.Sections), "members").(view.Table)
-			if len(tbl.Redacted) != 1 || tbl.Redacted[0] != "Member" {
-				t.Fatalf("members table Redacted = %v, want [Member]", tbl.Redacted)
+			if len(tbl.Redacted) != 0 {
+				t.Fatalf("members table Redacted = %v, want none", tbl.Redacted)
 			}
-			redacted := view.Redact(tbl).(view.Table)
-			for _, row := range redacted.Rows {
-				if strings.Contains(row[0], tc.secret) {
-					t.Errorf("%s reached the redacted output in the clear: %v", tc.secret, row)
-				}
+			found := false
+			for _, row := range tbl.Rows {
+				found = found || strings.Contains(row[0], tc.secret)
+			}
+			if !found {
+				t.Errorf("%s is not among the members: %v", tc.secret, tbl.Rows)
 			}
 		})
 	}
