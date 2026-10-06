@@ -159,6 +159,11 @@ func kvGetCapability() plugin.Capability {
 		NeedsGrant: true,
 		Scope:      "path",
 		Idempotent: true,
+		// Declared, so the host says in the agent's tool text that the stored
+		// value comes back and becomes part of its context, records the call as
+		// a reveal, and names it on the consent card. The grant naming the path
+		// is the control, as it was.
+		Reveals: true,
 		Description: "Returns the secret's plaintext, which is why it needs a grant although nothing " +
 			"here is modified. A deleted (but not destroyed) version says so, rather than answering " +
 			"with an empty secret that looks the same as one that was never there.",
