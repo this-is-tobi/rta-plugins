@@ -43,6 +43,7 @@ Every variable the container sets, with its value as set — the image's own, ev
 | mcp-tool             | docker_container_env                                                                                                                                                  |
 | grant required (mcp) | yes — a person must run \`rta grant allow docker.container.env\`, optionally naming one container                                                                     |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                  |
+| example              | rta docker container env web   # the variables one container was started with                                                                                         |
 | input:container      | string, required, completes — the container whose environment to read                                                                                                 |
 | input:host           | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
 | input:context        | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
@@ -65,6 +66,7 @@ Image, command, state, restart policy, mounts, networks and environment. **Write
 | mcp-tool             | docker_container_inspect                                                                                                                                              |
 | grant required (mcp) | yes — a person must run \`rta grant allow docker.container.inspect\`, optionally naming one container                                                                 |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                  |
+| example              | rta docker container inspect web   # one container in full                                                                                                            |
 | input:container      | string, required, completes — the container to inspect                                                                                                                |
 | input:host           | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
 | input:context        | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
@@ -84,6 +86,7 @@ Running containers by default; `all` includes the stopped ones, which is usually
 | cli           | rta docker container list \[--all \<bool>\] \[--host \<string>\] \[--context \<string>\]                                                                                 |
 | mcp-tool      | docker_container_list                                                                                                                                                    |
 | profiles      | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                     |
+| example       | rta docker container list --all   # every container, stopped ones too                                                                                                    |
 | input:all     | bool, from config plugins.docker.all — include stopped containers                                                                                                        |
 | input:host    | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted    |
 | input:context | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                                  |
