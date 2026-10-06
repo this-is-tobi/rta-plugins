@@ -23,6 +23,7 @@ func overviewCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "s3.overview",
 		Summary:    "Endpoint and bucket count at a glance",
+		Keywords:   []string{"summary", "status", "minio", "region"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Detailed:   true,

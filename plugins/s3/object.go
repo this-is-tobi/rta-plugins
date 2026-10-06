@@ -35,8 +35,12 @@ const listLimit = 200
 
 func s3ObjectListCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "s3.object.list",
-		Summary:    "List objects in a bucket",
+		ID:       "s3.object.list",
+		Summary:  "List objects in a bucket",
+		Keywords: []string{"ls", "files", "keys", "blobs"},
+		Examples: []plugin.Example{
+			{Title: "every object under a prefix", Inputs: map[string]any{"bucket": "backups", "prefix": "2026/", "recursive": true, "limit": 100}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "Grouped by \"/\" like a directory listing unless `recursive` flattens the " +
@@ -46,10 +50,10 @@ func s3ObjectListCapability() plugin.Capability {
 			"say so reads exactly like a bucket with that little in it.",
 		Run: runObjectList,
 	}, bucketField("bucket to list"),
-		plugin.Field{Name: "prefix", Type: plugin.String, Config: "prefix", Help: "only keys starting with this",
+		plugin.Field{Name: "prefix", Short: "p", Type: plugin.String, Config: "prefix", Help: "only keys starting with this",
 			Live: true, Suggest: suggestKeys("prefix")},
-		plugin.Field{Name: "recursive", Type: plugin.Bool, Config: "recursive", Help: "ignore the \"/\" delimiter and list everything under prefix"},
-		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: listLimit, Min: 1, Max: 10000,
+		plugin.Field{Name: "recursive", Short: "r", Type: plugin.Bool, Config: "recursive", Help: "ignore the \"/\" delimiter and list everything under prefix"},
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: listLimit, Min: 1, Max: 10000,
 			Help: "how many objects to return"},
 		plugin.Field{Name: "after", Type: plugin.String,
 			Help: "continue from the key the last page ended at"})
@@ -111,8 +115,12 @@ func runObjectList(ctx context.Context, req plugin.Request) (view.View, error) {
 
 func s3ObjectShowCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "s3.object.show",
-		Summary:    "Show one object's metadata — size, type, etag — never its content",
+		ID:       "s3.object.show",
+		Summary:  "Show one object's metadata — size, type, etag — never its content",
+		Keywords: []string{"head", "stat", "info", "headers"},
+		Examples: []plugin.Example{
+			{Title: "one object's metadata", Inputs: map[string]any{"bucket": "backups", "key": "2026/10/db.sql.gz"}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Run:        runObjectShow,
@@ -146,6 +154,7 @@ func runObjectShow(ctx context.Context, req plugin.Request) (view.View, error) {
 func s3ObjectGetCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID: "s3.object.get", Summary: "Download an object's content", Safety: plugin.Write, Idempotent: true,
+		Keywords:   []string{"download", "cat", "fetch", "file"},
 		NeedsGrant: true, Scope: "key",
 		Description: "An object that is text comes back as it is, up to 1 MiB — a larger one is refused " +
 			"rather than cut short — and one that is not comes back as a hex dump of its first 256 bytes.\n\n" +
@@ -262,6 +271,7 @@ func runObjectGet(ctx context.Context, req plugin.Request) (view.View, error) {
 func s3ObjectSetCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID: "s3.object.set", Summary: "Upload (or overwrite) an object", Safety: plugin.Write, Idempotent: true,
+		Keywords:   []string{"upload", "put", "write", "create", "file"},
 		NeedsGrant: true, Scope: "key",
 		Description: "The content is the value given, or a file's; PutObject handles " +
 			"large files with multipart upload internally, so there is no separate multipart " +
@@ -387,6 +397,7 @@ func runObjectSet(ctx context.Context, req plugin.Request) (view.View, error) {
 func s3ObjectRemoveCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID: "s3.object.rm", Summary: "Delete an object", Safety: plugin.Destructive,
+		Keywords: []string{"remove", "unlink", "purge"},
 		// Destructive already forces the gate without NeedsGrant, but the gate
 		// still needs to know which record it is gating: scopes() derives that
 		// from the named field, and with no Scope it derives "". A grant

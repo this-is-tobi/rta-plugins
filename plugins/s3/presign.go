@@ -20,6 +20,7 @@ import (
 func s3ObjectPresignCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID: "s3.object.presign", Summary: "Generate a time-limited URL for an object", Safety: plugin.Write,
+		Keywords:   []string{"share", "link", "signed", "temporary", "expiring"},
 		NeedsGrant: true, Scope: "key",
 		Description: "The URL itself is a credential: anyone who has it can act on the object " +
 			"until `ttl` expires, with no further authentication and no further grant check — " +
@@ -33,7 +34,7 @@ func s3ObjectPresignCapability() plugin.Capability {
 	}, boundBucketField("bucket the object is in"), keyField("object to presign"),
 		plugin.Field{Name: "method", Type: plugin.String, Default: "get", Options: []string{"get", "put"},
 			Help: "get for a download link, put for an upload link"},
-		plugin.Field{Name: "ttl", Type: plugin.Duration, Config: "presign.ttl", Default: "15m", Min: "1s", Max: "7d",
+		plugin.Field{Name: "ttl", Short: "t", Type: plugin.Duration, Config: "presign.ttl", Default: "15m", Min: "1s", Max: "7d",
 			Help: "how long the URL stays valid, such as 15m or 2h — S3's own cap is 7 days"})
 }
 
