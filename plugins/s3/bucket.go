@@ -32,6 +32,11 @@ func bucketField(help string) plugin.Field {
 const boundBucketNote = "The bucket is the operator's `bucket` setting: an agent cannot name one, and " +
 	"the \"bucket\" argument of s3.object.list does not carry over to this call."
 
+// boundBucketAgentNote is boundBucketNote as an agent reads it: the schema it
+// is shown has no bucket input to name, so the note cannot point at one.
+const boundBucketAgentNote = "The bucket is the operator's setting, not one you name: the bucket the list " +
+	"capability took does not carry over to this call."
+
 func boundBucketField(help string) plugin.Field {
 	f := bucketField(help)
 	f.Local = true

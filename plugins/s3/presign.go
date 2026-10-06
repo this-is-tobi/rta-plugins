@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"net/url"
-	"time"
 
 	"github.com/minio/minio-go/v7"
 
@@ -26,18 +25,22 @@ func s3ObjectPresignCapability() plugin.Capability {
 			"until `ttl` expires, with no further authentication and no further grant check — " +
 			"this call is the one gated moment, not each use of the link. A `method` of put grants " +
 			"write access to a caller-chosen key instead of read access to an existing one.\n\n" + boundBucketNote,
+		Agent: "The URL is itself a credential: whoever holds it can act on the object until `ttl` expires, with " +
+			"no further authentication and no further grant check, so this call is the one gated moment. " +
+			"A `method` of put gives write access to a key you choose instead of read access to an " +
+			"existing one. Needs a grant naming the key. " + boundBucketAgentNote,
 		Run: runObjectPresign,
 	}, boundBucketField("bucket the object is in"), keyField("object to presign"),
 		plugin.Field{Name: "method", Type: plugin.String, Default: "get", Options: []string{"get", "put"},
 			Help: "get for a download link, put for an upload link"},
-		plugin.Field{Name: "ttl", Type: plugin.Int, Config: "presign.ttl", Default: 900, Min: 1, Max: 604800,
-			Help: "seconds the URL stays valid — S3's own cap is 7 days (604800)"})
+		plugin.Field{Name: "ttl", Type: plugin.Duration, Config: "presign.ttl", Default: "15m", Min: "1s", Max: "7d",
+			Help: "how long the URL stays valid, such as 15m or 2h — S3's own cap is 7 days"})
 }
 
 func runObjectPresign(ctx context.Context, req plugin.Request) (view.View, error) {
 	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
 		bucket, key := req.String("bucket"), req.String("key")
-		ttl := time.Duration(req.Int("ttl")) * time.Second
+		ttl := req.Duration("ttl")
 
 		// Signing *is* the side effect here, which is what makes this the odd
 		// one out among the dry-run branches: nothing is written and no
