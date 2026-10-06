@@ -52,6 +52,7 @@ func auditCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "keycloak.audit",
 		Summary:    "Grade the realm: second factor, brute force, passwords, clients, tokens, events, admins — each against a named control",
+		Keywords:   []string{"hardening", "compliance", "owasp", "review", "posture"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Detailed:   true,

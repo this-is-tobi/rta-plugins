@@ -11,8 +11,12 @@ import (
 
 func roleListCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "keycloak.role.list",
-		Summary:    "The realm's roles, or one client's, and which are composites",
+		ID:       "keycloak.role.list",
+		Summary:  "The realm's roles, or one client's, and which are composites",
+		Keywords: []string{"permissions", "rbac", "entitlements"},
+		Examples: []plugin.Example{
+			{Title: "the roles of one client", Inputs: map[string]any{"client": "webapp"}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "Realm roles by default; `client` names a client whose own roles to list " +
@@ -20,7 +24,7 @@ func roleListCapability() plugin.Capability {
 			"composite role grants others when assigned, which is what makes it worth a column.",
 		Run: runRoleList,
 	},
-		plugin.Field{Name: "client", Type: plugin.String, Default: "",
+		plugin.Field{Name: "client", Short: "c", Type: plugin.String, Default: "",
 			Help: "list this client's roles instead of the realm's", Live: true, Suggest: suggestClients},
 	)
 }

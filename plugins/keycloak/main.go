@@ -122,7 +122,7 @@ func Plugin() plugin.Plugin {
 // the Admin API's own word for it: an agent that learned `limit` from pg, etcd
 // and s3 passed it here and was refused as an unknown argument.
 func limitField(def, ceiling int, help string) plugin.Field {
-	return plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: def, Min: 1, Max: ceiling, Help: help}
+	return plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: def, Min: 1, Max: ceiling, Help: help}
 }
 
 // one past the bound is what the Admin API is asked for, so a page that

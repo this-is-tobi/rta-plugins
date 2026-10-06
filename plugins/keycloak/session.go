@@ -11,8 +11,12 @@ import (
 
 func sessionListCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "keycloak.session.list",
-		Summary:    "Who is signed in: sessions per client, or the sessions of one user or one client",
+		ID:       "keycloak.session.list",
+		Summary:  "Who is signed in: sessions per client, or the sessions of one user or one client",
+		Keywords: []string{"active", "online", "logins", "logout"},
+		Examples: []plugin.Example{
+			{Title: "one user's sessions", Inputs: map[string]any{"user": "alice"}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "By default the realm's session counts per client, active and offline — the " +
@@ -22,8 +26,8 @@ func sessionListCapability() plugin.Capability {
 			"write this plugin does not have.",
 		Run: runSessionList,
 	},
-		plugin.Field{Name: "user", Type: plugin.String, Default: "", Help: "one user's sessions, by username or id"},
-		plugin.Field{Name: "client", Type: plugin.String, Default: "", Help: "the sessions open against one client",
+		plugin.Field{Name: "user", Short: "u", Type: plugin.String, Default: "", Help: "one user's sessions, by username or id"},
+		plugin.Field{Name: "client", Short: "c", Type: plugin.String, Default: "", Help: "the sessions open against one client",
 			Live: true, Suggest: suggestClients},
 		limitField(100, 1000, "how many sessions to list for a client"),
 	)

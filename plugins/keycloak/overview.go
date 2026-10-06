@@ -19,6 +19,7 @@ func overviewCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "keycloak.overview",
 		Summary:    "One realm at a glance: size, protections, event logging, the flows in force",
+		Keywords:   []string{"summary", "status", "dashboard", "sso"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Detailed:   true,
