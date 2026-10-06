@@ -26,6 +26,11 @@ const clusterNote = "\n\nOn a Group Replication member it adds the group as this
 	"take SELECT on performance_schema, asked only of a server configured for a group, with the grant " +
 	"named when it is missing."
 
+// clusterAgentNote is clusterNote for an agent: the same facts, without the
+// reasons.
+const clusterAgentNote = " On a Group Replication member it adds each member's state, role and applier " +
+	"queue, and whether this server still has a majority."
+
 // MySQL renamed the replication statements in two steps, and removed the old
 // spelling in 8.4: SHOW REPLICA STATUS and SHOW REPLICAS arrived in 8.0.22,
 // SHOW BINARY LOG STATUS in 8.2.0. Each list is the spelling this version

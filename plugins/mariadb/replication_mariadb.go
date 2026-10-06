@@ -36,6 +36,11 @@ const clusterNote = "\n\nOn a Galera node it adds the cluster's own view of the 
 	"connections and still answers SELECT — it just stops being part of the cluster, and nothing else " +
 	"about the server looks wrong while that happens."
 
+// clusterAgentNote is clusterNote for an agent: the same facts, without the
+// reasons.
+const clusterAgentNote = " On a Galera node it adds the cluster size and state, whether the node is in " +
+	"the primary component and in step, and its flow control."
+
 // MariaDB spells the replication statements both ways and has since 10.5, and
 // reads every named connection of a multi-source replica through the ALL form
 // where the plain one reads only the default. Each list is the spelling this
