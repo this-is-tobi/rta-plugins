@@ -93,6 +93,14 @@ func overviewCapability() plugin.Capability {
 			"and the page says so.\n\n" +
 			"Describes collections and returns no point. Reading points is qdrant.points.scroll, " +
 			"and it is a write.",
+		Agent: "Version, reachability and every collection with its point count and status. `yellow` means a " +
+			"collection serves searches from a partly built index, so its results are quietly incomplete. " +
+			"Against a distributed instance it also lists the peers (this peer's raft term, commit index, " +
+			"pending operations and consensus grade; another peer's version, role, term and commit as " +
+			"reported to this one, red when it does not answer) and adds a replicas column: how many of a " +
+			"collection's replicas serve and which shards on which peer do not (Dead is red, Recovery and " +
+			"Partial amber). Ask the leader: a follower reports peers it never talks to as not observed. " +
+			"The cluster's own state needs global read access. Returns no point.",
 		Run: runOverview,
 	})
 }
@@ -265,6 +273,12 @@ func collectionShowCapability() plugin.Capability {
 			"and the state alone does not move until a write fails on that copy.\n\n" +
 			"Configuration only, never a point — this describes the shape of the data and " +
 			"returns none of it.",
+		Agent: "Vector dimensions and distance metric, sharding and replication, payload storage and index " +
+			"progress. The dimension and metric decide whether a model's embeddings fit: a different " +
+			"dimension fails loudly, a model trained for a different metric fails silently with plausible " +
+			"and wrong neighbours. For a collection over several peers it adds where every replica of every " +
+			"shard is and its state, and any shard transfer under way; the point count is this peer's " +
+			"replica alone. Configuration only, never a point.",
 		Run: runCollectionShow,
 	}, collectionField("collection to describe"))
 }

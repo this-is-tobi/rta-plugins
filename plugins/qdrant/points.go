@@ -98,6 +98,12 @@ func pointsScrollCapability() plugin.Capability {
 			"decision rather than something that rides along with the payload.\n\n" +
 			"The read tier — qdrant.collection.show and qdrant.points.count — describes a " +
 			"collection and counts it, which is usually the question and costs none of this.",
+		Agent: "Points from one collection, up to `limit` (default 10, at most 1000); `offset` continues from " +
+			"the next point's id, which the last page's `page.next` holds. Payload and vector values come " +
+			"back masked (••••••): the result says which points exist, their ids and the names of their " +
+			"payload fields, not what they hold. `vectors` also returns the raw vectors, masked the same " +
+			"way: an embedding is lossy but reversible enough to recover much of its source text, so it " +
+			"is a separate decision. Needs a grant naming the collection.",
 		Run: runPointsScroll,
 	}, collectionField("collection to read from"),
 		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 10, Min: 1, Max: 1000,
