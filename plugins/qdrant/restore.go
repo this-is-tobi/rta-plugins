@@ -51,6 +51,7 @@ func restoreCapability() plugin.Capability {
 		ID:        "qdrant.restore",
 		HumanOnly: true,
 		Summary:   "Restore a qdrant.dump snapshot into a collection, for a person at a terminal",
+		Keywords:  []string{"import", "recover", "load"},
 		// Destructive, because that is what it is: recovery replaces the
 		// collection wholesale. The class buys the --yes gate a person
 		// should have to type through.

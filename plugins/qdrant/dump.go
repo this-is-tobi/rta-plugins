@@ -69,6 +69,7 @@ func dumpCapability() plugin.Capability {
 		ID:        "qdrant.dump",
 		HumanOnly: true,
 		Summary:   "Back up one collection to a snapshot file, for a person at a terminal",
+		Keywords:  []string{"backup", "export", "save"},
 		Safety:    plugin.Write,
 		// Not idempotent, and the reason is the guarantee: running it twice
 		// at the same --out refuses rather than overwriting.

@@ -16,8 +16,12 @@ import (
 
 func pointsCountCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "qdrant.points.count",
-		Summary:    "How many points a collection holds, exactly",
+		ID:       "qdrant.points.count",
+		Summary:  "How many points a collection holds, exactly",
+		Keywords: []string{"size", "documents", "vectors", "total"},
+		Examples: []plugin.Example{
+			{Title: "how many points a collection holds", Inputs: map[string]any{"collection": "docs"}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "An exact count, which is the difference between this and the estimate " +
@@ -29,7 +33,7 @@ func pointsCountCapability() plugin.Capability {
 			"nothing about what it is.",
 		Run: runPointsCount,
 	}, collectionField("collection to count"),
-		plugin.Field{Name: "exact", Type: plugin.Bool, Config: "count.exact", Default: true,
+		plugin.Field{Name: "exact", Short: "e", Type: plugin.Bool, Config: "count.exact", Default: true,
 			Help: "scan for an exact count rather than taking the estimate"})
 }
 
@@ -55,8 +59,13 @@ func runPointsCount(ctx context.Context, req plugin.Request) (view.View, error) 
 
 func pointsScrollCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:      "qdrant.points.scroll",
-		Summary: "Read points out of a collection",
+		ID:       "qdrant.points.scroll",
+		Summary:  "Read points out of a collection",
+		Keywords: []string{"payload", "browse", "documents", "rows", "export"},
+		Examples: []plugin.Example{
+			{Title: "the first points of a collection", Inputs: map[string]any{"collection": "docs", "limit": 10}},
+			{Title: "the page after the one that stopped at point 1234", Inputs: map[string]any{"collection": "docs", "limit": 50, "offset": "1234"}},
+		},
 		// **Write, and it needs a grant naming it.** Nothing here mutates.
 		//
 		// The classification is about what it discloses: the payloads are
@@ -106,7 +115,7 @@ func pointsScrollCapability() plugin.Capability {
 			"Needs a grant naming the collection.",
 		Run: runPointsScroll,
 	}, collectionField("collection to read from"),
-		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 10, Min: 1, Max: 1000,
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 10, Min: 1, Max: 1000,
 			Help: "how many points to return"},
 		plugin.Field{Name: "offset", Type: plugin.String, Default: "",
 			Help: "start at this point id — the next page's first, which the last page's `page.next` holds"},

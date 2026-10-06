@@ -42,7 +42,7 @@ type collectionInfo struct {
 }
 
 func collectionField(help string) plugin.Field {
-	return plugin.Field{Name: "collection", Type: plugin.String, Required: true, Config: "collection",
+	return plugin.Field{Name: "collection", Short: "c", Type: plugin.String, Required: true, Config: "collection",
 		Help: help, Live: true, Suggest: suggestCollections}
 }
 
@@ -66,6 +66,7 @@ func overviewCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "qdrant.overview",
 		Summary:    "What this instance is and what it holds",
+		Keywords:   []string{"summary", "version", "health", "status"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Detailed:   true,
@@ -144,6 +145,7 @@ func collectionListCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "qdrant.collection.list",
 		Summary:    "Every collection, with its size and index status",
+		Keywords:   []string{"indexes", "vectors", "embeddings", "catalog"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "Names, point counts, how many of those vectors are actually indexed, and " +
@@ -257,8 +259,12 @@ func countText(n *int64) string {
 
 func collectionShowCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "qdrant.collection.show",
-		Summary:    "How one collection is configured, and whether its index is built",
+		ID:       "qdrant.collection.show",
+		Summary:  "How one collection is configured, and whether its index is built",
+		Keywords: []string{"schema", "config", "hnsw", "dimensions", "distance", "quantization"},
+		Examples: []plugin.Example{
+			{Title: "how one collection is set up", Inputs: map[string]any{"collection": "docs"}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "Vector dimensions and distance metric, sharding and replication, payload " +
