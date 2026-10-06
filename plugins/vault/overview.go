@@ -24,6 +24,7 @@ func overviewCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.overview",
 		Summary:    "Seal state, the current token and the policy list at a glance",
+		Keywords:   []string{"summary", "status", "health", "version"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Detailed:   true,

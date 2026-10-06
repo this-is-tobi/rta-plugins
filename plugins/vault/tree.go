@@ -45,8 +45,12 @@ const (
 // summary of what happened.
 func kvTreeCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "vault.kv.tree",
-		Summary:    "The whole shape of a KV mount in one call — names only",
+		ID:       "vault.kv.tree",
+		Summary:  "The whole shape of a KV mount in one call — names only",
+		Keywords: []string{"hierarchy", "secrets", "structure", "ls"},
+		Examples: []plugin.Example{
+			{Title: "the whole mount, two levels deep", Inputs: map[string]any{"depth": 2}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "vault.kv.list answers one level at a time, and a name ending in \"/\" is " +
@@ -62,7 +66,7 @@ func kvTreeCapability() plugin.Capability {
 		plugin.Field{Name: "path", Type: plugin.String, Positional: true, Default: "",
 			Help: "start here; empty walks the whole mount",
 			Live: true, Suggest: suggestPaths},
-		plugin.Field{Name: "depth", Type: plugin.Int, Config: "depth", Default: 4, Min: 1, Max: 20,
+		plugin.Field{Name: "depth", Short: "d", Type: plugin.Int, Config: "depth", Default: 4, Min: 1, Max: 20,
 			Help: "how many levels to expand"})
 }
 

@@ -56,8 +56,12 @@ func pathField(help string) plugin.Field {
 // is a disclosure.
 func kvListCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "vault.kv.list",
-		Summary:    "List secret names at a path — never values",
+		ID:       "vault.kv.list",
+		Summary:  "List secret names at a path — never values",
+		Keywords: []string{"ls", "secrets", "paths", "folders"},
+		Examples: []plugin.Example{
+			{Title: "the secrets under a path", Inputs: map[string]any{"path": "app/"}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "Names only, never values — vault.kv.get is where a secret's data is. A name " +
@@ -153,8 +157,13 @@ func runKVList(ctx context.Context, req plugin.Request) (view.View, error) {
 // nothing here is modified, and the grant names the path it may read.
 func kvGetCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "vault.kv.get",
-		Summary:    "Reveal a secret's current version, or an earlier one",
+		ID:       "vault.kv.get",
+		Summary:  "Reveal a secret's current version, or an earlier one",
+		Keywords: []string{"read", "secret", "password", "credentials", "fetch"},
+		Examples: []plugin.Example{
+			{Title: "a secret's current version", Inputs: map[string]any{"path": "app/database"}},
+			{Title: "an earlier version of it", Inputs: map[string]any{"path": "app/database", "version": 2}},
+		},
 		Safety:     plugin.Write,
 		NeedsGrant: true,
 		Scope:      "path",
@@ -213,6 +222,7 @@ func kvSetCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.kv.set",
 		Summary:    "Set (or overwrite) a secret",
+		Keywords:   []string{"write", "put", "create", "store", "update"},
 		Safety:     plugin.Write,
 		NeedsGrant: true,
 		Scope:      "path",

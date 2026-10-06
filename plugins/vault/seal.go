@@ -16,6 +16,7 @@ func sealStatusCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.seal.status",
 		Summary:    "Whether Vault is initialized, sealed, and what it takes to unseal it",
+		Keywords:   []string{"unseal", "initialized", "shamir", "ha", "leader"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "Where the vault is and what it would take to open it, without opening it or " +

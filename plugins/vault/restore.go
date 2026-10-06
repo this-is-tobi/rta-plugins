@@ -46,6 +46,7 @@ func restoreCapability() plugin.Capability {
 		ID:        "vault.restore",
 		HumanOnly: true,
 		Summary:   "Restore a vault.snapshot file into a Vault, for a person at a terminal",
+		Keywords:  []string{"recover", "import", "dr", "load"},
 		// Destructive, because nothing here is more so: the whole storage is
 		// replaced, auth state included. The class buys the --yes gate a
 		// person should have to type through.

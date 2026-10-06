@@ -16,6 +16,7 @@ func policyListCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.policy.list",
 		Summary:    "Every ACL policy defined on this Vault",
+		Keywords:   []string{"acl", "permissions", "rbac", "hcl"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "Names, not rules — vault.policy.get shows one policy's own document. A " +
@@ -52,6 +53,7 @@ func policyGetCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.policy.get",
 		Summary:    "One policy's own rules, as HCL",
+		Keywords:   []string{"acl", "permissions", "rbac", "hcl"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Run:        runPolicyGet,

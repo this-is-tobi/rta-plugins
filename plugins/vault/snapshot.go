@@ -46,6 +46,7 @@ func snapshotCapability() plugin.Capability {
 		ID:        "vault.snapshot",
 		HumanOnly: true,
 		Summary:   "Write a raft storage snapshot, for a person at a terminal",
+		Keywords:  []string{"backup", "save", "dr", "export"},
 		Safety:    plugin.Write,
 		// Running it twice at the same --out refuses rather than overwriting.
 		Idempotent: false,
