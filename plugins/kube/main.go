@@ -215,6 +215,10 @@ func Plugin() plugin.Plugin {
 				"It also means the usual \"events only go back an hour\" is true only for " +
 				"problems that stopped: the TTL runs from last-seen, so anything still recurring " +
 				"is never collected and its first-seen can be weeks old.",
+			Agent: "Warnings only unless `normal` is set: Normal events are routine narration. An Event is a " +
+				"counter, not a log line, so first-seen and count come with last-seen: an event first seen " +
+				"eleven days ago with thirteen thousand occurrences is not a one-off from thirty seconds ago. " +
+				"A problem that keeps recurring is never collected, so its first-seen can be weeks old.",
 			Safety:     plugin.Read,
 			Idempotent: true,
 			Scope:      "namespace",
@@ -296,6 +300,12 @@ func Plugin() plugin.Plugin {
 				"node stalling a third of the time reads as perfectly idle through it.\n\nNeeds " +
 				"cgroup v2 and a Linux kernel 4.20 or newer; nodes without it are named rather " +
 				"than shown as zeroes. Needs the nodes/proxy permission — see kube.pvc.usage.",
+			Agent: "Kernel pressure stall per node, from the kubelet's Summary API: whether work is being held " +
+				"up, which a usage percentage cannot say. Each resource is read over a 10-second and a " +
+				"5-minute window: the short above the long is pressure building, below it is clearing. Only " +
+				"the \"some\" series is reported (at least one task stalled); \"full\" is zero for CPU at " +
+				"system level. Needs cgroup v2 and Linux 4.20 or newer: nodes without it are named, not shown " +
+				"as zeroes. Needs the nodes/proxy permission. `node` narrows to one node.",
 			Safety:     plugin.Read,
 			Idempotent: true,
 			Run:        runMetricsPressure,
@@ -314,6 +324,11 @@ func Plugin() plugin.Plugin {
 				"separate capability rather than columns on kube.pvc.list, and why neither it " +
 				"nor kube.metrics.pressure can be granted to a minted ServiceAccount.\n\nA node " +
 				"that cannot be read is named, because a missing node means missing claims.",
+			Agent: "How full each claim is, from the kubelet's Summary API (the claim list reports provisioned " +
+				"capacity only), worst first. Only volumes a live pod mounts are measured: an unmounted claim " +
+				"does not appear. A node that cannot be read is named, because a missing node means missing " +
+				"claims. Needs the nodes/proxy permission, which covers the whole kubelet API. `node` narrows " +
+				"to one node.",
 			Safety:     plugin.Read,
 			Idempotent: true,
 			Run:        runPVCUsage,
@@ -336,6 +351,13 @@ func Plugin() plugin.Plugin {
 				"for what reading a TLS Secret costs — it applies here too, unconditionally. A " +
 				"credential that cannot list nodes still gets the rest: the node read is " +
 				"reported as unavailable and stepped over, not treated as a failure.",
+			Agent: "The context, whether the cluster answers, the namespace count, nodes that are not Ready, and " +
+				"every pod not serving (Failed, Pending, Unknown, or Running without every container ready). " +
+				"A finished Job and a cordoned node are not faults and are not counted as such. Pod-slot " +
+				"headroom comes from the schedulable nodes' max-pods. With `detail`: every node, deployments " +
+				"short of replicas, and the pods. Reads every ResourceQuota and every TLS Secret in every " +
+				"namespace on each run, whatever the namespace narrowing, to report quota pressure and " +
+				"certificate expiry. A credential that cannot list nodes still gets the rest.",
 			Safety:     plugin.Read,
 			Idempotent: true,
 			Detailed:   true,
