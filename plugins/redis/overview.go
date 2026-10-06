@@ -40,6 +40,14 @@ func overviewCapability() plugin.Capability {
 			"section holds the replication id, which every member of one history shares and a " +
 			"promotion changes, and what the backlog holds. Reading it needs only INFO.\n\n" +
 			"`detail` adds the raw INFO sections, for the field this page does not show.",
+		Agent: "INFO read once and graded: memory against maxmemory and what happens at the ceiling, the last " +
+			"RDB and how many writes it does not cover, AOF and whether its last rewrite succeeded, the " +
+			"replication role with every link, and each database's key count. Memory is the row to watch: " +
+			"at maxmemory with `noeviction` every write is refused while reads answer; with an eviction " +
+			"policy keys are lost quietly and the evicted count shows it. On a primary, a row per replica " +
+			"with its acknowledged offset, bytes unacknowledged and whether it could still resume; one " +
+			"behind the backlog, or silent for 10 seconds, is graded. On a replica, the link and any full " +
+			"sync progress; its distance behind is read on the primary. `detail` adds the raw INFO sections.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withClient(ctx, req, func(ctx context.Context, c *client) (view.View, error) {
 				return overviewView(ctx, c, req)
@@ -422,6 +430,12 @@ func clusterCapability() plugin.Capability {
 			"thousands behind is the finding; `redis.overview` against a primary reads the " +
 			"acknowledged offsets exactly. Where the subcommand is not available the table " +
 			"is printed without those columns and says why.",
+		Agent: "CLUSTER INFO, CLUSTER NODES and CLUSTER SHARDS from one node; a node that is not in a cluster " +
+			"says so. The state row matters most: `fail` means some slot has no reachable primary and the " +
+			"cluster refuses writes to it, which the per-node rows explain. Each node's replication offset " +
+			"and each replica's bytes behind its primary come from CLUSTER SHARDS (redis 7.0 or later; an " +
+			"ACL user needs `+cluster|shards`), a heartbeat old: a few bytes is noise, thousands is the " +
+			"finding. Without that subcommand the columns are left out and the page says why.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withClient(ctx, req, func(ctx context.Context, c *client) (view.View, error) {
 				return clusterView(ctx, c, req)
