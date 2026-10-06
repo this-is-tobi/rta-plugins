@@ -40,7 +40,7 @@ func connFields() []plugin.Field {
 	return []plugin.Field{
 		{Name: "url", Type: plugin.String, Default: "http://127.0.0.1:8080", Config: "url",
 			Local: true, Endpoint: plugin.EndpointURL, Help: "Keycloak base URL — the part before /realms"},
-		{Name: "realm", Type: plugin.String, Default: "master", Config: "realm",
+		{Name: "realm", Short: "r", Type: plugin.String, Default: "master", Config: "realm",
 			Local: true, Help: "the realm to read"},
 		// A master-realm client with realm-management roles on every realm
 		// is the ordinary way one service account audits a whole

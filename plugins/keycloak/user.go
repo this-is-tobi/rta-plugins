@@ -26,8 +26,12 @@ import (
 
 func userListCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "keycloak.user.list",
-		Summary:    "Who exists in the realm, whether each is enabled, verified and has a second factor",
+		ID:       "keycloak.user.list",
+		Summary:  "Who exists in the realm, whether each is enabled, verified and has a second factor",
+		Keywords: []string{"accounts", "people", "identities", "mfa", "2fa", "totp"},
+		Examples: []plugin.Example{
+			{Title: "find a user by name or email", Inputs: map[string]any{"search": "alice"}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "One row per user: username, email, enabled, email verified, whether an OTP " +
@@ -77,8 +81,12 @@ func (s *session) users(ctx context.Context, search string, max int) ([]userRep,
 
 func userShowCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "keycloak.user.show",
-		Summary:    "One user: profile, credential types, effective roles, groups and sessions",
+		ID:       "keycloak.user.show",
+		Summary:  "One user: profile, credential types, effective roles, groups and sessions",
+		Keywords: []string{"account", "mfa", "credentials", "identity"},
+		Examples: []plugin.Example{
+			{Title: "one user in full", Inputs: map[string]any{"user": "alice"}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "Everything the realm knows about one account except its secrets: the " +

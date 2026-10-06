@@ -22,6 +22,7 @@ func clientListCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "keycloak.client.list",
 		Summary:    "Every client: public or confidential, which grants it may use, whether it enforces PKCE",
+		Keywords:   []string{"applications", "apps", "oidc", "saml", "oauth"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "One row per registered client, built-in ones included: its kind (public, " +
@@ -79,8 +80,12 @@ func flows(c clientRep) string {
 
 func clientShowCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "keycloak.client.show",
-		Summary:    "One client: grants, redirect URIs, origins, scopes, the settings that matter, its service account's roles",
+		ID:       "keycloak.client.show",
+		Summary:  "One client: grants, redirect URIs, origins, scopes, the settings that matter, its service account's roles",
+		Keywords: []string{"application", "oidc", "saml", "oauth", "serviceaccount"},
+		Examples: []plugin.Example{
+			{Title: "one client in full", Inputs: map[string]any{"client": "webapp"}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "How one application authenticates: kind and protocol, the flows enabled, " +

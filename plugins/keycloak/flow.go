@@ -20,6 +20,7 @@ func flowListCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "keycloak.flow.list",
 		Summary:    "The authentication flows, and which one each kind of login is bound to",
+		Keywords:   []string{"authentication", "login", "browser", "mfa", "bindings"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "Every top-level flow, built-in or custom, with the binding that puts it in " +
@@ -74,8 +75,12 @@ func (s *session) flowTable(ctx context.Context) (view.View, *view.Error) {
 
 func flowShowCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "keycloak.flow.show",
-		Summary:    "One flow's steps as a tree: each authenticator and whether it is required, alternative, conditional or disabled",
+		ID:       "keycloak.flow.show",
+		Summary:  "One flow's steps as a tree: each authenticator and whether it is required, alternative, conditional or disabled",
+		Keywords: []string{"authenticators", "steps", "execution", "login", "mfa"},
+		Examples: []plugin.Example{
+			{Title: "the browser login flow", Inputs: map[string]any{"flow": "browser"}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "The executions of one flow, nested the way the console nests them. Read " +

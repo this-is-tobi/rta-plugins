@@ -17,8 +17,12 @@ import (
 
 func eventListCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "keycloak.event.list",
-		Summary:    "Login events, newest first: logins, failures, token refreshes, who and from where",
+		ID:       "keycloak.event.list",
+		Summary:  "Login events, newest first: logins, failures, token refreshes, who and from where",
+		Keywords: []string{"audit", "bruteforce", "history", "security", "authentication"},
+		Examples: []plugin.Example{
+			{Title: "the last failed logins", Inputs: map[string]any{"type": "LOGIN_ERROR", "limit": 50}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "The realm's login event log, newest first — LOGIN, LOGIN_ERROR, LOGOUT, " +
@@ -28,9 +32,9 @@ func eventListCapability() plugin.Capability {
 			"`keycloak.audit` flags.",
 		Run: runEventList,
 	},
-		plugin.Field{Name: "type", Type: plugin.String, Default: "", Help: "one event type, e.g. LOGIN_ERROR"},
-		plugin.Field{Name: "user", Type: plugin.String, Default: "", Help: "events of one user, by username or id"},
-		plugin.Field{Name: "client", Type: plugin.String, Default: "", Help: "events of one client",
+		plugin.Field{Name: "type", Short: "t", Type: plugin.String, Default: "", Help: "one event type, e.g. LOGIN_ERROR"},
+		plugin.Field{Name: "user", Short: "u", Type: plugin.String, Default: "", Help: "events of one user, by username or id"},
+		plugin.Field{Name: "client", Short: "c", Type: plugin.String, Default: "", Help: "events of one client",
 			Live: true, Suggest: suggestClients},
 		limitField(50, 1000, "how many events to list"),
 	)
@@ -71,6 +75,7 @@ func eventAdminCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "keycloak.event.admin",
 		Summary:    "Admin events, newest first: what was created, changed or deleted in the realm, by whom",
+		Keywords:   []string{"audit", "changes", "history", "who", "security"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "The realm's administrative change log: each operation, the resource it " +
