@@ -51,6 +51,7 @@ Reads type: kubernetes.io/tls Secrets only, selected server-side so no other sec
 | cli                  | rta kube cert list \[--namespace \<string>\] \[--all-namespaces \<bool>\] \[--context \<string>\]                                                                 |
 | mcp-tool             | kube_cert_list                                                                                                                                                    |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow kube --profile \<name>\`                                |
+| example              | rta kube cert list --all-namespaces   # every certificate the cluster stores                                                                                      |
 | input:namespace      | string, completes, from config plugins.kube.namespace — namespace to read — the context's own when omitted                                                        |
 | input:all-namespaces | bool — every namespace instead of one                                                                                                                             |
 | input:context        | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted              |
@@ -117,6 +118,7 @@ Ready against desired, which is the number that says whether a rollout finished.
 | cli                  | rta kube deployment list \[--namespace \<string>\] \[--all-namespaces \<bool>\] \[--context \<string>\]                                                                 |
 | mcp-tool             | kube_deployment_list                                                                                                                                                    |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow kube --profile \<name>\`                                      |
+| example              | rta kube deployment list --namespace production   # one namespace's deployments                                                                                         |
 | input:namespace      | string, completes, from config plugins.kube.namespace — namespace to read — the context's own when omitted                                                              |
 | input:all-namespaces | bool — every namespace instead of one                                                                                                                                   |
 | input:context        | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted                    |
@@ -138,6 +140,7 @@ An Event is a counter, not a log line — a recurring problem updates the existi
 | cli                  | rta kube event list \[--namespace \<string>\] \[--all-namespaces \<bool>\] \[--normal \<bool>\] \[--context \<string>\]                                            |
 | mcp-tool             | kube_event_list                                                                                                                                                    |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow kube --profile \<name>\`                                 |
+| example              | rta kube event list --all-namespaces   # what is wrong anywhere in the cluster                                                                                     |
 | input:namespace      | string, completes, from config plugins.kube.namespace — namespace to read — the context's own when omitted                                                         |
 | input:all-namespaces | bool — every namespace instead of one                                                                                                                              |
 | input:normal         | bool — include Normal events, not only Warnings                                                                                                                    |
@@ -175,6 +178,7 @@ Needs the metrics-server add-on (metrics.k8s.io); a cluster without it names tha
 | cli                  | rta kube metrics pod \[--namespace \<string>\] \[--all-namespaces \<bool>\] \[--context \<string>\]                                                                 |
 | mcp-tool             | kube_metrics_pod                                                                                                                                                    |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow kube --profile \<name>\`                                  |
+| example              | rta kube metrics pod --all-namespaces   # the pods under most pressure, cluster-wide                                                                                |
 | input:namespace      | string, completes, from config plugins.kube.namespace — namespace to read — the context's own when omitted                                                          |
 | input:all-namespaces | bool — every namespace instead of one                                                                                                                               |
 | input:context        | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted                |
@@ -200,6 +204,7 @@ Needs cgroup v2 and a Linux kernel 4.20 or newer; nodes without it are named rat
 | cli           | rta kube metrics pressure \[--node \<string>\] \[--context \<string>\]                                                                                                   |
 | mcp-tool      | kube_metrics_pressure                                                                                                                                                    |
 | profiles      | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow kube --profile \<name>\`                                       |
+| example       | rta kube metrics pressure --node worker-1   # the pressure on one node                                                                                                   |
 | input:node    | string — one node instead of every node                                                                                                                                  |
 | input:context | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted                     |
 | set a key     | rta config set plugins.kube.context \<value>                                                                                                                             |
@@ -272,6 +277,8 @@ One namespace by default — the context's own — or every namespace with `all-
 | cli                  | rta kube pod list \[--namespace \<string>\] \[--all-namespaces \<bool>\] \[--unhealthy \<bool>\] \[--context \<string>\]                                         |
 | mcp-tool             | kube_pod_list                                                                                                                                                    |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow kube --profile \<name>\`                               |
+| example              | rta kube pod list --all-namespaces --unhealthy   # unhealthy pods across the cluster                                                                             |
+| example              | rta kube pod list --namespace production   # the pods of one namespace                                                                                           |
 | input:namespace      | string, completes, from config plugins.kube.namespace — namespace to read — the context's own when omitted                                                       |
 | input:all-namespaces | bool — every namespace instead of one                                                                                                                            |
 | input:unhealthy      | bool — only pods that are not serving — Failed, Pending, Unknown, or Running without every container ready                                                       |
@@ -292,6 +299,7 @@ Provisioned capacity, not how full a volume actually is — that number lives in
 | cli                  | rta kube pvc list \[--namespace \<string>\] \[--all-namespaces \<bool>\] \[--context \<string>\]                                                                 |
 | mcp-tool             | kube_pvc_list                                                                                                                                                    |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow kube --profile \<name>\`                               |
+| example              | rta kube pvc list --namespace production   # the claims of one namespace                                                                                         |
 | input:namespace      | string, completes, from config plugins.kube.namespace — namespace to read — the context's own when omitted                                                       |
 | input:all-namespaces | bool — every namespace instead of one                                                                                                                            |
 | input:context        | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted             |
@@ -315,6 +323,7 @@ A node that cannot be read is named, because a missing node means missing claims
 | cli           | rta kube pvc usage \[--node \<string>\] \[--context \<string>\]                                                                                                   |
 | mcp-tool      | kube_pvc_usage                                                                                                                                                    |
 | profiles      | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow kube --profile \<name>\`                                |
+| example       | rta kube pvc usage --node worker-1   # the claims on one node                                                                                                     |
 | input:node    | string — one node instead of every node                                                                                                                           |
 | input:context | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted              |
 | set a key     | rta config set plugins.kube.context \<value>                                                                                                                      |
@@ -333,6 +342,7 @@ One row per resource a quota tracks, not one row per quota object — cpu, memor
 | cli                  | rta kube quota list \[--namespace \<string>\] \[--all-namespaces \<bool>\] \[--context \<string>\]                                                                 |
 | mcp-tool             | kube_quota_list                                                                                                                                                    |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow kube --profile \<name>\`                                 |
+| example              | rta kube quota list --all-namespaces   # quota pressure across the cluster                                                                                         |
 | input:namespace      | string, completes, from config plugins.kube.namespace — namespace to read — the context's own when omitted                                                         |
 | input:all-namespaces | bool — every namespace instead of one                                                                                                                              |
 | input:context        | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted               |
@@ -371,6 +381,7 @@ Creates a ServiceAccount, a Role built from exactly the grants named in `grant` 
 | cli             | rta kube serviceaccount provision \<name> \[--namespace \<string>\] --grant \<stringSlice> \[--ttl \<string>\] \[--out \<path>\] \[--force \<bool>\] \[--context \<string>\]                                                                                                     |
 | mcp-tool        | none — for the person at the terminal, never an agent                                                                                                                                                                                                                            |
 | profiles        | --profile \<name> runs this against a configured connection                                                                                                                                                                                                                      |
+| example         | rta kube serviceaccount provision agent-ro --namespace production --grant kube.pod.list --grant kube.event.list --ttl 15m   # a read-only token for an agent, good for a quarter of an hour                                                                                      |
 | input:name      | string, required — name for the new ServiceAccount, Role and RoleBinding (all three share it)                                                                                                                                                                                    |
 | input:namespace | string, required, completes, from config plugins.kube.namespace — namespace to provision the identity in                                                                                                                                                                         |
 | input:grant     | stringSlice, required, one of: kube.deployment.list\|kube.event.list\|kube.metrics.pod\|kube.pod.list\|kube.pvc.list\|kube.quota.list\|logs\|rollout\|services\|workloads — what the identity may do: a kube.* capability ID, or logs, workloads, services, rollout — repeatable |
