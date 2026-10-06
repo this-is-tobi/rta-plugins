@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -66,10 +65,10 @@ func TestAKeyTreeLabelsAnOddSegmentQuotedAndKeepsTheSeparatorOutside(t *testing.
 	}
 }
 
-// Redacted is matched against a pair's key, so a hash field named one way in
-// the pair and another in the mask would reach the screen in the clear: the
-// odd field is masked under the name it is shown by.
-func TestAHashFieldAndTheKeyAreShownQuotedAndItsValueStaysMasked(t *testing.T) {
+// A hash field is shown under the name a reader can tell apart from its
+// neighbours, which is the odd one quoted, and its value comes back as stored:
+// redis.key.get is the reveal, and nothing on it is masked.
+func TestAHashFieldAndTheKeyAreShownQuotedAndItsValueIsReturned(t *testing.T) {
 	srv := newFakeServer(t, map[string]string{
 		"TYPE " + oddName: "+hash\r\n", "TTL " + oddName: ":-1\r\n",
 		"HGETALL " + oddName: array(bulk(oddName), bulk("s3cret"), bulk(plainName), bulk("other-s3cret")),
@@ -82,16 +81,13 @@ func TestAHashFieldAndTheKeyAreShownQuotedAndItsValueStaysMasked(t *testing.T) {
 	if got := pairValue(kv, "key"); got != oddShown {
 		t.Errorf("key = %q, want %s", got, oddShown)
 	}
-	for _, field := range []string{"field " + oddShown, "field " + plainName} {
-		if !kv.IsRedacted(field) {
-			t.Errorf("%q is not redacted: %v", field, kv.Redacted)
+	for field, want := range map[string]string{"field " + oddShown: "s3cret", "field " + plainName: "other-s3cret"} {
+		if got := pairValue(kv, field); got != want {
+			t.Errorf("%q = %q, want %q", field, got, want)
 		}
 	}
-	masked := fmt.Sprint(view.Redact(kv))
-	for _, secret := range []string{"s3cret", "other-s3cret"} {
-		if strings.Contains(masked, secret) {
-			t.Errorf("%s reached the redacted output in the clear: %s", secret, masked)
-		}
+	if len(kv.Redacted) != 0 {
+		t.Errorf("the reveal masks %v", kv.Redacted)
 	}
 }
 
