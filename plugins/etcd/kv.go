@@ -371,16 +371,22 @@ func kvGetCapability() plugin.Capability {
 		// key was supposed to make unnecessary.
 		Scope:      "key",
 		Idempotent: true,
+		// Reveals is the declaration that this is the call whose answer is the
+		// value, so a host can say so in the caller's words, and the value comes
+		// back as stored: the grant above is the control, and a mask on top of
+		// it was a grant that bought an agent ••••••.
+		Reveals: true,
 		Description: "The value stored at one key, with its version and lease.\n\n" +
-			"**The value comes back masked (••••••), on every surface.** rta masks every field a " +
-			"plugin marks as secret and this one marks `value`, so what the result tells you is that " +
-			"the key exists and its size, version, revisions and lease — not what it holds.\n\n" +
+			"**The value comes back as stored, on every surface** — it is not masked, and an agent " +
+			"holding a grant for the key has it in its context from then on. The read tier — " +
+			"etcd.kv.list and etcd.kv.tree — shows names and sizes instead, which is usually the " +
+			"question and costs none of this.\n\n" +
 			"**Classified write for what it discloses, not what it changes.** A Kubernetes " +
 			"cluster keeps its Secrets in etcd base64-encoded rather than encrypted, unless " +
 			"encryption at rest was turned on — so reading an arbitrary key here can be reading " +
-			"every secret in the cluster.\n\n" +
-			"The read tier — etcd.kv.list and etcd.kv.tree — shows names and sizes, which is " +
-			"usually the question and costs none of this.",
+			"every secret in the cluster.",
+		Agent: "The value stored at one key, with its version, revisions and lease. `key` is the exact key, " +
+			"not a prefix. Needs a grant naming the key.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withClient(ctx, req, func(ctx context.Context, c *clientv3.Client) (view.View, error) {
 				return kvGetView(ctx, c, req)
@@ -431,9 +437,8 @@ func quoted(name string) string {
 }
 
 // kvGetResult is split from the fetch so the shape of the answer — and in
-// particular what it declares redacted — is assertable without a cluster.
-// Redaction is a claim worth testing, and one that would otherwise only be
-// checked by somebody reading it.
+// particular that it marks nothing redacted, being the reveal — is assertable
+// without a cluster.
 func kvGetResult(key string, value []byte, version, created, modified, lease int64) view.View {
 	leaseText := "-"
 	if lease != 0 {
@@ -449,9 +454,5 @@ func kvGetResult(key string, value []byte, version, created, modified, lease int
 			{Key: "modified revision", Value: strconv.FormatInt(modified, 10)},
 			{Key: "lease", Value: leaseText},
 		},
-		// The value is the whole point of the capability and still must not
-		// land in a log or a terminal scrollback by accident. Redacted is what
-		// makes every renderer mask it unless somebody asked for it.
-		Redacted: []string{"value"},
 	}
 }
