@@ -85,6 +85,7 @@ func snapshotCapability() plugin.Capability {
 		ID:        "etcd.snapshot",
 		HumanOnly: true,
 		Summary:   "Write a point-in-time snapshot of the whole keyspace, for a person at a terminal",
+		Keywords:  []string{"backup", "save", "dump", "etcdctl"},
 		// **Write for what it discloses, not for what it changes.** Nothing
 		// here mutates the cluster; the file is every key and every value it
 		// holds. That is the same reading etcd.kv.get gets next door, at the

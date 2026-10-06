@@ -47,8 +47,12 @@ func prefixField() plugin.Field {
 
 func kvListCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "etcd.kv.list",
-		Summary:    "Key names under a prefix — never their contents",
+		ID:       "etcd.kv.list",
+		Summary:  "Key names under a prefix — never their contents",
+		Keywords: []string{"keys", "ls", "range", "namespace"},
+		Examples: []plugin.Example{
+			{Title: "the keys under one prefix", Inputs: map[string]any{"prefix": "/registry/pods/", "limit": 20}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "Names, versions and lease bindings for every key under a prefix.\n\n" +
@@ -65,7 +69,7 @@ func kvListCapability() plugin.Capability {
 			})
 		},
 	}, prefixField(),
-		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: 200, Min: 1, Max: maxKeys,
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 200, Min: 1, Max: maxKeys,
 			Help: "how many keys to return"},
 		plugin.Field{Name: "after", Type: plugin.String,
 			Help: "continue after this key — the one the last page ended at"})
@@ -186,8 +190,12 @@ func kvListTable(kvs []*mvccpb.KeyValue, limit int, sf plugin.Surface) view.Tabl
 
 func kvTreeCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "etcd.kv.tree",
-		Summary:    "The shape of the keyspace in one call — names only",
+		ID:       "etcd.kv.tree",
+		Summary:  "The shape of the keyspace in one call — names only",
+		Keywords: []string{"hierarchy", "directories", "structure", "ls"},
+		Examples: []plugin.Example{
+			{Title: "the keyspace two levels deep", Inputs: map[string]any{"depth": 2}},
+		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "etcd keys are flat, and everything treats them as paths anyway: " +
@@ -204,9 +212,9 @@ func kvTreeCapability() plugin.Capability {
 			})
 		},
 	}, prefixField(),
-		plugin.Field{Name: "depth", Type: plugin.Int, Config: "depth", Default: 4, Min: 1, Max: 20,
+		plugin.Field{Name: "depth", Short: "d", Type: plugin.Int, Config: "depth", Default: 4, Min: 1, Max: 20,
 			Help: "how many levels to expand"},
-		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: maxKeys, Min: 1, Max: 100000,
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: maxKeys, Min: 1, Max: 100000,
 			Help: "how many keys to read before stopping"})
 }
 
@@ -346,8 +354,12 @@ func (w *treeRender) expand(n *treeNode, depth int) []view.Node {
 
 func kvGetCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:      "etcd.kv.get",
-		Summary: "What one key holds",
+		ID:       "etcd.kv.get",
+		Summary:  "What one key holds",
+		Keywords: []string{"value", "read", "etcdctl", "secret"},
+		Examples: []plugin.Example{
+			{Title: "one key's value", Inputs: map[string]any{"key": "/config/app/feature-flags"}},
+		},
 		// **Write, and it needs a grant naming it.** Nothing here mutates.
 		//
 		// The classification is about what it discloses. A Kubernetes cluster
