@@ -302,6 +302,10 @@ func keyGetCapability() plugin.Capability {
 			"arbitrary key can be reading somebody's session.\n\n" +
 			"The read tier — redis.key.list and redis.key.tree — shows names, types and TTLs, " +
 			"which is usually the question and costs none of this.",
+		Agent: "The value at one key, whatever its type: a string as itself, a hash as its fields, a list, set " +
+			"or sorted set as its members, bounded, and it says when it stopped. What it holds comes back " +
+			"masked (••••••): the result gives the key's type, ttl and size and a hash's field names, not " +
+			"what is stored. `key` is the exact key. Needs a grant naming the key.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withClient(ctx, req, func(ctx context.Context, c *client) (view.View, error) {
 				return keyGetView(ctx, c, req)
