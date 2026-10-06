@@ -87,6 +87,9 @@ func transitDecryptCapability() plugin.Capability {
 		NeedsGrant: true,
 		Scope:      "key",
 		Idempotent: true,
+		// The plaintext is the answer, and the host says so where it matters:
+		// in the agent's tool text, in the record and on the consent card.
+		Reveals: true,
 		Description: "The reveal half of transit: whoever holds the ciphertext gets the plaintext " +
 			"back, so it needs a grant, as vault.kv.get does.",
 		Run: runTransitDecrypt,
