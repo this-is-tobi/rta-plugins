@@ -150,6 +150,9 @@ func s3ObjectGetCapability() plugin.Capability {
 		Description: "An object that is text comes back as it is, up to 1 MiB — a larger one is refused " +
 			"rather than cut short — and one that is not comes back as a hex dump of its first 256 bytes.\n\n" +
 			boundBucketNote,
+		Agent: "A text object comes back as it is, up to 1 MiB (a larger one is refused, not cut short); a " +
+			"binary one as a hex dump of its first 256 bytes. Needs a grant naming the key. " +
+			boundBucketAgentNote,
 		Run: runObjectGet,
 	}, boundBucketField("bucket the object is in"), keyField("object to reveal"),
 		plugin.Field{Name: "out", Type: plugin.Path, Local: true,
@@ -263,6 +266,8 @@ func s3ObjectSetCapability() plugin.Capability {
 		Description: "The content is the value given, or a file's; PutObject handles " +
 			"large files with multipart upload internally, so there is no separate multipart " +
 			"capability to reach for.\n\n" + boundBucketNote,
+		Agent: "The content is the `value` given. Replaces an object that already exists and nothing keeps " +
+			"the old one. Needs a grant naming the key. " + boundBucketAgentNote,
 		Run: runObjectSet,
 	}, boundBucketField("bucket to write to"), keyField("object to set"),
 		plugin.Field{Name: "value", Type: plugin.Text, Positional: true, Help: "content to upload"},
@@ -394,6 +399,8 @@ func s3ObjectRemoveCapability() plugin.Capability {
 			"idempotent: removing a key that is already gone is not an error, on this or the real " +
 			"call — a dry run does not probe for existence first, since that would report a " +
 			"failure the real call would not.\n\n" + boundBucketNote,
+		Agent: "No history, no backup, no undo. Removing a key that is already gone is not an error. Needs a " +
+			"grant naming the key. " + boundBucketAgentNote,
 		Run: runObjectRemove,
 	}, boundBucketField("bucket the object is in"), keyField("object to delete"))
 }

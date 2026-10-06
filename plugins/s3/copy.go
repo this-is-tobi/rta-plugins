@@ -99,6 +99,9 @@ func s3ObjectCopyCapability() plugin.Capability {
 		Description: "Copies server-side; the content never passes through this process. " +
 			"Refuses if the destination key already exists rather than writing over it: a grant covers " +
 			"both keys' names and says nothing about the object it would replace.\n\n" + boundBucketNote,
+		Agent: "Copies server-side; the content never passes through this process. Refused when the destination " +
+			"key already exists. The grant must cover both the source key and `dest-key`. " +
+			boundBucketAgentNote,
 		Run: runObjectCopy,
 	}, copyFields("source bucket", "object to copy")...)
 }
@@ -141,6 +144,9 @@ func s3ObjectRenameCapability() plugin.Capability {
 		Description: "S3 has no native rename — this copies server-side, then removes the " +
 			"source. If the copy succeeds and the remove fails, the object exists in both " +
 			"places and the failure says so rather than reporting success.\n\n" + boundBucketNote,
+		Agent: "Copies server-side, then removes the source. If the copy lands and the remove fails the object " +
+			"exists in both places and the failure says so. The grant must cover both the source key and " +
+			"`dest-key`. " + boundBucketAgentNote,
 		Run: runObjectRename,
 	}, copyFields("source bucket", "object to move")...)
 }
