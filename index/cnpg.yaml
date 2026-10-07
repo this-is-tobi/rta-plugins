@@ -7,29 +7,29 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: cnpg
-version: 0.3.1
+version: 0.4.0
 summary: Read the state of CloudNativePG PostgreSQL clusters
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/cnpg
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.3.1/rta-plugin-cnpg_0.3.1_darwin_amd64.tar.gz
-  sha256: d3e02bbe8d79a525248801fc04a5740c5ebfddd1aeb1b70672cfcc5f89f469fe
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.4.0/rta-plugin-cnpg_0.4.0_darwin_amd64.tar.gz
+  sha256: 8d0d1a5ccf7f6ec8cfcf926fec14874f8987a0a495aeca1afc33544b2707d686
   bin: rta-plugin-cnpg
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.3.1/rta-plugin-cnpg_0.3.1_darwin_arm64.tar.gz
-  sha256: da68018fe01032159a52cc15eb624b294e9bd0d42ca39771358365a39691ce21
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.4.0/rta-plugin-cnpg_0.4.0_darwin_arm64.tar.gz
+  sha256: afc0692727dbcca9d81e21df2ded5f553bec650be5f26e53a56e1616e4e025c0
   bin: rta-plugin-cnpg
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.3.1/rta-plugin-cnpg_0.3.1_linux_amd64.tar.gz
-  sha256: 5025ec0f23a5f0fd4568772c8b05c21d0725d018de3dbfd00644989127c24d86
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.4.0/rta-plugin-cnpg_0.4.0_linux_amd64.tar.gz
+  sha256: edd5969199a5f6d2492ab23169cda57a42b2d6202e70b5d05a59e7e2dba1f501
   bin: rta-plugin-cnpg
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.3.1/rta-plugin-cnpg_0.3.1_linux_arm64.tar.gz
-  sha256: 2259c25295d5f5b0062db0387e0cfd76f753d98a8567853999dabf8161713800
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.4.0/rta-plugin-cnpg_0.4.0_linux_arm64.tar.gz
+  sha256: b767cf414acb0c01f7566619f55b96117083516f4bffd5378201d820fe8559c0
   bin: rta-plugin-cnpg
 capabilities:
 - id: cnpg.list

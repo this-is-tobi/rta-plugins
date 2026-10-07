@@ -7,29 +7,29 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: docker
-version: 0.2.25
+version: 0.3.0
 summary: "Containers and images: what is running, what is stale, and the daily tidy-up"
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/docker
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.2.25/rta-plugin-docker_0.2.25_darwin_amd64.tar.gz
-  sha256: 3e9bd928bc1c450123dd60579c03b2d5567983685dc583da85fb115639b854a4
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.3.0/rta-plugin-docker_0.3.0_darwin_amd64.tar.gz
+  sha256: 28f051d65ca9f09f3592a815b48d66378ac79accdcf855cc68867636fcc4c9ba
   bin: rta-plugin-docker
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.2.25/rta-plugin-docker_0.2.25_darwin_arm64.tar.gz
-  sha256: 40946bff2dde7554ec237a509e1f490f3d2ed41eed076a0563b71d78477ecb87
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.3.0/rta-plugin-docker_0.3.0_darwin_arm64.tar.gz
+  sha256: 27c5170d93bca585b7a69c979e7c29aef502acc6a81d5ea9b008d6d1786f4912
   bin: rta-plugin-docker
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.2.25/rta-plugin-docker_0.2.25_linux_amd64.tar.gz
-  sha256: 4ea753d39f52b518cf3b53e0070967fd083fe461ecd66b0a4e653ecd6c362867
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.3.0/rta-plugin-docker_0.3.0_linux_amd64.tar.gz
+  sha256: f4ff69f738af30fd6af44a64ed0ee7c4e6b93dcb1692e45364254d4b04c157d2
   bin: rta-plugin-docker
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.2.25/rta-plugin-docker_0.2.25_linux_arm64.tar.gz
-  sha256: 06fb6780b139d48f62e3f4b08be0762ae36787cd5cf23ccece67bc8ec1fd1f12
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.3.0/rta-plugin-docker_0.3.0_linux_arm64.tar.gz
+  sha256: 8b2217052eae06edaa40baa13d0113bee9d8f2be32cc424df26a5bba8059dcc8
   bin: rta-plugin-docker
 capabilities:
 - id: docker.container.list
@@ -43,6 +43,10 @@ capabilities:
   safety: read
 - id: docker.container.inspect
   summary: Everything the daemon knows about one container
+  safety: write
+  grant: true
+- id: docker.container.env
+  summary: The environment variables one container was started with
   safety: write
   grant: true
 - id: docker.container.stop
