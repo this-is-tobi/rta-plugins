@@ -7,29 +7,29 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: kube
-version: 0.5.0
+version: 0.5.1
 summary: "Read-first Kubernetes: contexts, namespaces, pods, deployments"
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/kube
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.5.0/rta-plugin-kube_0.5.0_darwin_amd64.tar.gz
-  sha256: 4ebd333310a0317a983f79388dcfb38dc1e3cc579f482b339c332cb57be1d55a
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.5.1/rta-plugin-kube_0.5.1_darwin_amd64.tar.gz
+  sha256: d76114fca39b1e96b90e79e55a2c533b2b16f2ccc463adc54d0d5163adfaa716
   bin: rta-plugin-kube
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.5.0/rta-plugin-kube_0.5.0_darwin_arm64.tar.gz
-  sha256: ec8ff74803b1ef4fd987c95c3d1db45af29289e4044d5b60835b39adc622db6c
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.5.1/rta-plugin-kube_0.5.1_darwin_arm64.tar.gz
+  sha256: 33259b88d71082f852cfcd7a820ba604196e5d3893f128f674578a8e795a613c
   bin: rta-plugin-kube
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.5.0/rta-plugin-kube_0.5.0_linux_amd64.tar.gz
-  sha256: 4109c640b44a32b295d651d754e6f75968453899874301367624db5e4a0635a8
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.5.1/rta-plugin-kube_0.5.1_linux_amd64.tar.gz
+  sha256: 25a8a438491067c146b5823fa241301594f4907291b0f29b454370810e66e5bf
   bin: rta-plugin-kube
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.5.0/rta-plugin-kube_0.5.0_linux_arm64.tar.gz
-  sha256: 06bce464ad43fb53c2c45d282ac6f6167911dfe2e51e521ad64720e156a94d90
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.5.1/rta-plugin-kube_0.5.1_linux_arm64.tar.gz
+  sha256: 74d0c47720fb95fc195e97c422ebdaf243d08da0ea9beb2eff6dd4df36b024eb
   bin: rta-plugin-kube
 capabilities:
 - id: kube.context.list
