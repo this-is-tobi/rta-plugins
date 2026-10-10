@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.4.1...plugins/keycloak/v0.4.2) (2026-10-10)
+
+
+### Dependencies
+
+* every plugin builds with Go 1.26.9 and golang.org/x/net v0.60.0 ([d4918b6](https://github.com/this-is-tobi/rta-plugins/commit/d4918b6e7939372a07c5ae89301fbeb24c169901))
+
 ## [0.4.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.4.0...plugins/keycloak/v0.4.1) (2026-10-07)
 
 
