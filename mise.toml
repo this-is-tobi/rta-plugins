@@ -19,5 +19,5 @@
 # developing rta itself alongside these plugins can put their own build
 # first in mise.local.toml, which git ignores.
 [tools]
-go = "1.26.6"
+go = "1.26.9"
 "go:github.com/this-is-tobi/rta/cmd/rta" = "{{ read_file(path='.rta-version') | trim }}"
