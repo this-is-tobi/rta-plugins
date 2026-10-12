@@ -180,7 +180,12 @@ func Plugin() plugin.Plugin {
 					"The last successful backup is reported as an age, since that is the form " +
 					"the question is asked in — and a backup that is not configured at all is " +
 					"distinguished from one that is configured and failing, which the resource " +
-					"spells identically. The primary's tenure is derived (a young primary on an " +
+					"spells identically. A cluster that archives through a WAL-archiver plugin " +
+					"is told apart from both: the resource records no backup taken through a " +
+					"plugin (CloudNativePG documents its backup fields as not set for them), so " +
+					"the row says the resource cannot tell and points at `cnpg.backup.list`, " +
+					"whose Backup objects are the record, rather than claiming none ever " +
+					"succeeded. The primary's tenure is derived (a young primary on an " +
 					"old cluster is the trace of a failover), certificate expiries are graded " +
 					"against the same 30-day window rta's other certificate checks use, and the " +
 					"replication posture, resource bounds and superuser-access switch are read " +
@@ -189,8 +194,9 @@ func Plugin() plugin.Plugin {
 					"replication page, which connects to the primary.",
 				Agent: "One cluster as its Cluster resource reports it: phase and reason, instances (primary " +
 					"first, by the cluster's own currentPrimary), a switchover in flight, instances sharing a " +
-					"node, unmet conditions only, the last successful backup as an age (not configured is told " +
-					"apart from failing), WAL archiving, certificate expiries graded against 30 days, " +
+					"node, unmet conditions only, the last successful backup as an age (not configured, failing " +
+					"and unrecorded by a backup plugin are told apart; the Backup objects are cnpg.backup.list), " +
+					"WAL archiving, certificate expiries graded against 30 days, " +
 					"replication posture, resource bounds and superuser access. Replication positions and lag " +
 					"are not in the resource: the answer points to the PostgreSQL plugin's replication " +
 					"capability, which reads them from the primary. One GET of one resource: no pods, exec or logs.",
@@ -253,7 +259,7 @@ func runStatus(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr := getJSON(ctx, s, name, &c); verr != nil {
 		return nil, verr
 	}
-	return statusView(c, lagPointer(req)), nil
+	return statusView(c, pointers{lag: lagPointer(req), backups: s.backupListOf(c)}), nil
 }
 
 // lagPointer says where the positions and the lag this resource does not hold
@@ -277,15 +283,25 @@ func lagPointer(req plugin.Request) string {
 		"from the primary, over a connection to it"
 }
 
+// pointers are where a status page sends its reader for what the Cluster
+// resource cannot say. A pointer and not a read, for the reason lagPointer
+// gives: this capability is one GET of one resource, and stays that.
+type pointers struct {
+	// lag is where the replicas' positions and lag are read, shown only for a
+	// cluster that has replicas.
+	lag string
+	// backups is the call that lists the Backup objects of this cluster, which
+	// are the record of a backup the resource itself keeps none of.
+	backups string
+}
+
 // statusView lays one cluster out as three sections: what it is, what its
-// instances are doing, and what is wrong with it. lag, when it is not empty,
-// is where to read what the resource cannot say about how far behind the
-// replicas are, and is shown only for a cluster that has replicas.
+// instances are doing, and what is wrong with it.
 //
 // The third section is absent when there is nothing in it, which is the same
 // conditional-column doctrine the rest of rta follows one level up: a
 // "Problems" heading with nothing under it trains people to skip the heading.
-func statusView(c cluster, lag string) view.View {
+func statusView(c cluster, p pointers) view.View {
 	overview := []view.Pair{
 		{Key: "Cluster", Value: c.Metadata.Namespace + "/" + c.Metadata.Name},
 		{Key: "Phase", Value: orDash(c.Status.Phase)},
@@ -317,8 +333,8 @@ func statusView(c cluster, lag string) view.View {
 	overview = append(overview,
 		view.Pair{Key: "Replication", Value: c.replicationLine()},
 	)
-	if lag != "" && c.Spec.Instances > 1 {
-		overview = append(overview, view.Pair{Key: "Lag and positions", Value: lag})
+	if p.lag != "" && c.Spec.Instances > 1 {
+		overview = append(overview, view.Pair{Key: "Lag and positions", Value: p.lag})
 	}
 	if e := c.Spec.EnableSuperuserAccess; e != nil {
 		v := "disabled"
@@ -329,7 +345,7 @@ func statusView(c cluster, lag string) view.View {
 	}
 	overview = append(overview,
 		view.Pair{Key: "Timeline", Value: strconv.Itoa(c.Status.TimelineID)},
-		view.Pair{Key: "Backup", Value: backupLine(c)},
+		view.Pair{Key: "Backup", Value: backupLine(c, p)},
 	)
 	// Beside the backup row, because it is the half that decides what a backup
 	// is worth: a base backup recovers to the moment it was taken, and
@@ -355,9 +371,8 @@ func statusView(c cluster, lag string) view.View {
 		}
 		overview = append(overview, view.Pair{Key: "Certificates", Value: v})
 	}
-	if c.Status.FirstRecoverabilityPoint != "" {
-		overview = append(overview, view.Pair{
-			Key: "Recoverable from", Value: c.Status.FirstRecoverabilityPoint})
+	if from := c.recoverableFrom(); from != "" {
+		overview = append(overview, view.Pair{Key: "Recoverable from", Value: from})
 	}
 
 	instances := view.Table{Columns: []view.Column{
@@ -386,7 +401,7 @@ func statusView(c cluster, lag string) view.View {
 	if s := settingsTable(c, serverSettings); len(s.Rows) > 0 {
 		sections = append(sections, view.Section{Title: "Server settings", View: s})
 	}
-	if problems := problemTable(c); len(problems.Rows) > 0 {
+	if problems := problemTable(c, p); len(problems.Rows) > 0 {
 		sections = append(sections, view.Section{Title: "Needs attention", View: problems})
 	}
 	return view.Sections{Items: sections}
@@ -429,7 +444,7 @@ const certWarnDays = 30
 
 // problemTable is everything worth acting on, and is empty on a healthy
 // cluster.
-func problemTable(c cluster) view.Table {
+func problemTable(c cluster, p pointers) view.Table {
 	t := view.Table{Columns: []view.Column{
 		{Name: "What"}, {Name: "Status", Kind: view.KindStatus}, {Name: "Detail"},
 	}}
@@ -476,25 +491,42 @@ func problemTable(c cluster) view.Table {
 		add("WAL archiving", "warn", "off, while a backup is configured — a restore "+
 			"recovers to the backup's own instant and no further")
 	}
-	// Three backup findings, one row: "nothing is configured", "configured
-	// and never once worked", and "worked before, failing now" are different
-	// conversations with different people, and the old single message ("no
-	// successful backup has ever been recorded") collapsed the first two —
-	// sending somebody to debug a backup job that does not exist.
-	success, ever := c.lastSuccessfulBackup()
+	// Four backup findings, one row: "nothing is configured", "configured
+	// and never once worked", "worked before, failing now" and "the resource
+	// cannot say" are different conversations with different people, and the
+	// old single message ("no successful backup has ever been recorded")
+	// collapsed the first two — sending somebody to debug a backup job that
+	// does not exist.
+	//
+	// The last one is the fourth because "never" is only a finding where the
+	// record could have held an answer (statusIsTheRecord). It is graded info
+	// and not warn: nothing is known to be wrong, and a warning here would be
+	// the false alarm this row used to raise on every plugin-archived cluster
+	// that was backing up fine.
+	success, ever := c.lastSuccess()
 	lastFail, failedOnce := parseWhen(c.Status.LastFailedBackup)
 	switch {
 	case !ever && !c.backupConfigured():
 		add("backup", "warn", "not configured — nothing backs this cluster up")
+	case !ever && !c.statusIsTheRecord():
+		msg := "the Cluster resource cannot say — it records no backup taken through the " +
+			c.walArchiverPlugin() + " plugin"
+		if failedOnce {
+			msg += ", and the one failure it does record is " + age(lastFail) + " old"
+		}
+		if p.backups != "" {
+			msg += "; " + p.backups + " lists the Backup objects, which are the ground truth"
+		}
+		add("backup", "info", msg)
 	case !ever:
 		msg := "configured, but no backup has ever succeeded"
 		if failedOnce {
 			msg += " — the last attempt failed " + age(lastFail) + " ago"
 		}
 		add("backup", "warn", msg)
-	case failedOnce && lastFail.After(success):
+	case failedOnce && lastFail.After(success.at):
 		add("backup", "warn", "the most recent attempt failed "+age(lastFail)+
-			" ago — the last success is "+age(success)+" old")
+			" ago — the last success is "+age(success.at)+" old")
 	}
 	name, at, ok, unparsedCerts := c.soonestCert()
 	if len(unparsedCerts) > 0 {
@@ -558,9 +590,32 @@ func primaryLine(c cluster) string {
 	return line
 }
 
-func backupLine(c cluster) string {
-	if at, ever := c.backupAge(); ever {
-		return "last succeeded " + at + " ago"
+// backupLine is the Backup row of the overview, and it says what the record is
+// a record of: "none recorded" is a statement about the resource, and for a
+// cluster whose backups are taken by a plugin the resource was never going to
+// hold them.
+func backupLine(c cluster, p pointers) string {
+	last, ever := c.lastSuccess()
+	archiver := c.walArchiverPlugin()
+	switch {
+	case ever && c.statusIsTheRecord():
+		return "last succeeded " + age(last.at) + " ago"
+	case ever:
+		// Recorded, and so a real success, but of the mechanisms the operator
+		// runs itself: the plugin's own are not counted.
+		by := ""
+		if last.method != "" {
+			by = " by " + last.method
+		}
+		return "last succeeded " + age(last.at) + " ago" + by + " — backups taken through the " +
+			archiver + " plugin are not recorded in the Cluster resource"
+	case !c.statusIsTheRecord():
+		line := "not recorded — the Cluster resource keeps no record of backups taken through the " +
+			archiver + " plugin"
+		if p.backups != "" {
+			line += "; " + p.backups + " lists them"
+		}
+		return line
 	}
 	return "none recorded"
 }

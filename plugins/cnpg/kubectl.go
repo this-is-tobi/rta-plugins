@@ -431,6 +431,16 @@ func (s selection) backupListing() string {
 	return "`" + s.sf.Call("cnpg.backup.list", args...) + "`"
 }
 
+// backupListOf is the call that lists the backups of c, in the namespace c was
+// found in and through whatever reached it: the one a page names when it has
+// to send its reader to the Backup objects, and the one a receipt hands over to
+// watch a backup by. The cluster is its flag and not an argument, which is what
+// the listing takes.
+func (s selection) backupListOf(c cluster) string {
+	args := append([]plugin.Arg{{Name: "cluster", Value: c.Metadata.Name}}, s.callArgs(c.Metadata.Namespace)...)
+	return "`" + s.sf.Call("cnpg.backup.list", args...) + "`"
+}
+
 // createJSON posts one object and decodes what the API server wrote back.
 //
 // **Through stdin rather than a temporary file**, which is not merely tidier:

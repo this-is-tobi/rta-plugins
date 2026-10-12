@@ -60,6 +60,22 @@ func fakeKubectl(t *testing.T, body string) {
 	t.Cleanup(func() { kubectlBin = saved })
 }
 
+func writeFile(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func readFile(t *testing.T, path string) string {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(raw)
+}
+
 // serves makes a kubectl that prints one JSON document and exits.
 func serves(t *testing.T, doc any) {
 	t.Helper()
@@ -106,7 +122,7 @@ func healthy() cluster {
 func problemsIn(t *testing.T, c cluster) map[string]string {
 	t.Helper()
 	out := map[string]string{}
-	for _, row := range problemTable(c).Rows {
+	for _, row := range problemTable(c, pointers{}).Rows {
 		out[row[0]] = row[2]
 	}
 	return out
@@ -119,7 +135,7 @@ func TestAHealthyClusterHasNothingToSay(t *testing.T) {
 	if got := problemsIn(t, healthy()); len(got) != 0 {
 		t.Errorf("a healthy cluster reported %v", got)
 	}
-	sections := statusView(healthy(), "").(view.Sections)
+	sections := statusView(healthy(), pointers{}).(view.Sections)
 	for _, s := range sections.Items {
 		if s.Title == "Needs attention" {
 			t.Error("the section is present with nothing in it")
@@ -310,7 +326,7 @@ func TestASingleInstanceDoesNotClaimAReplicationMode(t *testing.T) {
 
 func overviewOf(t *testing.T, c cluster) map[string]string {
 	t.Helper()
-	kv, ok := statusView(c, "").(view.Sections).Items[0].View.(view.KeyValue)
+	kv, ok := statusView(c, pointers{}).(view.Sections).Items[0].View.(view.KeyValue)
 	if !ok {
 		t.Fatal("the first status section is not the key/value overview")
 	}
