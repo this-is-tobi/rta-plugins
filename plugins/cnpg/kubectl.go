@@ -264,6 +264,9 @@ func (s selection) where() string {
 // sf is the surface the call came through: a failure names the call to make
 // next, and only the surface knows how its reader makes one.
 func run(ctx context.Context, by caller, args ...string) ([]byte, *view.Error) {
+	if verr := refusesSecrets(args); verr != nil {
+		return nil, verr
+	}
 	cctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	cmd := exec.CommandContext(cctx, kubectlBin, args...)
@@ -274,6 +277,36 @@ func run(ctx context.Context, by caller, args ...string) ([]byte, *view.Error) {
 		return nil, classify(cctx, err, stderr.String(), args, by)
 	}
 	return out, nil
+}
+
+// refusesSecrets is the one thing this plugin never asks a cluster for.
+//
+// **A Secret is the one resource whose read is the leak.** Every object this
+// plugin decodes that references a credential — an ObjectStore, a Backup's
+// status, a cluster's stanza — states the Secret's name where it needs to, and
+// the name is all that was ever wanted; the value behind it is the thing a
+// boundary exists to keep from an agent. Nothing calls for one, so nothing may:
+// a get that names the type, in any of the spellings kubectl accepts
+// (`secret`, `secrets`, `secrets.v1`, `secret/name`, or one among
+// `pods,secrets`) fails here, before kubectl is run, and so does one a later
+// change introduces by slip.
+//
+// Checked on the resource word of a get and nowhere else: an object that is
+// merely *called* secrets is not one.
+func refusesSecrets(args []string) *view.Error {
+	if len(args) < 2 || args[0] != "get" {
+		return nil
+	}
+	for _, part := range strings.Split(args[1], ",") {
+		kind, _, _ := strings.Cut(strings.ToLower(strings.TrimSpace(part)), "/")
+		kind, _, _ = strings.Cut(kind, ".")
+		if kind == "secret" || kind == "secrets" {
+			return view.Errorf("cnpg.secrets.refused", "this plugin does not read Secrets").
+				WithHint("what it needs of a credential is the name of the Secret an object references, " +
+					"which the object itself states")
+		}
+	}
+	return nil
 }
 
 // classify turns kubectl's stderr into something actionable.
@@ -429,15 +462,22 @@ func (s selection) backupListing() string {
 	return "`" + s.sf.Call("cnpg.backup.list", args...) + "`"
 }
 
-// backupListOf is the call that lists the backups of c, in the namespace c was
-// found in and through whatever reached it: the one a page names when it has
-// to send its reader to the Backup objects, and the one a receipt hands over to
-// watch a backup by. The cluster is its flag and not an argument, which is what
-// the listing takes.
-func (s selection) backupListOf(c cluster) string {
+// callAbout is a call of id on the cluster c, in the namespace c was found in
+// and through whatever reached it. The cluster is its flag and not an argument,
+// which is what each of the calls a page sends its reader to takes.
+func (s selection) callAbout(id string, c cluster) string {
 	args := append([]plugin.Arg{{Name: "cluster", Value: c.Metadata.Name}}, s.callArgs(c.Metadata.Namespace)...)
-	return "`" + s.sf.Call("cnpg.backup.list", args...) + "`"
+	return "`" + s.sf.Call(id, args...) + "`"
 }
+
+// backupListOf is the call that lists the backups of c: the one a page names
+// when it has to send its reader to the Backup objects, and the one a receipt
+// hands over to watch a backup by.
+func (s selection) backupListOf(c cluster) string { return s.callAbout("cnpg.backup.list", c) }
+
+// backupShowOf is the call that shows how the backups of c are arranged, the
+// listing's sibling.
+func (s selection) backupShowOf(c cluster) string { return s.callAbout("cnpg.backup.show", c) }
 
 // createJSON posts one object and decodes what the API server wrote back.
 //

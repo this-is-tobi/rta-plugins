@@ -10,6 +10,7 @@ Asks for `kubeconfig` — granted, or not, with `rta plugin allow cnpg`.
 |---------------------|--------|--------------------------------------------------------------------------------------------------|
 | cnpg.backup.list    | read   | Backups taken of a cluster: when, how, where they went, and what failed                          |
 | cnpg.backup.request | write  | Ask the operator to back a cluster up now, using that cluster's own configuration                |
+| cnpg.backup.show    | read   | How one cluster's backups are set up and where they land: store, retention, schedules            |
 | cnpg.list           | read   | Every CloudNativePG cluster, and whether it is healthy                                           |
 | cnpg.status         | read   | One cluster in depth: instances, replication, backups, storage                                   |
 | cnpg.storage        | read   | The volumes a cluster's data and WAL sit on: size, class, and whether each one is actually bound |
@@ -18,15 +19,15 @@ Asks for `kubeconfig` — granted, or not, with `rta plugin allow cnpg`.
 
 Under `plugins: cnpg:` in rta's configuration, or in a profile's `set:`. An installed plugin's section is pinned to the artifact — `plugins: cnpg@<digest>:` — and `rta doctor` prints the exact line. The caller always wins, so a configured value is a default, never a lock.
 
-| Key           | Read by                                                                     | Help                                                                                                     |
-|---------------|-----------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
-| backup.method | cnpg.backup.request                                                         | how to take it — the cluster's own choice when omitted                                                   |
-| backup.online | cnpg.backup.request                                                         | hot or cold — only with a \`method\` of volumeSnapshot, and the cluster's own choice when omitted        |
-| backup.target | cnpg.backup.request                                                         | which instance performs it — the cluster's own choice when omitted                                       |
-| cluster       | cnpg.backup.list, cnpg.backup.request, cnpg.status, cnpg.storage            | only this cluster's backups — every cluster's when omitted; empty lifts one a profile or the config pins |
-| context       | cnpg.backup.list, cnpg.backup.request, cnpg.list, cnpg.status, cnpg.storage | kubeconfig context to use — the current one when omitted                                                 |
-| limit         | cnpg.backup.list                                                            | how many backups to list; a cut list puts the failed ones first                                          |
-| namespace     | cnpg.backup.list, cnpg.backup.request, cnpg.list, cnpg.status, cnpg.storage | namespace to look in — the context's own when omitted                                                    |
+| Key           | Read by                                                                                       | Help                                                                                                     |
+|---------------|-----------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
+| backup.method | cnpg.backup.request                                                                           | how to take it — the cluster's own choice when omitted                                                   |
+| backup.online | cnpg.backup.request                                                                           | hot or cold — only with a \`method\` of volumeSnapshot, and the cluster's own choice when omitted        |
+| backup.target | cnpg.backup.request                                                                           | which instance performs it — the cluster's own choice when omitted                                       |
+| cluster       | cnpg.backup.list, cnpg.backup.request, cnpg.backup.show, cnpg.status, cnpg.storage            | only this cluster's backups — every cluster's when omitted; empty lifts one a profile or the config pins |
+| context       | cnpg.backup.list, cnpg.backup.request, cnpg.backup.show, cnpg.list, cnpg.status, cnpg.storage | kubeconfig context to use — the current one when omitted                                                 |
+| limit         | cnpg.backup.list                                                                              | how many backups to list; a cut list puts the failed ones first                                          |
+| namespace     | cnpg.backup.list, cnpg.backup.request, cnpg.backup.show, cnpg.list, cnpg.status, cnpg.storage | namespace to look in — the context's own when omitted                                                    |
 
 ## cnpg.backup.list
 
@@ -83,6 +84,30 @@ Refused when the cluster configures no backup at all. CloudNativePG accepts such
 | set a key            | rta config set plugins.cnpg.cluster \<value>                                                                                                                            |
 | dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                            |
 
+## cnpg.backup.show
+
+How one cluster's backups are arranged and where they land, read from the Cluster and, for a cluster that archives through the barman-cloud plugin, from the plugin's own resources. For an object store the Cluster itself states, the destination, server name and retention. For the plugin, the ObjectStore the cluster names: its destination, endpoint and retention, the kind of credential it uses and the names of the Secrets it references — names only, never keys or values — and the recovery window it reports for this cluster's server. For both, the ScheduledBackups that name the cluster (cron, method, whether suspended, when each last ran and runs next) and the ContinuousArchiving and LastBackupSucceeded conditions when the cluster reports them.
+
+This is where a plugin-archived cluster's answer to `cnpg.status`'s question is, since the Cluster resource keeps no record of backups taken through a plugin. A URL is shown without a user name, password or query.
+
+Each read beside the Cluster stands alone: one that is refused, or whose type or object is absent, becomes a note in its section and a warning that the page is partial, and never fails the rest. Nothing here reads a Secret.
+
+| Field           | Value                                                                                                                                                               |
+|-----------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id              | cnpg.backup.show                                                                                                                                                    |
+| summary         | How one cluster's backups are set up and where they land: store, retention, schedules                                                                               |
+| safety          | read                                                                                                                                                                |
+| idempotent      | true                                                                                                                                                                |
+| cli             | rta cnpg backup show \[--cluster \<string>\] \[--namespace \<string>\] \[--context \<string>\]                                                                      |
+| mcp-tool        | cnpg_backup_show                                                                                                                                                    |
+| profiles        | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`                                  |
+| example         | rta cnpg backup show --cluster app-db   # how one cluster's backups are set up                                                                                      |
+| input:cluster   | string, required, completes, from config plugins.cnpg.cluster — the cluster whose backups to show; empty lifts one a profile or the config pins                     |
+| input:namespace | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                       |
+| input:context   | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                |
+| set a key       | rta config set plugins.cnpg.cluster \<value>                                                                                                                        |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add cnpg.backup.show\`, or + on it in the TUI, puts it there, re-run every few seconds |
+
 ## cnpg.list
 
 One `kubectl get clusters.postgresql.cnpg.io -o json`, rendered with the columns the CRD itself declares as printer columns — so this and `kubectl get` answer the same question the same way. Ready is ready/desired instances; a cluster short of its own spec is graded as a problem whatever its phase says. Reads the context's own namespace unless `namespace` names another or `all-namespaces` reads every one, and an empty answer says which it read. Reads one custom resource and nothing else: no pods, no exec, no logs.
@@ -106,7 +131,7 @@ One `kubectl get clusters.postgresql.cnpg.io -o json`, rendered with the columns
 
 ## cnpg.status
 
-Everything the Cluster resource reports about itself, laid out as the questions somebody opens it to ask. Instances are listed primary first, with the role taken from the cluster's own currentPrimary rather than each instance's self-report — during a failover those disagree, and the cluster's view is the one the rest of the fields are consistent with. A switchover in flight is derived rather than printed raw: CNPG moves targetPrimary before currentPrimary, so the two differing means a promotion is happening now. Every instance on one node is reported, because the CRD's own documentation calls that the absence of high availability. Conditions are shown only when they are not satisfied. The last successful backup is reported as an age, since that is the form the question is asked in — and a backup that is not configured at all is distinguished from one that is configured and failing, which the resource spells identically. A cluster that archives through a WAL-archiver plugin is told apart from both: the resource records no backup taken through a plugin (CloudNativePG documents its backup fields as not set for them), so the row says the resource cannot tell and points at `cnpg.backup.list`, whose Backup objects are the record, rather than claiming none ever succeeded. The primary's tenure is derived (a young primary on an old cluster is the trace of a failover), certificate expiries are graded against the same 30-day window rta's other certificate checks use, and the replication posture, resource bounds and superuser-access switch are read from the spec. The resource holds no replication positions or lag, so for a cluster with replicas one row says where they are read: the pg plugin's replication page, which connects to the primary.
+Everything the Cluster resource reports about itself, laid out as the questions somebody opens it to ask. Instances are listed primary first, with the role taken from the cluster's own currentPrimary rather than each instance's self-report — during a failover those disagree, and the cluster's view is the one the rest of the fields are consistent with. A switchover in flight is derived rather than printed raw: CNPG moves targetPrimary before currentPrimary, so the two differing means a promotion is happening now. Every instance on one node is reported, because the CRD's own documentation calls that the absence of high availability. Conditions are shown only when they are not satisfied. The last successful backup is reported as an age, since that is the form the question is asked in — and a backup that is not configured at all is distinguished from one that is configured and failing, which the resource spells identically. A cluster that archives through a WAL-archiver plugin is told apart from both: the resource records no backup taken through a plugin (CloudNativePG documents its backup fields as not set for them), so the row says the resource cannot tell and points at `cnpg.backup.list`, whose Backup objects are the record, and at `cnpg.backup.show`, which reads where they go, rather than claiming none ever succeeded. The primary's tenure is derived (a young primary on an old cluster is the trace of a failover), certificate expiries are graded against the same 30-day window rta's other certificate checks use, and the replication posture, resource bounds and superuser-access switch are read from the spec. The resource holds no replication positions or lag, so for a cluster with replicas one row says where they are read: the pg plugin's replication page, which connects to the primary.
 
 | Field           | Value                                                                                                                                                          |
 |-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|

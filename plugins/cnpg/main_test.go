@@ -218,7 +218,7 @@ func TestEachProblemIsFoundFromItsOwnField(t *testing.T) {
 		}, "backup", "not configured"},
 		{"backup configured but never once succeeded", func(c *cluster) {
 			c.Status.LastSuccessfulBackup = ""
-			c.Spec.Backup = &clusterBackup{BarmanObjectStore: &struct{}{}}
+			c.Spec.Backup = &clusterBackup{BarmanObjectStore: &barmanStore{}}
 			c.Status.LastFailedBackup = time.Now().Add(-30 * time.Minute).Format(time.RFC3339)
 		}, "backup", "no backup has ever succeeded"},
 		{"a backup failing after an earlier success", func(c *cluster) {

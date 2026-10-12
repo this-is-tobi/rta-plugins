@@ -237,8 +237,8 @@ func Plugin() plugin.Plugin {
 					"is told apart from both: the resource records no backup taken through a " +
 					"plugin (CloudNativePG documents its backup fields as not set for them), so " +
 					"the row says the resource cannot tell and points at `cnpg.backup.list`, " +
-					"whose Backup objects are the record, rather than claiming none ever " +
-					"succeeded. The primary's tenure is derived (a young primary on an " +
+					"whose Backup objects are the record, and at `cnpg.backup.show`, which " +
+					"reads where they go, rather than claiming none ever succeeded. The primary's tenure is derived (a young primary on an " +
 					"old cluster is the trace of a failover), certificate expiries are graded " +
 					"against the same 30-day window rta's other certificate checks use, and the " +
 					"replication posture, resource bounds and superuser-access switch are read " +
@@ -248,7 +248,7 @@ func Plugin() plugin.Plugin {
 				Agent: "One cluster as its Cluster resource reports it: phase and reason, instances (primary " +
 					"first, by the cluster's own currentPrimary), a switchover in flight, instances sharing a " +
 					"node, unmet conditions only, the last successful backup as an age (not configured, failing " +
-					"and unrecorded by a backup plugin are told apart; the Backup objects are cnpg.backup.list), " +
+					"and unrecorded by a backup plugin are told apart; cnpg.backup.list and cnpg.backup.show read them), " +
 					"WAL archiving, certificate expiries graded against 30 days, " +
 					"replication posture, resource bounds and superuser access. Replication positions and lag " +
 					"are not in the resource: the answer points to the PostgreSQL plugin's replication " +
@@ -257,6 +257,7 @@ func Plugin() plugin.Plugin {
 				Run:    runStatus,
 			}),
 			backupListCapability(),
+			backupShowCapability(),
 			backupRequestCapability(),
 			storageCapability(),
 		},
@@ -325,7 +326,7 @@ func runStatus(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr := getJSON(ctx, s, name, &c); verr != nil {
 		return nil, verr
 	}
-	return statusView(c, pointers{lag: lagPointer(req), backups: s.backupListOf(c)}), nil
+	return statusView(c, pointers{lag: lagPointer(req), backups: s.backupListOf(c), arrangement: s.backupShowOf(c)}), nil
 }
 
 // lagPointer says where the positions and the lag this resource does not hold
@@ -359,6 +360,9 @@ type pointers struct {
 	// backups is the call that lists the Backup objects of this cluster, which
 	// are the record of a backup the resource itself keeps none of.
 	backups string
+	// arrangement is the call that shows where this cluster's backups go and,
+	// for a plugin, what the plugin's own resources say of them.
+	arrangement string
 }
 
 // statusView lays one cluster out as three sections: what it is, what its
@@ -582,6 +586,9 @@ func problemTable(c cluster, p pointers) view.Table {
 		}
 		if p.backups != "" {
 			msg += "; " + p.backups + " lists the Backup objects, which are the ground truth"
+			if p.arrangement != "" {
+				msg += ", and " + p.arrangement + " shows where they go"
+			}
 		}
 		add("backup", "info", msg)
 	case !ever:
@@ -680,6 +687,9 @@ func backupLine(c cluster, p pointers) string {
 			archiver + " plugin"
 		if p.backups != "" {
 			line += "; " + p.backups + " lists them"
+			if p.arrangement != "" {
+				line += ", and " + p.arrangement + " shows where they go"
+			}
 		}
 		return line
 	}

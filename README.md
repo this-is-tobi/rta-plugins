@@ -13,7 +13,7 @@ The first-party plugins for [rta](https://github.com/this-is-tobi/rta), and the 
 | [`s3`](./plugins/s3/) | S3-compatible object storage | 14 |
 | [`vault`](./plugins/vault/) | HashiCorp Vault | 20 |
 | [`kube`](./plugins/kube/) | Kubernetes, through the `kubectl` you already have | 19 |
-| [`cnpg`](./plugins/cnpg/) | CloudNativePG: clusters, their health, replication, backups and volumes, and asking for a backup now | 5 |
+| [`cnpg`](./plugins/cnpg/) | CloudNativePG: clusters, their health, replication, backups and volumes, and asking for a backup now | 6 |
 | [`docker`](./plugins/docker/) | Containers and images over the local daemon socket | 8 |
 | [`keycloak`](./plugins/keycloak/) | Keycloak: users, clients, roles, flows, sessions and events, and a realm graded against named controls — stdlib HTTP against the Admin REST API, acting as a service account, never an administrator | 12 |
 

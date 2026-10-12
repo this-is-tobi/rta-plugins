@@ -58,3 +58,28 @@ func TestLiveStatusReadsARealCluster(t *testing.T) {
 		t.Error("a live CNPG cluster always reports certificate expirations, and none was read")
 	}
 }
+
+// The arrangement page against a real cluster: that what the Cluster, its
+// ObjectStore and its ScheduledBackups say decodes into the structs the page is
+// built from. The sections are logged, since what a cluster of this shape
+// carries is the half a fixture invents. Read-only, like everything here, and
+// skipped on a context with no cluster to read.
+func TestLiveBackupShowReadsARealCluster(t *testing.T) {
+	c := aLiveCluster(t)
+	v, err := runBackupShow(context.Background(), req(map[string]any{
+		"cluster": c.Metadata.Name, "namespace": c.Metadata.Namespace,
+	}))
+	if err != nil {
+		t.Fatalf("show of %s/%s: %v", c.Metadata.Namespace, c.Metadata.Name, err)
+	}
+	sections, ok := v.(view.Sections)
+	if !ok || len(sections.Items) == 0 || sections.Items[0].ID != "arrangement" {
+		t.Fatalf("view = %#v, want the arrangement first", v)
+	}
+	for _, s := range sections.Items {
+		t.Logf("%s: %#v", s.ID, s.View)
+	}
+	for _, w := range sections.Warnings {
+		t.Logf("partial: %s: %s", w.Code, w.Message)
+	}
+}
