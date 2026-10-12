@@ -385,11 +385,13 @@ func TestNoClustersIsSaidInWords(t *testing.T) {
 	}
 }
 
-// **A missing operator is its own answer.** "the server could not find the
-// requested resource" from a cluster with no CloudNativePG installed reads
-// like a broken plugin; it is the one failure where the next step is
-// installing something rather than fixing something.
-func TestAClusterWithoutTheOperatorSaysSo(t *testing.T) {
+// **A missing CRD is its own answer.** "the server doesn't have a resource type"
+// from a cluster with no CloudNativePG CRDs reads like a broken plugin; it is
+// the one failure where the next step is installing something rather than
+// fixing something. What it is not is a statement about the operator, a
+// process kubectl cannot see: the page names the CRD that is absent, says what
+// that most likely means, and says what it cannot tell.
+func TestAMissingCRDIsNamedAndNotTakenForAMissingOperator(t *testing.T) {
 	fakeKubectl(t, `echo 'error: the server doesn'"'"'t have a resource type "clusters"' >&2
 exit 1
 `)
@@ -398,8 +400,16 @@ exit 1
 	if !ok {
 		t.Fatalf("err = %#v", err)
 	}
-	if verr.Code != "cnpg.notinstalled" {
-		t.Errorf("code = %q, want cnpg.notinstalled", verr.Code)
+	if verr.Code != "cnpg.crd.missing" {
+		t.Errorf("code = %q, want cnpg.crd.missing", verr.Code)
+	}
+	if !strings.Contains(verr.Message, clusterCRD) {
+		t.Errorf("message = %q, want it to name the type that is absent", verr.Message)
+	}
+	for _, want := range []string{"most likely", "never been installed", "get crd | grep cnpg", "operator is gone"} {
+		if !strings.Contains(verr.Hint, want) {
+			t.Errorf("hint = %q, want %q in it", verr.Hint, want)
+		}
 	}
 }
 

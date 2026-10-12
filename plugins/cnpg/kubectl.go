@@ -305,14 +305,11 @@ func classify(ctx context.Context, err error, stderr string, args []string, by c
 				"issues your cluster credentials (`tsh kube login`, `aws eks get-token`, " +
 				"`gcloud`, an OIDC refresh) needs running again")
 	case strings.Contains(s, "forbidden"):
-		return view.Errorf("cnpg.denied", "not allowed to read %s here", clusterCRD).
-			WithHint("this is the cluster refusing, not rta — you are authenticated, and the " +
-				"verb is `get` on `clusters.postgresql.cnpg.io`")
-	case strings.Contains(s, "server doesn't have a resource type"),
-		strings.Contains(s, "the server could not find the requested resource"):
-		return view.Errorf("cnpg.notinstalled", "this cluster has no CloudNativePG operator").
-			WithHint("the CRD `" + clusterCRD + "` is not registered — `" + by.kubectlLine("get", "crd") + " | " +
-				"grep cnpg` confirms it, and this plugin reads nothing else")
+		return denied(by, askedOf(s, args))
+	case strings.Contains(s, "server doesn't have a resource type"):
+		return crdMissing(by, askedOf(s, args))
+	case strings.Contains(s, "the server could not find the requested resource"):
+		return notServed(by, askedOf(s, args))
 	// The failures plugins/kube places before it falls back to kubectl's own
 	// words, and which this plugin left to the fallback below: a cluster that
 	// does not answer and a kubeconfig with nothing to answer from. Told only
@@ -334,8 +331,7 @@ func classify(ctx context.Context, err error, stderr string, args []string, by c
 			WithHint("kubectl has no context to ask — `kubectl config get-contexts` shows what this machine " +
 				"has, and the context this call used is the operator's to change")
 	case strings.Contains(s, "not found"):
-		return view.Errorf("cnpg.cluster.missing", "%s", firstLine(s)).
-			WithHint(by.listEverywhere() + " shows what is there")
+		return objectMissing(by, s, askedOf(s, args))
 	case s == "":
 		return view.Errorf("cnpg.kubectl.failed", "kubectl exited %d without saying why",
 			exitErr.ExitCode())
