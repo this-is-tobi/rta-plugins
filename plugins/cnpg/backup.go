@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -172,6 +174,16 @@ func backupsFor(items []backupObject, cluster string) []backupObject {
 	return out
 }
 
+// backupListLimit is how many backups a listing returns unless told otherwise.
+//
+// A cluster with a daily schedule and a month of retention has thirty or so,
+// and a namespace of clusters has hundreds, which is what a read of every
+// namespace makes of it. The listing used to return every Backup it was
+// handed, which was fine for the one namespace it was built for and is not a
+// bound anything can rely on once it has a wide form: an agent's answer is
+// paid for in context by the row.
+const backupListLimit = 100
+
 func backupListCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:       "cnpg.backup.list",
@@ -179,23 +191,39 @@ func backupListCapability() plugin.Capability {
 		Keywords: []string{"barman", "snapshot", "restore", "pitr", "archive"},
 		Examples: []plugin.Example{
 			{Title: "the backups of one cluster", Inputs: map[string]any{"cluster": "app-db", "namespace": "production"}},
+			{Title: "every backup in every namespace", Inputs: map[string]any{"all-namespaces": true}},
 		},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "The Backup objects themselves, which the Cluster resource does not " +
-			"carry. `cnpg.status` answers 'is this cluster backed up' from three summary " +
-			"fields the operator maintains — last success, last failure, first recoverable " +
-			"point — and that is the right answer to that question. This is the other one: " +
-			"which individual backups exist, how each was taken, how long it took, where " +
-			"the bytes went, and what the operator said when one failed.\n\n" +
+			"carry. `cnpg.status` answers 'is this cluster backed up' from the summary " +
+			"fields the operator keeps for the mechanisms it runs itself — last success, " +
+			"last failure, first recoverable point — which is the right answer for those " +
+			"and no answer for a cluster that backs up through a plugin, whose backups " +
+			"are recorded only here. This is the other question: which individual " +
+			"backups exist, how each was taken, how long it took, where the bytes went, " +
+			"and what the operator said when one failed.\n\n" +
+			"One namespace by default, or every one with `all-namespaces`, which adds a " +
+			"leading Namespace column. Bounded by `limit`: the list is cut at that many " +
+			"rows, `total` stays the exact count there is, and a cut list says so in a " +
+			"warning and puts the failed backups first, so the rows that matter are not " +
+			"the ones the cut drops.\n\n" +
 			"Credentials are not read. A Backup's status carries the object-store " +
 			"credential references its cluster was configured with, and this decodes none " +
 			"of them — the names of the secrets holding your keys are not part of any " +
 			"question a backup listing answers.",
+		Agent: "One row per Backup object, newest first: the cluster, status, phase, method, how long it " +
+			"took, its age and where it went, with a failed backup's error in its own section. This is the " +
+			"record for a cluster that backs up through a plugin, which cnpg.status cannot see. Without " +
+			"`cluster` it lists every cluster's in the namespace, and `all-namespaces` reads every namespace " +
+			"and leads with a Namespace column. Bounded by `limit`: `total` is the exact count, and a cut " +
+			"list warns that it is partial and puts the failed backups first. Credentials are not read.",
 		Run: runBackupList,
-	}, plugin.Field{Name: "cluster", Short: "c", Type: plugin.String, Config: "cluster",
-		Help: "only this cluster's backups — every one in the namespace when omitted",
-		Live: true, Suggest: suggestClusters})
+	},
+		clusterField("only this cluster's backups — every cluster's when omitted", false),
+		allNamespacesField(),
+		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: backupListLimit, Min: 1, Max: 10000,
+			Help: "how many backups to list; a cut list puts the failed ones first"})
 }
 
 func runBackupList(ctx context.Context, req plugin.Request) (view.View, error) {
@@ -211,26 +239,33 @@ func runBackupList(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr := getResource(ctx, s, backupCRD, "", &list); verr != nil {
 		return nil, verr
 	}
-	rows := backupsFor(list.Items, name)
-	if len(rows) == 0 {
+	all := backupsFor(list.Items, name)
+	if len(all) == 0 {
 		return view.Text{Body: emptyBackupBody(name, s)}, nil
 	}
+	rows, cut := cutBackups(all, req.Int("limit"))
 
-	t := view.Table{Columns: []view.Column{
-		{Name: "Backup"}, {Name: "Cluster"}, {Name: "Status", Kind: view.KindStatus},
-		{Name: "Phase"}, {Name: "Method"}, {Name: "Took"}, {Name: "Age"}, {Name: "Where"},
-	}}
+	t := view.Table{Columns: s.leading(
+		view.Column{Name: "Backup"}, view.Column{Name: "Cluster"}, view.Column{Name: "Status", Kind: view.KindStatus},
+		view.Column{Name: "Phase"}, view.Column{Name: "Method"}, view.Column{Name: "Took"},
+		view.Column{Name: "Age"}, view.Column{Name: "Where"},
+	)}
 	for _, b := range rows {
-		t.Rows = append(t.Rows, []string{
+		t.Rows = append(t.Rows, s.lead(b.Metadata.Namespace,
 			b.Metadata.Name, b.Spec.Cluster.Name, b.status(), orDash(b.Status.Phase),
 			orDash(b.resolvedMethod()), b.took(), age(b.Metadata.CreationTimestamp), b.where(),
-		})
+		))
 	}
-	t.Total = len(t.Rows)
+	// The total is every backup there is, not the rows on hand, so a cut list
+	// says how much of the whole it is.
+	t.Total = len(all)
+	if cut {
+		t.Warnings = append(t.Warnings, partialBackups(s, len(rows), len(all)))
+	}
 	// The error is its own section rather than a ninth column: a barman
 	// failure is a paragraph of somebody else's stderr, and a table that has
 	// to hold one is a table with eight unreadable columns.
-	if problems := backupErrors(rows); len(problems.Rows) > 0 {
+	if problems := backupErrors(s, rows); len(problems.Rows) > 0 {
 		return view.Sections{Items: []view.Section{
 			{Title: "Backups", View: t},
 			{Title: "What failed", View: problems},
@@ -239,13 +274,56 @@ func runBackupList(ctx context.Context, req plugin.Request) (view.View, error) {
 	return t, nil
 }
 
-func backupErrors(rows []backupObject) view.Table {
-	t := view.Table{Columns: []view.Column{
-		{Name: "Backup"}, {Name: "Status", Kind: view.KindStatus}, {Name: "Error"},
-	}}
+// cutBackups keeps limit of the backups, and when it has to drop any it drops
+// the ones nobody opened a listing to find.
+//
+// **A cut that drops by age drops the failures.** The listing is newest first,
+// and the backups somebody needs from it are the ones that failed — which, on a
+// cluster that has been failing a while, are not the newest, and on a read of
+// every namespace are one cluster's among a hundred healthy ones. So a list
+// that has to be cut puts the failed ones first, each group still newest
+// first, and the cut takes what room is left from the rest. A list that fits is
+// left in time order, because there nothing is lost by it.
+func cutBackups(rows []backupObject, limit int) (kept []backupObject, cut bool) {
+	// The host holds limit to its range; a direct call of the handler is the
+	// only way to arrive here without one.
+	if limit <= 0 {
+		limit = backupListLimit
+	}
+	if len(rows) <= limit {
+		return rows, false
+	}
+	ordered := make([]backupObject, 0, len(rows))
+	for _, wantFailed := range []bool{true, false} {
+		for _, b := range rows {
+			if b.failed() == wantFailed {
+				ordered = append(ordered, b)
+			}
+		}
+	}
+	return ordered[:limit], true
+}
+
+// partialBackups is the warning a cut list carries, in the words of the
+// surface that asked: the table alone is a shorter list, and a shorter list
+// reads as the whole of a smaller thing.
+func partialBackups(s selection, shown, total int) view.Error {
+	return view.Error{
+		Code: "cnpg.backup.list.partial",
+		Message: fmt.Sprintf("showing %d of %s, the failed ones first and then the newest",
+			shown, format.CountOf(total, "backup")),
+		Hint: "raise " + s.sf.InputName("limit") + ", or narrow the list with " +
+			s.sf.InputName("cluster") + " or " + s.sf.InputName("namespace"),
+	}
+}
+
+func backupErrors(s selection, rows []backupObject) view.Table {
+	t := view.Table{Columns: s.leading(
+		view.Column{Name: "Backup"}, view.Column{Name: "Status", Kind: view.KindStatus}, view.Column{Name: "Error"},
+	)}
 	for _, b := range rows {
 		if msg := strings.TrimSpace(b.Status.Error); msg != "" {
-			t.Rows = append(t.Rows, []string{b.Metadata.Name, "fail", firstLine(msg)})
+			t.Rows = append(t.Rows, s.lead(b.Metadata.Namespace, b.Metadata.Name, "fail", firstLine(msg)))
 		}
 	}
 	t.Total = len(t.Rows)
@@ -256,8 +334,15 @@ func backupErrors(rows []backupObject) view.Table {
 // different places: a cluster nothing has ever backed up is a configuration
 // question, and a namespace with no Backup objects at all may simply be one
 // where the schedule has not fired yet.
+//
+// Read across every namespace there is no one place to ask whether a cluster
+// is configured, so the pointer is the listing of the clusters instead.
 func emptyBackupBody(cluster string, s selection) string {
-	if cluster != "" {
+	switch {
+	case cluster != "" && s.allNamespace:
+		return "No backups of " + cluster + " in " + s.where() + ".\n\n" +
+			s.caller().listEverywhere() + " shows where a cluster of that name is."
+	case cluster != "":
 		status := append([]plugin.Arg{{Name: "cluster", Value: cluster}}, s.callArgs(s.namespace)...)
 		return "No backups of " + cluster + " in " + s.where() + ".\n\n" +
 			"`" + s.sf.Call("cnpg.status", status...) + "` says whether anything is configured to take one."
@@ -321,7 +406,7 @@ func backupRequestCapability() plugin.Capability {
 			"makes another backup and costs a full copy. Needs a grant naming the cluster.",
 		Run: runBackupRequest,
 	},
-		clusterField("the cluster to back up"),
+		clusterField("the cluster to back up", true),
 		// The three overrides carry the CRD's own enums, so a wrong value is
 		// refused by rta with the list in hand rather than by the API server
 		// with a schema error.

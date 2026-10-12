@@ -18,6 +18,12 @@ func classifyAs(t *testing.T, stderr string, args ...string) *view.Error {
 	if verr != nil {
 		t.Fatal(verr)
 	}
+	return classifyWith(t, s, stderr, args...)
+}
+
+// classifyWith is classify for the selection a call made.
+func classifyWith(t *testing.T, s selection, stderr string, args ...string) *view.Error {
+	t.Helper()
 	return classify(context.Background(), &exec.ExitError{}, stderr, args, s.caller())
 }
 

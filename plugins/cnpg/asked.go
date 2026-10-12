@@ -2,6 +2,7 @@ package main
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/this-is-tobi/rta/pkg/view"
@@ -118,7 +119,16 @@ func (a asked) what() string {
 
 // denied is the cluster refusing a request, in the words of the right it
 // lacked.
-func denied(by caller, a asked) *view.Error {
+//
+// **A refused read of every namespace says what that read needs.** Listing
+// across the cluster is a right of its own, a ClusterRole bound with a
+// ClusterRoleBinding, and the Role a ServiceAccount minted for one namespace
+// carries does not hold it however much it can read inside that namespace. The
+// refusal that arrived said only that the cluster scope was refused, which
+// reads as a verdict on the resource, and sent a person with every right in
+// their own namespace to ask for rights they had.
+func denied(by caller, a asked, args []string) *view.Error {
+	wide := slices.Contains(args, "--all-namespaces")
 	verb := a.verb
 	if verb == "" {
 		verb = "read"
@@ -127,24 +137,32 @@ func denied(by caller, a asked) *view.Error {
 	switch {
 	case a.namespace != "":
 		msg += " in namespace " + a.namespace
-	case a.everywhere:
+	case wide:
 		msg += " in every namespace"
+	case a.everywhere:
+		msg += " at the cluster scope"
 	}
 	hint := "this is the cluster refusing, not rta — you are authenticated, and "
 	if a.verb == "" || a.resource == "" {
-		return view.Errorf("cnpg.denied", "%s", msg).
-			WithHint(hint + "the right it lacks is one to read " + a.what())
+		hint += "the right it lacks is one to read " + a.what()
+	} else {
+		words := []string{"auth", "can-i", a.verb, a.resource}
+		switch {
+		case a.namespace != "":
+			words = append(words, "--namespace="+a.namespace)
+		case wide:
+			words = append(words, "--all-namespaces")
+		}
+		hint += "the right it lacks is `" + a.verb + "` on `" + a.resource + "`; `" +
+			by.kubectlLine(words...) + "` asks the cluster the same thing"
 	}
-	words := []string{"auth", "can-i", a.verb, a.resource}
-	switch {
-	case a.namespace != "":
-		words = append(words, "--namespace="+a.namespace)
-	case a.everywhere:
-		words = append(words, "--all-namespaces")
+	if wide {
+		hint += ". Reading every namespace needs the right to list cluster-wide, a ClusterRole bound with a " +
+			"ClusterRoleBinding; a namespaced Role, which is all a ServiceAccount minted for one namespace " +
+			"carries, does not give it. Name one namespace with " + by.sf.InputName("namespace") +
+			" instead of using " + by.sf.InputName("all-namespaces")
 	}
-	return view.Errorf("cnpg.denied", "%s", msg).
-		WithHint(hint + "the right it lacks is `" + a.verb + "` on `" + a.resource + "`; `" +
-			by.kubectlLine(words...) + "` asks the cluster the same thing")
+	return view.Errorf("cnpg.denied", "%s", msg).WithHint(hint)
 }
 
 // crdMissing is a resource type nothing registered: the CRD is not there.
