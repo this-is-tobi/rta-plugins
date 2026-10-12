@@ -71,7 +71,10 @@ func TestLiveBackupTheAPIServerAcceptsWhatRtaBuilds(t *testing.T) {
 	doc, b, verr := buildBackupRequest(
 		req(map[string]any{"cluster": c.Metadata.Name, "namespace": c.Metadata.Namespace}), c, s)
 	if verr != nil {
-		t.Fatal(verr)
+		// A cluster set up for none or for several mechanisms is not one a
+		// request that names no method can be built for, which is rta's own
+		// refusal and not the wire contract this checks.
+		t.Skipf("no method to resolve for %s/%s: %v", c.Metadata.Namespace, c.Metadata.Name, verr)
 	}
 	created := serverDryRun(t, s, doc)
 
@@ -89,11 +92,10 @@ func TestLiveBackupTheAPIServerAcceptsWhatRtaBuilds(t *testing.T) {
 	if created.Metadata.Labels[requestedBy] != "rta" {
 		t.Errorf("the label rta stamps did not survive: %v", created.Metadata.Labels)
 	}
-	// What the operator defaulted, which is the half a fixture invents.
-	t.Logf("server defaulted method=%q phase=%q", created.Spec.Method, created.Status.Phase)
-	if created.Spec.Method == "" && created.Status.Method == "" {
-		t.Error("neither spec.method nor status.method came back — the CRD declares a " +
-			"default for the first, so decoding one of them is how the receipt says how")
+	// The method rta resolved and stated is the one the server kept.
+	t.Logf("method sent %q, kept %q, phase %q", b.Spec.Method, created.Spec.Method, created.Status.Phase)
+	if created.Spec.Method != b.Spec.Method {
+		t.Errorf("spec.method came back %q, sent %q", created.Spec.Method, b.Spec.Method)
 	}
 }
 
@@ -114,8 +116,8 @@ func TestLiveBackupEveryOfferedOverrideIsAcceptedByTheSchema(t *testing.T) {
 	for _, tc := range []map[string]any{
 		{"method": "barmanObjectStore"},
 		{"method": "volumeSnapshot"},
-		{"target": "primary"},
-		{"target": "prefer-standby"},
+		{"method": "barmanObjectStore", "target": "primary"},
+		{"method": "barmanObjectStore", "target": "prefer-standby"},
 		{"method": "volumeSnapshot", "online": "true"},
 		{"method": "volumeSnapshot", "online": "false"},
 	} {
@@ -165,7 +167,7 @@ func TestLiveBackupAnUnconfiguredClusterIsAdmittedByTheOperatorAnyway(t *testing
 	}
 	s := selection{namespace: bare.Metadata.Namespace}
 	doc, _, verr := buildBackupRequest(
-		req(map[string]any{"cluster": bare.Metadata.Name}), *bare, s)
+		req(map[string]any{"cluster": bare.Metadata.Name, "method": "barmanObjectStore"}), *bare, s)
 	if verr != nil {
 		t.Fatal(verr)
 	}
@@ -173,6 +175,45 @@ func TestLiveBackupAnUnconfiguredClusterIsAdmittedByTheOperatorAnyway(t *testing
 	t.Logf("%s/%s configures no backup and the operator admitted the object anyway "+
 		"(phase %q) — this is what rta.backup.unconfigured exists to stop",
 		bare.Metadata.Namespace, bare.Metadata.Name, created.Status.Phase)
+}
+
+// **Whether the operator's webhook accepts a Backup of method plugin that
+// carries the plugin's name and nothing else** — the document rta builds, and
+// the one the barman-cloud plugin's own documentation shows.
+//
+// Not settled by anything but this. The webhook source (backup_webhook.go)
+// rejects the method only when `spec.pluginConfiguration` is absent or has an
+// empty name, which an operator once answered, for a document with no
+// configuration at all, with "cannot be empty when the backup method is
+// plugin"; that reads as accepting a name, and reading is not running one. The
+// server-side dry run is the API server answering: admission in full,
+// validation and defaulting included, with nothing persisted.
+//
+// A cluster that archives through a plugin is the natural subject, and any
+// other is a fine one: the webhook judges the Backup's spec, so a cluster with
+// no plugin entry is given the barman-cloud one for the document's sake, and
+// the test says so. A refusal here is the finding, and it fails the test with
+// the operator's own words.
+func TestLiveBackupAPluginMethodDocumentPassesAdmission(t *testing.T) {
+	c := aLiveCluster(t)
+	if c.walArchiverPlugin() == "" {
+		c.Spec.Plugins = append(c.Spec.Plugins, clusterPlugin{Name: barmanCloudPlugin, IsWALArchiver: true})
+		t.Logf("%s/%s has no WAL-archiver plugin entry; the document is built for one it was given here",
+			c.Metadata.Namespace, c.Metadata.Name)
+	}
+	s := selection{namespace: c.Metadata.Namespace}
+	doc, b, verr := buildBackupRequest(req(map[string]any{
+		"cluster": c.Metadata.Name, "namespace": c.Metadata.Namespace, "method": "plugin"}), c, s)
+	if verr != nil {
+		t.Fatal(verr)
+	}
+	t.Logf("sent: %s", doc)
+	created := serverDryRun(t, s, doc)
+
+	if created.Spec.Method != "plugin" || created.Spec.PluginConfiguration.Name != b.Spec.PluginConfiguration.Name {
+		t.Errorf("the server kept method %q and plugin %q, sent %q and %q", created.Spec.Method,
+			created.Spec.PluginConfiguration.Name, b.Spec.Method, b.Spec.PluginConfiguration.Name)
+	}
 }
 
 // The CRD's own enums, read off the running operator and compared with what
@@ -225,23 +266,13 @@ func TestLiveBackupTheOfferedOptionsMatchTheCRDsEnums(t *testing.T) {
 			offered[f.Name] = f.Options
 		}
 	}
-	// target must match exactly. method is allowed to be a subset, and is one:
-	// `plugin` is in the CRD and not in rta's list, because a plugin-method
-	// Backup needs a `spec.pluginConfiguration` rta does not build and this
-	// same operator refuses the document without it. What is checked is the
-	// direction that matters — nothing rta offers may be outside the enum,
-	// which is the error the enums were carried here to prevent.
-	if got, want := props["target"].Enum, offered["target"]; strings.Join(got, ",") != strings.Join(want, ",") {
-		t.Errorf("target: the CRD admits %v and rta offers %v", got, want)
-	}
-	for _, m := range offered["method"] {
-		if !slices.Contains(props["method"].Enum, m) {
-			t.Errorf("rta offers method %q, which this CRD does not admit: %v",
-				m, props["method"].Enum)
+	// Both must match exactly: every method rta offers is one the CRD admits,
+	// and every one the CRD admits is offered, so a value CNPG adds shows up as
+	// a suggestion rta is missing.
+	for _, field := range []string{"target", "method"} {
+		got, want := slices.Sorted(slices.Values(props[field].Enum)), slices.Sorted(slices.Values(offered[field]))
+		if !slices.Equal(got, want) {
+			t.Errorf("%s: the CRD admits %v and rta offers %v", field, got, want)
 		}
-	}
-	if slices.Contains(offered["method"], "plugin") {
-		t.Error("plugin is offered again — every document rta builds for it is " +
-			"missing the pluginConfiguration this operator requires")
 	}
 }

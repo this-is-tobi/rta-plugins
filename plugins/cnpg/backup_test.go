@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -221,15 +220,18 @@ func TestABackupIsRefusedForAClusterThatConfiguresNone(t *testing.T) {
 	}
 }
 
-// The ordinary call states no method, no target and no online flag, and the
-// document says so by leaving all three out. An empty string is a value CNPG
-// has to interpret; an absent key is "you decide", which is the whole
-// contract of this capability.
-func TestAnOrdinaryRequestSendsNothingButTheClusterReference(t *testing.T) {
+// The ordinary call names no method, no target and no online flag, and the
+// document carries the cluster reference and the one thing rta resolved: the
+// method, which is the cluster's only configured mechanism. An absent `target`
+// or `online` is "you decide", which is the whole contract of the two overrides
+// that are left out; an absent `method` is not, since CloudNativePG's fallback
+// for it is a fixed default and not the cluster's preference (resolveMethod).
+func TestAnOrdinaryRequestSendsTheClusterAndTheMethodItResolved(t *testing.T) {
 	_, stdin := recordingKubectl(t, mustJSON(t, aCluster("shop", "prod")))
 
-	if _, err := runBackupRequest(context.Background(),
-		req(map[string]any{"cluster": "shop", "namespace": "prod"})); err != nil {
+	v, err := runBackupRequest(context.Background(),
+		req(map[string]any{"cluster": "shop", "namespace": "prod"}))
+	if err != nil {
 		t.Fatal(err)
 	}
 	var sent map[string]any
@@ -240,14 +242,20 @@ func TestAnOrdinaryRequestSendsNothingButTheClusterReference(t *testing.T) {
 	if got := spec["cluster"].(map[string]any)["name"]; got != "shop" {
 		t.Errorf("spec.cluster.name = %v", got)
 	}
-	for _, key := range []string{"method", "target", "online"} {
+	if spec["method"] != "barmanObjectStore" {
+		t.Errorf("spec.method = %v, want the one mechanism the cluster is set up for", spec["method"])
+	}
+	for _, key := range []string{"target", "online", "pluginConfiguration"} {
 		if _, present := spec[key]; present {
-			t.Errorf("spec.%s was sent as %v — an unstated override must be absent, "+
+			t.Errorf("spec.%s was sent as %v — an override nobody gave must be absent, "+
 				"so the cluster's own configuration decides", key, spec[key])
 		}
 	}
 	if sent["kind"] != "Backup" || sent["apiVersion"] != "postgresql.cnpg.io/v1" {
 		t.Errorf("wrong object: %v %v", sent["apiVersion"], sent["kind"])
+	}
+	if text := renderPairs(t, v); !strings.Contains(text, "barmanObjectStore — chosen by rta: it is the only mechanism this cluster is set up for") {
+		t.Errorf("the receipt does not say rta chose the method:\n%s", text)
 	}
 }
 
@@ -319,8 +327,10 @@ func TestNoReceiptEverClaimsRtaChoseTheDestination(t *testing.T) {
 			t.Errorf("dry=%v: the receipt does not say the cluster chose the destination:\n%s",
 				dry, text)
 		}
-		if !strings.Contains(text, "rta stated none") {
-			t.Errorf("dry=%v: the receipt does not say rta named no method:\n%s", dry, text)
+		// What rta did choose it says so, and what it left to the cluster it says
+		// the cluster has: the method is rta's, the target is the cluster's.
+		if !strings.Contains(text, "chosen by rta") || !strings.Contains(text, "rta stated none") {
+			t.Errorf("dry=%v: the receipt does not say which of the two choices rta made:\n%s", dry, text)
 		}
 	}
 }
@@ -508,7 +518,7 @@ func TestAMethodHintGivesTheMethodTheWayItsSurfaceDoes(t *testing.T) {
 	} {
 		recordingKubectl(t, mustJSON(t, snapshotsOnly))
 		_, err := runBackupRequest(context.Background(),
-			req(map[string]any{"cluster": "shop", "namespace": "prod"}).WithSurface(tc.sf))
+			req(map[string]any{"cluster": "shop", "namespace": "prod", "method": "barmanObjectStore"}).WithSurface(tc.sf))
 		if hint := asViewError(t, err).Hint; !strings.Contains(hint, tc.unconfigured) {
 			t.Errorf("%s: the hint is %q, want %q in it", tc.sf, hint, tc.unconfigured)
 		}
@@ -518,125 +528,6 @@ func TestAMethodHintGivesTheMethodTheWayItsSurfaceDoes(t *testing.T) {
 		if hint := asViewError(t, err).Hint; !strings.Contains(hint, tc.online) {
 			t.Errorf("%s: the hint is %q, want %q in it", tc.sf, hint, tc.online)
 		}
-	}
-}
-
-// An unstated method is barmanObjectStore, CloudNativePG's own fixed default,
-// and not a preference read off the cluster.
-//
-// `spec.method` and `spec.target` sit next to each other in the CRD and read
-// alike: one says "Defaults to: barmanObjectStore" and the other says "If
-// empty, it defaults to cluster.spec.backup.target". Treating method like
-// target meant a cluster set up only for volume snapshots would be sent a
-// barmanObjectStore backup it cannot take — admitted by the API server, then
-// failed minutes later, with rta's receipt already saying the cluster had
-// chosen.
-func TestAClusterThatCannotTakeTheDefaultMethodIsRefusedRatherThanSentOne(t *testing.T) {
-	snapshotsOnly := aCluster("shop", "prod", func(c map[string]any) {
-		backup := c["spec"].(map[string]any)["backup"].(map[string]any)
-		delete(backup, "barmanObjectStore")
-		backup["volumeSnapshot"] = map[string]any{}
-	})
-	_, stdin := recordingKubectl(t, mustJSON(t, snapshotsOnly))
-
-	_, err := runBackupRequest(context.Background(),
-		req(map[string]any{"cluster": "shop", "namespace": "prod"}))
-	verr := asViewError(t, err)
-	if verr.Code != "cnpg.backup.method.unconfigured" {
-		t.Fatalf("code = %q, want cnpg.backup.method.unconfigured", verr.Code)
-	}
-	if !strings.Contains(verr.Hint, "--method volumeSnapshot") {
-		t.Errorf("the hint is %q, and does not name the flag that fixes it", verr.Hint)
-	}
-	if body := strings.TrimSpace(stdin()); body != "" {
-		t.Errorf("a backup nothing could take was sent anyway: %q", body)
-	}
-}
-
-// The ordinary call — no --method — against the newer arrangement.
-//
-// This is the one the pre-flight was blind to, and it is the likeliest call
-// there is. `canTake` used to pass every method on a cluster naming a
-// WAL-archiver plugin, on the reasoning that rta cannot read that plugin's own
-// configuration. But the method it was letting through was CloudNativePG's
-// fixed default, barmanObjectStore, and a cluster of this shape has no
-// `.spec.backup` at all — the CRD says the two cannot coexist. So the Backup
-// was created, accepted, and failed minutes later where nobody looks, with
-// rta's receipt already saying it had checked the cluster could take it.
-func TestTheDefaultMethodIsRefusedForAClusterThatArchivesThroughAPlugin(t *testing.T) {
-	_, stdin := recordingKubectl(t, mustJSON(t, aCluster("shop", "prod", archivedByPlugin)))
-
-	_, err := runBackupRequest(context.Background(),
-		req(map[string]any{"cluster": "shop", "namespace": "prod"}))
-
-	verr := asViewError(t, err)
-	if verr.Code != "cnpg.backup.method.unconfigured" {
-		t.Fatalf("code = %q, want cnpg.backup.method.unconfigured", verr.Code)
-	}
-	if !strings.Contains(verr.Hint, "barman-cloud.cloudnative-pg.io") {
-		t.Errorf("the hint is %q, and does not name what does archive this cluster", verr.Hint)
-	}
-	if body := strings.TrimSpace(stdin()); body != "" {
-		t.Errorf("a backup the cluster cannot perform was sent anyway: %q", body)
-	}
-}
-
-// The refusal names no flag, because there is no flag that works.
-//
-// A plugin-method Backup needs a `spec.pluginConfiguration` rta does not
-// build — the operator's own webhook says so, put to a running one with
-// `kubectl create --dry-run=server`: "spec.pluginConfiguration: Invalid value:
-// null: cannot be empty when the backup method is plugin". So sending somebody
-// to `--method plugin` would be a second dead end one round trip further on,
-// which is the same failure as the first one with an extra step.
-func TestThePluginArchivedRefusalDoesNotSendSomebodyToAFlagThatFailsToo(t *testing.T) {
-	_, stdin := recordingKubectl(t, mustJSON(t, aCluster("shop", "prod", archivedByPlugin)))
-
-	_, err := runBackupRequest(context.Background(),
-		req(map[string]any{"cluster": "shop", "namespace": "prod"}))
-
-	verr := asViewError(t, err)
-	if strings.Contains(verr.Hint, "--method plugin") {
-		t.Errorf("the hint sends them to a flag rta cannot fulfil: %q", verr.Hint)
-	}
-	if !strings.Contains(verr.Hint, "pluginConfiguration") {
-		t.Errorf("the hint is %q, and does not say what rta is missing", verr.Hint)
-	}
-	if body := strings.TrimSpace(stdin()); body != "" {
-		t.Errorf("a backup the cluster cannot perform was sent anyway: %q", body)
-	}
-}
-
-// `plugin` is not an offered method, so asking for it is refused by rta with
-// the list in hand rather than by the API server with a schema error — which
-// is what the three overrides carrying the CRD's enums are for.
-func TestThePluginMethodIsNotOffered(t *testing.T) {
-	if slices.Contains(backupMethods, "plugin") {
-		t.Fatal("plugin is offered, and every document rta builds for it is incomplete")
-	}
-	_, stdin := recordingKubectl(t, mustJSON(t, aCluster("shop", "prod")))
-	_, err := runBackupRequest(context.Background(), req(map[string]any{
-		"cluster": "shop", "namespace": "prod", "method": "plugin",
-	}))
-	if verr := asViewError(t, err); verr.Code != "cnpg.backup.method.invalid" {
-		t.Fatalf("code = %q, want the value refused by rta", verr.Code)
-	}
-	if body := strings.TrimSpace(stdin()); body != "" {
-		t.Errorf("a document was sent for a method rta cannot complete: %q", body)
-	}
-}
-
-// A method rta does not recognise is still the API server's call, which is the
-// half of the generosity that was right: refusing a legitimate backup is worse
-// than letting the server have the last word, which it has either way.
-func TestAMethodRtaDoesNotKnowIsLeftToTheAPIServer(t *testing.T) {
-	c := decodeCluster(t, aCluster("shop", "prod", archivedByPlugin))
-	if !c.canTake("somethingNewInTheCRD") {
-		t.Error("an unrecognised method was refused locally rather than by the server")
-	}
-	barman := decodeCluster(t, aCluster("shop", "prod"))
-	if barman.canTake("volumeSnapshot") {
-		t.Error("a snapshot was allowed on a cluster whose .spec.backup states none")
 	}
 }
 

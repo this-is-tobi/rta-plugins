@@ -55,6 +55,11 @@ type backupObject struct {
 		} `json:"cluster"`
 		Method string `json:"method,omitempty"`
 		Target string `json:"target,omitempty"`
+		// The plugin a Backup asks, by name: all of its pluginConfiguration that
+		// is decoded, since the rest is a free-form map a plugin defines.
+		PluginConfiguration struct {
+			Name string `json:"name"`
+		} `json:"pluginConfiguration"`
 		// A pointer for the reason EnableSuperuserAccess is one: absent means
 		// "whatever .spec.backup.volumeSnapshot.online says", which is not
 		// the same statement as false, and encoding a guess would silently
@@ -356,6 +361,7 @@ func backupRequestCapability() plugin.Capability {
 		Summary: "Ask the operator to back a cluster up now, using that cluster's own configuration",
 		Examples: []plugin.Example{
 			{Title: "back one cluster up now", Inputs: map[string]any{"cluster": "app-db", "namespace": "production"}},
+			{Title: "back one up through its WAL-archiver plugin", Inputs: map[string]any{"cluster": "app-db", "namespace": "production", "method": "plugin"}},
 		},
 		Keywords: []string{"barman", "snapshot", "trigger", "volumesnapshot"},
 		Safety:   plugin.Write,
@@ -396,14 +402,22 @@ func backupRequestCapability() plugin.Capability {
 			"operator, which admits the object with no complaint — so the failure would " +
 			"surface minutes later in a place nobody is looking. rta reads the cluster " +
 			"first and says so instead.\n\n" +
-			"`method`, `target` and `online` override what the cluster settled on, " +
-			"and are all optional: sending none of them is the ordinary call and means " +
-			"'do what you would have done anyway'.",
+			"`method` says how, and when it is left out rta states the one mechanism the " +
+			"cluster is set up for, and the receipt says rta chose it; a cluster set up for " +
+			"several is refused until one is named. `plugin` asks the WAL-archiver plugin " +
+			"the cluster names, whose name is copied from the cluster and is never a " +
+			"caller's to give. It is refused up front, rather than accepted and failed " +
+			"minutes later, when that plugin has declared it cannot take a backup or the " +
+			"ObjectStore it names does not exist; the receipt says where the backup goes. " +
+			"`target` and `online` override what the cluster settled on, and are optional: " +
+			"left out they mean 'do what you would have done anyway'.",
 		Agent: "Creates a Backup object for one cluster. The operator takes the backup and chooses where it " +
-			"goes, from the cluster's own backup configuration: nothing here sets a destination. Refused " +
-			"when the cluster configures no backup. `method`, `target` and `online` override the cluster's " +
-			"own choice and are optional; sending none is the ordinary call. Not idempotent: each call " +
-			"makes another backup and costs a full copy. Needs a grant naming the cluster.",
+			"goes, from the cluster's own backup configuration: nothing here sets a destination, and " +
+			"the receipt says where. `method` is the cluster's only configured mechanism when omitted " +
+			"(the receipt says rta chose it) and must be named when it has several; `plugin` asks the " +
+			"WAL-archiver plugin the cluster names. Refused when the cluster configures no backup, or its " +
+			"plugin cannot back up or its ObjectStore is missing. Not idempotent: each call makes " +
+			"another backup. Needs a grant naming the cluster.",
 		Run: runBackupRequest,
 	},
 		clusterField("the cluster to back up", true),
@@ -412,7 +426,7 @@ func backupRequestCapability() plugin.Capability {
 		// with a schema error.
 		plugin.Field{Name: "method", Type: plugin.String, Config: "backup.method",
 			Options: backupMethods,
-			Help:    "how to take it — the cluster's own choice when omitted"},
+			Help:    "how to take it — its only configured mechanism when omitted; plugin asks its WAL-archiver plugin"},
 		plugin.Field{Name: "target", Type: plugin.String, Config: "backup.target",
 			Options: []string{"primary", "prefer-standby"},
 			Help:    "which instance performs it — the cluster's own choice when omitted"},
@@ -427,8 +441,9 @@ func backupRequestCapability() plugin.Capability {
 // Written as a struct with omitempty rather than a map, so that a field
 // nobody asked about is absent from the document rather than present and
 // empty. That distinction is the whole contract of this capability: an absent
-// `method` means "the cluster decides" and an empty one is a value CNPG has to
-// interpret.
+// `target` means "the cluster decides" and an empty one is a value CNPG has to
+// interpret. (An absent `method` meant something else, a fixed default, and rta
+// no longer leaves it absent: see resolveMethod.)
 type backupRequest struct {
 	APIVersion string `json:"apiVersion"`
 	Kind       string `json:"kind"`
@@ -442,30 +457,54 @@ type backupRequest struct {
 			Name string `json:"name"`
 		} `json:"cluster"`
 		Method string `json:"method,omitempty"`
-		Target string `json:"target,omitempty"`
-		Online *bool  `json:"online,omitempty"`
+		// PluginConfiguration is what CloudNativePG's webhook requires of a Backup
+		// of method plugin, and refuses one without. Its name is the cluster's own
+		// enabled WAL-archiver entry, copied; no input of this capability can set
+		// it, so a caller can ask for the plugin the cluster names and no other.
+		PluginConfiguration *backupPluginConfiguration `json:"pluginConfiguration,omitempty"`
+		Target              string                     `json:"target,omitempty"`
+		Online              *bool                      `json:"online,omitempty"`
 	} `json:"spec"`
+
+	// methodByRta records that the method in the document is one rta resolved
+	// from the cluster and not one the caller stated, so a receipt says who
+	// chose it. It is no part of the document.
+	methodByRta bool
 }
 
-// backupMethods are the methods rta can build a whole Backup for, which is not
-// the same list as the ones the CRD accepts — and the difference is stated
-// once so the declaration and the check cannot drift.
+// backupPluginConfiguration is `spec.pluginConfiguration` of a Backup, and the
+// name is all of it that is sent.
 //
-// **`plugin` is the CRD's third value and is deliberately absent.** A
-// plugin-method Backup must carry a `spec.pluginConfiguration`, and the
-// operator's own webhook says so rather than guessing — put to a running one
-// with `kubectl create --dry-run=server`:
+// The CRD also has a `parameters` map, "the configuration parameters passed to
+// the backup plugin for this backup", and it is left out on purpose. The
+// barman-cloud plugin's own documentation shows a Backup with the name alone;
+// the plugin reads which ObjectStore to use from the Cluster and not from the
+// Backup; and the parameters of the cluster's entry configure its WAL archiving,
+// which is a different thing from a parameter of one backup. Copying them across
+// would put whatever a plugin was given for one purpose into an object made for
+// another, and a plugin's parameters can be anything.
+type backupPluginConfiguration struct {
+	Name string `json:"name"`
+}
+
+// backupMethods are the methods rta can build a whole Backup for, and they are
+// the CRD's three — the list the declaration offers and the check holds a value
+// to, stated once so the two cannot drift.
+//
+// **`plugin` was left out of this list while rta built no pluginConfiguration,
+// and is in it now that it does.** The operator's own webhook refuses a Backup
+// of that method with no `spec.pluginConfiguration`, put to a running one with
+// `kubectl create --dry-run=server`:
 //
 //	spec.pluginConfiguration: Invalid value: null: cannot be empty when the
 //	backup method is plugin
 //
-// rta declares no such input and assembles no such stanza, so offering it
-// would be offering an option that cannot ever succeed: the operator picks it
-// off rta's own list, rta sends a document it already knows is incomplete, and
-// the webhook refuses it one round trip later. Being generous about what rta
-// cannot see is the rule everywhere else in this file; this is something rta
-// knows.
-var backupMethods = []string{"barmanObjectStore", "volumeSnapshot"}
+// Its validation reads the configuration as empty when it is absent or has no
+// name, so a name is what completes the document — and the name is the cluster's
+// own WAL-archiver entry, copied, which is why the method can be offered at all:
+// there is no input through which a caller could name another plugin. A cluster
+// with no such entry has nothing to copy, and is refused (canTake).
+var backupMethods = []string{"barmanObjectStore", "volumeSnapshot", "plugin"}
 
 // requestedBy labels what rta asked for, so an operator finding an unexpected
 // backup can tell where it came from without reading an audit log on another
@@ -511,25 +550,84 @@ func runBackupRequest(ctx context.Context, req plugin.Request) (view.View, error
 	if verr != nil {
 		return nil, verr
 	}
-	// The second half of the same pre-flight, and it exists because `method`
-	// and `target` read alike and behave differently: an unstated target
-	// really does defer to the cluster, and an unstated method is
-	// barmanObjectStore whatever the cluster prefers. So a cluster set up for
-	// volume snapshots and asked for a backup with nothing said gets a
-	// barmanObjectStore one it cannot perform — accepted, then failed
-	// minutes later, exactly the shape the unconfigured check above stops.
+	// The second half of the same pre-flight: the method has to be one this
+	// cluster is set up for, or it would be accepted, then failed minutes later,
+	// exactly the shape the unconfigured check above stops.
 	if !c.canTake(b.Spec.Method) {
 		return nil, methodRefusal(req.Surface(), c, b.Spec.Method)
 	}
+	where := whereOf(c, b.Spec.Method)
+	if b.Spec.Method == "plugin" {
+		var verr *view.Error
+		if where, verr = pluginDestination(ctx, s, c); verr != nil {
+			return nil, verr
+		}
+	}
 	if req.DryRun {
-		return dryRunView(b, c, doc), nil
+		return dryRunView(b, c, doc, where), nil
 	}
 
 	var created backupObject
 	if verr := createJSON(ctx, s, doc, &created); verr != nil {
 		return nil, verr
 	}
-	return requestReceipt(s, created, b, c), nil
+	return requestReceipt(s, created, b, c, where), nil
+}
+
+// pluginDestination is the pre-flight of a backup that asks a plugin, and it
+// says where the bytes will go.
+//
+// **Everything it refuses, the operator would have accepted.** A Backup whose
+// plugin cannot take it, or whose ObjectStore is not there, is admitted without
+// a word and fails minutes later in a place nobody is looking, with rta's
+// receipt already saying it had asked. So the two things that can be known now
+// are checked now.
+//
+// The plugin has to have declared it can back up — the operator itself refuses
+// to hand it a Backup otherwise, so a status that names the plugin and lists no
+// such capability is a certain failure. A status that does not name it at all is
+// not (pluginDeclaresBackup), and is let through.
+//
+// And the ObjectStore the cluster's entry names has to exist in the cluster's
+// namespace. One that is absent, or whose type is, is refused. One this identity
+// may not read is let through, since that is a gap in what can be seen and not a
+// fact about the store, with the destination worded as what it is: the store's
+// name, not read. Any other failure of the read is the call's, since a write
+// should not follow a question that could not be answered.
+func pluginDestination(ctx context.Context, s selection, c cluster) (string, *view.Error) {
+	archiver := c.walArchiverPlugin()
+	if declared, known := c.pluginDeclaresBackup(); known && !declared {
+		return "", view.Errorf("cnpg.backup.plugin.unsupported",
+			"the %s plugin has not declared that it can take a backup", archiver).
+			WithHint("the operator hands a plugin a Backup only when its status lists " + backupCapability +
+				" among the plugin's backup capabilities, and this cluster's status lists none for it — " +
+				"the Backup would be accepted and fail. Whether that plugin only archives WAL, or is " +
+				"misconfigured, is its own documentation's to say")
+	}
+	ref := c.objectStoreName()
+	if ref == "" {
+		return "wherever the " + archiver + " plugin this cluster names sends it", nil
+	}
+	o, verr := readObjectStore(ctx, s, c, ref)
+	switch {
+	case verr == nil:
+		return orDash(plainURL(o.Spec.Configuration.DestinationPath)) + " (ObjectStore " + ref +
+			", server " + c.archiveServerName() + ")", nil
+	case verr.Code == "cnpg.resource.missing":
+		return "", view.Errorf("cnpg.backup.objectstore.missing",
+			"the cluster names the ObjectStore %s, and there is none by that name in namespace %s",
+			ref, c.Metadata.Namespace).
+			WithHint("the plugin has nowhere to archive to, so the Backup would be accepted and fail — " +
+				"create the ObjectStore, or correct the name in the cluster's `.spec.plugins` entry")
+	case verr.Code == "cnpg.crd.missing", verr.Code == "cnpg.resource.unserved":
+		return "", view.Errorf("cnpg.backup.objectstore.missing",
+			"the cluster names the ObjectStore %s, and this cluster has no ObjectStore resource type", ref).
+			WithHint("the barman-cloud plugin's CRD (" + objectStoreCRD + ") is not registered, so the plugin " +
+				"is not installed and the Backup would be accepted and fail")
+	case verr.Code == "cnpg.denied":
+		return "ObjectStore " + ref + " (not read: " + verr.Message + ")", nil
+	}
+	return "", verr
 }
 
 // methodRefusal words the mismatch, and has a case for the cluster that
@@ -544,8 +642,7 @@ func runBackupRequest(ctx context.Context, req plugin.Request) (view.View, error
 func methodRefusal(sf plugin.Surface, c cluster, asked string) *view.Error {
 	named := asked + " backup"
 	if asked == "" {
-		named = defaultBackupMethod + " backup, which is what CloudNativePG gives a " +
-			"Backup that names no method"
+		named = "backup"
 	}
 	verr := view.Errorf("cnpg.backup.method.unconfigured",
 		"%s is not set up to take a %s",
@@ -557,23 +654,47 @@ func methodRefusal(sf plugin.Surface, c cluster, asked string) *view.Error {
 			"`barmanObjectStore` or a `volumeSnapshot` stanza under it before anything " +
 			"can take a backup")
 	case len(have) == 1 && have[0] == "plugin":
-		// Unreachable until canTake stopped letting every method through on a
-		// WAL-archiver cluster's account, which is the arrangement that gets
-		// here now: no `.spec.backup` to name a mechanism, and the default
-		// method is one this cluster has no way to perform.
-		//
-		// And there is no flag to suggest, which is the honest half. See
-		// backupMethods: a plugin-method Backup needs a pluginConfiguration
-		// rta does not build, so sending somebody to `--method plugin` would
-		// be a second dead end one round trip further on.
+		// What a cluster on the newer arrangement gets when it is asked for the
+		// in-tree method: no `.spec.backup` to perform it, and a plugin that
+		// would, if asked by its method.
 		return verr.WithHint("this cluster archives through the " + c.walArchiverPlugin() +
 			" plugin, the newer arrangement, which replaces `.spec.backup` rather than " +
-			"joining it. rta cannot ask for a plugin backup — CloudNativePG wants a " +
-			"`spec.pluginConfiguration` with it, and rta builds none — so this one is " +
-			"`kubectl cnpg backup`'s to take")
+			"joining it — pass " + sf.InputTo("method", "plugin") + ", which asks that plugin to take it")
 	}
 	return verr.WithHint("this cluster configures " + strings.Join(have, " and ") +
 		" — pass " + sf.InputTo("method", have[0]))
+}
+
+// resolveMethod is the method a request that names none is sent as: the one
+// mechanism the cluster is set up for, stated in the Backup rather than left to
+// CloudNativePG.
+//
+// **Leaving it out was never "the cluster decides".** The CRD says `spec.method`
+// "Defaults to: `barmanObjectStore`" while `spec.target` right beside it says "If
+// empty, it defaults to `cluster.spec.backup.target`". The two read alike and
+// behave differently: a cluster set up for volume snapshots, or for a plugin,
+// that was sent a Backup with no method got a barmanObjectStore one it could not
+// perform — accepted, then failed minutes later, with rta's receipt having said
+// the cluster chose. So an unstated method is resolved here, against what the
+// cluster states, and the receipt says rta resolved it.
+//
+// One mechanism is a fact and resolves. None is the cluster's own problem and is
+// refused with its hint. Several is a choice between destinations and costs that
+// is not rta's to make for a backup that is a full copy — the caller names one,
+// or pins it in the config (`backup.method`).
+func resolveMethod(sf plugin.Surface, c cluster) (string, *view.Error) {
+	have := c.configuredMethods()
+	switch len(have) {
+	case 1:
+		return have[0], nil
+	case 0:
+		return "", methodRefusal(sf, c, "")
+	}
+	return "", view.Errorf("cnpg.backup.method.ambiguous",
+		"%s is set up to take a backup %s, and none was named",
+		c.Metadata.Namespace+"/"+c.Metadata.Name, strings.Join(have, " or ")).
+		WithHint("rta will not choose between them for a backup that costs a full copy — name one with " +
+			sf.InputName("method") + ", which takes " + strings.Join(have, ", "))
 }
 
 // buildBackupRequest assembles the document, and validates every value that
@@ -599,7 +720,21 @@ func buildBackupRequest(req plugin.Request, c cluster, s selection) ([]byte, bac
 	if verr := oneOf("method", method, backupMethods...); verr != nil {
 		return nil, b, verr
 	}
+	if method == "" {
+		var verr *view.Error
+		if method, verr = resolveMethod(req.Surface(), c); verr != nil {
+			return nil, b, verr
+		}
+		b.methodByRta = true
+	}
 	b.Spec.Method = method
+	// The plugin's name is copied from the cluster's own enabled WAL-archiver
+	// entry, and there is nowhere for a caller to give another: asking for the
+	// method is asking for the plugin the cluster names. A cluster with no such
+	// entry leaves it unset, and is refused by canTake before anything is sent.
+	if name := c.walArchiverPlugin(); method == "plugin" && name != "" {
+		b.Spec.PluginConfiguration = &backupPluginConfiguration{Name: name}
+	}
 
 	target := strings.TrimSpace(req.String("target"))
 	if verr := oneOf("target", target, "primary", "prefer-standby"); verr != nil {
@@ -615,14 +750,14 @@ func buildBackupRequest(req plugin.Request, c cluster, s selection) ([]byte, bac
 	switch online := strings.TrimSpace(req.String("online")); online {
 	case "":
 	case "true", "false":
-		// **Only with an explicit volumeSnapshot method, which the CRD schema
-		// does not say and a live operator does.** CNPG's webhook refuses
-		// `spec.online` on any other method — "Online parameter can be
-		// specified only if the backup method is volumeSnapshot" — and
-		// `method` carries a schema default of barmanObjectStore, so leaving
-		// it out is choosing the method that forbids this rather than leaving
-		// the question open. Found by putting the document rta builds through
-		// a real API server; the schema alone admits it happily.
+		// **Only for a volumeSnapshot backup, which the CRD schema does not
+		// say and a live operator does.** CNPG's webhook refuses `spec.online`
+		// on any other method — "Online parameter can be specified only if the
+		// backup method is volumeSnapshot". The method is the one that will be
+		// sent, stated or resolved above, so a cluster set up for snapshots
+		// alone is asked nothing more of a caller than the online flag. Found by
+		// putting the document rta builds through a real API server; the schema
+		// alone admits it happily.
 		if method != "volumeSnapshot" {
 			return nil, b, view.Errorf("cnpg.backup.online.unavailable",
 				"online only means something for a volumeSnapshot backup").
@@ -667,13 +802,13 @@ func oneOf(field, value string, allowed ...string) *view.Error {
 
 // dryRunView shows the exact document, because "what would this send" is the
 // only question a dry run of a create is asked.
-func dryRunView(b backupRequest, c cluster, doc []byte) view.View {
+func dryRunView(b backupRequest, c cluster, doc []byte, where string) view.View {
 	return view.KeyValue{Pairs: []view.Pair{
 		{Key: "would create", Value: b.Metadata.Namespace + "/" + b.Metadata.Name},
 		{Key: "for cluster", Value: c.Metadata.Namespace + "/" + c.Metadata.Name},
-		{Key: "how", Value: chosenBy(b.Spec.Method, "method")},
-		{Key: "where", Value: destinationOf(c)},
-		{Key: "which instance", Value: chosenBy(b.Spec.Target, "target")},
+		{Key: "how", Value: methodLine(b)},
+		{Key: "where", Value: where},
+		{Key: "which instance", Value: targetLine(b)},
 		{Key: "the object", Value: string(doc)},
 		{Key: "nothing was sent", Value: "this is a dry run — the cluster was read and not written"},
 	}}
@@ -682,7 +817,7 @@ func dryRunView(b backupRequest, c cluster, doc []byte) view.View {
 // requestReceipt says what was asked for, what will perform it, and where to
 // look next. It never claims the backup happened: creating the object is the
 // whole of what rta did, and the operator's work starts afterwards.
-func requestReceipt(s selection, created backupObject, b backupRequest, c cluster) view.View {
+func requestReceipt(s selection, created backupObject, b backupRequest, c cluster, where string) view.View {
 	name := created.Metadata.Name
 	if name == "" {
 		name = b.Metadata.Name
@@ -694,9 +829,9 @@ func requestReceipt(s selection, created backupObject, b backupRequest, c cluste
 	pairs := []view.Pair{
 		{Key: "requested", Value: ns + "/" + name},
 		{Key: "cluster", Value: c.Metadata.Namespace + "/" + c.Metadata.Name},
-		{Key: "how", Value: chosenBy(b.Spec.Method, "method")},
-		{Key: "where", Value: destinationOf(c)},
-		{Key: "which instance", Value: chosenBy(b.Spec.Target, "target")},
+		{Key: "how", Value: methodLine(b)},
+		{Key: "where", Value: where},
+		{Key: "which instance", Value: targetLine(b)},
 	}
 	if p := strings.TrimSpace(created.Status.Phase); p != "" {
 		pairs = append(pairs, view.Pair{Key: "phase", Value: p})
@@ -708,39 +843,57 @@ func requestReceipt(s selection, created backupObject, b backupRequest, c cluste
 	)}
 }
 
-// chosenBy words an empty override as the thing it means, and the two fields
-// mean different things.
+// methodLine words how the backup is taken, and who chose that.
 //
-// `target` empty really is "the cluster decides": the CRD says it defers to
-// `cluster.spec.backup.target`. `method` empty is barmanObjectStore, a fixed
-// default that has nothing to do with what the cluster prefers — so the row
-// names the method that will be used and says who picked it, rather than
-// claiming a deferral that does not happen.
-func chosenBy(value, what string) string {
-	if value != "" {
-		return value + " (stated for this backup)"
+// The two answers are different and a receipt that blurred them would be
+// claiming a decision nobody made: a method the caller named is "stated for this
+// backup", and one that was left out is rta's own, resolved against what the
+// cluster is set up for — which is not "the cluster decided" either, since
+// CloudNativePG's fallback for a Backup naming none is a fixed default that has
+// nothing to do with the cluster's preference. For the plugin the row names the
+// plugin whose name was copied.
+func methodLine(b backupRequest) string {
+	m := b.Spec.Method
+	if pc := b.Spec.PluginConfiguration; pc != nil {
+		m += " (" + pc.Name + ")"
 	}
-	if what == "method" {
-		return defaultBackupMethod + " — CloudNativePG's default, not a preference read " +
-			"off the cluster; rta stated none"
+	if b.methodByRta {
+		return m + " — chosen by rta: it is the only mechanism this cluster is set up for"
 	}
-	return "whatever the cluster's own " + what + " says — rta stated none"
+	return m + " (stated for this backup)"
 }
 
-// destinationOf says where a backup of this cluster goes, as far as the
-// Cluster resource itself admits.
+// targetLine words an empty target as the thing it means: `target` empty really
+// is "the cluster decides", since the CRD says it defers to
+// `cluster.spec.backup.target`.
+func targetLine(b backupRequest) string {
+	if b.Spec.Target != "" {
+		return b.Spec.Target + " (stated for this backup)"
+	}
+	return "whatever the cluster's own target says — rta stated none"
+}
+
+// whereOf says where a backup of this cluster by this method goes, as far as
+// the Cluster resource itself admits. The plugin's own answer is the ObjectStore
+// it names, which is read for it (pluginDestination).
 //
-// Deliberately unspecific about the object store's address. The endpoint and
-// bucket sit inside `.spec.backup.barmanObjectStore` beside the credential
-// references, and this plugin decodes neither — naming which mechanism carries
-// the bytes is what the receipt needs, and reading the rest to print a URL
-// would be decoding a credential stanza to render one field of it.
-func destinationOf(c cluster) string {
-	switch {
-	case c.walArchiverPlugin() != "":
+// The destination of the in-tree object store is the one thing of its stanza a
+// receipt needs, shown without any user info (plainURL); the endpoint and the
+// references to the secrets holding its keys beside it are not decoded.
+func whereOf(c cluster, method string) string {
+	switch method {
+	case "plugin":
 		return "wherever the " + c.walArchiverPlugin() + " plugin this cluster names sends it"
-	case c.Spec.Backup != nil:
-		return "wherever this cluster's `.spec.backup` sends it"
+	case "volumeSnapshot":
+		return "volume snapshots of this cluster's volumes, as its `.spec.backup.volumeSnapshot` says"
+	case "barmanObjectStore":
+		line := "wherever this cluster's `.spec.backup` sends it"
+		if b := c.Spec.Backup; b != nil && b.BarmanObjectStore != nil {
+			if path := plainURL(b.BarmanObjectStore.DestinationPath); path != "" {
+				line += " (" + path + ")"
+			}
+		}
+		return line
 	}
 	return "—"
 }

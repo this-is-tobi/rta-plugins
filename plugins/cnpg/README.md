@@ -21,7 +21,7 @@ Under `plugins: cnpg:` in rta's configuration, or in a profile's `set:`. An inst
 
 | Key           | Read by                                                                                       | Help                                                                                                     |
 |---------------|-----------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
-| backup.method | cnpg.backup.request                                                                           | how to take it — the cluster's own choice when omitted                                                   |
+| backup.method | cnpg.backup.request                                                                           | how to take it — its only configured mechanism when omitted; plugin asks its WAL-archiver plugin         |
 | backup.online | cnpg.backup.request                                                                           | hot or cold — only with a \`method\` of volumeSnapshot, and the cluster's own choice when omitted        |
 | backup.target | cnpg.backup.request                                                                           | which instance performs it — the cluster's own choice when omitted                                       |
 | cluster       | cnpg.backup.list, cnpg.backup.request, cnpg.backup.show, cnpg.status, cnpg.storage            | only this cluster's backups — every cluster's when omitted; empty lifts one a profile or the config pins |
@@ -62,27 +62,28 @@ Creates a Backup object. **rta does not take the backup and does not choose wher
 
 Refused when the cluster configures no backup at all. CloudNativePG accepts such a Backup and lets it fail asynchronously — verified against a running operator, which admits the object with no complaint — so the failure would surface minutes later in a place nobody is looking. rta reads the cluster first and says so instead.
 
-`method`, `target` and `online` override what the cluster settled on, and are all optional: sending none of them is the ordinary call and means 'do what you would have done anyway'.
+`method` says how, and when it is left out rta states the one mechanism the cluster is set up for, and the receipt says rta chose it; a cluster set up for several is refused until one is named. `plugin` asks the WAL-archiver plugin the cluster names, whose name is copied from the cluster and is never a caller's to give. It is refused up front, rather than accepted and failed minutes later, when that plugin has declared it cannot take a backup or the ObjectStore it names does not exist; the receipt says where the backup goes. `target` and `online` override what the cluster settled on, and are optional: left out they mean 'do what you would have done anyway'.
 
-| Field                | Value                                                                                                                                                                   |
-|----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id                   | cnpg.backup.request                                                                                                                                                     |
-| summary              | Ask the operator to back a cluster up now, using that cluster's own configuration                                                                                       |
-| safety               | write                                                                                                                                                                   |
-| idempotent           | false                                                                                                                                                                   |
-| cli                  | rta cnpg backup request \[--cluster \<string>\] \[--method \<string>\] \[--target \<string>\] \[--online \<string>\] \[--namespace \<string>\] \[--context \<string>\]  |
-| mcp-tool             | cnpg_backup_request                                                                                                                                                     |
-| grant required (mcp) | yes — a person must run \`rta grant allow cnpg.backup.request\`, optionally naming one cluster                                                                          |
-| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`                                      |
-| example              | rta cnpg backup request --cluster app-db --namespace production   # back one cluster up now                                                                             |
-| input:cluster        | string, required, completes, from config plugins.cnpg.cluster — the cluster to back up; empty lifts one a profile or the config pins                                    |
-| input:method         | string, one of: barmanObjectStore\|volumeSnapshot, from config plugins.cnpg.backup.method — how to take it — the cluster's own choice when omitted                      |
-| input:target         | string, one of: primary\|prefer-standby, from config plugins.cnpg.backup.target — which instance performs it — the cluster's own choice when omitted                    |
-| input:online         | string, one of: true\|false, from config plugins.cnpg.backup.online — hot or cold — only with a \`method\` of volumeSnapshot, and the cluster's own choice when omitted |
-| input:namespace      | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                           |
-| input:context        | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                    |
-| set a key            | rta config set plugins.cnpg.cluster \<value>                                                                                                                            |
-| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                            |
+| Field                | Value                                                                                                                                                                                                |
+|----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                   | cnpg.backup.request                                                                                                                                                                                  |
+| summary              | Ask the operator to back a cluster up now, using that cluster's own configuration                                                                                                                    |
+| safety               | write                                                                                                                                                                                                |
+| idempotent           | false                                                                                                                                                                                                |
+| cli                  | rta cnpg backup request \[--cluster \<string>\] \[--method \<string>\] \[--target \<string>\] \[--online \<string>\] \[--namespace \<string>\] \[--context \<string>\]                               |
+| mcp-tool             | cnpg_backup_request                                                                                                                                                                                  |
+| grant required (mcp) | yes — a person must run \`rta grant allow cnpg.backup.request\`, optionally naming one cluster                                                                                                       |
+| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`                                                                   |
+| example              | rta cnpg backup request --cluster app-db --namespace production   # back one cluster up now                                                                                                          |
+| example              | rta cnpg backup request --cluster app-db --method plugin --namespace production   # back one up through its WAL-archiver plugin                                                                      |
+| input:cluster        | string, required, completes, from config plugins.cnpg.cluster — the cluster to back up; empty lifts one a profile or the config pins                                                                 |
+| input:method         | string, one of: barmanObjectStore\|volumeSnapshot\|plugin, from config plugins.cnpg.backup.method — how to take it — its only configured mechanism when omitted; plugin asks its WAL-archiver plugin |
+| input:target         | string, one of: primary\|prefer-standby, from config plugins.cnpg.backup.target — which instance performs it — the cluster's own choice when omitted                                                 |
+| input:online         | string, one of: true\|false, from config plugins.cnpg.backup.online — hot or cold — only with a \`method\` of volumeSnapshot, and the cluster's own choice when omitted                              |
+| input:namespace      | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                                                        |
+| input:context        | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                                                 |
+| set a key            | rta config set plugins.cnpg.cluster \<value>                                                                                                                                                         |
+| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                         |
 
 ## cnpg.backup.show
 
