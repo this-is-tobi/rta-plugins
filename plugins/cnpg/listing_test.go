@@ -63,16 +63,17 @@ func TestTheKubectlCommandsAFailureOffersAskTheContextTheCallRead(t *testing.T) 
 	expired, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
 	defer cancel()
 	const missing = "error: the server doesn't have a resource type \"clusters\""
+	list := []string{"get", clusterCRD, "-o", "json"}
 	for name, tc := range map[string]struct {
 		ctx    context.Context
 		stderr string
 		want   string
 	}{
-		"timeout":     {expired, "", "`kubectl " + flag + " cluster-info`"},
-		"no operator": {context.Background(), missing, "`kubectl " + flag + " get crd | grep cnpg`"},
+		"timeout": {expired, "", "`kubectl " + flag + " cluster-info`"},
+		"no CRD":  {context.Background(), missing, "`kubectl " + flag + " get crd | grep cnpg`"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			got := classify(tc.ctx, &exec.ExitError{}, tc.stderr, nil, s.caller())
+			got := classify(tc.ctx, &exec.ExitError{}, tc.stderr, list, s.caller())
 			if !strings.Contains(got.Hint, tc.want) {
 				t.Errorf("hint = %q, want %q in it", got.Hint, tc.want)
 			}
