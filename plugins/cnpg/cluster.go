@@ -44,16 +44,16 @@ type cluster struct {
 		WalStorage struct {
 			Size string `json:"size"`
 		} `json:"walStorage"`
-		// Decoded only for presence: a cluster with no `backup` stanza has
-		// nothing to back it up, which is a different finding from one whose
-		// configured backups never succeed.
+		// Decoded for the shape of what is set up: a cluster with no `backup`
+		// stanza has nothing to back it up, which is a different finding from
+		// one whose configured backups never succeed, and which mechanisms are
+		// configured is the question a backup request has to answer before it
+		// sends anything.
 		//
-		// The two sub-stanzas are decoded for presence too, and only for
-		// presence: which mechanisms this cluster has configured is the
-		// question a backup request has to answer before it sends anything,
-		// and the contents are the object store's address beside references
-		// to the secrets holding its keys — which this plugin has no question
-		// that needs.
+		// Past the shape, only where the bytes go, under what server name and
+		// for how long (clusterBackup says why that much and no more): the
+		// object store's stanza holds that beside references to the secrets
+		// holding its keys, and the references are not decoded.
 		Backup *clusterBackup `json:"backup,omitempty"`
 		// Plugins is the other way a cluster can be backed up, and reading it
 		// is a correction rather than an addition.
@@ -160,20 +160,38 @@ type cluster struct {
 	} `json:"status"`
 }
 
-// clusterBackup is `.spec.backup`, decoded for the shape of what is set up
-// and never for its contents — the object store's address and the references
-// to the secrets holding its keys both live inside barmanObjectStore, and
-// nothing here has a question that needs either.
+// clusterBackup is `.spec.backup`: which mechanisms are set up, and for the
+// object store where it goes, under what server name and for how long.
+//
+// **That much and no further, and the line is a rule rather than a gap.** The
+// barmanObjectStore stanza holds that beside the endpoint's CA and references
+// to the secrets holding its keys, and a struct without a field for them cannot
+// grow a view that prints them — what is not decoded cannot be misinterpreted.
+// The destination, the server name and the retention are what `cnpg.backup.show`
+// is asked for and nothing else here has a question that needs more.
 type clusterBackup struct {
-	BarmanObjectStore *struct{} `json:"barmanObjectStore,omitempty"`
-	VolumeSnapshot    *struct{} `json:"volumeSnapshot,omitempty"`
+	BarmanObjectStore *barmanStore `json:"barmanObjectStore,omitempty"`
+	VolumeSnapshot    *struct{}    `json:"volumeSnapshot,omitempty"`
+	RetentionPolicy   string       `json:"retentionPolicy,omitempty"`
+}
+
+// barmanStore is where an in-tree object store sends its bytes. The path is
+// shown with whatever userinfo it carries stripped (plainURL), since a URL is
+// a place somebody may have put a credential in.
+type barmanStore struct {
+	DestinationPath string `json:"destinationPath,omitempty"`
+	ServerName      string `json:"serverName,omitempty"`
 }
 
 // clusterPlugin is one entry of `.spec.plugins`.
 //
-// `parameters` is not decoded: it is a free-form string map a plugin defines
-// for itself, and the barman-cloud one names the ObjectStore holding an
-// object store's address and credential references.
+// `parameters` is a free-form string map a plugin defines for itself, and the
+// only two keys read are the two the barman-cloud plugin documents: the
+// ObjectStore its backups and WAL go to, and the server name they are filed
+// under. A struct with those two fields drops every other key the plugin was
+// given, which is the same rule clusterBackup holds for its own stanza — a
+// plugin's parameters may be anything, credentials included, and what this
+// does not decode it cannot print.
 type clusterPlugin struct {
 	Name string `json:"name"`
 	// Enabled is a pointer because the CRD's default is true — an entry
@@ -181,6 +199,10 @@ type clusterPlugin struct {
 	// would report a backed-up cluster as unprotected.
 	Enabled       *bool `json:"enabled,omitempty"`
 	IsWALArchiver bool  `json:"isWALArchiver,omitempty"`
+	Parameters    struct {
+		BarmanObjectName string `json:"barmanObjectName,omitempty"`
+		ServerName       string `json:"serverName,omitempty"`
+	} `json:"parameters"`
 }
 
 func (p clusterPlugin) enabled() bool { return p.Enabled == nil || *p.Enabled }
@@ -190,12 +212,55 @@ func (p clusterPlugin) enabled() bool { return p.Enabled == nil || *p.Enabled }
 // At most one may be designated, which the CRD states, so the first is the
 // answer rather than one of several.
 func (c cluster) walArchiverPlugin() string {
+	return c.walArchiver().Name
+}
+
+// walArchiver is the enabled WAL-archiver entry itself, the zero entry when
+// there is none: what a question about the plugin's own parameters is asked of.
+func (c cluster) walArchiver() clusterPlugin {
 	for _, p := range c.Spec.Plugins {
 		if p.IsWALArchiver && p.enabled() && strings.TrimSpace(p.Name) != "" {
-			return p.Name
+			return p
 		}
 	}
+	return clusterPlugin{}
+}
+
+// barmanCloudPlugin is the name the barman-cloud plugin registers under, and
+// the only plugin whose parameters this reads: `barmanObjectName` means an
+// ObjectStore for it and means whatever it likes for any other.
+const barmanCloudPlugin = "barman-cloud.cloudnative-pg.io"
+
+// objectStoreName is the ObjectStore the cluster's barman-cloud plugin entry
+// names, or "" when it is not that plugin or names none.
+//
+// **Only for that plugin.** A parameter called barmanObjectName on an entry of
+// another plugin is that plugin's own word, and reading an ObjectStore of this
+// name because an unrelated plugin happened to spell a key alike would attribute
+// somebody else's configuration to the cluster's backups.
+func (c cluster) objectStoreName() string {
+	if p := c.walArchiver(); p.Name == barmanCloudPlugin {
+		return strings.TrimSpace(p.Parameters.BarmanObjectName)
+	}
 	return ""
+}
+
+// archiveServerName is the name the cluster's backups and WAL are filed under
+// in the object store: the one it states, or its own name, which is what both
+// the in-tree object store and the barman-cloud plugin file them under when
+// none is stated.
+func (c cluster) archiveServerName() string {
+	stated := ""
+	switch {
+	case c.walArchiver().Name == barmanCloudPlugin:
+		stated = c.walArchiver().Parameters.ServerName
+	case c.Spec.Backup != nil && c.Spec.Backup.BarmanObjectStore != nil:
+		stated = c.Spec.Backup.BarmanObjectStore.ServerName
+	}
+	if stated = strings.TrimSpace(stated); stated != "" {
+		return stated
+	}
+	return c.Metadata.Name
 }
 
 // backupConfigured reports whether anything at all would perform a backup of

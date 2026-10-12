@@ -38,7 +38,7 @@ func TestArchivingOnWithNoDestinationIsNotAFiveMinuteRecoveryPoint(t *testing.T)
 	}
 
 	// With a destination, the timeout is the answer it always was.
-	c.Spec.Backup = &clusterBackup{BarmanObjectStore: &struct{}{}}
+	c.Spec.Backup = &clusterBackup{BarmanObjectStore: &barmanStore{}}
 	if got := c.archivingLine(); !strings.Contains(got, "5min") ||
 		!strings.Contains(got, "recovery point objective") {
 		t.Errorf("with a destination the row says %q", got)
@@ -49,7 +49,7 @@ func TestArchivingOnWithNoDestinationIsNotAFiveMinuteRecoveryPoint(t *testing.T)
 // base backup is fine and recovers to its own instant and no further.
 func TestArchivingOffWithABackupConfiguredIsReported(t *testing.T) {
 	c := healthy()
-	c.Spec.Backup = &clusterBackup{BarmanObjectStore: &struct{}{}}
+	c.Spec.Backup = &clusterBackup{BarmanObjectStore: &barmanStore{}}
 	withParams(&c, map[string]string{"archive_mode": "off"})
 
 	if got := problemsIn(t, c)["WAL archiving"]; !strings.Contains(got, "no further") {
