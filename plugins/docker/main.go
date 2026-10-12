@@ -193,8 +193,11 @@ func Plugin() plugin.Plugin {
 				Run:        runEnv,
 			}),
 			cap(plugin.Capability{
-				ID:       "docker.container.stop",
-				Summary:  "Stop a running container",
+				ID:      "docker.container.stop",
+				Summary: "Stop a running container",
+				Examples: []plugin.Example{
+					{Title: "stop one container", Inputs: map[string]any{"container": "web"}},
+				},
 				Keywords: []string{"halt", "shutdown", "sigterm", "down"},
 				Description: "Sends SIGTERM and gives the container time to exit before the daemon " +
 					"kills it. Reversible — `docker start` brings it back with the same id, disk " +
@@ -207,8 +210,11 @@ func Plugin() plugin.Plugin {
 				Run:        runStop,
 			}),
 			cap(plugin.Capability{
-				ID:       "docker.container.restart",
-				Summary:  "Restart a container",
+				ID:      "docker.container.restart",
+				Summary: "Restart a container",
+				Examples: []plugin.Example{
+					{Title: "restart one container", Inputs: map[string]any{"container": "web"}},
+				},
 				Keywords: []string{"reboot", "bounce", "cycle", "reload"},
 				Description: "Stop then start, keeping the container's id, volumes and " +
 					"configuration. What it does lose is whatever was only in the process's memory " +
@@ -221,8 +227,11 @@ func Plugin() plugin.Plugin {
 				Run:        runRestart,
 			}),
 			cap(plugin.Capability{
-				ID:       "docker.container.rm",
-				Summary:  "Remove a container",
+				ID:      "docker.container.rm",
+				Summary: "Remove a container",
+				Examples: []plugin.Example{
+					{Title: "remove a container that is already stopped", Inputs: map[string]any{"container": "web"}},
+				},
 				Keywords: []string{"delete", "prune", "cleanup", "destroy"},
 				Description: "Deletes the container and its writable layer — everything written " +
 					"inside it that was not on a volume is gone, and it does not come back. Named " +

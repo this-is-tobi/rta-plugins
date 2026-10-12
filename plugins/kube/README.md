@@ -102,6 +102,7 @@ Rewrites current-context in the kubeconfig, which is what `kubectl config use-co
 | cli                  | rta kube context set \<name>                                                              |
 | mcp-tool             | kube_context_set                                                                          |
 | grant required (mcp) | yes — a person must run \`rta grant allow kube.context.set\`, optionally naming one name  |
+| example              | rta kube context set staging   # switch to another cluster's context                      |
 | input:name           | string, required, completes — the context to switch to — \`kube.context.list\` shows them |
 | dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates              |
 

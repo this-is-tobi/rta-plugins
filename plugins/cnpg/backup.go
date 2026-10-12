@@ -267,8 +267,11 @@ func emptyBackupBody(cluster string, s selection) string {
 
 func backupRequestCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:       "cnpg.backup.request",
-		Summary:  "Ask the operator to back a cluster up now, using that cluster's own configuration",
+		ID:      "cnpg.backup.request",
+		Summary: "Ask the operator to back a cluster up now, using that cluster's own configuration",
+		Examples: []plugin.Example{
+			{Title: "back one cluster up now", Inputs: map[string]any{"cluster": "app-db", "namespace": "production"}},
+		},
 		Keywords: []string{"barman", "snapshot", "trigger", "volumesnapshot"},
 		Safety:   plugin.Write,
 		// Not idempotent, and visibly so: two calls are two backups, each

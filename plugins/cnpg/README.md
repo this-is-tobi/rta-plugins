@@ -67,6 +67,7 @@ Refused when the cluster configures no backup at all. CloudNativePG accepts such
 | mcp-tool             | cnpg_backup_request                                                                                                                                                     |
 | grant required (mcp) | yes — a person must run \`rta grant allow cnpg.backup.request\`, optionally naming one cluster                                                                          |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`                                      |
+| example              | rta cnpg backup request --cluster app-db --namespace production   # back one cluster up now                                                                             |
 | input:cluster        | string, required, completes, from config plugins.cnpg.cluster — the cluster to back up                                                                                  |
 | input:method         | string, one of: barmanObjectStore\|volumeSnapshot, from config plugins.cnpg.backup.method — how to take it — the cluster's own choice when omitted                      |
 | input:target         | string, one of: primary\|prefer-standby, from config plugins.cnpg.backup.target — which instance performs it — the cluster's own choice when omitted                    |

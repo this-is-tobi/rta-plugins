@@ -413,8 +413,11 @@ func Plugin() plugin.Plugin {
 			// whole subject is which context becomes current. Offering
 			// both would be two spellings of the same argument, one of
 			// which kubectl ignores.
-			ID:       "kube.context.set",
-			Summary:  "Switch this machine's current kubeconfig context",
+			ID:      "kube.context.set",
+			Summary: "Switch this machine's current kubeconfig context",
+			Examples: []plugin.Example{
+				{Title: "switch to another cluster's context", Inputs: map[string]any{"name": "staging"}},
+			},
 			Keywords: []string{"switch", "kubectx", "use", "change"},
 			Description: "Rewrites current-context in the kubeconfig, which is what `kubectl " +
 				"config use-context` does. Every later command on this machine follows it — " +

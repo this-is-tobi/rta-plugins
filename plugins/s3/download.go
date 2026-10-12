@@ -66,8 +66,11 @@ func s3BucketDownloadCapability() plugin.Capability {
 		ID:        "s3.bucket.download",
 		HumanOnly: true,
 		Summary:   "Copy a bucket to a local directory, for a person at a terminal",
-		Keywords:  []string{"sync", "backup", "mirror", "pull"},
-		Safety:    plugin.Write,
+		Examples: []plugin.Example{
+			{Title: "copy one prefix of a bucket", Inputs: map[string]any{"bucket": "backups", "prefix": "2026/"}},
+		},
+		Keywords: []string{"sync", "backup", "mirror", "pull"},
+		Safety:   plugin.Write,
 		// Running it twice at the same --out refuses rather than merging into
 		// a directory whose contents would then be from two different times.
 		Idempotent: false,

@@ -107,6 +107,7 @@ Stop then start, keeping the container's id, volumes and configuration. What it 
 | mcp-tool             | docker_container_restart                                                                                                                                              |
 | grant required (mcp) | yes — a person must run \`rta grant allow docker.container.restart\`, optionally naming one container                                                                 |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                  |
+| example              | rta docker container restart web   # restart one container                                                                                                            |
 | input:container      | string, required, completes — the container to restart                                                                                                                |
 | input:host           | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
 | input:context        | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
@@ -127,6 +128,7 @@ Deletes the container and its writable layer — everything written inside it th
 | mcp-tool             | docker_container_rm                                                                                                                                                   |
 | grant required (mcp) | yes — a person must run \`rta grant allow docker.container.rm\`, optionally naming one container                                                                      |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                  |
+| example              | rta docker container rm web   # remove a container that is already stopped                                                                                            |
 | input:container      | string, required, completes — the container to remove — it must be stopped                                                                                            |
 | input:host           | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
 | input:context        | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
@@ -147,6 +149,7 @@ Sends SIGTERM and gives the container time to exit before the daemon kills it. R
 | mcp-tool             | docker_container_stop                                                                                                                                                 |
 | grant required (mcp) | yes — a person must run \`rta grant allow docker.container.stop\`, optionally naming one container                                                                    |
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                  |
+| example              | rta docker container stop web   # stop one container                                                                                                                  |
 | input:container      | string, required, completes — the container to stop                                                                                                                   |
 | input:host           | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
 | input:context        | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
