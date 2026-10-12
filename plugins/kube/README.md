@@ -79,15 +79,16 @@ What a call from this machine would reach right now. Reads the kubeconfig only; 
 
 Reads the kubeconfig only — no cluster is contacted, so this answers even when every cluster in it is unreachable. The current context is marked, and it is the one every other capability here uses unless config names another.
 
-| Field      | Value                                                                                                                                                                |
-|------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id         | kube.context.list                                                                                                                                                    |
-| summary    | Every context in this machine's kubeconfig, and which one is current                                                                                                 |
-| safety     | read                                                                                                                                                                 |
-| idempotent | true                                                                                                                                                                 |
-| cli        | rta kube context list                                                                                                                                                |
-| mcp-tool   | kube_context_list                                                                                                                                                    |
-| dashboard  | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.context.list\`, or + on it in the TUI, puts it there, re-run every few seconds |
+| Field                | Value                                                                                                                                                                |
+|----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                   | kube.context.list                                                                                                                                                    |
+| summary              | Every context in this machine's kubeconfig, and which one is current                                                                                                 |
+| safety               | read                                                                                                                                                                 |
+| idempotent           | true                                                                                                                                                                 |
+| cli                  | rta kube context list                                                                                                                                                |
+| mcp-tool             | kube_context_list                                                                                                                                                    |
+| grant required (mcp) | yes — a person must run \`rta grant allow kube.context.list\`                                                                                                        |
+| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.context.list\`, or + on it in the TUI, puts it there, re-run every few seconds |
 
 ## kube.context.set
 

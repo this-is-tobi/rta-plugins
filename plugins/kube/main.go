@@ -142,6 +142,15 @@ func Plugin() plugin.Plugin {
 				"and it is the one every other capability here uses unless config names another.",
 			Safety:     plugin.Read,
 			Idempotent: true,
+			// A read that contacts nothing, and still the inventory of every
+			// destination this machine can reach: each context's cluster, user,
+			// default namespace and API server address. An agent is not handed
+			// the names of the operator's profiles for the same reason (the
+			// profile schema publishes no enum and an unknown name is refused as
+			// an ungranted one is), and this would give it the same map a level
+			// down. It costs a person at a terminal nothing; an agent asks the
+			// operator, who knows which context it should be using.
+			NeedsGrant: true,
 			NoPreview:  true,
 			Run:        runContextList,
 		},
