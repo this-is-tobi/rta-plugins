@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.7.1...plugins/mariadb/v0.7.2) (2026-10-12)
+
+
+### Dependencies
+
+* every plugin builds against rta v0.38.1 ([55255dc](https://github.com/this-is-tobi/rta-plugins/commit/55255dc0a07a9f3543eab5db21808f59df0ae679))
+* every plugin builds with Go 1.26.9 and golang.org/x/net v0.60.0 ([d4918b6](https://github.com/this-is-tobi/rta-plugins/commit/d4918b6e7939372a07c5ae89301fbeb24c169901))
+
 ## [0.7.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.7.0...plugins/mariadb/v0.7.1) (2026-10-07)
 
 

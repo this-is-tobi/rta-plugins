@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.6.1...plugins/s3/v0.6.2) (2026-10-12)
+
+
+### Bug Fixes
+
+* **s3:** a malformed bucket name is reported as the argument, not a connection failure ([75993f9](https://github.com/this-is-tobi/rta-plugins/commit/75993f9e98069de8612727d95a6dbec64fa9ff86))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.38.1 ([55255dc](https://github.com/this-is-tobi/rta-plugins/commit/55255dc0a07a9f3543eab5db21808f59df0ae679))
+* every plugin builds with Go 1.26.9 and golang.org/x/net v0.60.0 ([d4918b6](https://github.com/this-is-tobi/rta-plugins/commit/d4918b6e7939372a07c5ae89301fbeb24c169901))
+
 ## [0.6.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.6.0...plugins/s3/v0.6.1) (2026-10-07)
 
 
