@@ -150,6 +150,11 @@ type cluster struct {
 
 		Conditions []condition `json:"conditions"`
 
+		// PluginStatus is what each loaded plugin declared of itself to the
+		// operator on its last reconcile. Decoded for one question, whether the
+		// WAL-archiver plugin says it can take a backup (pluginDeclaresBackup).
+		PluginStatus []clusterPluginStatus `json:"pluginStatus"`
+
 		Topology struct {
 			NodesUsed int `json:"nodesUsed"`
 		} `json:"topology"`
@@ -273,27 +278,14 @@ func (c cluster) backupConfigured() bool {
 	return c.Spec.Backup != nil || c.walArchiverPlugin() != ""
 }
 
-// defaultBackupMethod is what CloudNativePG uses for a Backup that names no
-// method.
+// configuredMethods lists the backup mechanisms this cluster has set up, in the
+// order a Backup's method names them.
 //
-// **A fixed default, not the cluster's preference**, which is the correction a
-// live operator forced. The CRD says it in as many words — `spec.method`
-// "Defaults to: `barmanObjectStore`" — while `spec.target` right beside it
-// says "If empty, it defaults to `cluster.spec.backup.target`". The two fields
-// read alike and behave differently, and treating method like target meant
-// rta would tell an operator the cluster had chosen when nothing had: a
-// cluster configured only for volume snapshots gets a barmanObjectStore
-// backup it cannot perform, failing minutes later with rta's receipt already
-// saying the cluster decided.
-const defaultBackupMethod = "barmanObjectStore"
-
-// configuredMethods lists the backup mechanisms this cluster has set up.
-//
-// Presence only, and permissive where it cannot see. A WAL-archiver plugin
-// carries its own configuration in an ObjectStore resource this plugin does
-// not read, so a cluster using one gets no opinion from here rather than a
-// guess — refusing a legitimate backup is a worse failure than letting the
-// API server have the last word, which it has either way.
+// What the resource just fetched states and nothing it would have to guess: a
+// `.spec.backup` stanza is a mechanism for each sub-stanza it carries, and an
+// enabled WAL-archiver plugin is the third. Whether that plugin can take a
+// backup, and whether the ObjectStore it names exists, are other questions with
+// other reads (pluginDeclaresBackup, readObjectStore).
 func (c cluster) configuredMethods() []string {
 	var out []string
 	if b := c.Spec.Backup; b != nil {
@@ -316,30 +308,57 @@ func (c cluster) configuredMethods() []string {
 //
 // **The generosity used to be keyed on the cluster and it needed to be keyed
 // on the method.** "A WAL-archiver plugin is configured, so allow anything"
-// let the *ordinary* call through — no `--method`, which CloudNativePG
-// defaults to barmanObjectStore — against precisely the clusters that cannot
-// perform one: a cluster archiving through a plugin has no `.spec.backup` at
-// all, because the CRD says the two cannot coexist. The Backup was created,
-// accepted, and failed minutes later in a place nobody is looking, with rta's
-// receipt already saying it had checked. That is the exact failure this
-// pre-flight exists to prevent, so the one arrangement it was blind to was the
-// newer of the two ways to back a cluster up.
+// let the ordinary call through against precisely the clusters that could not
+// perform it: a cluster archiving through a plugin has no `.spec.backup` at
+// all, because the CRD says the two cannot coexist, so a barmanObjectStore
+// Backup was created, accepted, and failed minutes later in a place nobody is
+// looking, with rta's receipt already saying it had checked.
 //
-// What rta can see is `.spec.backup`: barmanObjectStore and volumeSnapshot are
-// stanzas in the resource just fetched, so a cluster stating neither cannot
-// take either and saying so is a fact rather than a guess. Everything else —
-// `plugin`, whose configuration lives in an ObjectStore resource this plugin
-// does not read, and any method a future CRD adds — is left to the API server,
-// because refusing a legitimate backup is a worse failure than letting the
-// server have the last word, which it has either way.
+// Every method rta can name is a fact about the resource just fetched: the two
+// stanzas of `.spec.backup` are there or not, and so is the plugin entry that
+// `plugin` is copied from — a Backup of method plugin with nothing to name in
+// its pluginConfiguration cannot be built, so a cluster without the entry is
+// refused here and not left to the webhook. What stays generous is a method a
+// future CRD adds, which this plugin cannot judge, and refusing a legitimate
+// backup is a worse failure than letting the API server have the last word.
 func (c cluster) canTake(method string) bool {
-	if method == "" {
-		method = defaultBackupMethod
-	}
 	if slices.Contains(c.configuredMethods(), method) {
 		return true
 	}
-	return method != defaultBackupMethod && method != "volumeSnapshot"
+	return !slices.Contains(backupMethods, method)
+}
+
+// clusterPluginStatus is one entry of the Cluster's `status.pluginStatus`.
+type clusterPluginStatus struct {
+	Name string `json:"name"`
+	// BackupCapabilities are the protobuf names of what the plugin declared it
+	// can do regarding backups, as the operator writes them: RPC_TYPE_BACKUP is
+	// the one the operator itself checks before it hands a plugin a Backup.
+	BackupCapabilities []string `json:"backupCapabilities"`
+}
+
+// backupCapability is the declaration the operator requires of a plugin before
+// it will ask it for a backup, and fails the Backup without when it is absent.
+const backupCapability = "RPC_TYPE_BACKUP"
+
+// pluginDeclaresBackup reports whether the cluster's WAL-archiver plugin has
+// declared it can take a backup, and whether the resource says anything about
+// that plugin at all.
+//
+// **Refusal needs the entry to be there.** A plugin's status is rebuilt on each
+// reconcile from the plugins the operator has loaded, so an entry that names the
+// plugin and lists no backup capability is the operator saying what the plugin
+// told it. An absent entry is the operator saying nothing — a plugin not loaded
+// yet, or an operator older than the field — and that is not a plugin that
+// cannot back up, so it is `known` false and the caller does not refuse on it.
+func (c cluster) pluginDeclaresBackup() (declared, known bool) {
+	name := c.walArchiverPlugin()
+	for _, st := range c.Status.PluginStatus {
+		if st.Name == name {
+			return slices.Contains(st.BackupCapabilities, backupCapability), true
+		}
+	}
+	return false, false
 }
 
 type instanceState struct {

@@ -32,32 +32,59 @@ type answer struct {
 // assert on what was asked as well as on what the page says.
 func routedKubectl(t *testing.T, routes answers) (calls func() []string) {
 	t.Helper()
+	calls, _ = routedKubectlWithStdin(t, routes)
+	return calls
+}
+
+// routedKubectlWithStdin is routedKubectl for a call that also writes: a create
+// is answered by the route named "create", and the document it was given on
+// standard input is kept for the test to read.
+func routedKubectlWithStdin(t *testing.T, routes answers) (calls func() []string, stdin func() string) {
+	t.Helper()
 	dir := t.TempDir()
 	log := filepath.Join(dir, "calls")
+	sent := filepath.Join(dir, "stdin")
 	var script strings.Builder
-	script.WriteString("echo \"$@\" >> " + log + "\ncase \"$2\" in\n")
+	script.WriteString("echo \"$@\" >> " + log + "\n")
+	script.WriteString("if [ \"$1\" = create ]; then cat > " + sent + "; fi\n")
 	i := 0
-	for resource, a := range routes {
+	emit := func(resource string, a answer) {
 		i++
 		if a.stderr != "" {
 			stderr := filepath.Join(dir, fmt.Sprintf("stderr-%d", i))
 			writeFile(t, stderr, a.stderr)
 			script.WriteString(resource + ") cat " + stderr + " >&2; exit 1 ;;\n")
-			continue
+			return
 		}
 		body := filepath.Join(dir, fmt.Sprintf("body-%d.json", i))
 		writeFile(t, body, mustJSON(t, a.body))
 		script.WriteString(resource + ") cat " + body + " ;;\n")
 	}
-	script.WriteString("*) echo \"nothing answers for $2\" >&2; exit 1 ;;\nesac\n")
+	script.WriteString("case \"$1\" in\n")
+	if a, ok := routes["create"]; ok {
+		emit("create", a)
+	}
+	script.WriteString("*) case \"$2\" in\n")
+	for resource, a := range routes {
+		if resource != "create" {
+			emit(resource, a)
+		}
+	}
+	script.WriteString("*) echo \"nothing answers for $2\" >&2; exit 1 ;;\nesac ;;\nesac\n")
 	fakeKubectl(t, script.String())
 	return func() []string {
-		raw, err := os.ReadFile(log)
-		if err != nil {
-			return nil
+			raw, err := os.ReadFile(log)
+			if err != nil {
+				return nil
+			}
+			return strings.Split(strings.TrimSpace(string(raw)), "\n")
+		}, func() string {
+			raw, err := os.ReadFile(sent)
+			if err != nil {
+				return ""
+			}
+			return string(raw)
 		}
-		return strings.Split(strings.TrimSpace(string(raw)), "\n")
-	}
 }
 
 // noSecretReads fails if any call this test's kubectl was given asked for a
