@@ -241,22 +241,24 @@ func (c caller) listEverywhere() string {
 	return "`" + c.sf.Call("cnpg.list", append([]plugin.Arg{{Name: "all-namespaces", Value: true}}, c.reach...)...) + "`"
 }
 
-// where names what was read, for a message that has to say which cluster.
+// where names what was read, for a message that has to say which cluster — and
+// which part of it. A call that names no namespace read the context's own,
+// which is not the cluster, and a sentence that said "in the current context"
+// of it told somebody with clusters in another namespace that there were none.
 func (s selection) where() string {
-	parts := []string{}
-	if s.context != "" {
-		parts = append(parts, "context "+s.context)
-	}
+	var scope string
 	switch {
 	case s.allNamespace:
-		parts = append(parts, "every namespace")
+		scope = "every namespace"
 	case s.namespace != "":
-		parts = append(parts, "namespace "+s.namespace)
+		scope = "namespace " + s.namespace
+	default:
+		scope = "the context's own namespace"
 	}
-	if len(parts) == 0 {
-		return "the current context"
+	if s.context != "" {
+		return "context " + s.context + ", " + scope
 	}
-	return strings.Join(parts, ", ")
+	return scope
 }
 
 // sf is the surface the call came through: a failure names the call to make
@@ -305,7 +307,7 @@ func classify(ctx context.Context, err error, stderr string, args []string, by c
 				"issues your cluster credentials (`tsh kube login`, `aws eks get-token`, " +
 				"`gcloud`, an OIDC refresh) needs running again")
 	case strings.Contains(s, "forbidden"):
-		return denied(by, askedOf(s, args))
+		return denied(by, askedOf(s, args), args)
 	case strings.Contains(s, "server doesn't have a resource type"):
 		return crdMissing(by, askedOf(s, args))
 	case strings.Contains(s, "the server could not find the requested resource"):

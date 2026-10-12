@@ -81,30 +81,34 @@ func TestTheKubectlCommandsAFailureOffersAskTheContextTheCallRead(t *testing.T) 
 	}
 }
 
-// The same listing, from the capabilities that were asked about no cluster at
-// all: they name the cluster in a context a call chose, and the listing they
-// point at read the current one.
+// The same listing, from the call that was asked about no cluster at all and
+// cannot go on without one: it names the cluster in a context a call chose, and
+// the listing it points at read the current one.
 func TestTheListingACallWithNoClusterOffersReachesTheContextItWasMadeIn(t *testing.T) {
 	fakeKubectl(t, `echo '{"items":[]}'`)
-	values := map[string]any{"context": "kind", "cluster": ""}
 	want := "`rta cnpg list --all-namespaces --context kind`"
-	for name, run := range map[string]func(context.Context, plugin.Request) (view.View, error){
-		"backup request": runBackupRequest, "storage": runStorage,
+	_, err := runBackupRequest(context.Background(),
+		req(map[string]any{"context": "kind", "cluster": ""}).WithSurface(plugin.SurfaceCLI))
+	var verr *view.Error
+	if !errors.As(err, &verr) || !strings.Contains(verr.Hint, want) {
+		t.Errorf("err = %v, want a hint naming %s", err, want)
+	}
+
+	// A volume read has no such refusal: with no cluster it reads every
+	// cluster's, and an empty answer is where the listing is offered.
+	for name, values := range map[string]map[string]any{
+		"a named cluster":     {"context": "kind", "cluster": "shop"},
+		"no cluster at all":   {"context": "kind", "cluster": ""},
+		"every namespace too": {"context": "kind", "all-namespaces": true},
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, err := run(context.Background(), req(values).WithSurface(plugin.SurfaceCLI))
-			var verr *view.Error
-			if !errors.As(err, &verr) || !strings.Contains(verr.Hint, want) {
-				t.Errorf("err = %v, want a hint naming %s", err, want)
+			v, err := runStorage(context.Background(), req(values).WithSurface(plugin.SurfaceCLI))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if body := v.(view.Text).Body; !strings.Contains(body, want) {
+				t.Errorf("body = %q, want %s in it", body, want)
 			}
 		})
-	}
-	v, err := runStorage(context.Background(), req(map[string]any{"context": "kind", "cluster": "shop"}).
-		WithSurface(plugin.SurfaceCLI))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if body := v.(view.Text).Body; !strings.Contains(body, want) {
-		t.Errorf("body = %q, want %s in it", body, want)
 	}
 }

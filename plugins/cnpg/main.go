@@ -93,12 +93,42 @@ func connFields() []plugin.Field {
 // day-to-day call is `rta cnpg status` with nothing typed. Config is refused
 // on a positional — args fill positionals left to right, so a config-filled
 // first argument would change what a typed one means — and kubectl draws the
-// same line: the scope is a flag, the record is the argument. Required, so a
-// call with neither a flag nor a configured value is refused before it
-// reaches the cluster, naming both ways to supply one.
-func clusterField(help string) plugin.Field {
-	return plugin.Field{Name: "cluster", Short: "c", Type: plugin.String, Required: true, Config: "cluster",
-		Help: help, Live: true, Suggest: suggestClusters}
+// same line: the scope is a flag, the record is the argument.
+//
+// Required for a capability that works on one cluster, so a call with neither a
+// flag nor a configured value is refused before it reaches the cluster, naming
+// both ways to supply one; optional for a read that is a filter, where leaving
+// it out means every cluster in the connection.
+//
+// **An empty value is a value, and it lifts a pin.** plugin.Resolve lets any
+// value the caller gave win over the profile and the config, an empty string
+// included, so `cluster: ""` against a profile that pins `shop-prod` reads
+// every cluster (or, where it is Required, is refused as missing) rather than
+// shop-prod. That is how a pinned default is overridden for one call, and the
+// help says so; whether a caller may do it is the host's to decide, and a test
+// holds this declaration to the behaviour it describes.
+func clusterField(help string, required bool) plugin.Field {
+	return plugin.Field{Name: "cluster", Short: "c", Type: plugin.String, Required: required, Config: "cluster",
+		Help: help + "; empty lifts one a profile or the config pins", Live: true, Suggest: suggestClusters}
+}
+
+// allNamespacesField is the wide form of a read that takes a namespace: the
+// same read over every namespace in the connection, in place of the one it
+// would have made.
+//
+// One declaration for every capability that has it, so the name, the letter
+// and the refusal of a namespace given beside it (selectionOf) are one thing
+// and not three that drifted. Declared by the reads and by no write: a call
+// that changes something names the one record it changes, and a switch that
+// widened it would be a grant covering every namespace the kubeconfig reaches.
+//
+// No Config key, deliberately. A namespace is a place somebody sets once and
+// keeps; "every namespace" is the answer to a question asked now, and a
+// default of it in a file nobody is watching would widen every read made
+// through that file without anybody having typed the word.
+func allNamespacesField() plugin.Field {
+	return plugin.Field{Name: "all-namespaces", Short: "A", Type: plugin.Bool,
+		Help: "every namespace instead of one"}
 }
 
 func nsFields() []plugin.Field {
@@ -110,6 +140,30 @@ func nsFields() []plugin.Field {
 			Help: "namespace to look in — the context's own when omitted",
 			Live: true, Suggest: suggestNamespaces},
 	}
+}
+
+// leading puts the Namespace column ahead of cols when the read covered every
+// namespace, and leaves them alone otherwise.
+//
+// A column that says what is already said is noise, and in one namespace the
+// namespace is the question that was asked. Across all of them a row without
+// its namespace is a name that may mean two things: two clusters called
+// app-db in two namespaces are two databases, and a listing that does not say
+// which is which is a listing nobody can act on. So the scope leads, only
+// when it is a variable, in every wide read the same way.
+func (s selection) leading(cols ...view.Column) []view.Column {
+	if !s.allNamespace {
+		return cols
+	}
+	return append([]view.Column{{Name: "Namespace"}}, cols...)
+}
+
+// lead is leading for a row: the namespace ahead of cells, in the wide read.
+func (s selection) lead(namespace string, cells ...string) []string {
+	if !s.allNamespace {
+		return cells
+	}
+	return append([]string{namespace}, cells...)
 }
 
 // cap assembles a capability's inputs in the order a person reads them, and
@@ -152,13 +206,12 @@ func Plugin() plugin.Plugin {
 					"with the columns the CRD itself declares as printer columns — so this and " +
 					"`kubectl get` answer the same question the same way. Ready is " +
 					"ready/desired instances; a cluster short of its own spec is graded as a " +
-					"problem whatever its phase says. Reads one custom resource and nothing " +
+					"problem whatever its phase says. Reads the context's own namespace unless " +
+					"`namespace` names another or `all-namespaces` reads every one, and an empty " +
+					"answer says which it read. Reads one custom resource and nothing " +
 					"else: no pods, no exec, no logs.",
-				Inputs: []plugin.Field{
-					{Name: "all-namespaces", Short: "A", Type: plugin.Bool,
-						Help: "every namespace instead of one"},
-				},
-				Run: runList,
+				Inputs: []plugin.Field{allNamespacesField()},
+				Run:    runList,
 			}),
 			cap(plugin.Capability{
 				ID: "cnpg.status", Summary: "One cluster in depth: instances, replication, backups, storage",
@@ -200,7 +253,7 @@ func Plugin() plugin.Plugin {
 					"replication posture, resource bounds and superuser access. Replication positions and lag " +
 					"are not in the resource: the answer points to the PostgreSQL plugin's replication " +
 					"capability, which reads them from the primary. One GET of one resource: no pods, exec or logs.",
-				Inputs: []plugin.Field{clusterField("the cluster to read")},
+				Inputs: []plugin.Field{clusterField("the cluster to read", true)},
 				Run:    runStatus,
 			}),
 			backupListCapability(),
@@ -220,7 +273,7 @@ func runList(ctx context.Context, req plugin.Request) (view.View, error) {
 		return nil, verr
 	}
 	if len(list.Items) == 0 {
-		return view.Text{Body: "No CloudNativePG clusters in " + s.where() + "."}, nil
+		return view.Text{Body: emptyClusterBody(s)}, nil
 	}
 
 	t := view.Table{Columns: []view.Column{
@@ -244,6 +297,19 @@ func runList(ctx context.Context, req plugin.Request) (view.View, error) {
 	}
 	t.Total = len(t.Rows)
 	return t, nil
+}
+
+// emptyClusterBody says where it looked, and what that was: a call that names
+// no namespace reads the context's own and not the whole cluster, and an empty
+// answer that did not say so read as "there are none" to somebody whose
+// clusters live in another namespace. Unless the read already covered them
+// all, it names the call that does.
+func emptyClusterBody(s selection) string {
+	body := "No CloudNativePG clusters in " + s.where() + "."
+	if !s.allNamespace {
+		body += "\n\n" + s.caller().listEverywhere() + " reads every namespace."
+	}
+	return body
 }
 
 func runStatus(ctx context.Context, req plugin.Request) (view.View, error) {
