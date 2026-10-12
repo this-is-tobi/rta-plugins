@@ -447,12 +447,6 @@ type backupRequest struct {
 	} `json:"spec"`
 }
 
-// requestedBy labels what rta asked for, so an operator finding an unexpected
-// backup can tell where it came from without reading an audit log on another
-// machine. It records the tool and nothing about who ran it: rta's ledger is
-// where "which agent, under which grant" is answered, and copying an identity
-// into a cluster object would put it somewhere with different readers and no
-// expiry.
 // backupMethods are the methods rta can build a whole Backup for, which is not
 // the same list as the ones the CRD accepts — and the difference is stated
 // once so the declaration and the check cannot drift.
@@ -473,6 +467,12 @@ type backupRequest struct {
 // knows.
 var backupMethods = []string{"barmanObjectStore", "volumeSnapshot"}
 
+// requestedBy labels what rta asked for, so an operator finding an unexpected
+// backup can tell where it came from without reading an audit log on another
+// machine. It records the tool and nothing about who ran it: rta's ledger is
+// where "which agent, under which grant" is answered, and copying an identity
+// into a cluster object would put it somewhere with different readers and no
+// expiry.
 const requestedBy = "app.kubernetes.io/created-by"
 
 func runBackupRequest(ctx context.Context, req plugin.Request) (view.View, error) {
