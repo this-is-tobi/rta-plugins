@@ -62,10 +62,10 @@ A soft delete: the data of the versions named is hidden and vault.kv.undelete br
 | input:path            | string, required, completes — the secret's path within the mount                                                                                                                                                |
 | input:versions        | stringSlice — version numbers written as text, \["2", "3"\], as vault.kv.history lists them; none means the current version                                                                                     |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address                         |
-| input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                                  |
+| input:namespace       | string, local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                                            |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                                               |
-| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                          |
-| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                                  |
+| input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                    |
+| input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                                            |
 | set a key             | rta config set plugins.vault.kv-mount secret                                                                                                                                                                    |
 | dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                    |
 
@@ -87,10 +87,10 @@ The versions named are gone: the data is erased and the chain keeps only the fac
 | input:path            | string, required, completes — the secret's path within the mount                                                                                                                                             |
 | input:versions        | stringSlice, required — version numbers written as text, \["2", "3"\], as vault.kv.history lists them                                                                                                        |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address                      |
-| input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                               |
+| input:namespace       | string, local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                                         |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                                            |
-| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                       |
-| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                               |
+| input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                 |
+| input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                                         |
 | set a key             | rta config set plugins.vault.kv-mount secret                                                                                                                                                                 |
 | dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                 |
 
@@ -114,10 +114,10 @@ Returns the secret's plaintext, which is why it needs a grant although nothing h
 | input:path            | string, required, completes — the secret's path within the mount                                                                                                                                    |
 | input:version         | int, default 0, a value of at least 0 — a specific version, as vault.kv.history numbers them; 0 is the current one                                                                                  |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address             |
-| input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                      |
+| input:namespace       | string, local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                                |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                                   |
-| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                              |
-| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                      |
+| input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                        |
+| input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                                |
 | set a key             | rta config set plugins.vault.kv-mount secret                                                                                                                                                        |
 | dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                        |
 
@@ -138,10 +138,10 @@ Every version the engine still knows about, when each was written, and whether i
 | input:mount           | string, default secret, completes, local (never offered to MCP callers), from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                     |
 | input:path            | string, required, completes — the secret's path within the mount                                                                                                                        |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
-| input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
+| input:namespace       | string, local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                    |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
-| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host          |
+| input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                            |
+| input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                    |
 | set a key             | rta config set plugins.vault.kv-mount secret                                                                                                                                            |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.kv.history --set path=…\` puts it there, re-run every few seconds                                |
 
@@ -160,12 +160,12 @@ Names only, never values — vault.kv.get is where a secret's data is. A name en
 | profiles              | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
 | example               | rta vault kv list app/   # the secrets under a path                                                                                                                                     |
 | input:mount           | string, default secret, completes, local (never offered to MCP callers), from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                     |
-| input:path            | string, default , completes — list under this path; empty lists the mount's root                                                                                                        |
+| input:path            | string, completes — list under this path; empty lists the mount's root                                                                                                                  |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
-| input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
+| input:namespace       | string, local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                    |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
-| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host          |
+| input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                            |
+| input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                    |
 | set a key             | rta config set plugins.vault.kv-mount secret                                                                                                                                            |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.kv.list\`, or + on it in the TUI, puts it there, re-run every few seconds                        |
 
@@ -187,10 +187,10 @@ Always creates a new version holding exactly `data`: the fields of the current v
 | input:path            | string, required, completes — the secret's path within the mount                                                                                                                                     |
 | input:data            | secretSlice, required — key=value, repeated for more than one field                                                                                                                                  |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address              |
-| input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                       |
+| input:namespace       | string, local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                                 |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                                    |
-| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                               |
-| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                       |
+| input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                         |
+| input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                                 |
 | set a key             | rta config set plugins.vault.kv-mount secret                                                                                                                                                         |
 | dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                         |
 
@@ -213,13 +213,13 @@ Bounded in both directions, and it says when it stopped. A folder the token may 
 | profiles              | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                                 |
 | example               | rta vault kv tree --depth 2   # the whole mount, two levels deep                                                                                                                                    |
 | input:mount           | string, default secret, completes, local (never offered to MCP callers), from config plugins.vault.kv-mount — the KV v2 secrets engine's mount path                                                 |
-| input:path            | string, default , completes — start here; empty walks the whole mount                                                                                                                               |
+| input:path            | string, completes — start here; empty walks the whole mount                                                                                                                                         |
 | input:depth           | int, default 4, a value from 1 to 20, from config plugins.vault.depth — how many levels to expand                                                                                                   |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address             |
-| input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                      |
+| input:namespace       | string, local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                                |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                                   |
-| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                              |
-| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                      |
+| input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                        |
+| input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                                |
 | set a key             | rta config set plugins.vault.kv-mount secret                                                                                                                                                        |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.kv.tree\`, or + on it in the TUI, puts it there, re-run every few seconds                                    |
 
@@ -242,10 +242,10 @@ The other half of vault.kv.delete: the versions named become readable again, exa
 | input:path            | string, required, completes — the secret's path within the mount                                                                                                                                              |
 | input:versions        | stringSlice, required — version numbers written as text, \["2", "3"\], as vault.kv.history lists them                                                                                                         |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address                       |
-| input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                                |
+| input:namespace       | string, local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                                          |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                                             |
-| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                        |
-| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                                |
+| input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                  |
+| input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                                          |
 | set a key             | rta config set plugins.vault.kv-mount secret                                                                                                                                                                  |
 | dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                  |
 
@@ -264,10 +264,10 @@ When a leased secret (a database credential, an issued certificate) expires and 
 | profiles              | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
 | input:id              | string, required — the lease ID, as the response that issued the secret reports it (lease_id)                                                                                           |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
-| input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
+| input:namespace       | string, local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                    |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
-| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host          |
+| input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                            |
+| input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                    |
 | set a key             | rta config set plugins.vault.address http://127.0.0.1:8200                                                                                                                              |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.lease.show --set id=…\` puts it there, re-run every few seconds                                  |
 
@@ -285,10 +285,10 @@ Whether this Vault is worth talking to at all, and what the configured token can
 | mcp-tool              | vault_overview                                                                                                                                                                          |
 | profiles              | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
-| input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
+| input:namespace       | string, local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                    |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
-| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host          |
+| input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                            |
+| input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                    |
 | set a key             | rta config set plugins.vault.address http://127.0.0.1:8200                                                                                                                              |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.overview\`, or + on it in the TUI, puts it there, re-run every few seconds                       |
 | input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                      |
@@ -306,10 +306,10 @@ Whether this Vault is worth talking to at all, and what the configured token can
 | profiles              | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
 | input:name            | string, required, completes — the policy's name, as vault.policy.list shows it                                                                                                          |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
-| input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
+| input:namespace       | string, local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                    |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
-| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host          |
+| input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                            |
+| input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                    |
 | set a key             | rta config set plugins.vault.address http://127.0.0.1:8200                                                                                                                              |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.policy.get --set name=…\` puts it there, re-run every few seconds                                |
 
@@ -327,10 +327,10 @@ Names, not rules — vault.policy.get shows one policy's own document. A policy 
 | mcp-tool              | vault_policy_list                                                                                                                                                                       |
 | profiles              | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
-| input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
+| input:namespace       | string, local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                    |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
-| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host          |
+| input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                            |
+| input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                    |
 | set a key             | rta config set plugins.vault.address http://127.0.0.1:8200                                                                                                                              |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.policy.list\`, or + on it in the TUI, puts it there, re-run every few seconds                    |
 
@@ -354,10 +354,10 @@ A snapshot from a different cluster is refused by Vault itself unless `force` sk
 | input:file            | path, required, local (never offered to MCP callers) — the snapshot to restore — what vault.snapshot wrote                                                                              |
 | input:force           | bool — restore a snapshot from a different cluster (skips Vault's identity check; unsealing afterwards needs the source cluster's unseal keys or KMS)                                   |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
-| input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
+| input:namespace       | string, local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                    |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
-| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host          |
+| input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                            |
+| input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                    |
 | set a key             | rta config set plugins.vault.address http://127.0.0.1:8200                                                                                                                              |
 | dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                            |
 
@@ -375,10 +375,10 @@ Where the vault is and what it would take to open it, without opening it or touc
 | mcp-tool              | vault_seal_status                                                                                                                                                                       |
 | profiles              | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
-| input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
+| input:namespace       | string, local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                    |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
-| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host          |
+| input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                            |
+| input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                    |
 | set a key             | rta config set plugins.vault.address http://127.0.0.1:8200                                                                                                                              |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.seal.status\`, or + on it in the TUI, puts it there, re-run every few seconds                    |
 
@@ -401,10 +401,10 @@ It is also the safer artifact. What lands on disk is still sealed — restoring 
 | profiles              | --profile \<name> runs this against a configured connection                                                                                                                             |
 | input:out             | path, local (never offered to MCP callers) — file to write the snapshot to; refused if it already exists                                                                                |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
-| input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
+| input:namespace       | string, local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                    |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
-| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host          |
+| input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                            |
+| input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                    |
 | set a key             | rta config set plugins.vault.address http://127.0.0.1:8200                                                                                                                              |
 | dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                            |
 
@@ -422,10 +422,10 @@ Always the caller's own token (Vault's own `auth/token/lookup-self`) — looking
 | mcp-tool              | vault_token_status                                                                                                                                                                      |
 | profiles              | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
-| input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
+| input:namespace       | string, local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                    |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
-| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host          |
+| input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                            |
+| input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                    |
 | set a key             | rta config set plugins.vault.address http://127.0.0.1:8200                                                                                                                              |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.token.status\`, or + on it in the TUI, puts it there, re-run every few seconds                   |
 
@@ -448,10 +448,10 @@ The reveal half of transit: whoever holds the ciphertext gets the plaintext back
 | input:key             | string, required, completes — the transit key's name                                                                                                                                                        |
 | input:ciphertext      | text, required — the vault:v#:... ciphertext to decrypt                                                                                                                                                     |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address                     |
-| input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                              |
+| input:namespace       | string, local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                                        |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                                           |
-| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                      |
-| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                              |
+| input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                |
+| input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                                        |
 | set a key             | rta config set plugins.vault.transit-mount transit                                                                                                                                                          |
 | dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                |
 
@@ -473,10 +473,10 @@ Nothing is revealed that the caller did not already hand over — the plaintext 
 | input:key             | string, required, completes — the transit key's name                                                                                                                                                         |
 | input:plaintext       | secret, required — the value to encrypt                                                                                                                                                                      |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address                      |
-| input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                               |
+| input:namespace       | string, local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                                         |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                                            |
-| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                       |
-| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                               |
+| input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                 |
+| input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                                         |
 | set a key             | rta config set plugins.vault.transit-mount transit                                                                                                                                                           |
 | dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                 |
 
@@ -496,10 +496,10 @@ Consumes the token: a second call against the same token gets Vault's own "wrapp
 | profiles              | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`                                                     |
 | input:wrapping-token  | secret, required — the token vault.wrap.set returned — not the Vault token this plugin logs in with                                                                                     |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address |
-| input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                          |
+| input:namespace       | string, local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                    |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                       |
-| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                  |
-| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host          |
+| input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                            |
+| input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                    |
 | set a key             | rta config set plugins.vault.address http://127.0.0.1:8200                                                                                                                              |
 | dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                            |
 
@@ -520,9 +520,9 @@ The recipient calls vault.wrap.get with the token this returns, once — Vault d
 | input:data            | secretSlice, required — key=value, repeated for more than one field                                                                                                                          |
 | input:ttl             | string, default 5m, completes, from config plugins.vault.wrap.ttl — how long the token stays valid, unread — not the data's own lifetime                                                     |
 | input:address         | string, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.address, filled by a profile's tunnel (the forward's url) — Vault server address      |
-| input:namespace       | string, default , local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                               |
+| input:namespace       | string, local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                         |
 | input:token           | secret, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                            |
-| input:ca-file         | string, default , local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                       |
-| input:tls-server-name | string, default , local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host               |
+| input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                 |
+| input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                         |
 | set a key             | rta config set plugins.vault.wrap.ttl 5m                                                                                                                                                     |
 | dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                 |
