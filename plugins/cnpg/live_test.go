@@ -30,7 +30,7 @@ func TestLiveStatusReadsARealCluster(t *testing.T) {
 
 	c := list.Items[0]
 	v, err := runStatus(ctx, req(map[string]any{
-		"name": c.Metadata.Name, "namespace": c.Metadata.Namespace,
+		"cluster": c.Metadata.Name, "namespace": c.Metadata.Namespace,
 	}))
 	if err != nil {
 		t.Fatalf("status of %s/%s: %v", c.Metadata.Namespace, c.Metadata.Name, err)

@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/this-is-tobi/rta/pkg/plugin"
 )
 
 // The backup half against a real cluster, for the two things a fixture cannot
