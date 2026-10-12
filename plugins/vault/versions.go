@@ -159,8 +159,12 @@ func runKVHistory(ctx context.Context, req plugin.Request) (view.View, error) {
 // sees as the secret going away.
 func kvDeleteCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "vault.kv.delete",
-		Summary:    "Delete a secret's current version, or the versions named — undoable",
+		ID:      "vault.kv.delete",
+		Summary: "Delete a secret's current version, or the versions named — undoable",
+		Examples: []plugin.Example{
+			{Title: "delete a secret's current version", Inputs: map[string]any{"path": "apps/billing"}},
+			{Title: "delete two versions of it", Inputs: map[string]any{"path": "apps/billing", "versions": []string{"2", "3"}}},
+		},
 		Keywords:   []string{"remove", "soft", "trash"},
 		Safety:     plugin.Write,
 		NeedsGrant: true,
@@ -205,8 +209,11 @@ func runKVDelete(ctx context.Context, req plugin.Request) (view.View, error) {
 
 func kvUndeleteCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "vault.kv.undelete",
-		Summary:    "Bring back deleted versions of a secret",
+		ID:      "vault.kv.undelete",
+		Summary: "Bring back deleted versions of a secret",
+		Examples: []plugin.Example{
+			{Title: "bring back one deleted version", Inputs: map[string]any{"path": "apps/billing", "versions": []string{"3"}}},
+		},
 		Keywords:   []string{"restore", "recover", "trash", "rollback"},
 		Safety:     plugin.Write,
 		NeedsGrant: true,
@@ -242,7 +249,10 @@ func kvDestroyCapability() plugin.Capability {
 		ID:        "vault.kv.destroy",
 		HumanOnly: true,
 		Summary:   "Destroy versions of a secret for good, for a person at a terminal",
-		Keywords:  []string{"purge", "wipe", "permanent", "erase"},
+		Examples: []plugin.Example{
+			{Title: "destroy two versions for good", Inputs: map[string]any{"path": "apps/billing", "versions": []string{"2", "3"}}},
+		},
+		Keywords: []string{"purge", "wipe", "permanent", "erase"},
 		// Destructive for the --yes gate: this is the one operation on a
 		// secret that nothing undoes, and vault.kv.set's whole safety story
 		// is that the version before is still there.

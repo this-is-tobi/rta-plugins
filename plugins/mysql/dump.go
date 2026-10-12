@@ -71,8 +71,11 @@ func dumpCapability() plugin.Capability {
 		ID:        "mysql.dump",
 		HumanOnly: true,
 		Summary:   "Back up one database to a SQL file, for a person at a terminal",
-		Keywords:  []string{"backup", "mysqldump", "export", "snapshot"},
-		Safety:    plugin.Write,
+		Examples: []plugin.Example{
+			{Title: "the schema alone, without the rows", Inputs: map[string]any{"include": "schema"}},
+		},
+		Keywords: []string{"backup", "mysqldump", "export", "snapshot"},
+		Safety:   plugin.Write,
 		// Running it twice at the same --out refuses rather than overwriting.
 		Idempotent: false,
 		Description: "The whole database as a SQL file you can restore. **Refuses MCP outright " +

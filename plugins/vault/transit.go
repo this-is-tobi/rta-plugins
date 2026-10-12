@@ -82,8 +82,11 @@ func runTransitEncrypt(ctx context.Context, req plugin.Request) (view.View, erro
 // Write+NeedsGrant answer, scoped on the key.
 func transitDecryptCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "vault.transit.decrypt",
-		Summary:    "Decrypt ciphertext back to its plaintext",
+		ID:      "vault.transit.decrypt",
+		Summary: "Decrypt ciphertext back to its plaintext",
+		Examples: []plugin.Example{
+			{Title: "decrypt a ciphertext", Inputs: map[string]any{"key": "app", "ciphertext": "vault:v1:8SDd3WHDOjf7mq69CyCqYjBXAiQQAVZRkFM13ok481zoCmHnSeDX9vyf7w=="}},
+		},
 		Keywords:   []string{"cipher", "kms", "reveal", "decryption"},
 		Safety:     plugin.Write,
 		NeedsGrant: true,
