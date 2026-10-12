@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/sdk/sdktest"
@@ -98,6 +99,32 @@ func TestANameDNSCannotResolveIsNotReadAsNothingListening(t *testing.T) {
 	verr := classify(err, req(t, "s3.overview", map[string]any{"endpoint": "s3.internal:9000"}))
 	if verr.Code != "s3.host.unknown" {
 		t.Errorf("code = %s, want s3.host.unknown: %s", verr.Code, verr.Message)
+	}
+}
+
+// A bucket name minio-go refuses never reaches the network, and its plain error
+// fell through to "could not reach 127.0.0.1:9000: Bucket name cannot be shorter
+// than 3 characters", a connection failure for an argument. It is named as the
+// argument, and a valid name that fails some other way is not blamed for it.
+func TestAMalformedBucketNameIsNotReportedAsAConnectionFailure(t *testing.T) {
+	for _, bad := range []string{"b1", "Bad_Bucket!"} {
+		invalid := s3utils.CheckValidBucketName(bad)
+		if invalid == nil {
+			t.Fatalf("%q is a valid bucket name to minio-go, the premise is gone", bad)
+		}
+		verr := classify(invalid, req(t, "s3.object.list", map[string]any{"bucket": bad}))
+		if verr.Code != "s3.bucket.invalid" || !strings.Contains(verr.Message, invalid.Error()) ||
+			!strings.Contains(verr.Hint, "3 to 63 characters") {
+			t.Errorf("%q: %s %q / %q, want s3.bucket.invalid naming minio-go's reason", bad, verr.Code, verr.Message, verr.Hint)
+		}
+	}
+	other := errors.New("some other failure")
+	if verr := classify(other, req(t, "s3.object.list", map[string]any{"bucket": "shop"})); verr.Code == "s3.bucket.invalid" {
+		t.Errorf("a valid bucket was blamed for an unrelated failure: %s", verr.Message)
+	}
+	if verr := classify(errors.New("Bucket name cannot be shorter than 3 characters"),
+		req(t, "s3.object.list", map[string]any{"bucket": "shop"})); verr.Code == "s3.bucket.invalid" {
+		t.Errorf("the message of a name check was blamed on a name that passes it: %s", verr.Message)
 	}
 }
 

@@ -14,6 +14,7 @@ import (
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
@@ -219,6 +220,21 @@ func classify(err error, req plugin.Request) *view.Error {
 	if errors.Is(err, context.DeadlineExceeded) {
 		return view.Errorf("s3.conn.timeout", "%s did not answer in time", where).
 			WithHint("a firewall that drops rather than refuses looks exactly like this")
+	}
+
+	// A bucket name minio-go refuses is refused before anything is dialled, and
+	// in a plain error that is no ErrorResponse, so it fell through every check
+	// below to "could not reach 127.0.0.1:9000: Bucket name cannot be shorter
+	// than 3 characters": a connection failure, with a hint to the connection's
+	// settings, for an argument. The same check minio-go ran, on the name the
+	// call carried, and only when it is the error in hand — a name that is fine
+	// is no explanation for any other failure.
+	if bucket := req.String("bucket"); bucket != "" {
+		if invalid := s3utils.CheckValidBucketName(bucket); invalid != nil && strings.Contains(err.Error(), invalid.Error()) {
+			return view.Errorf("s3.bucket.invalid", "%s is not a valid bucket name: %s", quoted(bucket), invalid.Error()).
+				WithHint("a bucket name is 3 to 63 characters of lowercase letters, digits, dots and hyphens; " +
+					nextCall(req, "s3.bucket.list") + " shows the buckets there are")
+		}
 	}
 
 	var errResp minio.ErrorResponse
