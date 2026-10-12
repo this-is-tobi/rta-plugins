@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"sort"
 	"strconv"
@@ -132,9 +133,20 @@ type cluster struct {
 		InstancesStatus        map[string][]string      `json:"instancesStatus"`
 		InstancesReportedState map[string]instanceState `json:"instancesReportedState"`
 
-		LastSuccessfulBackup     string `json:"lastSuccessfulBackup"`
-		LastFailedBackup         string `json:"lastFailedBackup"`
-		FirstRecoverabilityPoint string `json:"firstRecoverabilityPoint"`
+		// **Every one of these five is the operator's record of its own
+		// mechanisms and of nothing else.** The CRD says it of each — "Deprecated:
+		// the field is not set for backup plugins" — the by-method maps included,
+		// which is the half that is easy to miss: they replaced the single
+		// timestamps for the in-tree methods and were never given the plugins to
+		// carry. A cluster archived through a WAL-archiver plugin therefore leaves
+		// all five empty however healthy its backups are, and an empty field read
+		// as "no backup has ever succeeded" is a claim about a record that was
+		// never going to hold the answer (statusIsTheRecord).
+		LastSuccessfulBackup             string            `json:"lastSuccessfulBackup"`
+		LastFailedBackup                 string            `json:"lastFailedBackup"`
+		FirstRecoverabilityPoint         string            `json:"firstRecoverabilityPoint"`
+		LastSuccessfulBackupByMethod     map[string]string `json:"lastSuccessfulBackupByMethod"`
+		FirstRecoverabilityPointByMethod map[string]string `json:"firstRecoverabilityPointByMethod"`
 
 		Conditions []condition `json:"conditions"`
 
@@ -385,20 +397,73 @@ func role(name, currentPrimary string, selfReport bool) string {
 	return "replica"
 }
 
-// backupAge is how long since the last successful backup, and whether there
-// has ever been one. The timestamp is RFC3339 in the resource; the question is
-// always asked as a duration.
-func (c cluster) backupAge() (string, bool) {
-	t, ok := c.lastSuccessfulBackup()
-	if !ok {
-		return "", false
-	}
-	return age(t), true
+// recordedBackup is a successful backup the Cluster resource records, and the
+// method it says took it ("" when only the single legacy timestamp said so).
+type recordedBackup struct {
+	at     time.Time
+	method string
 }
 
-func (c cluster) lastSuccessfulBackup() (time.Time, bool) {
-	return parseWhen(c.Status.LastSuccessfulBackup)
+// lastSuccess is the newest successful backup the resource records, from the
+// by-method map and the legacy timestamp together.
+//
+// Both, because an operator that predates the map writes only the timestamp and
+// one that has it writes both, the timestamp calculated from the map. The map
+// is read first and the comparison is strict, so when the two name one instant
+// the answer carries the method the map attached to it. The timestamps are
+// RFC3339 in the resource; the question is always asked as a duration.
+func (c cluster) lastSuccess() (recordedBackup, bool) {
+	var best recordedBackup
+	var found bool
+	consider := func(raw, method string) {
+		if t, ok := parseWhen(raw); ok && (!found || t.After(best.at)) {
+			best, found = recordedBackup{at: t, method: method}, true
+		}
+	}
+	for _, method := range slices.Sorted(maps.Keys(c.Status.LastSuccessfulBackupByMethod)) {
+		consider(c.Status.LastSuccessfulBackupByMethod[method], method)
+	}
+	consider(c.Status.LastSuccessfulBackup, "")
+	return best, found
 }
+
+// recoverableFrom is the earliest first recoverability point the resource
+// records, as the operator wrote it, or "" when it records none.
+//
+// The earliest, because the question is how far back a restore can reach and
+// each method answers for its own window.
+func (c cluster) recoverableFrom() string {
+	var raw string
+	var earliest time.Time
+	consider := func(candidate string) {
+		if t, ok := parseWhen(candidate); ok && (raw == "" || t.Before(earliest)) {
+			raw, earliest = candidate, t
+		}
+	}
+	for _, method := range slices.Sorted(maps.Keys(c.Status.FirstRecoverabilityPointByMethod)) {
+		consider(c.Status.FirstRecoverabilityPointByMethod[method])
+	}
+	consider(c.Status.FirstRecoverabilityPoint)
+	return raw
+}
+
+// statusIsTheRecord reports whether the backup fields of the Cluster resource
+// can be read as the record of every backup this cluster takes — and so
+// whether their being empty means anything.
+//
+// **An empty record only means "never" where the record could have been
+// filled.** The operator writes these fields for the mechanisms it runs
+// itself, barmanObjectStore and volumeSnapshot, and the CRD says outright that
+// they are not set for a backup plugin. For a cluster that archives through
+// one, the plugin's backups are recorded somewhere else — the Backup objects,
+// and the plugin's own resources — so reading the empty fields as "no backup
+// has ever succeeded" told every healthy cluster on the newer arrangement that
+// its backups never worked, on the page somebody opens to check exactly that.
+//
+// A cluster with `.spec.backup` and a plugin together has the in-tree
+// mechanism's record and not the plugin's, which is the same answer: the
+// fields are a part of the story, and an empty part proves nothing.
+func (c cluster) statusIsTheRecord() bool { return c.walArchiverPlugin() == "" }
 
 // primaryFor is how long the current primary has held the role. A young
 // value is the trace of a failover: the pod may be days old, the *role* hours

@@ -616,11 +616,10 @@ func requestReceipt(s selection, created backupObject, b backupRequest, c cluste
 	if p := strings.TrimSpace(created.Status.Phase); p != "" {
 		pairs = append(pairs, view.Pair{Key: "phase", Value: p})
 	}
-	watch := append([]plugin.Arg{{Name: "cluster", Value: c.Metadata.Name}}, s.callArgs(c.Metadata.Namespace)...)
 	return view.KeyValue{Pairs: append(pairs,
 		view.Pair{Key: "rta did not take it", Value: "the object is a request; CloudNativePG " +
 			"performs the backup, and a Backup that was accepted can still fail"},
-		view.Pair{Key: "watch it", Value: "`" + s.sf.Call("cnpg.backup.list", watch...) + "`"},
+		view.Pair{Key: "watch it", Value: s.backupListOf(c)},
 	)}
 }
 

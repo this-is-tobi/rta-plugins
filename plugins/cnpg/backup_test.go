@@ -137,7 +137,7 @@ func TestAClusterBackedUpByAPluginIsNotReportedAsUnprotected(t *testing.T) {
 	if got := c.walArchiverPlugin(); got != "barman-cloud.cloudnative-pg.io" {
 		t.Errorf("archiver plugin = %q", got)
 	}
-	for _, row := range problemTable(c).Rows {
+	for _, row := range problemTable(c, pointers{}).Rows {
 		if row[0] == "backup" && strings.Contains(row[2], "not configured") {
 			t.Errorf("the status page says %q about a cluster a plugin archives", row[2])
 		}
@@ -180,7 +180,7 @@ func TestAClusterWithNeitherStanzaIsStillReportedAsUnprotected(t *testing.T) {
 		t.Fatal("a cluster with no backup stanza and no plugins reads as configured")
 	}
 	var found bool
-	for _, row := range problemTable(c).Rows {
+	for _, row := range problemTable(c, pointers{}).Rows {
 		if row[0] == "backup" && strings.Contains(row[2], "not configured") {
 			found = true
 		}

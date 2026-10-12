@@ -10,7 +10,7 @@ import (
 
 func overviewPairs(t *testing.T, c cluster, lag string) map[string]string {
 	t.Helper()
-	sections, ok := statusView(c, lag).(view.Sections)
+	sections, ok := statusView(c, pointers{lag: lag}).(view.Sections)
 	if !ok {
 		t.Fatalf("status is not sections")
 	}
