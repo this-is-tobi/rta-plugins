@@ -134,9 +134,14 @@ func Plugin() plugin.Plugin {
 	// with a hand-counted capacity would be a number to keep right for nothing.
 	capabilities := []plugin.Capability{ //nolint:prealloc
 		{
-			ID:       "kube.context.list",
-			Summary:  "Every context in this machine's kubeconfig, and which one is current",
-			Keywords: []string{"kubectx", "clusters", "switch", "environments"},
+			ID:      "kube.context.list",
+			Summary: "Every context in this machine's kubeconfig, and which one is current",
+			// Words for what it returns: the contexts, which kubectx also lists,
+			// and the clusters they point at. Not "environments", which rta
+			// itself means by a profile, nor "switch", which is
+			// kube.context.set's word: a search for either found a read that
+			// needs a grant and answers a different question.
+			Keywords: []string{"kubectx", "clusters"},
 			Description: "Reads the kubeconfig only — no cluster is contacted, so this answers " +
 				"even when every cluster in it is unreachable. The current context is marked, " +
 				"and it is the one every other capability here uses unless config names another.",
