@@ -452,7 +452,7 @@ func Plugin() plugin.Plugin {
 			NoPreview:  true,
 			Inputs: []plugin.Field{
 				{Name: "name", Type: plugin.String, Positional: true, Required: true,
-					Help:    "the context to switch to — `kube.context.list` shows them",
+					Help:    "the context to switch to — `kube.context.list` shows them, but needs a grant of its own for an agent",
 					Suggest: suggestContexts},
 			},
 			Run: runContextSet,

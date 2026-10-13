@@ -39,7 +39,7 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 		{
 			name:    "a context this machine does not have",
 			cli:     "`rta kube context list` shows the contexts this machine has",
-			other:   "the `kube_context_list` tool shows the contexts this machine has",
+			other:   "ask the operator to correct the profile, setting or kubeconfig that names it, or which context to use",
 			surface: plugin.SurfaceMCP,
 			refuse: func(sf plugin.Surface) *view.Error {
 				return classify(context.Background(), errors.New("exit status 1"),

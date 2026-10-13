@@ -12,14 +12,17 @@ import (
 // A kubeconfig that exists and names no current context made every call fail
 // as kube.failed with kubectl's own sentence and no hint, when the two calls
 // that fix it are this plugin's own: the listing of the contexts there are,
-// and the switch that makes one current.
+// and the switch that makes one current. An agent is told whose the fix is
+// instead, since the listing needs a grant of its own for it
+// (TestAnAgentIsNeitherToldTheContextsNorSentToTheListThatNeedsAGrant).
 func TestAKubeconfigWithNoCurrentContextNamesTheCallsThatFixIt(t *testing.T) {
 	for _, tc := range []struct {
 		surface plugin.Surface
 		want    string
 	}{
 		{plugin.SurfaceCLI, "`rta kube context list` shows the contexts this machine has, and `rta kube context set` makes one current"},
-		{plugin.SurfaceMCP, "the `kube_context_list` tool shows the contexts this machine has, and the `kube_context_set` tool makes one current"},
+		{plugin.SurfaceTUI, "`kube.context.list` shows the contexts this machine has, and `kube.context.set` makes one current"},
+		{plugin.SurfaceMCP, "ask the operator which context to use"},
 	} {
 		verr := classify(context.Background(), errors.New("exit status 1"), "error: current-context is not set\n",
 			[]string{"get", "nodes"}, tc.surface)
