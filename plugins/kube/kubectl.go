@@ -164,10 +164,17 @@ func selectionOf(req plugin.Request) (selection, *view.Error) {
 	// answer a question nobody asked, and a caller that sent both does not
 	// know what it wants.
 	if s.AllNS && s.Namespace != "" {
+		// A caller that sent only the switch did not send the namespace: a
+		// profile or the config filled it in, and "pass one or the other"
+		// asked them for what they had already done. The hint says where the
+		// other half may have come from and the way to lift it, which a fence
+		// (`only:`) refuses on its own as a blank.
 		return selection{}, view.Errorf("kube.namespace.ambiguous",
 			"%s and %s ask for different things", s.sf.InputName("namespace"), s.sf.InputName("all-namespaces")).
 			WithHint("pass one or the other — a namespace to read that namespace, " +
-				s.sf.InputName("all-namespaces") + " to read every one")
+				s.sf.InputName("all-namespaces") + " to read every one. A namespace you did not give came from a " +
+				"profile or the config, and " + s.sf.InputName("namespace") + " given empty lifts it, unless the profile " +
+				"fences it (`only:`), when widening it is the operator's")
 	}
 	return s, nil
 }
