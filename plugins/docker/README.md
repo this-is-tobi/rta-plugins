@@ -17,7 +17,7 @@ Containers and images: what is running, what is stale, and the daily tidy-up
 
 ## Configuration
 
-Under `plugins: docker:` in rta's configuration, or in a profile's `set:`. An installed plugin's section is pinned to the artifact — `plugins: docker@<digest>:` — and `rta doctor` prints the exact line. The caller always wins, so a configured value is a default, never a lock.
+Under `plugins: docker:` in rta's configuration, or in a profile's `set:`. An installed plugin's section is pinned to the artifact — `plugins: docker@<digest>:` — and `rta doctor` prints the exact line. The caller always wins, so a configured value is a default, never a lock. A profile can state a lock where it matters: its `only:` list fences an input to the values that connection reaches, and a call outside it is refused.
 
 | Key     | Read by                                                                                                                                                                         | Help                                                                                  |
 |---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
@@ -33,22 +33,22 @@ Every variable the container sets, with its value as set — the image's own, ev
 
 **Classified write for what it discloses, not what it changes.** A container's environment carries plaintext credentials by convention, and deciding which variables are secret by their names is a guess, not a rule, so the consent is given once, for the container.
 
-| Field                | Value                                                                                                                                                                 |
-|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id                   | docker.container.env                                                                                                                                                  |
-| summary              | The environment variables one container was started with                                                                                                              |
-| safety               | write                                                                                                                                                                 |
-| idempotent           | true                                                                                                                                                                  |
-| cli                  | rta docker container env \<container> \[--host \<string>\] \[--context \<string>\]                                                                                    |
-| mcp-tool             | docker_container_env                                                                                                                                                  |
-| grant required (mcp) | yes — a person must run \`rta grant allow docker.container.env\`, optionally naming one container                                                                     |
-| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                  |
-| example              | rta docker container env web   # the variables one container was started with                                                                                         |
-| input:container      | string, required, completes — the container whose environment to read                                                                                                 |
-| input:host           | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
-| input:context        | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
-| set a key            | rta config set plugins.docker.host \<value>                                                                                                                           |
-| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                          |
+| Field                | Value                                                                                                                                                                                                         |
+|----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                   | docker.container.env                                                                                                                                                                                          |
+| summary              | The environment variables one container was started with                                                                                                                                                      |
+| safety               | write                                                                                                                                                                                                         |
+| idempotent           | true                                                                                                                                                                                                          |
+| cli                  | rta docker container env \<container> \[--host \<string>\] \[--context \<string>\]                                                                                                                            |
+| mcp-tool             | docker_container_env                                                                                                                                                                                          |
+| grant required (mcp) | yes — a person must run \`rta grant allow docker.container.env\`, optionally naming one container                                                                                                             |
+| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
+| example              | rta docker container env web   # the variables one container was started with                                                                                                                                 |
+| input:container      | string, required, completes — the container whose environment to read                                                                                                                                         |
+| input:host           | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted                                         |
+| input:context        | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                                                                       |
+| set a key            | rta config set plugins.docker.host \<value>                                                                                                                                                                   |
+| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                  |
 
 ## docker.container.inspect
 
@@ -56,139 +56,139 @@ Image, command, state, restart policy, mounts, networks and environment. **Write
 
 **Environment values come back masked (••••••), on every surface.** The names are shown and every value is marked as secret, so what the result tells you is which variables a container sets, not what they are set to. docker.container.env returns them, under a grant of its own that names the container.
 
-| Field                | Value                                                                                                                                                                 |
-|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id                   | docker.container.inspect                                                                                                                                              |
-| summary              | Everything the daemon knows about one container                                                                                                                       |
-| safety               | write                                                                                                                                                                 |
-| idempotent           | true                                                                                                                                                                  |
-| cli                  | rta docker container inspect \<container> \[--host \<string>\] \[--context \<string>\]                                                                                |
-| mcp-tool             | docker_container_inspect                                                                                                                                              |
-| grant required (mcp) | yes — a person must run \`rta grant allow docker.container.inspect\`, optionally naming one container                                                                 |
-| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                  |
-| example              | rta docker container inspect web   # one container in full                                                                                                            |
-| input:container      | string, required, completes — the container to inspect                                                                                                                |
-| input:host           | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
-| input:context        | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
-| set a key            | rta config set plugins.docker.host \<value>                                                                                                                           |
-| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                          |
+| Field                | Value                                                                                                                                                                                                         |
+|----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                   | docker.container.inspect                                                                                                                                                                                      |
+| summary              | Everything the daemon knows about one container                                                                                                                                                               |
+| safety               | write                                                                                                                                                                                                         |
+| idempotent           | true                                                                                                                                                                                                          |
+| cli                  | rta docker container inspect \<container> \[--host \<string>\] \[--context \<string>\]                                                                                                                        |
+| mcp-tool             | docker_container_inspect                                                                                                                                                                                      |
+| grant required (mcp) | yes — a person must run \`rta grant allow docker.container.inspect\`, optionally naming one container                                                                                                         |
+| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
+| example              | rta docker container inspect web   # one container in full                                                                                                                                                    |
+| input:container      | string, required, completes — the container to inspect                                                                                                                                                        |
+| input:host           | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted                                         |
+| input:context        | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                                                                       |
+| set a key            | rta config set plugins.docker.host \<value>                                                                                                                                                                   |
+| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                  |
 
 ## docker.container.list
 
 Running containers by default; `all` includes the stopped ones, which is usually what somebody wants before a tidy-up. Health is shown separately from state because a container can be up and failing its own healthcheck.
 
-| Field         | Value                                                                                                                                                                    |
-|---------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id            | docker.container.list                                                                                                                                                    |
-| summary       | Containers, with state, health, ports and age                                                                                                                            |
-| safety        | read                                                                                                                                                                     |
-| idempotent    | true                                                                                                                                                                     |
-| cli           | rta docker container list \[--all \<bool>\] \[--host \<string>\] \[--context \<string>\]                                                                                 |
-| mcp-tool      | docker_container_list                                                                                                                                                    |
-| profiles      | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                     |
-| example       | rta docker container list --all   # every container, stopped ones too                                                                                                    |
-| input:all     | bool, from config plugins.docker.all — include stopped containers                                                                                                        |
-| input:host    | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted    |
-| input:context | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                                  |
-| set a key     | rta config set plugins.docker.all true                                                                                                                                   |
-| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add docker.container.list\`, or + on it in the TUI, puts it there, re-run every few seconds |
+| Field         | Value                                                                                                                                                                                                         |
+|---------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id            | docker.container.list                                                                                                                                                                                         |
+| summary       | Containers, with state, health, ports and age                                                                                                                                                                 |
+| safety        | read                                                                                                                                                                                                          |
+| idempotent    | true                                                                                                                                                                                                          |
+| cli           | rta docker container list \[--all \<bool>\] \[--host \<string>\] \[--context \<string>\]                                                                                                                      |
+| mcp-tool      | docker_container_list                                                                                                                                                                                         |
+| profiles      | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
+| example       | rta docker container list --all   # every container, stopped ones too                                                                                                                                         |
+| input:all     | bool, from config plugins.docker.all — include stopped containers                                                                                                                                             |
+| input:host    | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted                                         |
+| input:context | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                                                                       |
+| set a key     | rta config set plugins.docker.all true                                                                                                                                                                        |
+| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add docker.container.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                      |
 
 ## docker.container.restart
 
 Stop then start, keeping the container's id, volumes and configuration. What it does lose is whatever was only in the process's memory and whatever was written outside a volume.
 
-| Field                | Value                                                                                                                                                                 |
-|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id                   | docker.container.restart                                                                                                                                              |
-| summary              | Restart a container                                                                                                                                                   |
-| safety               | write                                                                                                                                                                 |
-| idempotent           | true                                                                                                                                                                  |
-| cli                  | rta docker container restart \<container> \[--host \<string>\] \[--context \<string>\]                                                                                |
-| mcp-tool             | docker_container_restart                                                                                                                                              |
-| grant required (mcp) | yes — a person must run \`rta grant allow docker.container.restart\`, optionally naming one container                                                                 |
-| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                  |
-| example              | rta docker container restart web   # restart one container                                                                                                            |
-| input:container      | string, required, completes — the container to restart                                                                                                                |
-| input:host           | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
-| input:context        | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
-| set a key            | rta config set plugins.docker.host \<value>                                                                                                                           |
-| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                          |
+| Field                | Value                                                                                                                                                                                                         |
+|----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                   | docker.container.restart                                                                                                                                                                                      |
+| summary              | Restart a container                                                                                                                                                                                           |
+| safety               | write                                                                                                                                                                                                         |
+| idempotent           | true                                                                                                                                                                                                          |
+| cli                  | rta docker container restart \<container> \[--host \<string>\] \[--context \<string>\]                                                                                                                        |
+| mcp-tool             | docker_container_restart                                                                                                                                                                                      |
+| grant required (mcp) | yes — a person must run \`rta grant allow docker.container.restart\`, optionally naming one container                                                                                                         |
+| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
+| example              | rta docker container restart web   # restart one container                                                                                                                                                    |
+| input:container      | string, required, completes — the container to restart                                                                                                                                                        |
+| input:host           | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted                                         |
+| input:context        | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                                                                       |
+| set a key            | rta config set plugins.docker.host \<value>                                                                                                                                                                   |
+| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                  |
 
 ## docker.container.rm
 
 Deletes the container and its writable layer — everything written inside it that was not on a volume is gone, and it does not come back. Named volumes survive; anonymous ones do not unless the daemon is asked to keep them, and this does not ask. A stopped container is required: this deliberately offers no `force`, because "remove" and "kill first, then remove" are two decisions and only one of them was made here.
 
-| Field                | Value                                                                                                                                                                 |
-|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id                   | docker.container.rm                                                                                                                                                   |
-| summary              | Remove a container                                                                                                                                                    |
-| safety               | destructive                                                                                                                                                           |
-| idempotent           | false                                                                                                                                                                 |
-| cli                  | rta docker container rm \<container> \[--host \<string>\] \[--context \<string>\]                                                                                     |
-| mcp-tool             | docker_container_rm                                                                                                                                                   |
-| grant required (mcp) | yes — a person must run \`rta grant allow docker.container.rm\`, optionally naming one container                                                                      |
-| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                  |
-| example              | rta docker container rm web   # remove a container that is already stopped                                                                                            |
-| input:container      | string, required, completes — the container to remove — it must be stopped                                                                                            |
-| input:host           | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
-| input:context        | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
-| set a key            | rta config set plugins.docker.host \<value>                                                                                                                           |
-| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                          |
+| Field                | Value                                                                                                                                                                                                         |
+|----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                   | docker.container.rm                                                                                                                                                                                           |
+| summary              | Remove a container                                                                                                                                                                                            |
+| safety               | destructive                                                                                                                                                                                                   |
+| idempotent           | false                                                                                                                                                                                                         |
+| cli                  | rta docker container rm \<container> \[--host \<string>\] \[--context \<string>\]                                                                                                                             |
+| mcp-tool             | docker_container_rm                                                                                                                                                                                           |
+| grant required (mcp) | yes — a person must run \`rta grant allow docker.container.rm\`, optionally naming one container                                                                                                              |
+| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
+| example              | rta docker container rm web   # remove a container that is already stopped                                                                                                                                    |
+| input:container      | string, required, completes — the container to remove — it must be stopped                                                                                                                                    |
+| input:host           | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted                                         |
+| input:context        | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                                                                       |
+| set a key            | rta config set plugins.docker.host \<value>                                                                                                                                                                   |
+| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                  |
 
 ## docker.container.stop
 
 Sends SIGTERM and gives the container time to exit before the daemon kills it. Reversible — `docker start` brings it back with the same id, disk and configuration — which is why this is Write and not Destructive.
 
-| Field                | Value                                                                                                                                                                 |
-|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id                   | docker.container.stop                                                                                                                                                 |
-| summary              | Stop a running container                                                                                                                                              |
-| safety               | write                                                                                                                                                                 |
-| idempotent           | true                                                                                                                                                                  |
-| cli                  | rta docker container stop \<container> \[--host \<string>\] \[--context \<string>\]                                                                                   |
-| mcp-tool             | docker_container_stop                                                                                                                                                 |
-| grant required (mcp) | yes — a person must run \`rta grant allow docker.container.stop\`, optionally naming one container                                                                    |
-| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                  |
-| example              | rta docker container stop web   # stop one container                                                                                                                  |
-| input:container      | string, required, completes — the container to stop                                                                                                                   |
-| input:host           | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
-| input:context        | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
-| set a key            | rta config set plugins.docker.host \<value>                                                                                                                           |
-| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                          |
+| Field                | Value                                                                                                                                                                                                         |
+|----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                   | docker.container.stop                                                                                                                                                                                         |
+| summary              | Stop a running container                                                                                                                                                                                      |
+| safety               | write                                                                                                                                                                                                         |
+| idempotent           | true                                                                                                                                                                                                          |
+| cli                  | rta docker container stop \<container> \[--host \<string>\] \[--context \<string>\]                                                                                                                           |
+| mcp-tool             | docker_container_stop                                                                                                                                                                                         |
+| grant required (mcp) | yes — a person must run \`rta grant allow docker.container.stop\`, optionally naming one container                                                                                                            |
+| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
+| example              | rta docker container stop web   # stop one container                                                                                                                                                          |
+| input:container      | string, required, completes — the container to stop                                                                                                                                                           |
+| input:host           | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted                                         |
+| input:context        | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                                                                       |
+| set a key            | rta config set plugins.docker.host \<value>                                                                                                                                                                   |
+| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                  |
 
 ## docker.image.list
 
 What is on this machine's disk. Dangling images — the untagged leftovers of a rebuild — are marked, since they are usually the answer to "where did my disk go".
 
-| Field         | Value                                                                                                                                                                 |
-|---------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id            | docker.image.list                                                                                                                                                     |
-| summary       | Images, with size and age                                                                                                                                             |
-| safety        | read                                                                                                                                                                  |
-| idempotent    | true                                                                                                                                                                  |
-| cli           | rta docker image list \[--host \<string>\] \[--context \<string>\]                                                                                                    |
-| mcp-tool      | docker_image_list                                                                                                                                                     |
-| profiles      | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                  |
-| input:host    | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
-| input:context | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
-| set a key     | rta config set plugins.docker.host \<value>                                                                                                                           |
-| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add docker.image.list\`, or + on it in the TUI, puts it there, re-run every few seconds  |
+| Field         | Value                                                                                                                                                                                                         |
+|---------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id            | docker.image.list                                                                                                                                                                                             |
+| summary       | Images, with size and age                                                                                                                                                                                     |
+| safety        | read                                                                                                                                                                                                          |
+| idempotent    | true                                                                                                                                                                                                          |
+| cli           | rta docker image list \[--host \<string>\] \[--context \<string>\]                                                                                                                                            |
+| mcp-tool      | docker_image_list                                                                                                                                                                                             |
+| profiles      | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
+| input:host    | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted                                         |
+| input:context | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                                                                       |
+| set a key     | rta config set plugins.docker.host \<value>                                                                                                                                                                   |
+| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add docker.image.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                          |
 
 ## docker.overview
 
 Whether the daemon answers, how many containers are up against how many exist, anything unhealthy or recently exited, and how much disk images are taking. With `detail`: the containers and the largest images themselves.
 
-| Field         | Value                                                                                                                                                                 |
-|---------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id            | docker.overview                                                                                                                                                       |
-| summary       | One daemon at a glance: what is running, what is unhealthy, what disk is used                                                                                         |
-| safety        | read                                                                                                                                                                  |
-| idempotent    | true                                                                                                                                                                  |
-| cli           | rta docker overview \[--host \<string>\] \[--context \<string>\] \[--detail\]                                                                                         |
-| mcp-tool      | docker_overview                                                                                                                                                       |
-| profiles      | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`                                  |
-| input:host    | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted |
-| input:context | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                               |
-| set a key     | rta config set plugins.docker.host \<value>                                                                                                                           |
-| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add docker.overview\`, or + on it in the TUI, puts it there, re-run every few seconds    |
-| input:detail  | bool, default false — return the full detailed view instead of the compact summary                                                                                    |
+| Field         | Value                                                                                                                                                                                                         |
+|---------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id            | docker.overview                                                                                                                                                                                               |
+| summary       | One daemon at a glance: what is running, what is unhealthy, what disk is used                                                                                                                                 |
+| safety        | read                                                                                                                                                                                                          |
+| idempotent    | true                                                                                                                                                                                                          |
+| cli           | rta docker overview \[--host \<string>\] \[--context \<string>\] \[--detail\]                                                                                                                                 |
+| mcp-tool      | docker_overview                                                                                                                                                                                               |
+| profiles      | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow docker --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
+| input:host    | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted                                         |
+| input:context | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                                                                       |
+| set a key     | rta config set plugins.docker.host \<value>                                                                                                                                                                   |
+| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add docker.overview\`, or + on it in the TUI, puts it there, re-run every few seconds                                            |
+| input:detail  | bool, default false — return the full detailed view instead of the compact summary                                                                                                                            |
