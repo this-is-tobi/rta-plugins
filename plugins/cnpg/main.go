@@ -126,9 +126,17 @@ func clusterField(help string, required bool) plugin.Field {
 // keeps; "every namespace" is the answer to a question asked now, and a
 // default of it in a file nobody is watching would widen every read made
 // through that file without anybody having typed the word.
+//
+// Widens says the host what this switch does to the input beside it: it reads
+// past it. A profile that fences `namespace` to the one or two an operator
+// named (`only:`) is held to that by the host for every value of the input,
+// and the host cannot read a handler to learn that this switch undoes it, so a
+// switch that is not declared is a hole in a boundary the operator believes is
+// closed. Declared, a call that sets it while the input is fenced is refused
+// before anything is dialled.
 func allNamespacesField() plugin.Field {
 	return plugin.Field{Name: "all-namespaces", Short: "A", Type: plugin.Bool,
-		Help: "every namespace instead of one"}
+		Widens: "namespace", Help: "every namespace instead of one"}
 }
 
 func nsFields() []plugin.Field {
