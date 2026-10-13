@@ -375,3 +375,56 @@ func TestASlotsInvalidationIsReadFromWhereThisVersionKeepsIt(t *testing.T) {
 		}
 	}
 }
+
+// **A position is the one thing on the page somebody copies into another
+// command**, pg_wal_lsn_diff or a recovery target, so it reaches every table
+// and line as the server wrote it and as long as it is: two hex halves with no
+// padding, 17 characters at the most. Pinned at that length, past anything a
+// table's usual width holds, because the way this goes wrong is a helper that
+// shortens a cell to keep a column narrow.
+func TestAnLSNReachesEveryTableAndLineWhole(t *testing.T) {
+	const high, low = "FFFFFFFF/FFFFFFFF", "FFFFFFFE/FFFFFF00"
+	cell := func(tbl view.Table, row int, column string) string {
+		t.Helper()
+		for i, c := range tbl.Columns {
+			if c.Name == column {
+				return tbl.Rows[row][i]
+			}
+		}
+		t.Fatalf("no column %s", column)
+		return ""
+	}
+	pairs := func(kv view.KeyValue) map[string]string {
+		out := map[string]string{}
+		for _, p := range kv.Pairs {
+			out[p.Key] = p.Value
+		}
+		return out
+	}
+
+	s, slot := driftingStandby(), extendedSlot()
+	s.sent, s.write, s.flush, s.replay = str(high), str(high), str(high), str(low)
+	slot.restart = str(low)
+	primary := primaryFacts([]standbyRow{s}, []slotRow{slot})
+	primary.primary.lsn = high
+
+	standbys := standbysTable(primary)
+	for column, want := range map[string]string{"Sent": high, "Write": high, "Flush": high, "Replay": low} {
+		if got := cell(standbys, 0, column); got != want {
+			t.Errorf("standbys %s = %q, want %q", column, got, want)
+		}
+	}
+	if got := cell(slotsTable(primary), 0, "Restart LSN"); got != low {
+		t.Errorf("slots Restart LSN = %q, want %q", got, low)
+	}
+	if got := pairs(serverSection(primary))["WAL position"]; got != high {
+		t.Errorf("primary WAL position = %q, want %q", got, high)
+	}
+
+	standby := pausedStandbyFacts()
+	standby.standby.receiveLSN, standby.standby.replayLSN, standby.receiver.endLSN = str(high), str(low), str(high)
+	got := pairs(serverSection(standby))
+	if got["received"] != high || got["replayed"] != low || !strings.HasPrefix(got["upstream position"], high) {
+		t.Errorf("standby section = %v, want the three positions whole", got)
+	}
+}
