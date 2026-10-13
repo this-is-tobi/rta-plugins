@@ -13,6 +13,44 @@ import (
 // pg_monitor may be refused are said less of instead (see optional), so a
 // monitoring role that cannot see a column still gets the rest of the answer.
 func readReplication(ctx context.Context, conn querier) (replicationFacts, error) {
+	f, err := readPosition(ctx, conn)
+	if err != nil || f.server.versionNum < minReplicationVersion {
+		return f, err
+	}
+	if f.server.recovering {
+		if err = readUpstream(ctx, conn, &f); err != nil {
+			return f, err
+		}
+	}
+	if f.standbys, err = readStandbys(ctx, conn, f.server.recovering); err != nil {
+		return f, err
+	}
+	f.slots, err = readSlots(ctx, conn, f.server)
+	return f, err
+}
+
+// readPosition is where this server stands in its WAL and nothing beyond it:
+// the server's own facts, then the write position of a primary or the
+// received and replayed positions of a standby. It is the front half of
+// readReplication, and what pg.status and the overview's glance read their
+// position line from, so that the line and the page come from one set of
+// statements and cannot disagree about where the log is.
+//
+// A server older than minReplicationVersion is answered with its facts and no
+// position, as readReplication does, so a caller that only wants the line
+// finds it empty rather than a position this plugin does not promise to read
+// the same way.
+//
+// Every function behind it is open to a role with no privilege at all.
+// PostgreSQL's documentation says of pg_current_wal_lsn that it needs no
+// superuser, and says nothing of a restriction on pg_walfile_name,
+// pg_last_wal_receive_lsn, pg_last_wal_replay_lsn, pg_last_xact_replay_timestamp
+// or pg_is_wal_replay_paused, where the neighbours that are restricted
+// (pg_wal_replay_pause) say so in their row. A plain login role with no
+// membership read all of them on a 17 primary and on a 17 hot standby. What
+// can still refuse is a server whose operator revoked EXECUTE, and a caller
+// that must not fail on that takes any error here to mean "no line".
+func readPosition(ctx context.Context, conn querier) (replicationFacts, error) {
 	var f replicationFacts
 	var err error
 	if f.server, err = readServerFacts(ctx, conn); err != nil {
@@ -22,18 +60,9 @@ func readReplication(ctx context.Context, conn querier) (replicationFacts, error
 		return f, nil
 	}
 	if f.server.recovering {
-		err = readStandby(ctx, conn, &f)
-	} else {
-		err = readPrimary(ctx, conn, &f)
+		return f, readStandbyPosition(ctx, conn, &f.standby)
 	}
-	if err != nil {
-		return f, err
-	}
-	if f.standbys, err = readStandbys(ctx, conn, f.server.recovering); err != nil {
-		return f, err
-	}
-	f.slots, err = readSlots(ctx, conn, f.server)
-	return f, err
+	return f, readPrimary(ctx, conn, &f)
 }
 
 // distance is how many bytes of WAL lie between two positions, floored at
@@ -48,7 +77,13 @@ func distance(ahead, behind string) string {
 	return "(case when " + d + " < 0 then 0 else " + d + " end)::bigint"
 }
 
-const primarySQL = `select pg_current_wal_lsn()::text, pg_walfile_name(pg_current_wal_lsn())`
+// The position is read once and the file named from that one value. Written
+// as two calls to pg_current_wal_lsn they are two reads, and on a server that
+// is writing the second can land past a segment boundary the first has not
+// reached: a position in one file printed beside the name of the next.
+const primarySQL = `
+	select cur.lsn::text, pg_walfile_name(cur.lsn)
+	from (select pg_current_wal_lsn() as lsn) cur`
 
 func readPrimary(ctx context.Context, conn querier, f *replicationFacts) error {
 	p := &f.primary
@@ -71,13 +106,16 @@ var standbySQL = `
 
 const checkpointSQL = `select timeline_id from pg_control_checkpoint()`
 
-func readStandby(ctx context.Context, conn querier, f *replicationFacts) error {
-	s := &f.standby
-	err := conn.QueryRow(ctx, standbySQL).
+func readStandbyPosition(ctx context.Context, conn querier, s *standbyPosition) error {
+	return conn.QueryRow(ctx, standbySQL).
 		Scan(&s.receiveLSN, &s.replayLSN, &s.gap, &s.replayedAt, &s.paused)
-	if err != nil {
-		return err
-	}
+}
+
+// readUpstream is what a standby knows of the link it is fed by, and from it
+// the timeline: the receiver's, which names the timeline being streamed, or
+// failing that the last checkpoint's.
+func readUpstream(ctx context.Context, conn querier, f *replicationFacts) error {
+	s := &f.standby
 	if err := readReceiver(ctx, conn, f); err != nil {
 		return err
 	}
@@ -86,7 +124,7 @@ func readStandby(ctx context.Context, conn querier, f *replicationFacts) error {
 		return nil
 	}
 	var tli int32
-	err = conn.QueryRow(ctx, checkpointSQL).Scan(&tli)
+	err := conn.QueryRow(ctx, checkpointSQL).Scan(&tli)
 	if err := optional(err); err != nil {
 		return err
 	}

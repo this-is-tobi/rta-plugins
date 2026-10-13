@@ -124,6 +124,44 @@ func sinceText(t time.Time) string {
 	return t.UTC().Format("2006-01-02 15:04 UTC") + " (" + format.Ago(t) + ")"
 }
 
+// positionText is where the log stands as one line, for the places that carry
+// a line and not the page — pg.status and the overview's glance. A primary
+// says its write position with the timeline and the file that position is in,
+// which is what to compare against another server's or a backup's; a standby
+// says what it has received and what it has replayed, the two figures whose
+// difference is the replay it owes. Each position is the server's own text
+// and is never cut: two hex halves with no padding, so 17 characters at the
+// longest.
+//
+// A position the server did not give is not written as a dash or a zero: a
+// standby that never streamed has no receive position and says only what it
+// replayed, which is the whole of its progress while it recovers from an
+// archive, and a server that gave none at all has no line.
+func positionText(f replicationFacts) string {
+	if f.server.recovering {
+		var parts []string
+		if s := f.standby.receiveLSN; s != nil {
+			parts = append(parts, "received "+*s)
+		}
+		if s := f.standby.replayLSN; s != nil {
+			parts = append(parts, "replayed "+*s)
+		}
+		return strings.Join(parts, ", ")
+	}
+	p := f.primary
+	if p.lsn == "" {
+		return ""
+	}
+	line := p.lsn
+	if p.timeline != "" {
+		line += ", timeline " + p.timeline
+	}
+	if p.walFile != "" {
+		line += ", file " + p.walFile
+	}
+	return line
+}
+
 // serverSection is the first screen: which server this is, where its WAL
 // stands, and — on a standby — how far it has got. The same facts the
 // SRE's own script prints, in the order it prints them.

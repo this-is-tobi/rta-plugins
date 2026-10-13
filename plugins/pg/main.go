@@ -118,9 +118,36 @@ func cap(c plugin.Capability, own ...plugin.Field) plugin.Capability {
 	return c
 }
 
-// statusView answers "can I reach it, as whom, and what is it" — the shared
-// query behind pg.status and the lead section of pg.overview.
+// statusView answers "can I reach it, as whom, and what is it" — pg.status,
+// with where the server's WAL stands as its last line when that can be read.
+//
+// **The position is a bonus on a call whose job is to say the server answers,
+// and it never costs that answer.** It is left out, with no warning and no
+// error row, on a server older than the 14 that pg.replication refuses, on a
+// role the server refuses the functions to, and on a standby that has neither
+// received nor replayed anything; a connection that fails here has already
+// failed the query above, and says so there. A line that sometimes appears
+// would be a reason to ask why it is missing, and the answer — this server
+// cannot say — is not something this call was asked.
 func statusView(ctx context.Context, conn querier, req plugin.Request) (view.View, error) {
+	kv, err := serverStatus(ctx, conn, req)
+	if err != nil {
+		return nil, err
+	}
+	if f, err := readPosition(ctx, conn); err == nil {
+		if line := positionText(f); line != "" {
+			kv.Pairs = append(kv.Pairs, view.Pair{Key: "WAL position", Value: line})
+		}
+	}
+	return kv, nil
+}
+
+// serverStatus is the part of the status every caller wants. The detailed
+// overview takes this and not statusView because the replication section it
+// carries next opens with the same position, with the standby's timeline and
+// upstream beside it, and a page that said it twice would be one the reader
+// checks for a difference.
+func serverStatus(ctx context.Context, conn querier, req plugin.Request) (view.KeyValue, error) {
 	// server, not version: this is PostgreSQL's own banner, and the package
 	// now has a `version` of its own that this would shadow.
 	var server, db, user, size string
@@ -134,7 +161,7 @@ func statusView(ctx context.Context, conn querier, req plugin.Request) (view.Vie
 		        pg_size_pretty(pg_database_size(current_database()))`).
 		Scan(&server, &db, &user, &size)
 	if err != nil {
-		return nil, classify(err, req)
+		return view.KeyValue{}, classify(err, req)
 	}
 	return view.KeyValue{Pairs: []view.Pair{
 		{Key: "server", Value: server},
@@ -333,7 +360,12 @@ func Plugin() plugin.Plugin {
 				Idempotent: true,
 				Description: "The first thing to run. Answers \"can I reach it, as whom, and " +
 					"what is it\" in one call, and every way of failing that question has its " +
-					"own error code and a hint naming the next thing to try.",
+					"own error code and a hint naming the next thing to try. Ends with where the " +
+					"server's WAL stands, as the server writes it: a primary's write position with " +
+					"its timeline and WAL file, a standby's received and replayed positions. That " +
+					"line is left out, without an error, on a server older than PostgreSQL 14, for " +
+					"a role the server will not answer it to, and for a standby that has received " +
+					"and replayed nothing yet; `pg.replication` has every standby's positions and lags.",
 				Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 					return withConn(ctx, req, func(ctx context.Context, conn *pgx.Conn) (view.View, error) {
 						return statusView(ctx, conn, req)
@@ -766,9 +798,11 @@ func Plugin() plugin.Plugin {
 				Safety:     plugin.Read,
 				Idempotent: true,
 				Detailed:   true,
-				Description: "The compact form is a few figures worth a glance: role, size, active " +
-					"queries, cache hit ratio and one line of replication. The full page (`detail`) " +
-					"adds the whole replication page (`pg.replication`: positions, standbys with their " +
+				Description: "The compact form is a few figures worth a glance: role, size, WAL " +
+					"position (a primary's write position, a standby's received and replayed " +
+					"positions), active queries, cache hit ratio and one line of replication. " +
+					"The full page (`detail`) adds the whole replication page (`pg.replication`: " +
+					"positions, standbys with their " +
 					"lag, slots, what needs attention), the largest tables and current activity — " +
 					"everything pg.status, pg.replication, pg.table.list and pg.activity would otherwise " +
 					"take four calls to assemble, through the one connection this call already opened.",

@@ -57,11 +57,12 @@ func compactOverview(ctx context.Context, conn querier, req plugin.Request) (vie
 	if role, err := roleOf(ctx, conn); err == nil {
 		add("role", role)
 	}
-	// One line, from the same reads pg.replication makes, so the glance and
-	// the page cannot disagree about whether anything is behind. Left out
-	// when a read fails or the server is too old to answer, like every other
-	// figure here.
+	// Two lines, from the same reads pg.replication makes, so the glance and
+	// the page cannot disagree about where the log is or whether anything is
+	// behind. Left out when a read fails or the server is too old to answer,
+	// like every other figure here.
 	if f, err := readReplication(ctx, conn); err == nil && f.server.versionNum >= minReplicationVersion {
+		add("WAL position", positionText(f))
 		add("replication", replicationLine(f, req.Surface()))
 	}
 	var active int
@@ -97,14 +98,14 @@ func detailedOverview(ctx context.Context, conn querier, req plugin.Request) (vi
 		p.Put(title, v)
 	}
 
-	v, err := statusView(ctx, conn, req)
-	put("status", v, err)
+	status, err := serverStatus(ctx, conn, req)
+	put("status", status, err)
 
 	if err := addReplication(ctx, p, conn, req); err != nil {
 		p.Warn(view.AsError(err, "page.section.failed"))
 	}
 
-	v, err = cacheView(ctx, conn, req)
+	v, err := cacheView(ctx, conn, req)
 	put("cache", v, err)
 
 	v, err = tableListView(ctx, conn, req.With(map[string]any{"limit": overviewTableLimit}), false)
