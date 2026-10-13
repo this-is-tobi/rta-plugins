@@ -7,29 +7,29 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: cnpg
-version: 0.4.2
+version: 0.5.0
 summary: Read the state of CloudNativePG PostgreSQL clusters
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/cnpg
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.4.2/rta-plugin-cnpg_0.4.2_darwin_amd64.tar.gz
-  sha256: 3f8b5f0a29e447444a93df66eb3da387be24bc5551cb7afc714da692c6db5b83
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.5.0/rta-plugin-cnpg_0.5.0_darwin_amd64.tar.gz
+  sha256: 911e31ba69d8d78a2483a8f9c25523170d24493fffc57126c18db2598a415413
   bin: rta-plugin-cnpg
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.4.2/rta-plugin-cnpg_0.4.2_darwin_arm64.tar.gz
-  sha256: 3e0053f684f4d4be91eef32e27b6c9f302e3b4b8deb97d4eafa7c8b780ef5f88
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.5.0/rta-plugin-cnpg_0.5.0_darwin_arm64.tar.gz
+  sha256: 12bb4f737048ad0390f91213547ba4e0e6e4397b0801beb988a2b0fcdba2dda4
   bin: rta-plugin-cnpg
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.4.2/rta-plugin-cnpg_0.4.2_linux_amd64.tar.gz
-  sha256: c9f68563a7b615bb8f683cee6a1e2f09bfaa70d9163b2402458a4886a306051d
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.5.0/rta-plugin-cnpg_0.5.0_linux_amd64.tar.gz
+  sha256: 8d314249321c9255ca0fc496be5a3e6553c45799db14a83735f9bdf32f184fea
   bin: rta-plugin-cnpg
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.4.2/rta-plugin-cnpg_0.4.2_linux_arm64.tar.gz
-  sha256: e7355e6719061f56ae3e336dd45f9164160af40f3fbc2feae23079e3334d25d3
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fcnpg%2Fv0.5.0/rta-plugin-cnpg_0.5.0_linux_arm64.tar.gz
+  sha256: 3252b9a00b5a05a3dc8bab1383733c500f2ffca601363655da82c38518005bea
   bin: rta-plugin-cnpg
 capabilities:
 - id: cnpg.list
@@ -40,6 +40,9 @@ capabilities:
   safety: read
 - id: cnpg.backup.list
   summary: "Backups taken of a cluster: when, how, where they went, and what failed"
+  safety: read
+- id: cnpg.backup.show
+  summary: "How one cluster's backups are set up and where they land: store, retention, schedules"
   safety: read
 - id: cnpg.backup.request
   summary: Ask the operator to back a cluster up now, using that cluster's own configuration
