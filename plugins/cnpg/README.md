@@ -17,7 +17,7 @@ Asks for `kubeconfig` — granted, or not, with `rta plugin allow cnpg`.
 
 ## Configuration
 
-Under `plugins: cnpg:` in rta's configuration, or in a profile's `set:`. An installed plugin's section is pinned to the artifact — `plugins: cnpg@<digest>:` — and `rta doctor` prints the exact line. The caller always wins, so a configured value is a default, never a lock.
+Under `plugins: cnpg:` in rta's configuration, or in a profile's `set:`. An installed plugin's section is pinned to the artifact — `plugins: cnpg@<digest>:` — and `rta doctor` prints the exact line. The caller always wins, so a configured value is a default, never a lock. A profile can state a lock where it matters: its `only:` list fences an input to the values that connection reaches, and a call outside it is refused.
 
 | Key           | Read by                                                                                       | Help                                                                                                     |
 |---------------|-----------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
@@ -37,24 +37,24 @@ One namespace by default, or every one with `all-namespaces`, which adds a leadi
 
 Credentials are not read. A Backup's status carries the object-store credential references its cluster was configured with, and this decodes none of them — the names of the secrets holding your keys are not part of any question a backup listing answers.
 
-| Field                | Value                                                                                                                                                               |
-|----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id                   | cnpg.backup.list                                                                                                                                                    |
-| summary              | Backups taken of a cluster: when, how, where they went, and what failed                                                                                             |
-| safety               | read                                                                                                                                                                |
-| idempotent           | true                                                                                                                                                                |
-| cli                  | rta cnpg backup list \[--cluster \<string>\] \[--all-namespaces \<bool>\] \[--limit \<int>\] \[--namespace \<string>\] \[--context \<string>\]                      |
-| mcp-tool             | cnpg_backup_list                                                                                                                                                    |
-| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`                                  |
-| example              | rta cnpg backup list --cluster app-db --namespace production   # the backups of one cluster                                                                         |
-| example              | rta cnpg backup list --all-namespaces   # every backup in every namespace                                                                                           |
-| input:cluster        | string, completes, from config plugins.cnpg.cluster — only this cluster's backups — every cluster's when omitted; empty lifts one a profile or the config pins      |
-| input:all-namespaces | bool — every namespace instead of one                                                                                                                               |
-| input:limit          | int, default 100, a value from 1 to 10000, from config plugins.cnpg.limit — how many backups to list; a cut list puts the failed ones first                         |
-| input:namespace      | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                       |
-| input:context        | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                |
-| set a key            | rta config set plugins.cnpg.cluster \<value>                                                                                                                        |
-| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add cnpg.backup.list\`, or + on it in the TUI, puts it there, re-run every few seconds |
+| Field                | Value                                                                                                                                                                                                       |
+|----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                   | cnpg.backup.list                                                                                                                                                                                            |
+| summary              | Backups taken of a cluster: when, how, where they went, and what failed                                                                                                                                     |
+| safety               | read                                                                                                                                                                                                        |
+| idempotent           | true                                                                                                                                                                                                        |
+| cli                  | rta cnpg backup list \[--cluster \<string>\] \[--all-namespaces \<bool>\] \[--limit \<int>\] \[--namespace \<string>\] \[--context \<string>\]                                                              |
+| mcp-tool             | cnpg_backup_list                                                                                                                                                                                            |
+| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
+| example              | rta cnpg backup list --cluster app-db --namespace production   # the backups of one cluster                                                                                                                 |
+| example              | rta cnpg backup list --all-namespaces   # every backup in every namespace                                                                                                                                   |
+| input:cluster        | string, completes, from config plugins.cnpg.cluster — only this cluster's backups — every cluster's when omitted; empty lifts one a profile or the config pins                                              |
+| input:all-namespaces | bool — every namespace instead of one                                                                                                                                                                       |
+| input:limit          | int, default 100, a value from 1 to 10000, from config plugins.cnpg.limit — how many backups to list; a cut list puts the failed ones first                                                                 |
+| input:namespace      | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                                                               |
+| input:context        | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                                                        |
+| set a key            | rta config set plugins.cnpg.cluster \<value>                                                                                                                                                                |
+| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add cnpg.backup.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                         |
 
 ## cnpg.backup.request
 
@@ -64,26 +64,26 @@ Refused when the cluster configures no backup at all. CloudNativePG accepts such
 
 `method` says how, and when it is left out rta states the one mechanism the cluster is set up for, and the receipt says rta chose it; a cluster set up for several is refused until one is named. `plugin` asks the WAL-archiver plugin the cluster names, whose name is copied from the cluster and is never a caller's to give. It is refused up front, rather than accepted and failed minutes later, when that plugin has declared it cannot take a backup or the ObjectStore it names does not exist; the receipt says where the backup goes. `target` and `online` override what the cluster settled on, and are optional: left out they mean 'do what you would have done anyway'.
 
-| Field                | Value                                                                                                                                                                                                |
-|----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id                   | cnpg.backup.request                                                                                                                                                                                  |
-| summary              | Ask the operator to back a cluster up now, using that cluster's own configuration                                                                                                                    |
-| safety               | write                                                                                                                                                                                                |
-| idempotent           | false                                                                                                                                                                                                |
-| cli                  | rta cnpg backup request \[--cluster \<string>\] \[--method \<string>\] \[--target \<string>\] \[--online \<string>\] \[--namespace \<string>\] \[--context \<string>\]                               |
-| mcp-tool             | cnpg_backup_request                                                                                                                                                                                  |
-| grant required (mcp) | yes — a person must run \`rta grant allow cnpg.backup.request\`, optionally naming one cluster                                                                                                       |
-| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`                                                                   |
-| example              | rta cnpg backup request --cluster app-db --namespace production   # back one cluster up now                                                                                                          |
-| example              | rta cnpg backup request --cluster app-db --method plugin --namespace production   # back one up through its WAL-archiver plugin                                                                      |
-| input:cluster        | string, required, completes, from config plugins.cnpg.cluster — the cluster to back up; empty lifts one a profile or the config pins                                                                 |
-| input:method         | string, one of: barmanObjectStore\|volumeSnapshot\|plugin, from config plugins.cnpg.backup.method — how to take it — its only configured mechanism when omitted; plugin asks its WAL-archiver plugin |
-| input:target         | string, one of: primary\|prefer-standby, from config plugins.cnpg.backup.target — which instance performs it — the cluster's own choice when omitted                                                 |
-| input:online         | string, one of: true\|false, from config plugins.cnpg.backup.online — hot or cold — only with a \`method\` of volumeSnapshot, and the cluster's own choice when omitted                              |
-| input:namespace      | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                                                        |
-| input:context        | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                                                 |
-| set a key            | rta config set plugins.cnpg.cluster \<value>                                                                                                                                                         |
-| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                         |
+| Field                | Value                                                                                                                                                                                                       |
+|----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                   | cnpg.backup.request                                                                                                                                                                                         |
+| summary              | Ask the operator to back a cluster up now, using that cluster's own configuration                                                                                                                           |
+| safety               | write                                                                                                                                                                                                       |
+| idempotent           | false                                                                                                                                                                                                       |
+| cli                  | rta cnpg backup request \[--cluster \<string>\] \[--method \<string>\] \[--target \<string>\] \[--online \<string>\] \[--namespace \<string>\] \[--context \<string>\]                                      |
+| mcp-tool             | cnpg_backup_request                                                                                                                                                                                         |
+| grant required (mcp) | yes — a person must run \`rta grant allow cnpg.backup.request\`, optionally naming one cluster                                                                                                              |
+| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
+| example              | rta cnpg backup request --cluster app-db --namespace production   # back one cluster up now                                                                                                                 |
+| example              | rta cnpg backup request --cluster app-db --method plugin --namespace production   # back one up through its WAL-archiver plugin                                                                             |
+| input:cluster        | string, required, completes, from config plugins.cnpg.cluster — the cluster to back up; empty lifts one a profile or the config pins                                                                        |
+| input:method         | string, one of: barmanObjectStore\|volumeSnapshot\|plugin, from config plugins.cnpg.backup.method — how to take it — its only configured mechanism when omitted; plugin asks its WAL-archiver plugin        |
+| input:target         | string, one of: primary\|prefer-standby, from config plugins.cnpg.backup.target — which instance performs it — the cluster's own choice when omitted                                                        |
+| input:online         | string, one of: true\|false, from config plugins.cnpg.backup.online — hot or cold — only with a \`method\` of volumeSnapshot, and the cluster's own choice when omitted                                     |
+| input:namespace      | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                                                               |
+| input:context        | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                                                        |
+| set a key            | rta config set plugins.cnpg.cluster \<value>                                                                                                                                                                |
+| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                |
 
 ## cnpg.backup.show
 
@@ -93,62 +93,62 @@ This is where a plugin-archived cluster's answer to `cnpg.status`'s question is,
 
 Each read beside the Cluster stands alone: one that is refused, or whose type or object is absent, becomes a note in its section and a warning that the page is partial, and never fails the rest. Nothing here reads a Secret.
 
-| Field           | Value                                                                                                                                                               |
-|-----------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id              | cnpg.backup.show                                                                                                                                                    |
-| summary         | How one cluster's backups are set up and where they land: store, retention, schedules                                                                               |
-| safety          | read                                                                                                                                                                |
-| idempotent      | true                                                                                                                                                                |
-| cli             | rta cnpg backup show \[--cluster \<string>\] \[--namespace \<string>\] \[--context \<string>\]                                                                      |
-| mcp-tool        | cnpg_backup_show                                                                                                                                                    |
-| profiles        | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`                                  |
-| example         | rta cnpg backup show --cluster app-db   # how one cluster's backups are set up                                                                                      |
-| input:cluster   | string, required, completes, from config plugins.cnpg.cluster — the cluster whose backups to show; empty lifts one a profile or the config pins                     |
-| input:namespace | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                       |
-| input:context   | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                |
-| set a key       | rta config set plugins.cnpg.cluster \<value>                                                                                                                        |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add cnpg.backup.show\`, or + on it in the TUI, puts it there, re-run every few seconds |
+| Field           | Value                                                                                                                                                                                                       |
+|-----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id              | cnpg.backup.show                                                                                                                                                                                            |
+| summary         | How one cluster's backups are set up and where they land: store, retention, schedules                                                                                                                       |
+| safety          | read                                                                                                                                                                                                        |
+| idempotent      | true                                                                                                                                                                                                        |
+| cli             | rta cnpg backup show \[--cluster \<string>\] \[--namespace \<string>\] \[--context \<string>\]                                                                                                              |
+| mcp-tool        | cnpg_backup_show                                                                                                                                                                                            |
+| profiles        | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
+| example         | rta cnpg backup show --cluster app-db   # how one cluster's backups are set up                                                                                                                              |
+| input:cluster   | string, required, completes, from config plugins.cnpg.cluster — the cluster whose backups to show; empty lifts one a profile or the config pins                                                             |
+| input:namespace | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                                                               |
+| input:context   | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                                                        |
+| set a key       | rta config set plugins.cnpg.cluster \<value>                                                                                                                                                                |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add cnpg.backup.show\`, or + on it in the TUI, puts it there, re-run every few seconds                                         |
 
 ## cnpg.list
 
 One `kubectl get clusters.postgresql.cnpg.io -o json`, rendered with the columns the CRD itself declares as printer columns — so this and `kubectl get` answer the same question the same way. Ready is ready/desired instances; a cluster short of its own spec is graded as a problem whatever its phase says. Reads the context's own namespace unless `namespace` names another or `all-namespaces` reads every one, and an empty answer says which it read. Reads one custom resource and nothing else: no pods, no exec, no logs.
 
-| Field                | Value                                                                                                                                                        |
-|----------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id                   | cnpg.list                                                                                                                                                    |
-| summary              | Every CloudNativePG cluster, and whether it is healthy                                                                                                       |
-| safety               | read                                                                                                                                                         |
-| idempotent           | true                                                                                                                                                         |
-| cli                  | rta cnpg list \[--all-namespaces \<bool>\] \[--namespace \<string>\] \[--context \<string>\]                                                                 |
-| mcp-tool             | cnpg_list                                                                                                                                                    |
-| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`                           |
-| example              | rta cnpg list --all-namespaces   # every cluster in every namespace                                                                                          |
-| example              | rta cnpg list --namespace production   # the clusters of one namespace                                                                                       |
-| input:all-namespaces | bool — every namespace instead of one                                                                                                                        |
-| input:namespace      | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                |
-| input:context        | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted         |
-| set a key            | rta config set plugins.cnpg.namespace \<value>                                                                                                               |
-| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add cnpg.list\`, or + on it in the TUI, puts it there, re-run every few seconds |
+| Field                | Value                                                                                                                                                                                                       |
+|----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                   | cnpg.list                                                                                                                                                                                                   |
+| summary              | Every CloudNativePG cluster, and whether it is healthy                                                                                                                                                      |
+| safety               | read                                                                                                                                                                                                        |
+| idempotent           | true                                                                                                                                                                                                        |
+| cli                  | rta cnpg list \[--all-namespaces \<bool>\] \[--namespace \<string>\] \[--context \<string>\]                                                                                                                |
+| mcp-tool             | cnpg_list                                                                                                                                                                                                   |
+| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
+| example              | rta cnpg list --all-namespaces   # every cluster in every namespace                                                                                                                                         |
+| example              | rta cnpg list --namespace production   # the clusters of one namespace                                                                                                                                      |
+| input:all-namespaces | bool — every namespace instead of one                                                                                                                                                                       |
+| input:namespace      | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                                                               |
+| input:context        | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                                                        |
+| set a key            | rta config set plugins.cnpg.namespace \<value>                                                                                                                                                              |
+| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add cnpg.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                                |
 
 ## cnpg.status
 
 Everything the Cluster resource reports about itself, laid out as the questions somebody opens it to ask. Instances are listed primary first, with the role taken from the cluster's own currentPrimary rather than each instance's self-report — during a failover those disagree, and the cluster's view is the one the rest of the fields are consistent with. A switchover in flight is derived rather than printed raw: CNPG moves targetPrimary before currentPrimary, so the two differing means a promotion is happening now. Every instance on one node is reported, because the CRD's own documentation calls that the absence of high availability. Conditions are shown only when they are not satisfied. The last successful backup is reported as an age, since that is the form the question is asked in — and a backup that is not configured at all is distinguished from one that is configured and failing, which the resource spells identically. A cluster that archives through a WAL-archiver plugin is told apart from both: the resource records no backup taken through a plugin (CloudNativePG documents its backup fields as not set for them), so the row says the resource cannot tell and points at `cnpg.backup.list`, whose Backup objects are the record, and at `cnpg.backup.show`, which reads where they go, rather than claiming none ever succeeded. The primary's tenure is derived (a young primary on an old cluster is the trace of a failover), certificate expiries are graded against the same 30-day window rta's other certificate checks use, and the replication posture, resource bounds and superuser-access switch are read from the spec. The resource holds no replication positions or lag, so for a cluster with replicas one row says where they are read: the pg plugin's replication page, which connects to the primary.
 
-| Field           | Value                                                                                                                                                          |
-|-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id              | cnpg.status                                                                                                                                                    |
-| summary         | One cluster in depth: instances, replication, backups, storage                                                                                                 |
-| safety          | read                                                                                                                                                           |
-| idempotent      | true                                                                                                                                                           |
-| cli             | rta cnpg status \[--cluster \<string>\] \[--namespace \<string>\] \[--context \<string>\]                                                                      |
-| mcp-tool        | cnpg_status                                                                                                                                                    |
-| profiles        | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`                             |
-| example         | rta cnpg status --cluster app-db --namespace production   # one cluster in depth                                                                               |
-| input:cluster   | string, required, completes, from config plugins.cnpg.cluster — the cluster to read; empty lifts one a profile or the config pins                              |
-| input:namespace | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                  |
-| input:context   | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted           |
-| set a key       | rta config set plugins.cnpg.cluster \<value>                                                                                                                   |
-| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add cnpg.status\`, or + on it in the TUI, puts it there, re-run every few seconds |
+| Field           | Value                                                                                                                                                                                                       |
+|-----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id              | cnpg.status                                                                                                                                                                                                 |
+| summary         | One cluster in depth: instances, replication, backups, storage                                                                                                                                              |
+| safety          | read                                                                                                                                                                                                        |
+| idempotent      | true                                                                                                                                                                                                        |
+| cli             | rta cnpg status \[--cluster \<string>\] \[--namespace \<string>\] \[--context \<string>\]                                                                                                                   |
+| mcp-tool        | cnpg_status                                                                                                                                                                                                 |
+| profiles        | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
+| example         | rta cnpg status --cluster app-db --namespace production   # one cluster in depth                                                                                                                            |
+| input:cluster   | string, required, completes, from config plugins.cnpg.cluster — the cluster to read; empty lifts one a profile or the config pins                                                                           |
+| input:namespace | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                                                               |
+| input:context   | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                                                        |
+| set a key       | rta config set plugins.cnpg.cluster \<value>                                                                                                                                                                |
+| dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add cnpg.status\`, or + on it in the TUI, puts it there, re-run every few seconds                                              |
 
 ## cnpg.storage
 
@@ -158,20 +158,20 @@ With no `cluster` it reads the volumes of every CloudNativePG cluster in the nam
 
 **It does not report how full a volume is.** That comes from the kubelet's own stats endpoint through the node proxy — a different mechanism and a different permission, and one that does not survive every proxy people put in front of a cluster, which is the property this plugin is built around. A column that looked like usage and was capacity would be worse than no column. `kube.pvc.usage` reports it, graded and worst first, for whoever holds nodes/proxy.
 
-| Field                | Value                                                                                                                                                                |
-|----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id                   | cnpg.storage                                                                                                                                                         |
-| summary              | The volumes a cluster's data and WAL sit on: size, class, and whether each one is actually bound                                                                     |
-| safety               | read                                                                                                                                                                 |
-| idempotent           | true                                                                                                                                                                 |
-| cli                  | rta cnpg storage \[--cluster \<string>\] \[--all-namespaces \<bool>\] \[--namespace \<string>\] \[--context \<string>\]                                              |
-| mcp-tool             | cnpg_storage                                                                                                                                                         |
-| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`                                   |
-| example              | rta cnpg storage --cluster app-db --namespace production   # the volumes of one cluster                                                                              |
-| example              | rta cnpg storage --all-namespaces   # every cluster's volumes, in every namespace                                                                                    |
-| input:cluster        | string, completes, from config plugins.cnpg.cluster — the cluster whose volumes to read — every cluster's when omitted; empty lifts one a profile or the config pins |
-| input:all-namespaces | bool — every namespace instead of one                                                                                                                                |
-| input:namespace      | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                        |
-| input:context        | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                 |
-| set a key            | rta config set plugins.cnpg.cluster \<value>                                                                                                                         |
-| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add cnpg.storage\`, or + on it in the TUI, puts it there, re-run every few seconds      |
+| Field                | Value                                                                                                                                                                                                       |
+|----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                   | cnpg.storage                                                                                                                                                                                                |
+| summary              | The volumes a cluster's data and WAL sit on: size, class, and whether each one is actually bound                                                                                                            |
+| safety               | read                                                                                                                                                                                                        |
+| idempotent           | true                                                                                                                                                                                                        |
+| cli                  | rta cnpg storage \[--cluster \<string>\] \[--all-namespaces \<bool>\] \[--namespace \<string>\] \[--context \<string>\]                                                                                     |
+| mcp-tool             | cnpg_storage                                                                                                                                                                                                |
+| profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
+| example              | rta cnpg storage --cluster app-db --namespace production   # the volumes of one cluster                                                                                                                     |
+| example              | rta cnpg storage --all-namespaces   # every cluster's volumes, in every namespace                                                                                                                           |
+| input:cluster        | string, completes, from config plugins.cnpg.cluster — the cluster whose volumes to read — every cluster's when omitted; empty lifts one a profile or the config pins                                        |
+| input:all-namespaces | bool — every namespace instead of one                                                                                                                                                                       |
+| input:namespace      | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                                                               |
+| input:context        | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                                                        |
+| set a key            | rta config set plugins.cnpg.cluster \<value>                                                                                                                                                                |
+| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add cnpg.storage\`, or + on it in the TUI, puts it there, re-run every few seconds                                             |
