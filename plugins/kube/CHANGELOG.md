@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.5.2...plugins/kube/v0.5.3) (2026-10-13)
+
+
+### Bug Fixes
+
+* **kube:** the list of contexts needs a grant for an agent ([e8f63e7](https://github.com/this-is-tobi/rta-plugins/commit/e8f63e7d4f40588a6be584a9e8841ef0fb79d8db))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.39.0 ([04e0458](https://github.com/this-is-tobi/rta-plugins/commit/04e04583649d587c040cd28d82f5e0a6c4b3cecb))
+
 ## [0.5.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.5.1...plugins/kube/v0.5.2) (2026-10-12)
 
 
