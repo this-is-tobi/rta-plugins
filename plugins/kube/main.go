@@ -102,8 +102,11 @@ func nsFields() []plugin.Field {
 		{Name: "namespace", Short: "n", Type: plugin.String, Config: "namespace",
 			Help: "namespace to read — the context's own when omitted",
 			Live: true, Suggest: suggestNamespaces},
+		// Widens: the switch reads past `namespace`, and a profile that fences the
+		// namespace to the one or two an operator named holds every value of it,
+		// which the host can only extend to this switch if it is told it is one.
 		{Name: "all-namespaces", Short: "A", Type: plugin.Bool,
-			Help: "every namespace instead of one"},
+			Widens: "namespace", Help: "every namespace instead of one"},
 	}
 }
 
