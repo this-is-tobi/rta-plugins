@@ -94,18 +94,18 @@ Reads the kubeconfig only — no cluster is contacted, so this answers even when
 
 Rewrites current-context in the kubeconfig, which is what `kubectl config use-context` does. Every later command on this machine follows it — kubectl's, this plugin's, and anything else reading the same file — which is why it needs a grant naming the context you mean, and why the grant is worth reading twice before you issue it.
 
-| Field                | Value                                                                                     |
-|----------------------|-------------------------------------------------------------------------------------------|
-| id                   | kube.context.set                                                                          |
-| summary              | Switch this machine's current kubeconfig context                                          |
-| safety               | write                                                                                     |
-| idempotent           | true                                                                                      |
-| cli                  | rta kube context set \<name>                                                              |
-| mcp-tool             | kube_context_set                                                                          |
-| grant required (mcp) | yes — a person must run \`rta grant allow kube.context.set\`, optionally naming one name  |
-| example              | rta kube context set staging   # switch to another cluster's context                      |
-| input:name           | string, required, completes — the context to switch to — \`kube.context.list\` shows them |
-| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates              |
+| Field                | Value                                                                                                                                |
+|----------------------|--------------------------------------------------------------------------------------------------------------------------------------|
+| id                   | kube.context.set                                                                                                                     |
+| summary              | Switch this machine's current kubeconfig context                                                                                     |
+| safety               | write                                                                                                                                |
+| idempotent           | true                                                                                                                                 |
+| cli                  | rta kube context set \<name>                                                                                                         |
+| mcp-tool             | kube_context_set                                                                                                                     |
+| grant required (mcp) | yes — a person must run \`rta grant allow kube.context.set\`, optionally naming one name                                             |
+| example              | rta kube context set staging   # switch to another cluster's context                                                                 |
+| input:name           | string, required, completes — the context to switch to — \`kube.context.list\` shows them, but needs a grant of its own for an agent |
+| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                         |
 
 ## kube.deployment.list
 

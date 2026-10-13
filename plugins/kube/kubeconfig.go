@@ -85,7 +85,7 @@ func coordinatesFor(cfg rawClusterConfig, s selection) (clusterCoordinates, *vie
 	if name == "" {
 		return clusterCoordinates{}, view.Errorf("kube.context.none",
 			"this machine's kubeconfig names no current context").
-			WithHint("pass " + s.sf.InputName("context") + ", or " + pickContext(s.sf))
+			WithHint(contextHint(s.sf, askWhichContext, "pass "+s.sf.InputName("context")+", or "+pickContext(s.sf)))
 	}
 	var clusterName string
 	found := false
@@ -98,7 +98,7 @@ func coordinatesFor(cfg rawClusterConfig, s selection) (clusterCoordinates, *vie
 	}
 	if !found {
 		return clusterCoordinates{}, view.Errorf("kube.context.unknown", "no context named %q", name).
-			WithHint(s.sf.CapabilityName("kube.context.list") + " shows the contexts this machine has")
+			WithHint(contextHint(s.sf, askFixContext, s.sf.CapabilityName("kube.context.list")+" shows the contexts this machine has"))
 	}
 	for _, c := range cfg.Clusters {
 		if c.Name == clusterName {

@@ -333,7 +333,8 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 // it on its own row instead of dropping it.
 func hintOf(sf plugin.Surface, e *view.Error) string {
 	if e == nil || e.Hint == "" {
-		return sf.CapabilityName("kube.context.list") + " shows what this machine is configured for"
+		return contextHint(sf, "ask the operator what this machine is configured for",
+			sf.CapabilityName("kube.context.list")+" shows what this machine is configured for")
 	}
 	return e.Hint
 }

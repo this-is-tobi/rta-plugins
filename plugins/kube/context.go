@@ -122,14 +122,16 @@ func runContextGet(ctx context.Context, req plugin.Request) (view.View, error) {
 		name = cfg.CurrentContext
 	}
 	if name == "" {
+		sf := req.Surface()
 		return nil, view.Errorf("kube.context.none",
 			"this machine's kubeconfig names no current context").
-			WithHint(pickContext(req.Surface()) + "; " + req.Surface().CapabilityName("kube.context.list") + " shows them")
+			WithHint(contextHint(sf, askWhichContext, pickContext(sf)+"; "+sf.CapabilityName("kube.context.list")+" shows them"))
 	}
 	cluster, user, ns, ok := cfg.find(name)
 	if !ok {
+		sf := req.Surface()
 		return nil, view.Errorf("kube.context.unknown", "no context named %q", name).
-			WithHint(req.Surface().CapabilityName("kube.context.list") + " shows the contexts this machine has")
+			WithHint(contextHint(sf, askFixContext, sf.CapabilityName("kube.context.list")+" shows the contexts this machine has"))
 	}
 	if ns == "" {
 		ns = "default"
@@ -172,7 +174,9 @@ func runContextSet(ctx context.Context, req plugin.Request) (view.View, error) {
 	// answer is more useful here: this can list what does exist, and a
 	// dry-run has to be able to say what it *would* do without doing it.
 	if _, _, _, ok := cfg.find(name); !ok {
-		hint := req.Surface().CapabilityName("kube.context.list") + " shows the contexts this machine has: " + names(cfg)
+		sf := req.Surface()
+		hint := contextHint(sf, "ask the operator which context to switch to",
+			sf.CapabilityName("kube.context.list")+" shows the contexts this machine has: "+names(cfg))
 		if len(cfg.Contexts) == 0 {
 			hint = "this machine's kubeconfig has no context at all, so there is none to switch to"
 		}
@@ -242,6 +246,31 @@ func suggestContexts(ctx context.Context, _ plugin.Request) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// What an agent is told in place of the contexts this machine has.
+//
+// kube.context.list needs a grant for an agent because it is the inventory of
+// every destination this machine can reach. A hint that quoted the names would
+// hand the same map out one mistake at a time, and one that sent the agent to
+// that call would point it at something it is refused unless a person has
+// already issued the grant. Over MCP the context a call reaches is the
+// operator's own setting (the input is Local), so a context that is not there
+// is a profile, a setting or a kubeconfig gone stale, and only the operator can
+// mend it or say which one this call should use.
+const (
+	askWhichContext = "ask the operator which context to use"
+	askFixContext   = "ask the operator to correct the profile, setting or kubeconfig that names it, or which context to use"
+)
+
+// contextHint is the remedy for a context that is missing or not chosen, as
+// its reader can act on it: the call that shows the contexts to a person, and
+// the operator's to a model.
+func contextHint(sf plugin.Surface, agent, person string) string {
+	if sf == plugin.SurfaceMCP {
+		return agent
+	}
+	return person
 }
 
 // pickContext is the call that switches this machine to a context, spelled

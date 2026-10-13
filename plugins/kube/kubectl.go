@@ -317,12 +317,12 @@ func classify(ctx context.Context, err error, stderr string, args []string, sf p
 		// failure here that fell to kube.failed with the cluster's own words
 		// and no hint, when the two calls that fix it are this plugin's own.
 		return view.Errorf("kube.context.none", "no context is current in this machine's kubeconfig").
-			WithHint(sf.CapabilityName("kube.context.list") + " shows the contexts this machine has, and " +
-				sf.CapabilityName("kube.context.set") + " makes one current")
+			WithHint(contextHint(sf, askWhichContext, sf.CapabilityName("kube.context.list")+" shows the contexts this machine has, and "+
+				sf.CapabilityName("kube.context.set")+" makes one current"))
 	case strings.Contains(low, "context") && strings.Contains(low, "does not exist"),
 		strings.Contains(low, "context was not found"):
 		return view.Errorf("kube.context.unknown", "%s", msg).
-			WithHint(sf.CapabilityName("kube.context.list") + " shows the contexts this machine has")
+			WithHint(contextHint(sf, askFixContext, sf.CapabilityName("kube.context.list")+" shows the contexts this machine has"))
 	case strings.Contains(low, "forbidden"), strings.Contains(low, "cannot list"),
 		strings.Contains(low, "is not allowed"):
 		// Left as the API server phrased it. An RBAC refusal names the verb,
