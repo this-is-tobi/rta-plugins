@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.4.2...plugins/cnpg/v0.5.0) (2026-10-13)
+
+
+### Features
+
+* **cnpg:** backup request takes a plugin backup, resolves the method and checks the store ([8de3af1](https://github.com/this-is-tobi/rta-plugins/commit/8de3af1e4d9424a1fc003088c4075780627950cd))
+* **cnpg:** backups and volumes read every namespace, bounded and with a leading scope ([075a7b6](https://github.com/this-is-tobi/rta-plugins/commit/075a7b6e1955ed2c4efbc4cee7fb8796de703a2b))
+* **cnpg:** cnpg.backup.show says how a cluster's backups are set up and where they land ([879a1c6](https://github.com/this-is-tobi/rta-plugins/commit/879a1c63b5ae9cf056df8e36e1a9e8713c237288))
+
+
+### Bug Fixes
+
+* **cnpg:** a refusal names the resource and verb refused, and a missing CRD is not an operator ([1524ad2](https://github.com/this-is-tobi/rta-plugins/commit/1524ad22ab9b3abf39477c42f6a75f59678d2494))
+* **cnpg:** status does not claim no backup succeeded where the resource cannot say ([3c0dd57](https://github.com/this-is-tobi/rta-plugins/commit/3c0dd5757c8031d4c1672cf331b9b44954b87d78))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.39.0 ([04e0458](https://github.com/this-is-tobi/rta-plugins/commit/04e04583649d587c040cd28d82f5e0a6c4b3cecb))
+
 ## [0.4.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.4.1...plugins/cnpg/v0.4.2) (2026-10-12)
 
 
