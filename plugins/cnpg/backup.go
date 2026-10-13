@@ -78,12 +78,40 @@ type backupObject struct {
 		ServerName      string `json:"serverName"`
 		StartedAt       string `json:"startedAt"`
 		StoppedAt       string `json:"stoppedAt"`
-		BeginWal        string `json:"beginWal"`
-		EndWal          string `json:"endWal"`
-		InstanceID      struct {
+		// The WAL the backup spans, which the operator records on the Backup
+		// and nowhere on the Cluster: the log position and the file it is in
+		// at the start of the backup and at the end. A restore replays from the
+		// begin position and is consistent once it has replayed the end one. Each
+		// is empty until the instance has reported it, so a backup that failed
+		// before it began has none.
+		BeginLSN   string `json:"beginLSN"`
+		EndLSN     string `json:"endLSN"`
+		BeginWal   string `json:"beginWal"`
+		EndWal     string `json:"endWal"`
+		InstanceID struct {
 			PodName string `json:"podName"`
 		} `json:"instanceID"`
 	} `json:"status"`
+}
+
+// walRange is the WAL a Backup records itself as spanning, each value as the
+// operator wrote it and trimmed of nothing else: a position is a position and
+// a file name is a file name, and neither is shortened to fit a column.
+type walRange struct {
+	beginLSN, endLSN, beginWal, endWal string
+}
+
+func (b backupObject) walRange() walRange {
+	s := b.Status
+	return walRange{
+		beginLSN: strings.TrimSpace(s.BeginLSN), endLSN: strings.TrimSpace(s.EndLSN),
+		beginWal: strings.TrimSpace(s.BeginWal), endWal: strings.TrimSpace(s.EndWal),
+	}
+}
+
+// recorded reports whether the Backup says anything of the WAL it spans.
+func (r walRange) recorded() bool {
+	return r.beginLSN != "" || r.endLSN != "" || r.beginWal != "" || r.endWal != ""
 }
 
 // The phases a Backup passes through.
@@ -207,7 +235,9 @@ func backupListCapability() plugin.Capability {
 			"and no answer for a cluster that backs up through a plugin, whose backups " +
 			"are recorded only here. This is the other question: which individual " +
 			"backups exist, how each was taken, how long it took, where the bytes went, " +
-			"and what the operator said when one failed.\n\n" +
+			"and what the operator said when one failed. The WAL a backup spans is not " +
+			"in this table, which stays the same table whatever the backups record: " +
+			"`cnpg.backup.show` gives the range of the newest completed one.\n\n" +
 			"One namespace by default, or every one with `all-namespaces`, which adds a " +
 			"leading Namespace column. Bounded by `limit`: the list is cut at that many " +
 			"rows, `total` stays the exact count there is, and a cut list says so in a " +
@@ -270,13 +300,22 @@ func runBackupList(ctx context.Context, req plugin.Request) (view.View, error) {
 	// The error is its own section rather than a ninth column: a barman
 	// failure is a paragraph of somebody else's stderr, and a table that has
 	// to hold one is a table with eight unreadable columns.
+	//
+	// **The WAL a backup spans is not here at all.** It is two positions and two
+	// file names, up to 17, 17, 24 and 24 characters that the eight columns have
+	// no room for, and every completed backup records one, so a section for it
+	// would turn the common read from a table into a page: a listing to copy, to
+	// select a row in and to read as one JSON shape would become something else
+	// for every healthy cluster. It is the reference for the one backup somebody
+	// restores from, and cnpg.backup.show gives it for the newest completed one.
+	sections := []view.Section{{Title: "Backups", View: t}}
 	if problems := backupErrors(s, rows); len(problems.Rows) > 0 {
-		return view.Sections{Items: []view.Section{
-			{Title: "Backups", View: t},
-			{Title: "What failed", View: problems},
-		}}, nil
+		sections = append(sections, view.Section{Title: "What failed", View: problems})
 	}
-	return t, nil
+	if len(sections) == 1 {
+		return t, nil
+	}
+	return view.Sections{Items: sections}, nil
 }
 
 // cutBackups keeps limit of the backups, and when it has to drop any it drops
