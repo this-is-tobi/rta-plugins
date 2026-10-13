@@ -60,8 +60,8 @@ func TestLiveStatusReadsARealCluster(t *testing.T) {
 }
 
 // The arrangement page against a real cluster: that what the Cluster, its
-// ObjectStore and its ScheduledBackups say decodes into the structs the page is
-// built from. The sections are logged, since what a cluster of this shape
+// ObjectStore, its Backups and its ScheduledBackups say decodes into the
+// structs the page is built from. The sections are logged, since what a cluster of this shape
 // carries is the half a fixture invents. Read-only, like everything here, and
 // skipped on a context with no cluster to read.
 func TestLiveBackupShowReadsARealCluster(t *testing.T) {

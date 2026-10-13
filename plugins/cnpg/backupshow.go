@@ -271,7 +271,11 @@ func backupShowCapability() plugin.Capability {
 			"cluster names: its destination, endpoint and retention, the kind of credential it " +
 			"uses and the names of the Secrets it references — names only, never keys or " +
 			"values — and the recovery window it reports for this cluster's server. For both, " +
-			"the ScheduledBackups that name the cluster (cron, method, whether suspended, when " +
+			"the newest completed Backup object that names the cluster and the WAL it records " +
+			"itself as spanning (the begin and end log position, the LSN, and the WAL file each " +
+			"is in, each only when the Backup records it: a restore replays from the begin " +
+			"position and is consistent once it has replayed the end one), the " +
+			"ScheduledBackups that name the cluster (cron, method, whether suspended, when " +
 			"each last ran and runs next) and the ContinuousArchiving and LastBackupSucceeded " +
 			"conditions when the cluster reports them.\n\n" +
 			"This is where a plugin-archived cluster's answer to `cnpg.status`'s question is, " +
@@ -283,8 +287,10 @@ func backupShowCapability() plugin.Capability {
 		Agent: "How one cluster's backups are set up and where they land: the mechanisms in use, the " +
 			"destination, server name and retention, and for a barman-cloud plugin cluster the ObjectStore " +
 			"it names (destination, endpoint, retention, credential kind, Secret names only), the " +
-			"recovery window the store reports, the ScheduledBackups that name the cluster and the " +
-			"ContinuousArchiving and LastBackupSucceeded conditions. URLs carry no user info or query. " +
+			"recovery window the store reports, the newest completed Backup and the WAL range it records " +
+			"(begin and end LSN, begin and end WAL file, each only when set), the ScheduledBackups that " +
+			"name the cluster and the ContinuousArchiving and LastBackupSucceeded conditions. " +
+			"URLs carry no user info or query. " +
 			"A read beside the Cluster that is refused or absent becomes a note and a partial " +
 			"warning, not a failure. Secrets are never read.",
 		Run: runBackupShow,
@@ -322,6 +328,7 @@ func runBackupShow(ctx context.Context, req plugin.Request) (view.View, error) {
 		store = page.objectStore(ctx, beside, c, ref)
 	}
 	page.recovery(c, s, store)
+	page.latest(ctx, beside, c, s)
 	page.schedules(ctx, beside, c)
 	page.conditions(c)
 	return view.Sections{Items: page.sections, Warnings: page.gaps}, nil
@@ -522,6 +529,58 @@ func (p *showPage) recovery(c cluster, s selection, store *objectStore) {
 		p.add(id, title, view.Table{Columns: columns, Total: 1, Rows: [][]string{{
 			server, stamp(from), success, stamp(failed)}}})
 	}
+}
+
+// latest is the newest backup of this cluster that completed and the WAL it
+// records itself as spanning: the begin and end log position and the file each
+// is in. The Cluster resource keeps none of it — its recovery window is two
+// instants, and says nothing of where in the log a restore starts or when it is
+// consistent — and the Backup objects, which are the one place it is, are read
+// beside the Cluster like the ObjectStore and the schedules, standing alone.
+//
+// The newest completed one and not the newest: a backup that is running has the
+// first position and not the second, and one that failed is not what somebody
+// restores from. cnpg.backup.list has the range of every backup, which is the
+// one to open for an older one.
+func (p *showPage) latest(ctx context.Context, beside selection, c cluster, s selection) {
+	const id, title = "latest-backup", "Latest backup"
+	var list backupList
+	if verr := getResource(ctx, beside, backupCRD, "", &list); verr != nil {
+		p.failed(id, title, "the list of Backup objects", verr,
+			"This cluster has no Backup resource type ("+backupCRD+" is not registered), so no backup was "+
+				"ever asked of it.", "")
+		return
+	}
+	mine := backupsFor(list.Items, c.Metadata.Name)
+	if len(mine) == 0 {
+		p.note(id, title, "No Backup object names this cluster, so there is no backup to read a WAL range from.")
+		return
+	}
+	i := slices.IndexFunc(mine, backupObject.done)
+	if i < 0 {
+		p.note(id, title, "None of the "+format.CountOf(len(mine), "Backup object")+" naming this cluster has completed, "+
+			"so there is no finished backup to read a WAL range from. "+s.backupListOf(c)+" says what each is doing.")
+		return
+	}
+	b := mine[i]
+	pairs := []view.Pair{
+		{Key: "Backup", Value: b.Metadata.Name},
+		{Key: "Method", Value: orDash(b.resolvedMethod())},
+		{Key: "Finished", Value: stamp(b.Status.StoppedAt)},
+	}
+	r := b.walRange()
+	for _, f := range []view.Pair{
+		{Key: "Begin LSN", Value: r.beginLSN}, {Key: "End LSN", Value: r.endLSN},
+		{Key: "Begin WAL", Value: r.beginWal}, {Key: "End WAL", Value: r.endWal},
+	} {
+		if f.Value != "" {
+			pairs = append(pairs, f)
+		}
+	}
+	if !r.recorded() {
+		pairs = append(pairs, view.Pair{Key: "WAL range", Value: "not recorded on this Backup"})
+	}
+	p.add(id, title, view.KeyValue{Pairs: pairs})
 }
 
 // schedules reads the ScheduledBackups that name the cluster.

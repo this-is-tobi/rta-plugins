@@ -217,12 +217,13 @@ func showOf(t *testing.T, values map[string]any) (view.View, error) {
 
 // The page of a cluster that archives through the plugin: what the Cluster
 // says, the ObjectStore it names, the window that store reports for the cluster,
-// the schedules, and the conditions — read through exactly the three gets this
-// needs and never a Secret.
+// the Backup objects, the schedules, and the conditions — read through exactly
+// the four gets this needs and never a Secret.
 func TestThePluginClusterPageReadsTheStoreTheSchedulesAndTheConditions(t *testing.T) {
 	calls := routedKubectl(t, answers{
 		clusterCRD:     {body: pluginCluster()},
 		objectStoreCRD: {body: anObjectStore()},
+		backupCRD:      {body: backupItems()},
 		scheduledBackupCRD: {body: scheduledItems(
 			aSchedule("nightly", "app-db", nil, map[string]any{
 				"lastScheduleTime": time.Now().Add(-3 * time.Hour).UTC().Format(time.RFC3339),
@@ -270,7 +271,7 @@ func TestThePluginClusterPageReadsTheStoreTheSchedulesAndTheConditions(t *testin
 	if strings.Count(page, "object-creds") != 1 {
 		t.Errorf("a Secret named twice is listed %d times", strings.Count(page, "object-creds"))
 	}
-	if got := calls(); len(got) != 3 {
+	if got := calls(); len(got) != 4 {
 		t.Errorf("kubectl was called %d times: %q", len(got), got)
 	}
 	noSecretReads(t, calls())
@@ -293,7 +294,8 @@ func TestAnInTreeClusterIsShownFromWhatItStatesAboutItself(t *testing.T) {
 		c["status"].(map[string]any)["lastSuccessfulBackup"] = rfc3339Ago(2 * time.Hour)
 		c["status"].(map[string]any)["firstRecoverabilityPoint"] = rfc3339Ago(48 * time.Hour)
 	})
-	calls := routedKubectl(t, answers{clusterCRD: {body: cl}, scheduledBackupCRD: {body: scheduledItems()}})
+	calls := routedKubectl(t, answers{clusterCRD: {body: cl}, backupCRD: {body: backupItems()},
+		scheduledBackupCRD: {body: scheduledItems()}})
 
 	v, err := showOf(t, nil)
 	if err != nil {
@@ -315,8 +317,8 @@ func TestAnInTreeClusterIsShownFromWhatItStatesAboutItself(t *testing.T) {
 	if _, has := sectionOf(t, v, "object-store"); has {
 		t.Error("an in-tree cluster has a plugin's object store section")
 	}
-	if got := calls(); len(got) != 2 {
-		t.Errorf("kubectl was called %d times: %q, want the Cluster and its schedules", len(got), got)
+	if got := calls(); len(got) != 3 {
+		t.Errorf("kubectl was called %d times: %q, want the Cluster, its backups and its schedules", len(got), got)
 	}
 	noSecretReads(t, calls())
 }
@@ -331,7 +333,8 @@ func TestAServerNameNobodyStatedIsTheClustersOwn(t *testing.T) {
 	store := anObjectStore()
 	store["status"] = map[string]any{"serverRecoveryWindow": map[string]any{
 		"app-db": map[string]any{"firstRecoverabilityPoint": rfc3339Ago(24 * time.Hour)}}}
-	routedKubectl(t, answers{clusterCRD: {body: cl}, objectStoreCRD: {body: store}, scheduledBackupCRD: {body: scheduledItems()}})
+	routedKubectl(t, answers{clusterCRD: {body: cl}, objectStoreCRD: {body: store}, backupCRD: {body: backupItems()},
+		scheduledBackupCRD: {body: scheduledItems()}})
 	v, err := showOf(t, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -358,6 +361,7 @@ func TestEachReadBesideTheClusterDegradesOnItsOwn(t *testing.T) {
 			name: "the ObjectStore is refused",
 			routes: answers{clusterCRD: {body: pluginCluster()},
 				objectStoreCRD:     {stderr: fmt.Sprintf(forbidden, objectStoreCRD, "objectstores", "barmancloud.cnpg.io")},
+				backupCRD:          {body: backupItems()},
 				scheduledBackupCRD: {body: scheduledItems()}},
 			want:    []string{"## Object store", "Not read: not allowed to get objectstores.barmancloud.cnpg.io in namespace prod", "## Schedules", "## Backups", "WARNING cnpg.backup.show.partial: the ObjectStore s3-store was not read"},
 			partial: true,
@@ -366,14 +370,26 @@ func TestEachReadBesideTheClusterDegradesOnItsOwn(t *testing.T) {
 		{
 			name: "the schedules are refused",
 			routes: answers{clusterCRD: {body: pluginCluster()}, objectStoreCRD: {body: anObjectStore()},
+				backupCRD:          {body: backupItems()},
 				scheduledBackupCRD: {stderr: fmt.Sprintf(forbidden, scheduledBackupCRD, "scheduledbackups", "postgresql.cnpg.io")}},
 			want:    []string{"## Object store", "## Recovery window", "## Schedules", "Not read: not allowed to get scheduledbackups.postgresql.cnpg.io", "WARNING cnpg.backup.show.partial: the ScheduledBackups was not read"},
+			partial: true,
+		},
+		{
+			name: "the Backup objects are refused",
+			routes: answers{clusterCRD: {body: pluginCluster()}, objectStoreCRD: {body: anObjectStore()},
+				backupCRD:          {stderr: fmt.Sprintf(forbidden, backupCRD, "backups", "postgresql.cnpg.io")},
+				scheduledBackupCRD: {body: scheduledItems()}},
+			want: []string{"## Object store", "## Recovery window", "## Latest backup",
+				"Not read: not allowed to get backups.postgresql.cnpg.io", "## Schedules",
+				"WARNING cnpg.backup.show.partial: the list of Backup objects was not read"},
 			partial: true,
 		},
 		{
 			name: "the ObjectStore type is not installed",
 			routes: answers{clusterCRD: {body: pluginCluster()},
 				objectStoreCRD:     {stderr: `error: the server doesn't have a resource type "objectstores"`},
+				backupCRD:          {body: backupItems()},
 				scheduledBackupCRD: {body: scheduledItems()}},
 			want:   []string{"the barman-cloud plugin is not installed", objectStoreCRD + " is not registered", "## Schedules"},
 			absent: []string{"WARNING"},
@@ -382,6 +398,7 @@ func TestEachReadBesideTheClusterDegradesOnItsOwn(t *testing.T) {
 			name: "the ObjectStore the cluster names does not exist",
 			routes: answers{clusterCRD: {body: pluginCluster()},
 				objectStoreCRD:     {stderr: `Error from server (NotFound): objectstores.barmancloud.cnpg.io "s3-store" not found`},
+				backupCRD:          {body: backupItems()},
 				scheduledBackupCRD: {body: scheduledItems()}},
 			want:   []string{"there is none by that name in namespace prod", "a backup asked of it fails"},
 			absent: []string{"WARNING"},
@@ -389,6 +406,7 @@ func TestEachReadBesideTheClusterDegradesOnItsOwn(t *testing.T) {
 		{
 			name: "the ScheduledBackup type is not installed",
 			routes: answers{clusterCRD: {body: pluginCluster()}, objectStoreCRD: {body: anObjectStore()},
+				backupCRD:          {body: backupItems()},
 				scheduledBackupCRD: {stderr: `error: the server doesn't have a resource type "scheduledbackups"`}},
 			want:   []string{"has no ScheduledBackup resource type", "## Object store"},
 			absent: []string{"WARNING"},
@@ -434,7 +452,8 @@ func TestARefusedClusterReadFailsThePage(t *testing.T) {
 // for an object store it has none of.
 func TestAClusterWithNoBackupIsShownAsHavingNone(t *testing.T) {
 	bare := aCluster("app-db", "prod", func(c map[string]any) { delete(c["spec"].(map[string]any), "backup") })
-	calls := routedKubectl(t, answers{clusterCRD: {body: bare}, scheduledBackupCRD: {body: scheduledItems()}})
+	calls := routedKubectl(t, answers{clusterCRD: {body: bare}, backupCRD: {body: backupItems()},
+		scheduledBackupCRD: {body: scheduledItems()}})
 	v, err := showOf(t, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -442,14 +461,17 @@ func TestAClusterWithNoBackupIsShownAsHavingNone(t *testing.T) {
 	if page := flatten(v); !strings.Contains(page, "nothing — this cluster configures no backup") {
 		t.Errorf("page:\n%s", page)
 	}
-	if got := calls(); len(got) != 2 {
-		t.Errorf("calls = %q", got)
+	for _, call := range calls() {
+		if strings.Contains(call, objectStoreCRD) {
+			t.Errorf("an ObjectStore was read for a cluster with none: %q", call)
+		}
 	}
 
 	hollow := aCluster("app-db", "prod", func(c map[string]any) {
 		c["spec"].(map[string]any)["backup"] = map[string]any{"retentionPolicy": "30d"}
 	})
-	routedKubectl(t, answers{clusterCRD: {body: hollow}, scheduledBackupCRD: {body: scheduledItems()}})
+	routedKubectl(t, answers{clusterCRD: {body: hollow}, backupCRD: {body: backupItems()},
+		scheduledBackupCRD: {body: scheduledItems()}})
 	v, _ = showOf(t, nil)
 	if page := flatten(v); !strings.Contains(page, "`.spec.backup` names no mechanism") {
 		t.Errorf("page:\n%s", page)
@@ -462,7 +484,8 @@ func TestAnotherPluginsParameterIsNotTakenForAnObjectStore(t *testing.T) {
 	other := pluginCluster(func(c map[string]any) {
 		c["spec"].(map[string]any)["plugins"].([]any)[0].(map[string]any)["name"] = "snapshots.example.org"
 	})
-	calls := routedKubectl(t, answers{clusterCRD: {body: other}, scheduledBackupCRD: {body: scheduledItems()}})
+	calls := routedKubectl(t, answers{clusterCRD: {body: other}, backupCRD: {body: backupItems()},
+		scheduledBackupCRD: {body: scheduledItems()}})
 	v, err := showOf(t, nil)
 	if err != nil {
 		t.Fatal(err)
