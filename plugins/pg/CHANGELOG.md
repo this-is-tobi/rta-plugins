@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.7.3...plugins/pg/v0.8.0) (2026-10-14)
+
+
+### Features
+
+* **pg:** status and the overview say where the wal stands ([a0c45f8](https://github.com/this-is-tobi/rta-plugins/commit/a0c45f84c22cbb32389da61e1e9c7d191e22a3d4))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.40.0 ([1aa756d](https://github.com/this-is-tobi/rta-plugins/commit/1aa756d203748057638d97edad0d0475c95c8737))
+
 ## [0.7.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.7.2...plugins/pg/v0.7.3) (2026-10-13)
 
 

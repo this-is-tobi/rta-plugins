@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.6.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.5.0...plugins/cnpg/v0.6.0) (2026-10-14)
+
+
+### Features
+
+* **cnpg:** show the wal range a backup records ([4a0a11e](https://github.com/this-is-tobi/rta-plugins/commit/4a0a11ec3ac6d010bbadc5ba261ec8ff4cd969a9))
+* **cnpg:** status says where every standby's lsn is read, and as whom ([549dc34](https://github.com/this-is-tobi/rta-plugins/commit/549dc34d029dceb140d07c4928488ac36656ef3d))
+
+
+### Bug Fixes
+
+* **cnpg:** all-namespaces declares which input it widens ([31812bb](https://github.com/this-is-tobi/rta-plugins/commit/31812bbe97e7acc9c1051d0be99ab1ec2104f9e2))
+* **kube:** a namespace beside all-namespaces says where the namespace may have come from ([bc50597](https://github.com/this-is-tobi/rta-plugins/commit/bc50597ddf23eb4e1b6bb3a6d0e390a5293fe216))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.40.0 ([1aa756d](https://github.com/this-is-tobi/rta-plugins/commit/1aa756d203748057638d97edad0d0475c95c8737))
+
 ## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.4.2...plugins/cnpg/v0.5.0) (2026-10-13)
 
 
