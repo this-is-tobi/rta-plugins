@@ -29,7 +29,22 @@ var (
 // maxBytes bounds a result by size as well as by count, because a row bound
 // is not a size bound. One wide TEXT or BLOB column is what actually exhausts
 // memory here — fifty rows of it is not fifty rows of anything else.
-const maxBytes = 8 << 20
+//
+// **One mebibyte, as plugins/pg's, and well under what the host receives.** Over
+// MCP the host refuses an answer of more than 8 MiB while it is still being
+// received (core.result.toolarge), under a hint that names no column, and what
+// it counts is the answer on the wire: the text of every cell and two bytes more
+// for each, a tag and a length. This bound counted the text alone and stood at
+// that same 8 MiB, so a result of between about 7.8 MiB of text and the limit
+// passed here and was refused there, and the sentence below that says to select
+// fewer columns, which is the one that helps, was not the one read. A mebibyte of
+// text weighs at most about three on the wire, in cells of one byte, so a result
+// this lets through is always one the host receives and the refusal here is
+// always the one that is read. The bridge cuts what a model is shown to its
+// first rows long before either, so the bytes between are cost, not content.
+// The SQL plugins answer to one number because the rows a caller's own
+// statement returns are one concept.
+const maxBytes = 1 << 20
 
 // rowsToTable renders a result set, bounded in both directions.
 //
