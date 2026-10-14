@@ -564,7 +564,8 @@ func (s *session) classifyTransport(err error) *view.Error {
 	}
 	if plugin.DialRefused(err) {
 		return view.Errorf("keycloak.conn.refused", "nothing is listening on %s", s.base).
-			WithHint("is the server up, and is " + sf.SettingName("url") + " right?")
+			WithHint("is the server up, and is " + sf.SettingName("url") + " right? Keycloak listens on 8080 for " +
+				"HTTP and 8443 for HTTPS by default")
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
