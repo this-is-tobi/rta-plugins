@@ -39,3 +39,32 @@ func TestAllNamespacesIsHeldByAFenceOnTheNamespace(t *testing.T) {
 		t.Fatal("no capability has an all-namespaces switch, so this holds nothing")
 	}
 }
+
+// A form is filled from the top, and the switch that reads past the namespace
+// reads as an answer to it only below it: plugins/kube declares them in that
+// order, and cnpg's put the switch above the box it widens, with the cluster
+// and the limit between them in a backup listing. Held on every capability
+// that has both, and the cluster ahead of the namespace it is in.
+func TestTheNamespaceIsDeclaredBeforeTheSwitchThatReadsPastIt(t *testing.T) {
+	found := 0
+	for _, c := range Plugin().Capabilities {
+		at := map[string]int{}
+		for i, f := range c.Inputs {
+			at[f.Name] = i
+		}
+		wide, hasWide := at["all-namespaces"]
+		if !hasWide {
+			continue
+		}
+		found++
+		if ns, ok := at["namespace"]; !ok || ns > wide {
+			t.Errorf("%s: the namespace is declared at %d and all-namespaces at %d, want the namespace first", c.ID, ns, wide)
+		}
+		if cl, ok := at["cluster"]; ok && cl > at["namespace"] {
+			t.Errorf("%s: the cluster is declared after the namespace it is in", c.ID)
+		}
+	}
+	if found == 0 {
+		t.Fatal("no capability has an all-namespaces switch, so this holds nothing")
+	}
+}

@@ -56,6 +56,7 @@ package main
 
 import (
 	"context"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -177,10 +178,36 @@ func (s selection) lead(namespace string, cells ...string) []string {
 // cap assembles a capability's inputs in the order a person reads them, and
 // sets NoPreview on all of them: each reaches off the box, so none belongs on
 // a dashboard that refreshes on a timer without somebody having said so.
+//
+// The scope leads, in the order plugins/kube lays it out: the cluster, the
+// namespace it is in, and the switch that reads past that namespace. A form is
+// filled from the top, and a switch that widens a box reads as an answer to it
+// only when it is below it. Declared by the capability or by the helpers that
+// give it these, they arrive in whatever order those were written in, with the
+// cluster and the limit between the switch and the box it widens; so they are
+// ranked here, once, and everything else keeps the order it was declared in.
 func cap(c plugin.Capability, own ...plugin.Field) plugin.Capability {
-	c.Inputs = append(append(own, c.Inputs...), append(nsFields(), connFields()...)...)
+	inputs := append(append(append(own, c.Inputs...), nsFields()...), connFields()...)
+	slices.SortStableFunc(inputs, func(a, b plugin.Field) int { return inputRank(a.Name) - inputRank(b.Name) })
+	c.Inputs = inputs
 	c.NoPreview = true
 	return c
+}
+
+// inputRank is where an input stands among a capability's: the scope first, the
+// capability's own inputs after it, and the connection last.
+func inputRank(name string) int {
+	switch name {
+	case "cluster":
+		return 0
+	case "namespace":
+		return 1
+	case "all-namespaces":
+		return 2
+	case "context":
+		return 4
+	}
+	return 3
 }
 
 // version is what this build claims to be, stamped by whatever built it:
