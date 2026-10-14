@@ -23,3 +23,10 @@ coverage.out
 # A person's own mise overrides, never the repository's (mise.toml is)
 mise.local.toml
 .mise.local.toml
+
+# And the lockfile mise writes beside them when a person's own settings ask
+# for one. Nothing here installs through mise (CI reads each go.mod and
+# installs rta with `go install` at .rta-version), so a committed lock would
+# pin a toolchain nothing checks and go stale with every bump of either.
+mise*.lock
+.mise*.lock
