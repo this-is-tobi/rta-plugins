@@ -106,11 +106,25 @@ func connect(req plugin.Request) (*vaultapi.Client, *view.Error) {
 	// place of the address's host. Refused over plain HTTP rather than
 	// ignored: a name given is an operator expecting a certificate to be
 	// checked, and the call would have gone in the clear with nothing said.
-	name := serverName(req)
-	if name != "" && !strings.HasPrefix(strings.ToLower(req.String("address")), "https://") {
-		return nil, plaintextServerName(req)
+	//
+	// **A CA file is the same expectation, and is refused the same way.** It is
+	// the setting an operator writes once — in a profile, in the rta config —
+	// for the https:// address it was written for, and it is still there the
+	// day the address is pointed at an http:// one. Taken in silence, nothing
+	// is verified against it, the token goes out in the clear, and the call
+	// reads as checked: the one setting that makes it look so is the one that
+	// does nothing. pg, mysql and mariadb refuse a CA that nothing will verify
+	// against under the same code.
+	name, ca := serverName(req), plugin.ExpandHome(req.String("ca-file"))
+	if !strings.HasPrefix(strings.ToLower(req.String("address")), "https://") {
+		switch {
+		case name != "":
+			return nil, plaintextServerName(req)
+		case ca != "":
+			return nil, plaintextCAFile(req)
+		}
 	}
-	if ca := plugin.ExpandHome(req.String("ca-file")); ca != "" || name != "" {
+	if ca != "" || name != "" {
 		if err := cfg.ConfigureTLS(&vaultapi.TLSConfig{CACert: ca, TLSServerName: name}); err != nil {
 			return nil, view.Errorf("vault.tls.ca.invalid", "%v", err).
 				WithHint(req.Surface().SettingName("ca-file") + " is a path on this machine, read by rta rather than by Vault")
@@ -131,6 +145,12 @@ func connect(req plugin.Request) (*vaultapi.Client, *view.Error) {
 // address's host, or "" for the host.
 func serverName(req plugin.Request) string { return strings.TrimSpace(req.String("tls-server-name")) }
 
+// forwardPlaintextHint is where a call that spoke plain HTTP through a forward
+// is changed: the forward carries http:// unless the profile's connection says
+// its far end speaks TLS, which Vault's own listener does.
+const forwardPlaintextHint = "a forward carries plain http:// unless the profile's connection says its far end " +
+	"speaks TLS, as Vault's own listener does: tunnelTLS: true on that connection"
+
 // plaintextServerName is the refusal for a certificate's name given to a
 // call that would check no certificate: an address that is not https://.
 // Through a forward that is the host's doing — it fills address with
@@ -141,11 +161,43 @@ func plaintextServerName(req plugin.Request) *view.Error {
 	refusal := view.Errorf("vault.tls.plaintext", "%s names a certificate to check, and this call would "+
 		"reach %s over plain HTTP", sf.SettingName("tls-server-name"), reached(req))
 	if req.Tunnel() != plugin.TunnelNone {
-		return refusal.WithHint("a forward carries plain http:// unless the profile's connection says its far end " +
-			"speaks TLS, as Vault's own listener does: tunnelTLS: true on that connection")
+		return refusal.WithHint(forwardPlaintextHint + plainExit(req, "tls-server-name"))
 	}
 	return refusal.WithHint("an https:// address is what makes the call TLS, and " + sf.SettingName("tls-server-name") +
-		" the name its certificate is checked for")
+		" the name its certificate is checked for" + plainExit(req, "tls-server-name"))
+}
+
+// plaintextCAFile is plaintextServerName for a CA: the refusal for one named
+// beside an address that is not https://, which never verifies against it.
+func plaintextCAFile(req plugin.Request) *view.Error {
+	sf := req.Surface()
+	refusal := view.Errorf("vault.tls.ca.unused", "%s names a CA, and this call would reach %s over plain HTTP, "+
+		"which never verifies against one", sf.SettingName("ca-file"), reached(req))
+	if req.Tunnel() != plugin.TunnelNone {
+		return refusal.WithHint(forwardPlaintextHint + plainExit(req, "ca-file"))
+	}
+	return refusal.WithHint("an https:// address is what makes the call TLS, and " + sf.SettingName("ca-file") +
+		" the CA its certificate is checked against" + plainExit(req, "ca-file"))
+}
+
+// plainExit is the second way out of a refusal for a TLS setting given beside an
+// address that is not https://: the setting cleared, for a server that really is
+// plain.
+//
+// **A refusal that names only the way to TLS reads as the only way.** The CA is
+// the setting an operator writes once, among their global settings, for the
+// servers that have one; the day one development Vault answers in the clear is
+// the day it is refused, and told only how to get TLS on a server that has none,
+// they bend the server to the setting when the setting is what should move.
+// Through a forward the way is the profile's own set:, which a profile's value
+// beats the global one in, so an empty value there clears it for that
+// connection alone; there is no command line to name, since the host fills the
+// address.
+func plainExit(req plugin.Request, setting string) string {
+	if req.Tunnel() != plugin.TunnelNone {
+		return "; for a far end that is plain, give that profile's set: an empty " + setting + " instead"
+	}
+	return "; to call a plain server, clear " + req.Surface().SettingName(setting)
 }
 
 // classify turns a client error into something an operator can act on — the
@@ -295,8 +347,7 @@ func tlsExpected(req plugin.Request) *view.Error {
 	refusal := view.Errorf("vault.tls.expected", "this call spoke plain HTTP to %s, which speaks only HTTPS",
 		reached(req))
 	if req.Tunnel() != plugin.TunnelNone {
-		return refusal.WithHint("a forward carries plain http:// unless the profile's connection says its far end " +
-			"speaks TLS, as Vault's own listener does: tunnelTLS: true on that connection")
+		return refusal.WithHint(forwardPlaintextHint)
 	}
 	return refusal.WithHint("an https:// address is what makes the call TLS: " + req.Surface().SettingName("address") +
 		" names the scheme")
