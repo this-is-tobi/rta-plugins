@@ -2,7 +2,17 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
 	stdnet "net"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -114,6 +124,108 @@ func TestTheTokenSafetyOfAMemberURL(t *testing.T) {
 		rq := req(t, "etcd.overview", map[string]any{"username": tc.username})
 		if got := tokenSafeAt(rq, tc.url); got != tc.want {
 			t.Errorf("%s: %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+// etcd's client drops TLS for an http:// endpoint, so a CA, a certificate, a
+// name or the switch given beside one is a setting that checks nothing, and the
+// password goes in the clear in the first request while the call reads as
+// verified. Refused before anything is dialled: measured against a listener
+// that counts the connections it is offered, none is.
+func TestATLSSettingBesideAnHTTPEndpointIsRefusedBeforeAnythingIsDialled(t *testing.T) {
+	lis, err := stdnet.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lis.Close()
+	var mu sync.Mutex
+	dialled := 0
+	go func() {
+		for {
+			conn, err := lis.Accept()
+			if err != nil {
+				return
+			}
+			mu.Lock()
+			dialled++
+			mu.Unlock()
+			_ = conn.Close()
+		}
+	}()
+	endpoint := "http://" + lis.Addr().String()
+	// A CA that is there and valid: with the path of a file nobody wrote, a call
+	// that was not refused for its scheme failed earlier, reading the file, and
+	// the count of connections below proved nothing for the case it is there for.
+	ca := writeCAFile(t)
+
+	for _, tc := range []struct {
+		name   string
+		values map[string]any
+		code   string
+		naming string
+	}{
+		{"a CA", map[string]any{"ca-file": ca}, "etcd.tls.ca.unused", "--ca-file names a CA"},
+		{"the switch", map[string]any{"tls": true}, "etcd.tls.plaintext", "--tls asks for TLS"},
+		{"a client certificate", map[string]any{"cert-file": ca}, "etcd.tls.plaintext", "--cert-file asks for TLS"},
+		{"a name", map[string]any{"tls-server-name": "etcd.internal"}, "etcd.tls.plaintext", "--tls-server-name asks for TLS"},
+	} {
+		values := map[string]any{"endpoint": endpoint, "username": "root", "password": "hunter2"}
+		for k, v := range tc.values {
+			values[k] = v
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_, verr := connectWithin(ctx, req(t, "etcd.overview", values), 2*time.Second)
+		cancel()
+		if verr == nil || verr.Code != tc.code || !strings.Contains(verr.Message, tc.naming) ||
+			!strings.Contains(verr.Message, endpoint) || !strings.Contains(verr.Hint, "an https:// endpoint") ||
+			!strings.Contains(verr.Hint, "to call a plain server, clear "+strings.Fields(tc.naming)[0]) {
+			t.Errorf("%s: %+v, want %s naming %q and the endpoint, and the way to TLS", tc.name, verr, tc.code, tc.naming)
+		}
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if dialled != 0 {
+		t.Errorf("%d connections reached the plain-HTTP endpoint before the refusal", dialled)
+	}
+}
+
+// writeCAFile writes a self-signed CA certificate as PEM to a file in the
+// test's own directory and returns its path: a CA that a call which was not
+// refused would read and trust.
+func writeCAFile(t *testing.T) string {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "rta test CA"},
+		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour),
+		IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "ca.pem")
+	if err := os.WriteFile(path, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// A bare host:port is the way to TLS from the settings, and is not refused: it
+// is the form a forward's address takes, and an https:// endpoint is TLS
+// outright. The call goes on to read the CA file, which is not there.
+func TestATLSSettingBesideABareOrHTTPSEndpointIsNotRefusedForItsScheme(t *testing.T) {
+	for _, endpoint := range []string{"etcd.internal:2379", "https://etcd.internal:2379"} {
+		rq := req(t, "etcd.overview", map[string]any{"endpoint": endpoint, "ca-file": "/nonexistent/ca.pem"})
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_, verr := connectWithin(ctx, rq, time.Second)
+		cancel()
+		if verr == nil || verr.Code != "etcd.tls.ca.unreadable" {
+			t.Errorf("%s: %+v, want the call to go on to the CA file, etcd.tls.ca.unreadable", endpoint, verr)
 		}
 	}
 }

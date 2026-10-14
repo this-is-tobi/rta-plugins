@@ -97,9 +97,55 @@ func connect(ctx context.Context, req plugin.Request) (*clientv3.Client, *view.E
 	return connectWithin(ctx, req, dialTimeout)
 }
 
+// plaintextEndpoint is the refusal for a setting that asks for TLS, given
+// beside an endpoint behind http://.
+//
+// **etcd's client drops TLS for that scheme, whatever it was given** (dialTarget
+// reads it the same way), so the call would go in the clear — the password in
+// its first request — while a setting the operator wrote to have it checked sat
+// there unread. It is the setting an operator writes once, for the https://
+// endpoint it was written for, and it is still there the day the endpoint is
+// pointed at an http:// one. Refused before anything is dialled, as vault and
+// keycloak refuse a CA beside an address that is not https://, the CA under the
+// code pg, mysql and mariadb give one nothing verifies against. A bare
+// host:port is not this: the client takes TLS for it from the settings, which
+// is why a forward's address, which the host fills bare, still turns it on.
+func plaintextEndpoint(req plugin.Request) *view.Error {
+	endpoint := endpointOf(req)
+	if scheme, _, ok := strings.Cut(endpoint, "://"); !ok || !strings.EqualFold(scheme, "http") {
+		return nil
+	}
+	sf := req.Surface()
+	way := "an https:// endpoint, or a host:port with no scheme, is what makes the call TLS: "
+	if req.String("ca-file") != "" {
+		return view.Errorf("etcd.tls.ca.unused", "%s names a CA, and this call would reach %s over plain HTTP, "+
+			"which never verifies against one", sf.SettingName("ca-file"), req.Reached(endpoint)).
+			WithHint(way + sf.SettingName("ca-file") + " is the CA its certificate is checked against; " +
+				"to call a plain server, clear " + sf.SettingName("ca-file"))
+	}
+	var setting string
+	switch {
+	case req.Bool("tls"):
+		setting = "tls"
+	case req.String("cert-file") != "":
+		setting = "cert-file"
+	case serverName(req) != "":
+		setting = "tls-server-name"
+	default:
+		return nil
+	}
+	return view.Errorf("etcd.tls.plaintext", "%s asks for TLS, and this call would reach %s over plain HTTP",
+		sf.SettingName(setting), req.Reached(endpoint)).
+		WithHint(way + "etcd's client drops what " + sf.SettingName(setting) + " asks for behind http://; " +
+			"to call a plain server, clear " + sf.SettingName(setting))
+}
+
 // connectWithin is connect with the bound given, so a test can reach the end
 // of the wait without sitting out the real one.
 func connectWithin(ctx context.Context, req plugin.Request, within time.Duration) (*clientv3.Client, *view.Error) {
+	if verr := plaintextEndpoint(req); verr != nil {
+		return nil, verr
+	}
 	cfg := clientv3.Config{
 		Endpoints:   []string{endpointOf(req)},
 		DialTimeout: within,
