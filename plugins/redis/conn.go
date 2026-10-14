@@ -432,7 +432,8 @@ func classify(err error, addr string, req plugin.Request) *view.Error {
 				"network this machine is not on")
 	case plugin.DialRefused(err):
 		return view.Errorf("redis.conn.refused", "nothing is listening on %s", addr).
-			WithHint("redis listens on 6379 by default; a server bound to localhost only answers from its own host")
+			WithHint("is the server up, and is " + sf.SettingName("address") + " right? redis listens on 6379 by " +
+				"default, and a server bound to localhost only answers from its own host")
 	}
 	// **Only a certificate plugin.CertUntrusted reads as an unknown issuer's,**
 	// Go's x509.UnknownAuthorityError among them, and on macOS, where the
@@ -516,7 +517,8 @@ func classifyDial(err error, addr string, req plugin.Request) *view.Error {
 		case loopback(hostOnly(addr)):
 			return view.Errorf("redis.conn.refused", "nothing is listening on %s", addr).
 				WithHint("redis listens on 6379 by default, and a local port with nothing on it is a server not " +
-					"running on this machine or a port-forward that exited — check the terminal running it")
+					"running on this machine or a port-forward that exited — check the terminal running it, and that " +
+					req.Surface().SettingName("address") + " names the port it serves")
 		}
 	}
 	if ca := plugin.ExpandHome(req.String("ca-file")); ca != "" && plugin.CertUntrusted(err) {
