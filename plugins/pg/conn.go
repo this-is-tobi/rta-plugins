@@ -500,6 +500,23 @@ func classify(err error, req plugin.Request) *view.Error {
 			// loopback port with nothing on it is almost always a forward
 			// that exited — and the reason it exited is worth naming,
 			// because it is not obvious and it is caused by the default.
+			//
+			// **Said after the question that is true of every first call.** The
+			// same port is also what a call nobody pointed anywhere reaches —
+			// localhost:5432, the defaults — and for somebody who has just
+			// installed this and never opened a forward, a hint that opens with
+			// one is about a terminal they do not have. So it opens with whether
+			// the server runs here and which settings say where, and the forward
+			// is the next likeliest thing, for those who run one. With a forward
+			// the host opened, the port was its own end and nobody's terminal is
+			// the one to check: the sentence about the forward then stands alone.
+			if req.Tunnel() == plugin.TunnelNone {
+				return refused.WithHint("is the server up on this machine, and are " + sf.SettingName("host", "port") +
+					" right? A local port with nothing on it is also a port-forward that exited — check the " +
+					"terminal running it. PostgreSQL TLS through `kubectl port-forward` kills the forward on the " +
+					"first clean disconnect, so `sslmode: disable` is what survives; that hop is already inside " +
+					"the API server's TLS")
+			}
 			return refused.WithHint("a local port with nothing on it is usually a " +
 				"port-forward that exited — check the terminal running it. PostgreSQL TLS " +
 				"through `kubectl port-forward` kills the forward on the first clean " +
