@@ -517,7 +517,8 @@ func classify(err error, req plugin.Request) *view.Error {
 	}
 	if plugin.DialRefused(err) {
 		return view.Errorf("qdrant.conn.refused", "nothing is listening on %s", where).
-			WithHint("Qdrant serves REST on 6333 and gRPC on 6334 — the gRPC port will not answer this")
+			WithHint("is the server up, and is " + sf.SettingName("endpoint") + " right? Qdrant serves REST on 6333 " +
+				"and gRPC on 6334, and the gRPC port will not answer this")
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
