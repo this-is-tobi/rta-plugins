@@ -19,15 +19,19 @@ Asks for `kubeconfig` — granted, or not, with `rta plugin allow cnpg`.
 
 Under `plugins: cnpg:` in rta's configuration, or in a profile's `set:`. An installed plugin's section is pinned to the artifact — `plugins: cnpg@<digest>:` — and `rta doctor` prints the exact line. The caller always wins, so a configured value is a default, never a lock. A profile can state a lock where it matters: its `only:` list fences an input to the values that connection reaches, and a call outside it is refused.
 
-| Key           | Read by                                                                                       | Help                                                                                                     |
-|---------------|-----------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
-| backup.method | cnpg.backup.request                                                                           | how to take it — its only configured mechanism when omitted; plugin asks its WAL-archiver plugin         |
-| backup.online | cnpg.backup.request                                                                           | hot or cold — only with a \`method\` of volumeSnapshot, and the cluster's own choice when omitted        |
-| backup.target | cnpg.backup.request                                                                           | which instance performs it — the cluster's own choice when omitted                                       |
-| cluster       | cnpg.backup.list, cnpg.backup.request, cnpg.backup.show, cnpg.status, cnpg.storage            | only this cluster's backups — every cluster's when omitted; empty lifts one a profile or the config pins |
-| context       | cnpg.backup.list, cnpg.backup.request, cnpg.backup.show, cnpg.list, cnpg.status, cnpg.storage | kubeconfig context to use — the current one when omitted                                                 |
-| limit         | cnpg.backup.list                                                                              | how many backups to list; a cut list puts the failed ones first                                          |
-| namespace     | cnpg.backup.list, cnpg.backup.request, cnpg.backup.show, cnpg.list, cnpg.status, cnpg.storage | namespace to look in — the context's own when omitted                                                    |
+| Key           | Read by                                                                                       | Help                                                                                                           |
+|---------------|-----------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
+| backup.method | cnpg.backup.request                                                                           | how to take it — its only configured mechanism when omitted; plugin asks its WAL-archiver plugin               |
+| backup.online | cnpg.backup.request                                                                           | hot or cold — only with a \`method\` of volumeSnapshot, and the cluster's own choice when omitted              |
+| backup.target | cnpg.backup.request                                                                           | which instance performs it — the cluster's own choice when omitted                                             |
+| cluster       | cnpg.backup.list                                                                              | only this cluster's backups — every cluster's when omitted; empty lifts one a profile or the config pins       |
+| cluster       | cnpg.backup.request                                                                           | the cluster to back up; empty lifts one a profile or the config pins                                           |
+| cluster       | cnpg.backup.show                                                                              | the cluster whose backups to show; empty lifts one a profile or the config pins                                |
+| cluster       | cnpg.status                                                                                   | the cluster to read; empty lifts one a profile or the config pins                                              |
+| cluster       | cnpg.storage                                                                                  | the cluster whose volumes to read — every cluster's when omitted; empty lifts one a profile or the config pins |
+| context       | cnpg.backup.list, cnpg.backup.request, cnpg.backup.show, cnpg.list, cnpg.status, cnpg.storage | kubeconfig context to use — the current one when omitted                                                       |
+| limit         | cnpg.backup.list                                                                              | how many backups to list; a cut list puts the failed ones first                                                |
+| namespace     | cnpg.backup.list, cnpg.backup.request, cnpg.backup.show, cnpg.list, cnpg.status, cnpg.storage | namespace to look in — the context's own when omitted                                                          |
 
 ## cnpg.backup.list
 
@@ -76,7 +80,7 @@ Refused when the cluster configures no backup at all. CloudNativePG accepts such
 | profiles             | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow cnpg --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
 | example              | rta cnpg backup request --cluster app-db --namespace production   # back one cluster up now                                                                                                                 |
 | example              | rta cnpg backup request --cluster app-db --method plugin --namespace production   # back one up through its WAL-archiver plugin                                                                             |
-| input:cluster        | string, required, completes, from config plugins.cnpg.cluster — the cluster to back up; empty lifts one a profile or the config pins                                                                        |
+| input:cluster        | string, required, completes, from config plugins.cnpg.cluster, the scope — a call names it, and a profile's \`set:\` never fills it — the cluster to back up; empty lifts one a profile or the config pins  |
 | input:method         | string, one of: barmanObjectStore\|volumeSnapshot\|plugin, from config plugins.cnpg.backup.method — how to take it — its only configured mechanism when omitted; plugin asks its WAL-archiver plugin        |
 | input:target         | string, one of: primary\|prefer-standby, from config plugins.cnpg.backup.target — which instance performs it — the cluster's own choice when omitted                                                        |
 | input:online         | string, one of: true\|false, from config plugins.cnpg.backup.online — hot or cold — only with a \`method\` of volumeSnapshot, and the cluster's own choice when omitted                                     |
