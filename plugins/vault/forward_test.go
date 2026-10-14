@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -152,6 +153,79 @@ func TestAServerNameOverPlainHTTPIsRefused(t *testing.T) {
 	verr = seal(t, values, plugin.TunnelNone)
 	if verr == nil || verr.Code != "vault.tls.plaintext" || !strings.Contains(verr.Hint, "an https:// address") {
 		t.Errorf("reached directly: %+v, want vault.tls.plaintext naming the scheme", verr)
+	}
+}
+
+// The refusals name the way to TLS, which is what the setting was written for,
+// and so read as the only way: an operator with a CA among their global settings
+// and one plain development server was told how to get TLS on a server that has
+// none. The other exit is named beside it, as each reader changes it.
+func TestAPlaintextRefusalAlsoNamesTheWayToClearTheSetting(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		values          map[string]any
+		direct, forward string
+	}{
+		{"a CA", map[string]any{"address": "http://127.0.0.1:1", "ca-file": "/nonexistent/ca.pem"},
+			"to call a plain server, clear --ca-file", "give that profile's set: an empty ca-file"},
+		{"a name", map[string]any{"address": "http://127.0.0.1:1", "tls-server-name": "svc.example.internal"},
+			"to call a plain server, clear --tls-server-name", "give that profile's set: an empty tls-server-name"},
+	} {
+		values := func() map[string]any {
+			out := map[string]any{}
+			for k, v := range tc.values {
+				out[k] = v
+			}
+			return out
+		}
+		if verr := seal(t, values(), plugin.TunnelNone); verr == nil || !strings.Contains(verr.Hint, tc.direct) {
+			t.Errorf("%s, reached directly: %+v, want the hint to say %q", tc.name, verr, tc.direct)
+		}
+		verr := seal(t, values(), plugin.TunnelKube)
+		if verr == nil || !strings.Contains(verr.Hint, tc.forward) || !strings.Contains(verr.Hint, "tunnelTLS: true") {
+			t.Errorf("%s, through a forward: %+v, want both ways out: tunnelTLS, and %q", tc.name, verr, tc.forward)
+		}
+	}
+}
+
+// A CA file is set once for the https:// address it was written for, and is
+// still there when the address is pointed at an http:// one. Taken in silence
+// the call goes out in the clear with the token on it, reading as verified:
+// measured against a listener that records what it is sent. It is refused
+// before anything is dialled, as the name is, and without reading the file.
+func TestACAFileOverPlainHTTPIsRefusedBeforeAnythingIsSent(t *testing.T) {
+	var sent atomic.Int32
+	plain := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sent.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"sealed":false,"initialized":true,"version":"1.0.0","storage_type":"raft"}`))
+	}))
+	defer plain.Close()
+	_, ca := vaultBehindAForward(t)
+
+	values := func() map[string]any {
+		return map[string]any{"address": plain.URL, "ca-file": ca, "token": "s.secret"}
+	}
+	verr := seal(t, values(), plugin.TunnelNone)
+	if verr == nil || verr.Code != "vault.tls.ca.unused" || !strings.Contains(verr.Hint, "an https:// address") ||
+		!strings.Contains(verr.Hint, "--ca-file") {
+		t.Fatalf("reached directly: %+v, want vault.tls.ca.unused naming the scheme and the setting", verr)
+	}
+	if !strings.Contains(verr.Message, "--ca-file names a CA") || !strings.Contains(verr.Message, plain.URL) {
+		t.Errorf("message %q does not say which setting names a CA, and where the call would have gone", verr.Message)
+	}
+	verr = seal(t, values(), plugin.TunnelKube)
+	if verr == nil || verr.Code != "vault.tls.ca.unused" || !strings.Contains(verr.Hint, "tunnelTLS: true") ||
+		!strings.Contains(verr.Message, "profile lab (through its kube: forward)") {
+		t.Errorf("through a forward: %+v, want vault.tls.ca.unused naming the forward and tunnelTLS", verr)
+	}
+	if n := sent.Load(); n != 0 {
+		t.Errorf("%d requests reached the plain-HTTP server, the token on them, before the refusal", n)
+	}
+
+	values = func() map[string]any { return map[string]any{"address": plain.URL, "ca-file": "/nonexistent/ca.pem"} }
+	if verr := seal(t, values(), plugin.TunnelNone); verr == nil || verr.Code != "vault.tls.ca.unused" {
+		t.Errorf("a CA file that cannot be read: %+v, want the refusal for the scheme before the file is opened", verr)
 	}
 }
 
