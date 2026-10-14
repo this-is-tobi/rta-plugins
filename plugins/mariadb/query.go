@@ -53,15 +53,24 @@ func queryCapability() plugin.Capability {
 			"Name a table as `database.table` unless the operator's connection selects a database — " +
 			"without one the server answers an unqualified name with \"No database selected\".",
 		Agent: "Runs one statement in a READ ONLY transaction: the server refuses anything that writes. " +
-			"Returns the rows as a table. Over `limit` rows (default 50, at most 1000) it is refused " +
-			"rather than shortened. Name a table as `database.table` unless the connection selects a " +
+			"Returns the rows as a table. Over `limit` rows (default 200, at most 10000) it is refused " +
+			"rather than shortened, and so is a result over the size bound, so select fewer columns or add a " +
+			"LIMIT; an answer too big for one tool result is cut to its first rows, with the true total and a " +
+			"warning. Name a table as `database.table` unless the connection selects a " +
 			"database, or the server answers \"No database selected\". It returns what the database " +
 			"stores, so it needs a grant from the operator.",
 		Run: runQuery,
 	}, plugin.Field{Name: "sql", Type: plugin.String, Positional: true, Required: true,
 		Help: "the statement to run"},
-		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 50, Min: 1, Max: 1000,
-			Help: "how many rows to allow before refusing"})
+		// The rows a caller's own statement may return, which is one concept
+		// in every SQL plugin and so has one default, one ceiling and one
+		// sentence: plugins/pg's. It said 50, at most 1000, and "how many rows
+		// to allow before refusing" here, so a statement over 51 rows that ran
+		// on PostgreSQL was refused at the defaults here, and the sentence
+		// never said that the call fails rather than cuts. The size of what
+		// comes back is bounded by maxBytes whatever this is raised to.
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 200, Min: 1, Max: 10000,
+			Help: "maximum rows to return; a larger result set is refused, not shortened"})
 }
 
 func runQuery(ctx context.Context, req plugin.Request) (view.View, error) {
