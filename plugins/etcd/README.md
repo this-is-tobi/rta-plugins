@@ -25,7 +25,9 @@ Under `plugins: etcd:` in rta's configuration, or in a profile's `set:`. An inst
 | depth           | etcd.kv.tree                                                                                             | how many levels to expand                                                   |
 | endpoint        | etcd.kv.get, etcd.kv.list, etcd.kv.tree, etcd.lease.list, etcd.member.list, etcd.overview, etcd.snapshot | etcd endpoint, host\[:port\]                                                |
 | key-file        | etcd.kv.get, etcd.kv.list, etcd.kv.tree, etcd.lease.list, etcd.member.list, etcd.overview, etcd.snapshot | private key for \`cert-file\`                                               |
-| limit           | etcd.kv.list, etcd.kv.tree, etcd.lease.list                                                              | how many keys to return                                                     |
+| limit           | etcd.kv.list                                                                                             | how many keys to return                                                     |
+| limit           | etcd.kv.tree                                                                                             | how many keys to read before stopping                                       |
+| limit           | etcd.lease.list                                                                                          | how many leases to show                                                     |
 | tls             | etcd.kv.get, etcd.kv.list, etcd.kv.tree, etcd.lease.list, etcd.member.list, etcd.overview, etcd.snapshot | connect over TLS                                                            |
 | tls-server-name | etcd.kv.get, etcd.kv.list, etcd.kv.tree, etcd.lease.list, etcd.member.list, etcd.overview, etcd.snapshot | name to check the server's certificate for, in place of the endpoint's host |
 | username        | etcd.kv.get, etcd.kv.list, etcd.kv.tree, etcd.lease.list, etcd.member.list, etcd.overview, etcd.snapshot | user to authenticate as, if the cluster has auth enabled                    |
