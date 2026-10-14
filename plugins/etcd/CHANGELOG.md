@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.6.3...plugins/etcd/v0.6.4) (2026-10-14)
+
+
+### Dependencies
+
+* every plugin builds against rta v0.40.0 ([1aa756d](https://github.com/this-is-tobi/rta-plugins/commit/1aa756d203748057638d97edad0d0475c95c8737))
+
 ## [0.6.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.6.2...plugins/etcd/v0.6.3) (2026-10-13)
 
 

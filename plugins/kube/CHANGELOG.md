@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.5.3...plugins/kube/v0.5.4) (2026-10-14)
+
+
+### Bug Fixes
+
+* **kube:** a namespace beside all-namespaces says where the namespace may have come from ([bc50597](https://github.com/this-is-tobi/rta-plugins/commit/bc50597ddf23eb4e1b6bb3a6d0e390a5293fe216))
+* **kube:** all-namespaces declares which input it widens ([9bb098a](https://github.com/this-is-tobi/rta-plugins/commit/9bb098a9f863374401712fed10927f3ae7e50a61))
+* **kube:** an agent is told the operator's to fix a missing context, not shown the list ([70ee0df](https://github.com/this-is-tobi/rta-plugins/commit/70ee0df4cdbfaf14132ab2909564335164c86fef))
+* **kube:** the list of contexts is not found by environments or switch ([a276e84](https://github.com/this-is-tobi/rta-plugins/commit/a276e84494052d91c1f0ef421c4d09ef75411ea4))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.40.0 ([1aa756d](https://github.com/this-is-tobi/rta-plugins/commit/1aa756d203748057638d97edad0d0475c95c8737))
+
 ## [0.5.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.5.2...plugins/kube/v0.5.3) (2026-10-13)
 
 
