@@ -110,8 +110,21 @@ func connect(ctx context.Context, req plugin.Request) (*session, *view.Error) {
 	}
 	// A name given is an operator expecting a certificate to be checked, and
 	// over http:// the call would have gone in the clear with nothing said.
-	if serverName(req) != "" && parsed.Scheme != "https" {
-		return nil, plaintextServerName(req, base)
+	//
+	// **A CA file is the same expectation, and is refused the same way.** It is
+	// the setting an operator writes once — in a profile, in the rta config —
+	// for the https:// URL it was written for, and it is still there the day
+	// the URL is pointed at an http:// one. Taken in silence, nothing is
+	// verified against it, the client secret goes out in the clear in the token
+	// request, and the call reads as checked. pg, mysql and mariadb refuse a CA
+	// that nothing will verify against under the same code.
+	if parsed.Scheme != "https" {
+		switch {
+		case serverName(req) != "":
+			return nil, plaintextServerName(req, base)
+		case plugin.ExpandHome(req.String("ca-file")) != "":
+			return nil, plaintextCAFile(req, base)
+		}
 	}
 	realm := req.String("realm")
 	if realm == "" {
@@ -291,11 +304,50 @@ func plaintextServerName(req plugin.Request, base string) *view.Error {
 	refusal := view.Errorf("keycloak.tls.plaintext", "%s names a certificate to check, and this call would "+
 		"reach %s over plain HTTP", sf.SettingName("tls-server-name"), req.Reached(base))
 	if req.Tunnel() != plugin.TunnelNone {
-		return refusal.WithHint("a forward carries plain http:// unless the profile's connection says its far end " +
-			"speaks TLS: tunnelTLS: true on that connection, for a Keycloak serving HTTPS on the port it forwards")
+		return refusal.WithHint(forwardPlaintextHint + plainExit(req, "tls-server-name"))
 	}
 	return refusal.WithHint("an https:// URL is what makes the call TLS, and " + sf.SettingName("tls-server-name") +
-		" the name its certificate is checked for")
+		" the name its certificate is checked for" + plainExit(req, "tls-server-name"))
+}
+
+// forwardPlaintextHint is where a call that spoke plain HTTP through a forward
+// is changed: the forward carries http:// unless the profile's connection says
+// its far end speaks TLS, which a Keycloak serving HTTPS on the port it
+// forwards does.
+const forwardPlaintextHint = "a forward carries plain http:// unless the profile's connection says its far end " +
+	"speaks TLS: tunnelTLS: true on that connection, for a Keycloak serving HTTPS on the port it forwards"
+
+// plaintextCAFile is plaintextServerName for a CA: the refusal for one named
+// beside a URL that is not https://, which never verifies against it.
+func plaintextCAFile(req plugin.Request, base string) *view.Error {
+	sf := req.Surface()
+	refusal := view.Errorf("keycloak.tls.ca.unused", "%s names a CA, and this call would reach %s over plain HTTP, "+
+		"which never verifies against one", sf.SettingName("ca-file"), req.Reached(base))
+	if req.Tunnel() != plugin.TunnelNone {
+		return refusal.WithHint(forwardPlaintextHint + plainExit(req, "ca-file"))
+	}
+	return refusal.WithHint("an https:// URL is what makes the call TLS, and " + sf.SettingName("ca-file") +
+		" the CA its certificate is checked against" + plainExit(req, "ca-file"))
+}
+
+// plainExit is the second way out of a refusal for a TLS setting given beside an
+// URL that is not https://: the setting cleared, for a server that really is
+// plain.
+//
+// **A refusal that names only the way to TLS reads as the only way.** The CA is
+// the setting an operator writes once, among their global settings, for the
+// servers that have one; the day one development Keycloak answers in the clear is
+// the day it is refused, and told only how to get TLS on a server that has none,
+// they bend the server to the setting when the setting is what should move.
+// Through a forward the way is the profile's own set:, which a profile's value
+// beats the global one in, so an empty value there clears it for that
+// connection alone; there is no command line to name, since the host fills the
+// URL.
+func plainExit(req plugin.Request, setting string) string {
+	if req.Tunnel() != plugin.TunnelNone {
+		return "; for a far end that is plain, give that profile's set: an empty " + setting + " instead"
+	}
+	return "; to call a plain server, clear " + req.Surface().SettingName(setting)
 }
 
 // secretSources names where this call's client secret is read from, for a
