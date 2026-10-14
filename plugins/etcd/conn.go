@@ -595,7 +595,8 @@ func classify(err error, req plugin.Request) *view.Error {
 	}
 	if plugin.DialRefused(err) {
 		return view.Errorf("etcd.conn.refused", "nothing is listening on %s", where).
-			WithHint("etcd listens on 2379 for clients and 2380 for peers — the peer port will not answer this")
+			WithHint("is the cluster up, and is " + sf.SettingName("endpoint") + " right? etcd listens on 2379 for " +
+				"clients and 2380 for peers, and the peer port will not answer this")
 	}
 	return view.Errorf("etcd.conn.failed", "could not reach %s: %v", where, err).
 		WithHint(sf.SettingsHint("etcd.overview"))
