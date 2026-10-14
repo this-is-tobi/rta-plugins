@@ -219,8 +219,14 @@ func Plugin() plugin.Plugin {
 				Description: "Stop then start, keeping the container's id, volumes and " +
 					"configuration. What it does lose is whatever was only in the process's memory " +
 					"and whatever was written outside a volume.",
+				// Not Idempotent, which stop is: a second stop finds the
+				// container stopped and changes nothing, and a second restart
+				// stops it and starts it again — its connections dropped and its
+				// memory lost a second time. The claim reaches an MCP client as
+				// idempotentHint, and a client may repeat a call marked so
+				// freely, which here is a second outage.
 				Safety:     plugin.Write,
-				Idempotent: true,
+				Idempotent: false,
 				NeedsGrant: true,
 				Scope:      "container",
 				Inputs:     []plugin.Field{nameInput("the container to restart")},
