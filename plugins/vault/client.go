@@ -362,7 +362,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	}
 	if plugin.DialRefused(err) {
 		return view.Errorf("vault.conn.refused", "nothing is listening on %s", addr).
-			WithHint("is the server up, and is " + sf.SettingName("address") + " right?")
+			WithHint("is the server up, and is " + sf.SettingName("address") + " right? Vault listens on 8200 by default")
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
