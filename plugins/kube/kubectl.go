@@ -266,7 +266,8 @@ func classify(ctx context.Context, err error, stderr string, args []string, sf p
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return view.Errorf("kube.unreachable",
 			"kubectl did not answer within %s", timeout).
-			WithHint("the cluster may be unreachable, or its endpoint may be behind a VPN that is not up")
+			WithHint("the cluster may be unreachable, or its endpoint may be behind a VPN that is not up; `" +
+				clusterInfoLine(args) + "` is the same question without this plugin in the way")
 	}
 	if errors.Is(ctx.Err(), context.Canceled) {
 		return view.Errorf("kube.cancelled", "the call was cancelled")
@@ -339,13 +340,30 @@ func classify(ctx context.Context, err error, stderr string, args []string, sf p
 		strings.Contains(low, "i/o timeout"), strings.Contains(low, "dial tcp"),
 		strings.Contains(low, "server could not find"), strings.Contains(low, "connect:"):
 		return view.Errorf("kube.unreachable", "%s", msg).
-			WithHint("the API server did not answer — check the VPN, the context, and that the cluster is up")
+			WithHint("the API server did not answer — check the VPN, the context, and that the cluster is up; `" +
+				clusterInfoLine(args) + "` is the same question without this plugin in the way")
 	case strings.Contains(low, "not found"):
 		return view.Errorf("kube.notfound", "%s", msg)
 	case msg != "":
 		return view.Errorf("kube.failed", "%s", msg)
 	}
 	return view.Errorf("kube.failed", "kubectl %s failed: %v", strings.Join(args, " "), err)
+}
+
+// clusterInfoLine is the kubectl command that asks whether the API server
+// answers at all, with this plugin out of the way, on the context the call that
+// failed was run against: read from the arguments it ran with, since a bare
+// `kubectl cluster-info` asks the context of the shell it is pasted into, which
+// is not always the one this call was about. The same line plugins/cnpg gives
+// its own unreachable cluster.
+func clusterInfoLine(args []string) string {
+	var s selection
+	for _, arg := range args {
+		if name, ok := strings.CutPrefix(arg, "--context="); ok {
+			s.Context = name
+		}
+	}
+	return s.kubectlLine("cluster-info")
 }
 
 // execPluginFailed is kubectl's own line for an exec credential plugin that
