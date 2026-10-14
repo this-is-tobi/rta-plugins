@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/this-is-tobi/rta/pkg/view"
@@ -83,6 +84,26 @@ func TestCAFileRejectsAPathWithNoCertificate(t *testing.T) {
 	}
 	if verr.Code != "vault.tls.ca.invalid" {
 		t.Errorf("code = %s, want vault.tls.ca.invalid", verr.Code)
+	}
+}
+
+// A CA file that is not there is the same refusal in every plugin that takes
+// one: .ca.unreadable, in rta's words and not the client library's, with the
+// path as it was given. vault alone said .ca.invalid, "Error loading CA File:
+// open …", for a file that had never been opened.
+func TestCAFileThatCannotBeReadIsNamedAsUnreadable(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "gone.pem")
+	_, verr := connect(req(t, "vault.seal.status", map[string]any{
+		"address": "https://127.0.0.1:1", "ca-file": missing,
+	}))
+	if verr == nil || verr.Code != "vault.tls.ca.unreadable" {
+		t.Fatalf("connect: %+v, want vault.tls.ca.unreadable", verr)
+	}
+	if !strings.Contains(verr.Message, missing) || strings.Contains(verr.Message, "Error loading CA File") {
+		t.Errorf("message %q, want the path and rta's words, not the client library's", verr.Message)
+	}
+	if !strings.Contains(verr.Hint, "--ca-file is a path on this machine") {
+		t.Errorf("hint %q does not say where the file is read", verr.Hint)
 	}
 }
 

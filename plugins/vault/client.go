@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 
@@ -125,7 +126,14 @@ func connect(req plugin.Request) (*vaultapi.Client, *view.Error) {
 		}
 	}
 	if ca != "" || name != "" {
-		if err := cfg.ConfigureTLS(&vaultapi.TLSConfig{CACert: ca, TLSServerName: name}); err != nil {
+		var bundle []byte
+		if ca != "" {
+			var verr *view.Error
+			if bundle, verr = caBundle(req, ca); verr != nil {
+				return nil, verr
+			}
+		}
+		if err := cfg.ConfigureTLS(&vaultapi.TLSConfig{CACertBytes: bundle, TLSServerName: name}); err != nil {
 			return nil, view.Errorf("vault.tls.ca.invalid", "%v", err).
 				WithHint(req.Surface().SettingName("ca-file") + " is a path on this machine, read by rta rather than by Vault")
 		}
@@ -139,6 +147,30 @@ func connect(req plugin.Request) (*vaultapi.Client, *view.Error) {
 		client.SetNamespace(ns)
 	}
 	return client, nil
+}
+
+// caBundle is the PEM the CA file at path holds, read here and handed to the
+// client as bytes rather than as a path.
+//
+// **Read by rta, so it is refused in rta's words and under the codes every
+// other plugin gives a CA file.** Handed over as a path, a file that was not
+// there came back in the client library's own words — "Error loading CA File:
+// open …" — under vault.tls.ca.invalid, where every other plugin that takes a
+// CA file says .ca.unreadable for one that cannot be opened and .ca.invalid
+// for one with no certificate in it.
+func caBundle(req plugin.Request, path string) ([]byte, *view.Error) {
+	sf := req.Surface()
+	pem, err := os.ReadFile(path)
+	if err != nil {
+		return nil, view.Errorf("vault.tls.ca.unreadable", "%v", err).
+			WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by Vault")
+	}
+	if !x509.NewCertPool().AppendCertsFromPEM(pem) {
+		return nil, view.Errorf("vault.tls.ca.invalid", "%s holds no PEM certificate", path).
+			WithHint(sf.SettingName("ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
+				"server's own — and a private key or a DER-encoded certificate is not one")
+	}
+	return pem, nil
 }
 
 // serverName is the name the certificate is checked for in place of the
