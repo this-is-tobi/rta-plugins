@@ -603,7 +603,9 @@ func tlsThroughForward(req plugin.Request) *view.Error {
 }
 
 // reachHint asks whether the server is up and its address right, naming the
-// two connection inputs the address is made of the way the reader sets them.
+// two connection inputs the address is made of the way the reader sets them,
+// and the port the product serves on, which is the first thing to compare an
+// address with.
 func reachHint(sf plugin.Surface) string {
-	return "is the server up, and are " + sf.SettingName("host", "port") + " right?"
+	return "is the server up, and are " + sf.SettingName("host", "port") + " right? MySQL listens on 3306 by default"
 }
