@@ -193,7 +193,31 @@ func newRequest(ctx context.Context, req plugin.Request, method, path string,
 	return httpReq, nil
 }
 
-// httpClient is http.DefaultClient unless ca-file names a CA to trust beyond
+// refuseRedirect is this plugin's answer to a redirect: none is followed.
+//
+// **A redirect carries the credential wherever it points.** The api-key travels in a header of its own, which Go does not strip from
+// a request it sends on to another domain, whatever the scheme.
+// Go strips only Authorization and Cookie from a request it sends on to another
+// domain, and compares the domain alone, so a hop to another scheme or port of
+// the same host keeps even those. A Qdrant the API is reached on has no
+// redirect to give; one is a proxy rewriting the scheme or the host, and it is
+// refused as that — said, not followed and not dropped silently — so a ca-file
+// named for an https:// URL never stands behind a second hop it was not asked
+// about. The same rule rta's own operator channel keeps.
+func refuseRedirect(req *http.Request, _ []*http.Request) error {
+	return redirectRefused{to: req.URL.Redacted()}
+}
+
+// redirectRefused is the error refuseRedirect returns, typed so that the
+// failure it becomes is its own and not "could not reach" a server that
+// answered.
+type redirectRefused struct{ to string }
+
+func (e redirectRefused) Error() string {
+	return "Qdrant does not follow redirects (got one to " + e.to + ")"
+}
+
+// httpClient is the default transport unless ca-file names a CA to trust beyond
 // this machine's own store, in which case it is a client built for exactly
 // that — read and parsed fresh on every call, the same as every other input
 // here, because this plugin keeps no client or connection across calls to
@@ -209,13 +233,13 @@ func newRequest(ctx context.Context, req plugin.Request, method, path string,
 func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 	ca := plugin.ExpandHome(req.String("ca-file"))
 	if ca == "" && serverName(req) == "" {
-		return http.DefaultClient, nil
+		return &http.Client{CheckRedirect: refuseRedirect}, nil
 	}
 	// MinVersion is Go's own client default already; stated so the config
 	// says what it accepts, as plugins/keycloak's does.
 	cfg := &tls.Config{MinVersion: tls.VersionTLS12, ServerName: serverName(req)}
 	if ca == "" {
-		return &http.Client{Transport: &http.Transport{TLSClientConfig: cfg}}, nil
+		return &http.Client{Transport: &http.Transport{TLSClientConfig: cfg}, CheckRedirect: refuseRedirect}, nil
 	}
 	sf := req.Surface()
 	pem, err := os.ReadFile(ca)
@@ -236,7 +260,7 @@ func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 				"server's own — and a private key or a DER-encoded certificate is not one")
 	}
 	cfg.RootCAs = pool
-	return &http.Client{Transport: &http.Transport{TLSClientConfig: cfg}}, nil
+	return &http.Client{Transport: &http.Transport{TLSClientConfig: cfg}, CheckRedirect: refuseRedirect}, nil
 }
 
 // serverName is the name the certificate is checked for in place of the
@@ -420,6 +444,14 @@ func classify(err error, req plugin.Request) *view.Error {
 	var already *view.Error
 	if errors.As(err, &already) {
 		return already
+	}
+	var redirect redirectRefused
+	if errors.As(err, &redirect) {
+		return view.Errorf("qdrant.redirect.refused", "%s answered with a redirect to %s, which this call does not follow",
+			req.Reached(req.String("endpoint")), redirect.to).
+			WithHint("a redirect would carry the API key to wherever it points, so none is followed: " +
+				req.Surface().SettingName("endpoint") + " is the address the Qdrant itself answers on, and a proxy " +
+				"that rewrites the scheme or the host is what usually sends one")
 	}
 	where := req.String("endpoint")
 
