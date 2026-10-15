@@ -17,13 +17,20 @@ func sessionListCapability() plugin.Capability {
 		Examples: []plugin.Example{
 			{Title: "one user's sessions", Inputs: map[string]any{"user": "alice"}},
 		},
-		Safety:     plugin.Read,
+		Safety:     plugin.Write,
+		NeedsGrant: true,
+		Scope:      "user",
 		Idempotent: true,
 		Description: "By default the realm's session counts per client, active and offline — the " +
 			"one-line answer to \"is anyone using this\". `user` lists one account's open " +
 			"sessions with their address, start and last activity; `client` lists the sessions " +
 			"open against one application. Sessions are described, never revoked: that is a " +
-			"write this plugin does not have.",
+			"write this plugin does not have. The counts without the sessions are in keycloak.overview, " +
+			"which needs no grant.\n\n" + peopleNote,
+		Agent: "By default the session counts per client. `user` lists one account's open sessions with their " +
+			"address, start and last activity; `client` lists the sessions open against one application, bounded " +
+			"by `limit`. Needs a grant, which can name one `user`; keycloak.overview with detail has the counts " +
+			"without one.",
 		Run: runSessionList,
 	},
 		plugin.Field{Name: "user", Short: "u", Type: plugin.String, Default: "", Help: "one user's sessions, by username or id"},
@@ -34,6 +41,16 @@ func sessionListCapability() plugin.Capability {
 }
 
 func runSessionList(ctx context.Context, req plugin.Request) (view.View, error) {
+	if req.DryRun {
+		switch {
+		case req.String("user") != "":
+			return preview(req, "list the open sessions of user "+strconv.Quote(req.String("user")))
+		case req.String("client") != "":
+			return preview(req, "list "+upTo(req.Int("limit"), "session")+" open against client "+
+				strconv.Quote(req.String("client")))
+		}
+		return preview(req, "list the session counts per client")
+	}
 	return withSession(ctx, req, func(ctx context.Context, s *session) (view.View, error) {
 		switch {
 		case req.String("user") != "":

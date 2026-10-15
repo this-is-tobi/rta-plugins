@@ -23,13 +23,18 @@ func eventListCapability() plugin.Capability {
 		Examples: []plugin.Example{
 			{Title: "the last failed logins", Inputs: map[string]any{"type": "LOGIN_ERROR", "limit": 50}},
 		},
-		Safety:     plugin.Read,
+		Safety:     plugin.Write,
+		NeedsGrant: true,
+		Scope:      "user",
 		Idempotent: true,
 		Description: "The realm's login event log, newest first — LOGIN, LOGIN_ERROR, LOGOUT, " +
 			"CODE_TO_TOKEN, REFRESH_TOKEN and the rest — with the user, the client and the " +
 			"address each came from. Filter by `type`, `user` or `client`; bound by `limit`, and it " +
 			"says when it stopped. Empty when the realm does not record events, which " +
-			"`keycloak.audit` flags.",
+			"`keycloak.audit` flags.\n\n" + peopleNote,
+		Agent: "The realm's login events, newest first, with the user, the client and the address each came " +
+			"from. Filter by `type`, `user` or `client`; `limit` bounds the rows and the answer says when it " +
+			"stopped. Empty when the realm does not record events. Needs a grant, which can name one `user`.",
 		Run: runEventList,
 	},
 		plugin.Field{Name: "type", Short: "t", Type: plugin.String, Default: "", Help: "one event type, e.g. LOGIN_ERROR"},
@@ -41,6 +46,10 @@ func eventListCapability() plugin.Capability {
 }
 
 func runEventList(ctx context.Context, req plugin.Request) (view.View, error) {
+	if req.DryRun {
+		return preview(req, "list "+upTo(req.Int("limit"), "event")+", newest first"+
+			matching("type", req.String("type"), "user", req.String("user"), "client", req.String("client")))
+	}
 	return withSession(ctx, req, func(ctx context.Context, s *session) (view.View, error) {
 		limit := req.Int("limit")
 		q := query("max", strconv.Itoa(askFor(limit)), "type", req.String("type"), "client", req.String("client"))
@@ -73,15 +82,24 @@ func runEventList(ctx context.Context, req plugin.Request) (view.View, error) {
 
 func eventAdminCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "keycloak.event.admin",
-		Summary:    "Admin events, newest first: what was created, changed or deleted in the realm, by whom",
-		Keywords:   []string{"audit", "changes", "history", "who", "security"},
-		Safety:     plugin.Read,
+		ID:       "keycloak.event.admin",
+		Summary:  "Admin events, newest first: what was created, changed or deleted in the realm, by whom",
+		Keywords: []string{"audit", "changes", "history", "who", "security"},
+		// Write, and no record to name: the log is the one thing it returns, so
+		// a grant covers the capability, as pg.activity's does. By the rule
+		// that draws the line — what returns a value somebody stored — it is
+		// the login log's twin: the account and the address each change came
+		// from are the same two values.
+		Safety:     plugin.Write,
+		NeedsGrant: true,
 		Idempotent: true,
 		Description: "The realm's administrative change log: each operation, the resource it " +
 			"touched, the path to it, and the account and address it came from. What an " +
 			"incident wants first when a client or a role appeared that nobody remembers " +
-			"adding. Bound by `limit`, and it says when it stopped.",
+			"adding. Bound by `limit`, and it says when it stopped.\n\n" + peopleNote,
+		Agent: "The realm's administrative change log, newest first: each operation, the resource it touched, " +
+			"and the account and address it came from. `limit` bounds the rows and the answer says when it " +
+			"stopped. Needs a grant.",
 		Run: runEventAdmin,
 	},
 		limitField(50, 1000, "how many events to list"),
@@ -89,6 +107,9 @@ func eventAdminCapability() plugin.Capability {
 }
 
 func runEventAdmin(ctx context.Context, req plugin.Request) (view.View, error) {
+	if req.DryRun {
+		return preview(req, "list "+upTo(req.Int("limit"), "admin event")+", newest first")
+	}
 	return withSession(ctx, req, func(ctx context.Context, s *session) (view.View, error) {
 		limit := req.Int("limit")
 		var got []adminEventRep

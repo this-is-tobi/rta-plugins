@@ -19,12 +19,27 @@
 // answer the same questions, and keycloak.audit flags it wherever a client
 // has it on: the plugin must not be what it grades.
 //
-// # Reads only, and one line drawn twice
+// # Nothing here changes a realm, and what the read tier holds
 //
-// Nothing here writes. Identity administration is authority-expanding by
-// nature — a user created, a role granted, a client registered is how an
-// agent would mint itself an identity — so a write set is its own design
-// with its own gates, and none of it is here.
+// Identity administration is authority-expanding by nature — a user created,
+// a role granted, a client registered is how an agent would mint itself an
+// identity — so a write set is its own design with its own gates, and none of
+// it is here.
+//
+// The tiers draw the line where pg's and etcd's do: the read tier describes
+// the thing, and anything that returns a value somebody stored is behind a
+// grant. What is read describes how the realm is set up — its size and
+// protections, its clients and what each may do, its roles and flows, and the
+// grade of all of that. What is Write, for what it discloses and not for what
+// it changes, is the realm's people: who exists (keycloak.user.list,
+// keycloak.user.show), who is signed in and from where (keycloak.session.list),
+// who signed in or failed to, and from which address (keycloak.event.list), and
+// who changed what, from where (keycloak.event.admin). Those are values a
+// person stored, and a grant for a profile's reads is not consent to them.
+// keycloak.audit stays a read because grading is its job, and a finding that
+// names the accounts it is about — who holds an administrative role, the first
+// few without a second factor — is the finding; it is a handful, and never the
+// directory.
 //
 // Two things a read could return are never returned. A client's secret:
 // a client representation carries it to anyone with view-clients, and this

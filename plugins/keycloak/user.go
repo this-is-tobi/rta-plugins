@@ -17,10 +17,12 @@ import (
 // have a second factor" needs; the API does not hand out the value and
 // this plugin would not ask.
 //
-// Usernames and email addresses are personal data handed to whatever
-// asked, and the reads stay ungated for the same reason pg.table.list's
-// rows do: the destination is one the operator named in a profile, never
-// one the caller chose, and the persona is the realm's own administrator.
+// Usernames and email addresses are values somebody stored, handed to whatever
+// asked, and the capabilities that return them are Write for that: a grant a
+// person issued, which can name one search term or one user. The destination
+// being one the operator named in a profile bounds where a call goes and not
+// what comes back from it, and a profile's read grant is consent to describe
+// a realm, not to list the people in it.
 // Attributes are the exception and are never listed — a realm's custom
 // attributes are where the sensitive things people bolt onto a user go.
 
@@ -32,12 +34,17 @@ func userListCapability() plugin.Capability {
 		Examples: []plugin.Example{
 			{Title: "find a user by name or email", Inputs: map[string]any{"search": "alice"}},
 		},
-		Safety:     plugin.Read,
+		Safety:     plugin.Write,
+		NeedsGrant: true,
+		Scope:      "search",
 		Idempotent: true,
 		Description: "One row per user: username, email, enabled, email verified, whether an OTP " +
 			"is configured, and when the account was created. Service accounts are not users " +
 			"here — Keycloak lists them under their client. Bounded by `limit`, and it says when it " +
-			"stopped; a search narrows by username, email or name.",
+			"stopped; a search narrows by username, email or name.\n\n" + peopleNote,
+		Agent: "One row per user: username, email, enabled, email verified, whether an OTP is configured and " +
+			"when the account was created. `search` narrows by username, email or name; `limit` bounds the rows " +
+			"and the answer says when it stopped. Needs a grant, which can name one `search`.",
 		Run: runUserList,
 	},
 		plugin.Field{Name: "search", Type: plugin.String, Positional: true, Default: "",
@@ -47,6 +54,13 @@ func userListCapability() plugin.Capability {
 }
 
 func runUserList(ctx context.Context, req plugin.Request) (view.View, error) {
+	if req.DryRun {
+		what := "list " + upTo(req.Int("limit"), "user")
+		if search := req.String("search"); search != "" {
+			what += " matching " + strconv.Quote(search)
+		}
+		return preview(req, what)
+	}
 	return withSession(ctx, req, func(ctx context.Context, s *session) (view.View, error) {
 		limit := req.Int("limit")
 		got, verr := s.users(ctx, req.String("search"), askFor(limit))
@@ -87,13 +101,17 @@ func userShowCapability() plugin.Capability {
 		Examples: []plugin.Example{
 			{Title: "one user in full", Inputs: map[string]any{"user": "alice"}},
 		},
-		Safety:     plugin.Read,
+		Safety:     plugin.Write,
+		NeedsGrant: true,
+		Scope:      "user",
 		Idempotent: true,
 		Description: "Everything the realm knows about one account except its secrets: the " +
 			"profile and its required actions, which kinds of credential are set (password, " +
 			"otp, webauthn — types and dates, never values), the realm roles in effect once " +
 			"composites are expanded, client roles per client, group membership, and the " +
-			"sessions open right now.",
+			"sessions open right now.\n\n" + peopleNote,
+		Agent: "One account in full: the profile, which kinds of credential are set (never values), the roles in " +
+			"effect, groups and open sessions. `user` is a username or an id. Needs a grant naming the user.",
 		Run: runUserShow,
 	},
 		plugin.Field{Name: "user", Type: plugin.String, Positional: true, Required: true,
@@ -102,6 +120,10 @@ func userShowCapability() plugin.Capability {
 }
 
 func runUserShow(ctx context.Context, req plugin.Request) (view.View, error) {
+	if req.DryRun {
+		return preview(req, "show user "+strconv.Quote(req.String("user"))+
+			": the profile, credential types, roles, groups and open sessions")
+	}
 	return withSession(ctx, req, func(ctx context.Context, s *session) (view.View, error) {
 		u, verr := s.user(ctx, req.String("user"))
 		if verr != nil {
