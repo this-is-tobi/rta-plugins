@@ -372,8 +372,17 @@ func classify(err error, req plugin.Request) *view.Error {
 				"an address on a network this machine is not on")
 	}
 	if plugin.DialRefused(err) {
-		return view.Errorf("s3.conn.refused", "nothing is listening on %s", where).
-			WithHint("is the server up, and is " + sf.SettingName("endpoint") + " right?")
+		refused := view.Errorf("s3.conn.refused", "nothing is listening on %s", where)
+		// Through a forward the endpoint is the host's own, a local port that
+		// closed with the call, and the setting question asks about an address
+		// nobody typed: the forward is what to ask about.
+		if req.Tunnel() != plugin.TunnelNone {
+			return refused.WithHint("the forward the host opened for this call ended before the call reached it, or " +
+				"points at a port the server does not answer on: is the server up, and does the profile forward the " +
+				"port it serves S3 on? MinIO serves it on 9000 by default")
+		}
+		return refused.WithHint("is the server up, and is " + sf.SettingName("endpoint") + " right? " +
+			"MinIO serves S3 on 9000 by default")
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
