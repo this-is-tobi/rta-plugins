@@ -248,7 +248,32 @@ func (s *session) call(ctx context.Context, method, u string, body io.Reader, co
 	return nil
 }
 
-// httpClient is http.DefaultClient unless ca-file names a CA to trust
+// refuseRedirect is this plugin's answer to a redirect: none is followed.
+//
+// **A redirect carries the credential wherever it points.** The token request is a POST with the client secret in its body, which a
+// 307 or a 308 sends again whole, and every request after it carries a bearer
+// token.
+// Go strips only Authorization and Cookie from a request it sends on to another
+// domain, and compares the domain alone, so a hop to another scheme or port of
+// the same host keeps even those. A Keycloak the API is reached on has no
+// redirect to give; one is a proxy rewriting the scheme or the host, and it is
+// refused as that — said, not followed and not dropped silently — so a ca-file
+// named for an https:// URL never stands behind a second hop it was not asked
+// about. The same rule rta's own operator channel keeps.
+func refuseRedirect(req *http.Request, _ []*http.Request) error {
+	return redirectRefused{to: req.URL.Redacted()}
+}
+
+// redirectRefused is the error refuseRedirect returns, typed so that the
+// failure it becomes is its own and not "could not reach" a server that
+// answered.
+type redirectRefused struct{ to string }
+
+func (e redirectRefused) Error() string {
+	return "Keycloak does not follow redirects (got one to " + e.to + ")"
+}
+
+// httpClient is the default transport unless ca-file names a CA to trust
 // beyond this machine's own store — read fresh on every call like every
 // other input, because nothing here outlives a run.
 //
@@ -261,11 +286,11 @@ func (s *session) call(ctx context.Context, method, u string, body io.Reader, co
 func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 	ca := plugin.ExpandHome(req.String("ca-file"))
 	if ca == "" && serverName(req) == "" {
-		return http.DefaultClient, nil
+		return &http.Client{CheckRedirect: refuseRedirect}, nil
 	}
 	cfg := &tls.Config{MinVersion: tls.VersionTLS12, ServerName: serverName(req)}
 	if ca == "" {
-		return &http.Client{Transport: &http.Transport{TLSClientConfig: cfg}}, nil
+		return &http.Client{Transport: &http.Transport{TLSClientConfig: cfg}, CheckRedirect: refuseRedirect}, nil
 	}
 	sf := req.Surface()
 	pem, err := os.ReadFile(ca)
@@ -287,7 +312,7 @@ func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 				"server's own — and a private key or a DER-encoded certificate is not one")
 	}
 	cfg.RootCAs = pool
-	return &http.Client{Transport: &http.Transport{TLSClientConfig: cfg}}, nil
+	return &http.Client{Transport: &http.Transport{TLSClientConfig: cfg}, CheckRedirect: refuseRedirect}, nil
 }
 
 // serverName is the name the certificate is checked for in place of the
@@ -473,6 +498,14 @@ func (s *session) classifyTransport(err error) *view.Error {
 	var already *view.Error
 	if errors.As(err, &already) {
 		return already
+	}
+	var redirect redirectRefused
+	if errors.As(err, &redirect) {
+		return view.Errorf("keycloak.redirect.refused", "%s answered with a redirect to %s, which this call does not follow",
+			s.reached(), redirect.to).
+			WithHint("a redirect would carry the client secret and the token to wherever it points, so none is " +
+				"followed: " + s.req.Surface().SettingName("url") + " is the address the Keycloak itself answers on, " +
+				"and a proxy that rewrites the scheme or the host is what usually sends one")
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		return view.Errorf("keycloak.timeout", "%s did not answer in time", s.base).
