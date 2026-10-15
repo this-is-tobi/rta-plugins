@@ -18,7 +18,7 @@ Qdrant: collections, their configuration and index health
 
 Under `plugins: qdrant:` in rta's configuration, or in a profile's `set:`. An installed plugin's section is pinned to the artifact — `plugins: qdrant@<digest>:` — and `rta doctor` prints the exact line. The caller always wins, so a configured value is a default, never a lock. A profile can state a lock where it matters: its `only:` list fences an input to the values that connection reaches, and a call outside it is refused.
 
-| Key             | Read by                                                                                                                                 | Help                                                                        |
+| Key             | Read By                                                                                                                                 | Help                                                                        |
 |-----------------|-----------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
 | ca-file         | qdrant.collection.list, qdrant.collection.show, qdrant.dump, qdrant.overview, qdrant.points.count, qdrant.points.scroll, qdrant.restore | PEM bundle to verify the server against, beyond the host's own trust store  |
 | collection      | qdrant.collection.show                                                                                                                  | collection to describe                                                      |

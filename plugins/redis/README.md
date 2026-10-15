@@ -20,7 +20,7 @@ Redis: health, memory, persistence, replication, the keyspace and the slow log
 
 Under `plugins: redis:` in rta's configuration, or in a profile's `set:`. An installed plugin's section is pinned to the artifact — `plugins: redis@<digest>:` — and `rta doctor` prints the exact line. The caller always wins, so a configured value is a default, never a lock. A profile can state a lock where it matters: its `only:` list fences an input to the values that connection reaches, and a call outside it is refused.
 
-| Key             | Read by                                                                                                                                        | Help                                                                       |
+| Key             | Read By                                                                                                                                        | Help                                                                       |
 |-----------------|------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------|
 | address         | redis.client.list, redis.cluster, redis.config.get, redis.key.get, redis.key.list, redis.key.tree, redis.memory, redis.overview, redis.slowlog | redis address, host\[:port\]                                               |
 | ca-file         | redis.client.list, redis.cluster, redis.config.get, redis.key.get, redis.key.list, redis.key.tree, redis.memory, redis.overview, redis.slowlog | PEM bundle to verify the server against                                    |
