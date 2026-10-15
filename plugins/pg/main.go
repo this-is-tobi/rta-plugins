@@ -433,7 +433,8 @@ func Plugin() plugin.Plugin {
 				Agent: "Runs one SQL statement in a READ ONLY transaction: the server refuses anything that " +
 					"writes, so this cannot change data. Returns the rows as a table, up to `limit` rows " +
 					"(default 200, at most 10000); a larger result, or one over the size bound, is refused " +
-					"rather than shortened, so add a LIMIT or select fewer columns. It returns what the " +
+					"rather than shortened, so add a LIMIT or select fewer columns; an answer too big for one tool " +
+					"result is cut to its first rows, with the true total and a warning. It returns what the " +
 					"database stores, so it needs a grant from the operator.",
 				Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 					return withConn(ctx, req, func(ctx context.Context, conn *pgx.Conn) (view.View, error) {
