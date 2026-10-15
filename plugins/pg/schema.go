@@ -150,9 +150,9 @@ func schemaDDL(ctx context.Context, q querier, req plugin.Request) (view.View, e
 
 	body := renderDDL(req, schema, tables, om)
 	// The same ceiling every result set here answers to, for the same
-	// reason: past the transport's own limit the failure is ResourceExhausted
-	// from gRPC, which names neither this capability nor the flag that fixes
-	// it.
+	// reason: a description the host would refuse over MCP is refused here
+	// first, under a code of this capability's and the input that fixes it
+	// (maxBytes says how far under the host's limit this is held).
 	if len(body) > maxBytes {
 		return nil, view.Errorf("pg.schema.toolarge",
 			"the description of schema %s is %s, over the %s a result may be",

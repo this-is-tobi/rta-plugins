@@ -780,18 +780,23 @@ const maxRows = 10000
 // that arbitrary. The row bound alone was the whole protection here, and it
 // counts the wrong thing.
 //
-// What makes it a correctness bound and not only a courtesy: a plugin's view
-// crosses go-plugin's gRPC channel, and nothing configures
-// MaxCallRecvMsgSize on either side, so grpc-go's 4 MiB default applies.
-// Past it the caller does not get a large answer or a truncated one — the
-// transport fails with ResourceExhausted, an error naming gRPC rather than
-// the query that caused it, from a layer the operator has no flag for.
-// Refusing here costs one comparison and says which flag fixes it.
+// What it protects is this process's memory and the size of an answer anybody
+// can use, and it leaves room under the one limit that is not this plugin's.
+// The transport sets none of its own — go-plugin lifts gRPC's message size to
+// the largest there is, on both sides — but over MCP the host refuses an answer
+// of more than 8 MiB (plugin.DefaultResultLimit) while it is still being
+// received, as core.result.toolarge and a hint that names no column. What it
+// counts is the answer on the wire: the text of every cell and two bytes more
+// for each, a tag and a length. A mebibyte of text weighs at most about three
+// there, in cells of one byte, so a result this lets through is always one the
+// host receives, and the refusal below, which says to select fewer columns, is
+// always the one that is read. The bridge cuts what a model is shown to its
+// first rows long before either, so the bytes between are cost, not content.
 //
 // One mebibyte because that is the ceiling this codebase already applies
 // twice for the same reason — builtin/http's response body and plugins/s3's
-// inline object — and because the room between it and the transport's limit
-// is where the host's own re-encoding lives.
+// inline object — and the one mysql and mariadb answer to as well: the rows
+// a caller's own statement returns are one concept.
 const maxBytes = 1 << 20
 
 // rowsToTable reads a result set into a table, bounded.

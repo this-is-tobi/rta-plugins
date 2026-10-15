@@ -105,11 +105,10 @@ func TestEveryQueryInThisPluginPassesABound(t *testing.T) {
 // hundred rows of whatever a text column holds, and a bytea column makes it
 // arbitrary.
 //
-// It is a correctness bound rather than a courtesy: a plugin's view crosses
-// go-plugin's gRPC channel, nothing configures MaxCallRecvMsgSize on either
-// side, and past grpc-go's 4 MiB default the caller gets neither a large
-// answer nor a truncated one — the transport fails with ResourceExhausted,
-// naming gRPC rather than the query, from a layer with no flag for it.
+// It is held well under what the host receives: over MCP the host refuses an
+// answer of more than plugin.DefaultResultLimit while receiving it, under a hint
+// that names no column, so the refusal here, which says to select fewer columns,
+// has to be the one that is read.
 func TestRowsToTableStopsAtTheSizeBound(t *testing.T) {
 	// Well inside the row bound, well past the byte one.
 	rows := &fakeRows{cols: []string{"body"}, remaining: 100, width: maxBytes / 4}
@@ -191,3 +190,31 @@ func (f *fakeRows) Values() ([]any, error) {
 }
 func (f *fakeRows) RawValues() [][]byte { return nil }
 func (f *fakeRows) Conn() *pgx.Conn     { return nil }
+
+// A cell of one byte is the heaviest case per byte of text, three on the wire
+// for the one the bound counts (the text, a tag and a length), so the bound has
+// to be a third of the host's limit at most for a result this lets through to be
+// one the host receives, and the refusal here the one that is read.
+func TestTheByteBoundLeavesRoomUnderTheHostsResultLimit(t *testing.T) {
+	const wireBytesPerTextByteAtWorst = 3
+	if weight := maxBytes * wireBytesPerTextByteAtWorst; weight >= plugin.DefaultResultLimit {
+		t.Errorf("a result of %d bytes of one-byte cells weighs %d on the wire, over the %d the host receives",
+			maxBytes, weight, plugin.DefaultResultLimit)
+	}
+}
+
+// What the bridge does to an answer too big for one tool result is its own, and
+// the limit's sentence says only what this plugin does with rows; the rest of
+// what the tool does is where an agent reads it.
+func TestTheQueryToolSaysWhatBecomesOfAnAnswerTooBigForOneToolResult(t *testing.T) {
+	for _, c := range Plugin().Capabilities {
+		if c.ID != "pg.query" {
+			continue
+		}
+		if !strings.Contains(c.Agent, "cut to its first rows, with the true total") {
+			t.Errorf("an MCP client is shown %q, which does not say what becomes of an answer too big for one tool result", c.Agent)
+		}
+		return
+	}
+	t.Fatal("no pg.query")
+}
