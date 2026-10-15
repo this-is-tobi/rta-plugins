@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.5](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.6.4...plugins/etcd/v0.6.5) (2026-10-15)
+
+
+### Bug Fixes
+
+* **etcd:** a refused connection names the setting to change ([55f96c6](https://github.com/this-is-tobi/rta-plugins/commit/55f96c6bc54da96bd4c5867de346a6ef4710a8ad))
+* **etcd:** refuse a tls setting beside an endpoint behind http ([1747bbb](https://github.com/this-is-tobi/rta-plugins/commit/1747bbb2c8c3e2f1300f4fcbc021c3d3d49532c1))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.41.0 ([3ebb921](https://github.com/this-is-tobi/rta-plugins/commit/3ebb92112242a75fd3001527598335b7863c493e))
+
 ## [0.6.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.6.3...plugins/etcd/v0.6.4) (2026-10-14)
 
 

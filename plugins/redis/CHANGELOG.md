@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.5](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.4.4...plugins/redis/v0.4.5) (2026-10-15)
+
+
+### Bug Fixes
+
+* **redis:** a refused connection names the setting to change ([ceb85e2](https://github.com/this-is-tobi/rta-plugins/commit/ceb85e20ccdc01ad8983524f0c6b61f6c8598495))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.41.0 ([3ebb921](https://github.com/this-is-tobi/rta-plugins/commit/3ebb92112242a75fd3001527598335b7863c493e))
+
 ## [0.4.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.4.3...plugins/redis/v0.4.4) (2026-10-14)
 
 

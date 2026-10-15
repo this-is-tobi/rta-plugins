@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.5](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.6.4...plugins/s3/v0.6.5) (2026-10-15)
+
+
+### Bug Fixes
+
+* **s3:** a refused connection names the setting to change and the port ([d87d289](https://github.com/this-is-tobi/rta-plugins/commit/d87d28945f0566212a66a47cf0c8200e4d19a4dc))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.41.0 ([3ebb921](https://github.com/this-is-tobi/rta-plugins/commit/3ebb92112242a75fd3001527598335b7863c493e))
+
 ## [0.6.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.6.3...plugins/s3/v0.6.4) (2026-10-14)
 
 

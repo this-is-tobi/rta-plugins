@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.8.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.7.4...plugins/mysql/v0.8.0) (2026-10-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* **sql:** mysql and mariadb table and database listings take a limit of at most 1000, not 10000, and show 50 tables and 50 databases by default, not 200 and 100. A call above 1000 is refused, and a setting above it is held to it.
+
+### Features
+
+* **sql:** the table and database listings share one bound ([f8abfd1](https://github.com/this-is-tobi/rta-plugins/commit/f8abfd182525672e4e057fb30cfd281b27ee6319))
+
+
+### Bug Fixes
+
+* **sql:** a refused connection says which port the server serves on ([f20749f](https://github.com/this-is-tobi/rta-plugins/commit/f20749f15a1836ce215980d78ec92a5a75b0ceb7))
+* **sql:** mysql and mariadb take the query limit pg does ([4dfce18](https://github.com/this-is-tobi/rta-plugins/commit/4dfce18fb7dfcf3c41b35735ee5747018a5edda3))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.41.0 ([3ebb921](https://github.com/this-is-tobi/rta-plugins/commit/3ebb92112242a75fd3001527598335b7863c493e))
+
 ## [0.7.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.7.3...plugins/mysql/v0.7.4) (2026-10-14)
 
 

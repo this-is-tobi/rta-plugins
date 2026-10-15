@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.5](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.3.4...plugins/docker/v0.3.5) (2026-10-15)
+
+
+### Bug Fixes
+
+* **docker:** a restart is not declared idempotent ([9e0f742](https://github.com/this-is-tobi/rta-plugins/commit/9e0f742114f69abed18a4cd478e36996a289640f))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.41.0 ([3ebb921](https://github.com/this-is-tobi/rta-plugins/commit/3ebb92112242a75fd3001527598335b7863c493e))
+
 ## [0.3.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.3.3...plugins/docker/v0.3.4) (2026-10-14)
 
 

@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.4.4...plugins/keycloak/v0.5.0) (2026-10-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* **keycloak:** a grant for a profile's reads, as `grant issue` makes by default, no longer covers these five capabilities. They need a grant of their own, and `--safety write` on `grant issue` includes them.
+
+### Features
+
+* **keycloak:** the people in a realm are behind a grant ([f1e976e](https://github.com/this-is-tobi/rta-plugins/commit/f1e976e32de9b9c2f14b30dfb77922fae9b2461b))
+
+
+### Bug Fixes
+
+* **keycloak:** a redirect is refused, never followed with the secret in hand ([79cb4a7](https://github.com/this-is-tobi/rta-plugins/commit/79cb4a76b67b5a663d6b758130fa6825134a1561))
+* **keycloak:** a refused connection says which ports it serves on ([a4b55ef](https://github.com/this-is-tobi/rta-plugins/commit/a4b55ef7cdbda0324b29538086137259cab6554f))
+* **keycloak:** refuse a ca file beside a url that is not https ([69fcd9b](https://github.com/this-is-tobi/rta-plugins/commit/69fcd9bc7d478f64f37b78affb918ce119908a40))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.41.0 ([3ebb921](https://github.com/this-is-tobi/rta-plugins/commit/3ebb92112242a75fd3001527598335b7863c493e))
+
 ## [0.4.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.4.3...plugins/keycloak/v0.4.4) (2026-10-14)
 
 

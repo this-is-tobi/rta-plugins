@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.6.5](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.6.4...plugins/vault/v0.6.5) (2026-10-15)
+
+
+### Bug Fixes
+
+* **vault:** a ca file that cannot be read is ca.unreadable ([ae3b2e5](https://github.com/this-is-tobi/rta-plugins/commit/ae3b2e5f3f182ba8c6ee8ae6bbcc6513e10e1d43))
+* **vault:** a refused connection says which port Vault serves on ([80a25bd](https://github.com/this-is-tobi/rta-plugins/commit/80a25bdee170fcccc7f44acef993436cf119cf3f))
+* **vault:** refuse a ca file beside an address that is not https ([69d98da](https://github.com/this-is-tobi/rta-plugins/commit/69d98daac316b203ebeae9bd5ee555d6850e2efc))
+* **vault:** the guard judges the address the client dials ([ce1071a](https://github.com/this-is-tobi/rta-plugins/commit/ce1071a874c69f45a41a3fe6720ecfc3db6b8157))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.41.0 ([3ebb921](https://github.com/this-is-tobi/rta-plugins/commit/3ebb92112242a75fd3001527598335b7863c493e))
+
 ## [0.6.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.6.3...plugins/vault/v0.6.4) (2026-10-14)
 
 
