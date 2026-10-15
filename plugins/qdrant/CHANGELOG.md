@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.5](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.6.4...plugins/qdrant/v0.6.5) (2026-10-15)
+
+
+### Bug Fixes
+
+* **qdrant:** a redirect is refused, never followed with the api key in hand ([8b7af95](https://github.com/this-is-tobi/rta-plugins/commit/8b7af9518808790a1bbd2fdb4242009d4f42f844))
+* **qdrant:** a refused connection names the setting to change ([a03fda3](https://github.com/this-is-tobi/rta-plugins/commit/a03fda350981b313a6484023c65d13f822be6d49))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.41.0 ([3ebb921](https://github.com/this-is-tobi/rta-plugins/commit/3ebb92112242a75fd3001527598335b7863c493e))
+
 ## [0.6.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.6.3...plugins/qdrant/v0.6.4) (2026-10-14)
 
 

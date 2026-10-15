@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.5](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.5.4...plugins/kube/v0.5.5) (2026-10-15)
+
+
+### Bug Fixes
+
+* **kube:** an unreachable cluster names the kubectl line that asks it ([1477e99](https://github.com/this-is-tobi/rta-plugins/commit/1477e99e3b4e2e38267fb8eeb8da6ae8d9ad314d))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.41.0 ([3ebb921](https://github.com/this-is-tobi/rta-plugins/commit/3ebb92112242a75fd3001527598335b7863c493e))
+
 ## [0.5.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.5.3...plugins/kube/v0.5.4) (2026-10-14)
 
 

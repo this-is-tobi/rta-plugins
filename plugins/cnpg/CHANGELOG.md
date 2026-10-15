@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.6.0...plugins/cnpg/v0.6.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **cnpg:** the namespace is declared before the switch that widens it ([7aa13df](https://github.com/this-is-tobi/rta-plugins/commit/7aa13df7c34b66f86dd90a87835a32deec8250c3))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.41.0 ([3ebb921](https://github.com/this-is-tobi/rta-plugins/commit/3ebb92112242a75fd3001527598335b7863c493e))
+
 ## [0.6.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.5.0...plugins/cnpg/v0.6.0) (2026-10-14)
 
 
