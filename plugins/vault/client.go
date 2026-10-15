@@ -79,6 +79,15 @@ func connect(req plugin.Request) (*vaultapi.Client, *view.Error) {
 		return nil, classify(cfg.Error, req)
 	}
 	cfg.Address = req.String("address")
+	// **The address the guard below judges has to be the one the client dials.**
+	// The client prefers an agent address to Address whenever one is set, and
+	// DefaultConfig fills it from VAULT_AGENT_ADDR: a process that had that
+	// variable dialled it, plain, with the token, behind a ca-file that was
+	// accepted for an https:// address it never used. The host strips the
+	// variable from a plugin's environment, so nothing arrives here that way;
+	// this is for the binary run outside it, and for the comment above, which
+	// says nothing depends on the environment, to be true.
+	cfg.AgentAddress = ""
 	// One attempt. The client retries a refused connection or a 5xx twice,
 	// a second or more apart, so a call to a Vault that was down answered
 	// four seconds late with the refusal it would have had at once, and the
