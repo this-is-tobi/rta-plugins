@@ -78,7 +78,15 @@ func tableListCapability() plugin.Capability {
 			})
 		},
 	}, schemaField(),
-		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 200, Min: 1, Max: 10000,
+		// One bound for every listing of what is on a server, in every SQL plugin: 50
+		// by default and 1000 at most, which is what pg.table.list already said. A
+		// model that leaves the limit out to see what there is pays in tokens for all
+		// of what comes back, to read the first screen of it, so the default is a
+		// screen; and a thousand rows is about what one answer holds before the MCP
+		// bridge cuts it, so a ceiling of ten thousand bought no answer anything and
+		// cost the server a query for that many. The largest come first, so what a
+		// listing stops short of is the least of them, and it says when it stopped.
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 50, Min: 1, Max: 1000,
 			Help: "how many tables to show"})
 }
 

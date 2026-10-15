@@ -249,12 +249,13 @@ func databaseListView(ctx context.Context, conn querier, req plugin.Request) (vi
 		       pg_get_userbyid(datdba)
 		from pg_database
 		where not datistemplate
-		order by pg_database_size(datname) desc`)
+		order by pg_database_size(datname) desc
+		limit $1`, req.Int("limit")+1)
 	if err != nil {
 		return nil, classify(err, req)
 	}
 	defer rows.Close()
-	t, err := rowsToTable(rows, maxRows)
+	t, err := listed(rows, req.Int("limit"), "database", true, req.Surface())
 	if err != nil {
 		return nil, classify(err, req)
 	}
@@ -708,13 +709,24 @@ func Plugin() plugin.Plugin {
 				Idempotent: true,
 				Description: "Exists because pg.status's \"no database named X\" hint promises it. " +
 					"A hint naming a command that does not exist is worse than no hint: it sends " +
-					"somebody to type something that fails differently.",
+					"somebody to type something that fails differently.\n\n" +
+					"The largest first, bounded by `limit`, and it says when it stopped.",
 				Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 					return withConn(ctx, req, func(ctx context.Context, conn *pgx.Conn) (view.View, error) {
 						return databaseListView(ctx, conn, req)
 					})
 				},
-			}),
+			},
+				// One bound for every listing of what is on a server, in every SQL plugin: 50
+				// by default and 1000 at most, which is what pg.table.list already said. A
+				// model that leaves the limit out to see what there is pays in tokens for all
+				// of what comes back, to read the first screen of it, so the default is a
+				// screen; and a thousand rows is about what one answer holds before the MCP
+				// bridge cuts it, so a ceiling of ten thousand bought no answer anything and
+				// cost the server a query for that many. The largest come first, so what a
+				// listing stops short of is the least of them, and it says when it stopped.
+				plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 50, Min: 1, Max: 1000,
+					Help: "how many databases to show"}),
 
 			cap(plugin.Capability{
 				ID:       "pg.activity",
