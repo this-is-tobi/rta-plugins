@@ -19,7 +19,7 @@ Asks for `kubeconfig` — granted, or not, with `rta plugin allow cnpg`.
 
 Under `plugins: cnpg:` in rta's configuration, or in a profile's `set:`. An installed plugin's section is pinned to the artifact — `plugins: cnpg@<digest>:` — and `rta doctor` prints the exact line. The caller always wins, so a configured value is a default, never a lock. A profile can state a lock where it matters: its `only:` list fences an input to the values that connection reaches, and a call outside it is refused.
 
-| Key           | Read by                                                                                       | Help                                                                                                           |
+| Key           | Read By                                                                                       | Help                                                                                                           |
 |---------------|-----------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
 | backup.method | cnpg.backup.request                                                                           | how to take it — its only configured mechanism when omitted; plugin asks its WAL-archiver plugin               |
 | backup.online | cnpg.backup.request                                                                           | hot or cold — only with a \`method\` of volumeSnapshot, and the cluster's own choice when omitted              |

@@ -18,7 +18,7 @@ etcd v3: cluster health, members, leases and the keyspace
 
 Under `plugins: etcd:` in rta's configuration, or in a profile's `set:`. An installed plugin's section is pinned to the artifact — `plugins: etcd@<digest>:` — and `rta doctor` prints the exact line. The caller always wins, so a configured value is a default, never a lock. A profile can state a lock where it matters: its `only:` list fences an input to the values that connection reaches, and a call outside it is refused.
 
-| Key             | Read by                                                                                                  | Help                                                                        |
+| Key             | Read By                                                                                                  | Help                                                                        |
 |-----------------|----------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
 | ca-file         | etcd.kv.get, etcd.kv.list, etcd.kv.tree, etcd.lease.list, etcd.member.list, etcd.overview, etcd.snapshot | PEM bundle to verify the server against                                     |
 | cert-file       | etcd.kv.get, etcd.kv.list, etcd.kv.tree, etcd.lease.list, etcd.member.list, etcd.overview, etcd.snapshot | client certificate, for a cluster using mTLS                                |
