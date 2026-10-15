@@ -23,9 +23,10 @@ import (
 )
 
 // sdktest is the definition of "a correct plugin" — no exemption for
-// keycloak. Every capability here is a Read with a bound listing, so the
-// suite's dry-run rule has nothing to drive; what it checks is the
-// declaration: ids, inputs, redaction, verbs.
+// keycloak. The reads are NoPreview and not run, so what it checks of them is
+// the declaration: ids, inputs, redaction, verbs. The five capabilities that
+// return the realm's people are Write, so it drives each under --dry-run and
+// holds that the data directory is as it was and that something is said.
 func TestConformance(t *testing.T) {
 	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."))
 }
@@ -40,9 +41,13 @@ func conformanceInputs(string) map[string]map[string]any {
 		return m
 	}
 	return map[string]map[string]any{
-		"keycloak.user.show":   conn(map[string]any{"user": "alice"}),
-		"keycloak.client.show": conn(map[string]any{"client": "spa"}),
-		"keycloak.flow.show":   conn(map[string]any{"flow": "browser"}),
+		"keycloak.user.list":    conn(map[string]any{}),
+		"keycloak.user.show":    conn(map[string]any{"user": "alice"}),
+		"keycloak.session.list": conn(map[string]any{}),
+		"keycloak.event.list":   conn(map[string]any{}),
+		"keycloak.event.admin":  conn(map[string]any{}),
+		"keycloak.client.show":  conn(map[string]any{"client": "spa"}),
+		"keycloak.flow.show":    conn(map[string]any{"flow": "browser"}),
 	}
 }
 
@@ -363,24 +368,6 @@ func TestEveryCapabilityIsNoPreview(t *testing.T) {
 	for _, c := range Plugin().Capabilities {
 		if !c.NoPreview {
 			t.Errorf("%s: NoPreview = false, want true — every capability here reaches off the box", c.ID)
-		}
-	}
-}
-
-// **The line this plugin draws, pinned: reads only.** Identity
-// administration is authority-expanding by nature, and a write set is its
-// own design with its own gates. Until that design exists, a capability
-// here that is not a Read is a mistake, and so is one that needs a grant —
-// the destination is profile-bound, which is the condition under which a
-// network read stays an ungated Read.
-func TestEveryCapabilityIsAnUngatedRead(t *testing.T) {
-	for _, c := range Plugin().Capabilities {
-		if c.Safety != plugin.Read {
-			t.Errorf("%s: Safety = %s, want read — this plugin writes nothing", c.ID, c.Safety)
-		}
-		if c.NeedsGrant || c.HumanOnly || c.Scope != "" {
-			t.Errorf("%s: gated (grant=%v human=%v scope=%q); the reads here are profile-bound and ungated",
-				c.ID, c.NeedsGrant, c.HumanOnly, c.Scope)
 		}
 	}
 }

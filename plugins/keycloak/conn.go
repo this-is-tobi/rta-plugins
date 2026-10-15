@@ -102,6 +102,17 @@ type session struct {
 
 // connect validates the inputs and mints the run's token.
 func connect(ctx context.Context, req plugin.Request) (*session, *view.Error) {
+	s, verr := newSession(req)
+	if verr != nil {
+		return nil, verr
+	}
+	return s.authenticate(ctx)
+}
+
+// newSession validates the inputs and builds the client, and sends nothing:
+// every refusal a call can meet before the server is reached is made here, so
+// that a dry run is told them as the call would be, without reaching the server.
+func newSession(req plugin.Request) (*session, *view.Error) {
 	base := strings.TrimRight(req.String("url"), "/")
 	parsed, err := url.Parse(base)
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
@@ -143,8 +154,13 @@ func connect(ctx context.Context, req plugin.Request) (*session, *view.Error) {
 	if verr != nil {
 		return nil, verr
 	}
-	s := &session{req: req, base: base, realm: realm, http: client}
+	return &session{req: req, base: base, realm: realm, http: client}, nil
+}
 
+// authenticate mints the token this run's requests carry, from the client
+// secret, which newSession has seen is there.
+func (s *session) authenticate(ctx context.Context) (*session, *view.Error) {
+	req, base, realm, secret := s.req, s.base, s.realm, s.req.String("client-secret")
 	authRealm := req.String("auth-realm")
 	if authRealm == "" {
 		authRealm = realm
