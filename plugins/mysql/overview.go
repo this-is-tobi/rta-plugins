@@ -195,8 +195,11 @@ func databaseListCapability() plugin.Capability {
 				return databaseTable(ctx, db, req, req.Int("limit"), true)
 			})
 		},
-	}, plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 100, Min: 1, Max: 10000,
-		Help: "how many databases to show"})
+	},
+		// The bound of every listing of what is on a server, which is the one
+		// mysql.table.list's comment gives the reason for.
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 50, Min: 1, Max: 1000,
+			Help: "how many databases to show"})
 }
 
 func databaseTable(ctx context.Context, db *sql.DB, req plugin.Request, limit int, say bool) (view.Table, error) {

@@ -85,10 +85,11 @@ var expected = map[string]grading{
 	// keeps the glanceable form in the read tier.
 	"pg.activity": {mcp: "write", bound: "caller"},
 
-	// One row per database on the server. rta wrote the query, nobody
-	// chooses the shape, and maxRows is the ceiling against a catalogue
-	// nobody expected to be this big.
-	"pg.database.list": {mcp: "read", bound: "fixed"},
+	// One row per database on the server, the largest first. rta wrote the
+	// query and nobody chooses the shape, but a server with a database per
+	// tenant is a catalogue nobody expected to be this big, so the caller sizes
+	// the listing as it sizes the tables'.
+	"pg.database.list": {mcp: "read", bound: "caller"},
 
 	// Read and ungated, and the argument is that refusing it would be
 	// theatre: anyone holding pg.query can already select from
