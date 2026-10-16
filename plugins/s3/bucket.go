@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"slices"
 	"sort"
+	"strings"
 
 	"github.com/minio/minio-go/v7"
 
@@ -13,6 +15,20 @@ import (
 func bucketField(help string) plugin.Field {
 	return plugin.Field{Name: "bucket", Short: "b", Type: plugin.String, Required: true, Config: "bucket", Help: help,
 		Live: true, Suggest: suggestBuckets}
+}
+
+// optionalBucketField is bucketField for a listing that is about one bucket
+// when it is given one and about every bucket the key sees when it is not.
+//
+// It exists so that a profile's `only: bucket:` has something to hold the
+// listing to: a connection fenced to its application's bucket answered
+// s3.overview and s3.bucket.list with every bucket of the account, names the
+// fence was written to keep out. Declared with the fence's own Config key, a
+// one-entry list fills it, and a call that names another bucket is refused.
+func optionalBucketField(help string) plugin.Field {
+	f := bucketField(help)
+	f.Required = false
+	return f
 }
 
 // boundBucketField is bucketField's Local sibling, for every capability
@@ -51,7 +67,9 @@ func bucketListCapability() plugin.Capability {
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Run:        runBucketList,
-	})
+		Description: "Every bucket the credentials can see, with region and age. With a `bucket` — named, " +
+			"or the one a profile fences with `only: bucket:` — only that one.",
+	}, optionalBucketField("only this bucket — every bucket the credentials can see when omitted"))
 }
 
 func runBucketList(ctx context.Context, req plugin.Request) (view.View, error) {
@@ -59,6 +77,9 @@ func runBucketList(ctx context.Context, req plugin.Request) (view.View, error) {
 		buckets, err := client.ListBuckets(ctx)
 		if err != nil {
 			return nil, classify(err, req)
+		}
+		if name := strings.TrimSpace(req.String("bucket")); name != "" {
+			buckets = slices.DeleteFunc(buckets, func(b minio.BucketInfo) bool { return b.Name != name })
 		}
 		return bucketTable(buckets), nil
 	})
