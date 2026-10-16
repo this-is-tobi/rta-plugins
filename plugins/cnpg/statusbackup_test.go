@@ -183,6 +183,35 @@ func TestAFailureRecordedOnAPluginClusterIsStillMentioned(t *testing.T) {
 	}
 }
 
+// A cluster that moved from the in-tree mechanism to a plugin keeps the last
+// failure the old arrangement recorded, and nothing the plugin does can clear
+// it, so a failure newer than the last recorded success is not a warning there.
+func TestAFailureTheOldArrangementLeftOnAPluginClusterIsNotAWarning(t *testing.T) {
+	c := decodeCluster(t, aCluster("shop", "prod", archivedByPlugin, withStatus(map[string]any{
+		"lastSuccessfulBackup": rfc3339Ago(18 * 24 * time.Hour),
+		"lastFailedBackup":     rfc3339Ago(17 * 24 * time.Hour),
+	})))
+	call := "`rta cnpg backup list --cluster shop --namespace prod`"
+	status, detail, found := backupRow(t, c, pointers{backups: call})
+	if !found || status != "info" {
+		t.Fatalf("row = %q %q (found %v), want information and not a warning", status, detail, found)
+	}
+	for _, want := range []string{"last recorded attempt failed 17d ago", "barman-cloud.cloudnative-pg.io", call, "ground truth"} {
+		if !strings.Contains(detail, want) {
+			t.Errorf("detail = %q, want it to carry %q", detail, want)
+		}
+	}
+
+	// The same dates on a cluster whose record is the record stay a warning.
+	classic := decodeCluster(t, aCluster("shop", "prod", withStatus(map[string]any{
+		"lastSuccessfulBackup": rfc3339Ago(18 * 24 * time.Hour),
+		"lastFailedBackup":     rfc3339Ago(17 * 24 * time.Hour),
+	})))
+	if status, detail, _ := backupRow(t, classic, pointers{}); status != "warn" || !strings.Contains(detail, "most recent attempt failed") {
+		t.Errorf("classic row = %q %q, want the warning", status, detail)
+	}
+}
+
 // The whole path, from what kubectl prints to the page: the by-method maps and
 // the plugin entry decode from the wire shape, and the pointer is a call the
 // surface that asked can make.

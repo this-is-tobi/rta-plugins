@@ -634,19 +634,23 @@ func problemTable(c cluster, p pointers) view.Table {
 		if failedOnce {
 			msg += ", and the one failure it does record is " + age(lastFail) + " old"
 		}
-		if p.backups != "" {
-			msg += "; " + p.backups + " lists the Backup objects, which are the ground truth"
-			if p.arrangement != "" {
-				msg += ", and " + p.arrangement + " shows where they go"
-			}
-		}
-		add("backup", "info", msg)
+		add("backup", "info", msg+groundTruthPointer(p))
 	case !ever:
 		msg := "configured, but no backup has ever succeeded"
 		if failedOnce {
 			msg += " — the last attempt failed " + age(lastFail) + " ago"
 		}
 		add("backup", "warn", msg)
+	case failedOnce && lastFail.After(success.at) && !c.statusIsTheRecord():
+		// What an older arrangement left behind: a cluster that moved to a
+		// plugin keeps the last failure its in-tree mechanism recorded, and
+		// since the plugin's successes are recorded elsewhere nothing a later
+		// backup does can ever clear it. Graded warn it would stay on the page
+		// for as long as the cluster lives, over daily backups that all worked.
+		add("backup", "info", "the Cluster resource's last recorded attempt failed "+age(lastFail)+
+			" ago and its last recorded success is "+age(success.at)+" old, but it records no backup taken "+
+			"through the "+c.walArchiverPlugin()+" plugin, so this says nothing of the backups taken now"+
+			groundTruthPointer(p))
 	case failedOnce && lastFail.After(success.at):
 		add("backup", "warn", "the most recent attempt failed "+age(lastFail)+
 			" ago — the last success is "+age(success.at)+" old")
@@ -744,6 +748,21 @@ func backupLine(c cluster, p pointers) string {
 		return line
 	}
 	return "none recorded"
+}
+
+// groundTruthPointer is the clause that sends somebody to the Backup objects,
+// which are where a cluster archived through a plugin keeps its record, and to
+// the call that shows where those backups go. It is empty when the surface has
+// no call to name.
+func groundTruthPointer(p pointers) string {
+	if p.backups == "" {
+		return ""
+	}
+	out := "; " + p.backups + " lists the Backup objects, which are the ground truth"
+	if p.arrangement != "" {
+		out += ", and " + p.arrangement + " shows where they go"
+	}
+	return out
 }
 
 func firstNonEmpty(vs ...string) string {
