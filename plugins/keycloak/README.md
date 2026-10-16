@@ -58,7 +58,7 @@ Reads the realm and grades what it finds: whether a second factor is required or
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.keycloak.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                         |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.keycloak.tls-server-name — name to check the server's certificate for, in place of the URL's host                                                                     |
 | set a key             | rta config set plugins.keycloak.limit 200                                                                                                                                                                                               |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.audit\`, or + on it in the TUI, puts it there, re-run every few seconds                                                                       |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.audit\`, or + on it in the TUI, puts it there, re-run every 30s                                                                               |
 | input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                                                                      |
 
 ## keycloak.client.list
@@ -82,7 +82,7 @@ One row per registered client, built-in ones included: its kind (public, confide
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.keycloak.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                 |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.keycloak.tls-server-name — name to check the server's certificate for, in place of the URL's host                                             |
 | set a key             | rta config set plugins.keycloak.url http://127.0.0.1:8080                                                                                                                                                       |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.client.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                         |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.client.list\`, or + on it in the TUI, puts it there, re-run every 30s                                                 |
 
 ## keycloak.client.show
 
@@ -107,7 +107,7 @@ How one application authenticates: kind and protocol, the flows enabled, every r
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.keycloak.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                         |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.keycloak.tls-server-name — name to check the server's certificate for, in place of the URL's host                                                     |
 | set a key             | rta config set plugins.keycloak.url http://127.0.0.1:8080                                                                                                                                                               |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.client.show --set client=…\` puts it there, re-run every few seconds                                                          |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.client.show --set client=…\` puts it there, re-run every 30s                                                                  |
 
 ## keycloak.event.admin
 
@@ -188,7 +188,7 @@ Every top-level flow, built-in or custom, with the binding that puts it in force
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.keycloak.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                 |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.keycloak.tls-server-name — name to check the server's certificate for, in place of the URL's host                                             |
 | set a key             | rta config set plugins.keycloak.url http://127.0.0.1:8080                                                                                                                                                       |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.flow.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                           |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.flow.list\`, or + on it in the TUI, puts it there, re-run every 30s                                                   |
 
 ## keycloak.flow.show
 
@@ -213,7 +213,7 @@ The executions of one flow, nested the way the console nests them. Read it for t
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.keycloak.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                     |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.keycloak.tls-server-name — name to check the server's certificate for, in place of the URL's host                                                 |
 | set a key             | rta config set plugins.keycloak.url http://127.0.0.1:8080                                                                                                                                                           |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.flow.show --set flow=…\` puts it there, re-run every few seconds                                                          |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.flow.show --set flow=…\` puts it there, re-run every 30s                                                                  |
 
 ## keycloak.overview
 
@@ -236,7 +236,7 @@ Whether this realm is worth talking to and what state it is in: user and client 
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.keycloak.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                         |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.keycloak.tls-server-name — name to check the server's certificate for, in place of the URL's host                                                     |
 | set a key             | rta config set plugins.keycloak.url http://127.0.0.1:8080                                                                                                                                                               |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.overview\`, or + on it in the TUI, puts it there, re-run every few seconds                                                    |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.overview\`, or + on it in the TUI, puts it there, re-run every 30s                                                            |
 | input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                                                      |
 
 ## keycloak.role.list
@@ -262,7 +262,7 @@ Realm roles by default; `client` names a client whose own roles to list instead 
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.keycloak.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                    |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.keycloak.tls-server-name — name to check the server's certificate for, in place of the URL's host                                                                |
 | set a key             | rta config set plugins.keycloak.url http://127.0.0.1:8080                                                                                                                                                                          |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.role.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                                              |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.role.list\`, or + on it in the TUI, puts it there, re-run every 30s                                                                      |
 
 ## keycloak.session.list
 

@@ -59,7 +59,7 @@ CLIENT LIST as a table: address, name, age, idle time, the last command and the 
 | input:password        | secret, local (never offered to MCP callers), from $RTA_REDIS_PASSWORD — password, or the ACL user's password                                                                                                                                |
 | input:db              | int, default 0, a value of at least 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                                                       |
 | set a key             | rta config set plugins.redis.address 127.0.0.1:6379                                                                                                                                                                                          |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.client.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                                                         |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.client.list\`, or + on it in the TUI, puts it there, re-run every 30s                                                                                 |
 
 ## redis.cluster
 
@@ -88,7 +88,7 @@ Each node's replication offset, and how many bytes each replica is behind its pr
 | input:password        | secret, local (never offered to MCP callers), from $RTA_REDIS_PASSWORD — password, or the ACL user's password                                                                                                                            |
 | input:db              | int, default 0, a value of at least 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                                                   |
 | set a key             | rta config set plugins.redis.address 127.0.0.1:6379                                                                                                                                                                                      |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.cluster\`, or + on it in the TUI, puts it there, re-run every few seconds                                                                         |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.cluster\`, or + on it in the TUI, puts it there, re-run every 30s                                                                                 |
 
 ## redis.config.get
 
@@ -182,7 +182,7 @@ Never a value: this is the read tier, and redis.key.get is where contents live. 
 | input:password        | secret, local (never offered to MCP callers), from $RTA_REDIS_PASSWORD — password, or the ACL user's password                                                                                                                                                            |
 | input:db              | int, default 0, a value of at least 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                                                                                   |
 | set a key             | rta config set plugins.redis.limit 200                                                                                                                                                                                                                                   |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.key.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                                                                                        |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.key.list\`, or + on it in the TUI, puts it there, re-run every 30s                                                                                                                |
 
 ## redis.key.tree
 
@@ -214,7 +214,7 @@ Names and counts only, never a value. Same read tier as redis.key.list.
 | input:password        | secret, local (never offered to MCP callers), from $RTA_REDIS_PASSWORD — password, or the ACL user's password                                                                                                                                                                                                         |
 | input:db              | int, default 0, a value of at least 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                                                                                                                                |
 | set a key             | rta config set plugins.redis.separator :                                                                                                                                                                                                                                                                              |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.key.tree\`, or + on it in the TUI, puts it there, re-run every few seconds                                                                                                                                                     |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.key.tree\`, or + on it in the TUI, puts it there, re-run every 30s                                                                                                                                                             |
 
 ## redis.memory
 
@@ -239,7 +239,7 @@ MEMORY STATS as a table of where the bytes are — dataset, overhead, clients, r
 | input:password        | secret, local (never offered to MCP callers), from $RTA_REDIS_PASSWORD — password, or the ACL user's password                                                                                                                           |
 | input:db              | int, default 0, a value of at least 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                                                  |
 | set a key             | rta config set plugins.redis.address 127.0.0.1:6379                                                                                                                                                                                     |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.memory\`, or + on it in the TUI, puts it there, re-run every few seconds                                                                         |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.memory\`, or + on it in the TUI, puts it there, re-run every 30s                                                                                 |
 
 ## redis.overview
 
@@ -270,7 +270,7 @@ Against a primary, the replication table has a row per replica: its acknowledged
 | input:password        | secret, local (never offered to MCP callers), from $RTA_REDIS_PASSWORD — password, or the ACL user's password                                                                                                                                          |
 | input:db              | int, default 0, a value of at least 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                                                                 |
 | set a key             | rta config set plugins.redis.address 127.0.0.1:6379                                                                                                                                                                                                    |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.overview\`, or + on it in the TUI, puts it there, re-run every few seconds                                                                                      |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.overview\`, or + on it in the TUI, puts it there, re-run every 30s                                                                                              |
 | input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                                                                                     |
 
 ## redis.slowlog

@@ -58,7 +58,7 @@ Reads type: kubernetes.io/tls Secrets only, selected server-side so no other sec
 | input:all-namespaces | bool, widens --namespace (refused while a profile fences it) — every namespace instead of one                                                                                                               |
 | input:context        | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted                                                        |
 | set a key            | rta config set plugins.kube.namespace \<value>                                                                                                                                                              |
-| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.cert.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                           |
+| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.cert.list\`, or + on it in the TUI, puts it there, re-run every 30s                                                   |
 
 ## kube.context.get
 
@@ -75,22 +75,22 @@ What a call from this machine would reach right now. Reads the kubeconfig only; 
 | profiles      | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow kube --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
 | input:context | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted                                                        |
 | set a key     | rta config set plugins.kube.context \<value>                                                                                                                                                                |
-| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.context.get\`, or + on it in the TUI, puts it there, re-run every few seconds                                         |
+| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.context.get\`, or + on it in the TUI, puts it there, re-run every 30s                                                 |
 
 ## kube.context.list
 
 Reads the kubeconfig only — no cluster is contacted, so this answers even when every cluster in it is unreachable. The current context is marked, and it is the one every other capability here uses unless config names another.
 
-| Field                | Value                                                                                                                                                                |
-|----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id                   | kube.context.list                                                                                                                                                    |
-| summary              | Every context in this machine's kubeconfig, and which one is current                                                                                                 |
-| safety               | read                                                                                                                                                                 |
-| idempotent           | true                                                                                                                                                                 |
-| cli                  | rta kube context list                                                                                                                                                |
-| mcp-tool             | kube_context_list                                                                                                                                                    |
-| grant required (mcp) | yes — a person must run \`rta grant allow kube.context.list\`                                                                                                        |
-| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.context.list\`, or + on it in the TUI, puts it there, re-run every few seconds |
+| Field                | Value                                                                                                                                                       |
+|----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                   | kube.context.list                                                                                                                                           |
+| summary              | Every context in this machine's kubeconfig, and which one is current                                                                                        |
+| safety               | read                                                                                                                                                        |
+| idempotent           | true                                                                                                                                                        |
+| cli                  | rta kube context list                                                                                                                                       |
+| mcp-tool             | kube_context_list                                                                                                                                           |
+| grant required (mcp) | yes — a person must run \`rta grant allow kube.context.list\`                                                                                               |
+| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.context.list\`, or + on it in the TUI, puts it there, re-run every 5s |
 
 ## kube.context.set
 
@@ -127,7 +127,7 @@ Ready against desired, which is the number that says whether a rollout finished.
 | input:all-namespaces | bool, widens --namespace (refused while a profile fences it) — every namespace instead of one                                                                                                               |
 | input:context        | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted                                                        |
 | set a key            | rta config set plugins.kube.namespace \<value>                                                                                                                                                              |
-| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.deployment.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                     |
+| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.deployment.list\`, or + on it in the TUI, puts it there, re-run every 30s                                             |
 
 ## kube.event.list
 
@@ -150,7 +150,7 @@ An Event is a counter, not a log line — a recurring problem updates the existi
 | input:normal         | bool — include Normal events, not only Warnings                                                                                                                                                             |
 | input:context        | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted                                                        |
 | set a key            | rta config set plugins.kube.namespace \<value>                                                                                                                                                              |
-| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.event.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                          |
+| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.event.list\`, or + on it in the TUI, puts it there, re-run every 30s                                                  |
 
 ## kube.metrics.node
 
@@ -167,7 +167,7 @@ Same metrics-server dependency as kube.metrics.pod. Allocatable, not capacity: a
 | profiles      | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow kube --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
 | input:context | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted                                                        |
 | set a key     | rta config set plugins.kube.context \<value>                                                                                                                                                                |
-| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.metrics.node\`, or + on it in the TUI, puts it there, re-run every few seconds                                        |
+| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.metrics.node\`, or + on it in the TUI, puts it there, re-run every 30s                                                |
 
 ## kube.metrics.pod
 
@@ -187,7 +187,7 @@ Needs the metrics-server add-on (metrics.k8s.io); a cluster without it names tha
 | input:all-namespaces | bool, widens --namespace (refused while a profile fences it) — every namespace instead of one                                                                                                               |
 | input:context        | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted                                                        |
 | set a key            | rta config set plugins.kube.namespace \<value>                                                                                                                                                              |
-| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.metrics.pod\`, or + on it in the TUI, puts it there, re-run every few seconds                                         |
+| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.metrics.pod\`, or + on it in the TUI, puts it there, re-run every 30s                                                 |
 
 ## kube.metrics.pressure
 
@@ -212,7 +212,7 @@ Needs cgroup v2 and a Linux kernel 4.20 or newer; nodes without it are named rat
 | input:node    | string — one node instead of every node                                                                                                                                                                     |
 | input:context | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted                                                        |
 | set a key     | rta config set plugins.kube.context \<value>                                                                                                                                                                |
-| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.metrics.pressure\`, or + on it in the TUI, puts it there, re-run every few seconds                                    |
+| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.metrics.pressure\`, or + on it in the TUI, puts it there, re-run every 30s                                            |
 
 ## kube.namespace.list
 
@@ -229,7 +229,7 @@ The first capability here that contacts the cluster, so it is also the quickest 
 | profiles      | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow kube --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
 | input:context | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted                                                        |
 | set a key     | rta config set plugins.kube.context \<value>                                                                                                                                                                |
-| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.namespace.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                      |
+| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.namespace.list\`, or + on it in the TUI, puts it there, re-run every 30s                                              |
 
 ## kube.node.list
 
@@ -246,7 +246,7 @@ Conditions, not usage — no metrics-server needed, unlike kube.metrics.node. Th
 | profiles      | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow kube --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
 | input:context | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted                                                        |
 | set a key     | rta config set plugins.kube.context \<value>                                                                                                                                                                |
-| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.node.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                           |
+| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.node.list\`, or + on it in the TUI, puts it there, re-run every 30s                                                   |
 
 ## kube.overview
 
@@ -288,7 +288,7 @@ One namespace by default — the context's own — or every namespace with `all-
 | input:unhealthy      | bool — only pods that are not serving — Failed, Pending, Unknown, or Running without every container ready                                                                                                  |
 | input:context        | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted                                                        |
 | set a key            | rta config set plugins.kube.namespace \<value>                                                                                                                                                              |
-| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.pod.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                            |
+| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.pod.list\`, or + on it in the TUI, puts it there, re-run every 30s                                                    |
 
 ## kube.pvc.list
 
@@ -308,7 +308,7 @@ Provisioned capacity, not how full a volume actually is — that number lives in
 | input:all-namespaces | bool, widens --namespace (refused while a profile fences it) — every namespace instead of one                                                                                                               |
 | input:context        | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted                                                        |
 | set a key            | rta config set plugins.kube.namespace \<value>                                                                                                                                                              |
-| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.pvc.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                            |
+| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.pvc.list\`, or + on it in the TUI, puts it there, re-run every 30s                                                    |
 
 ## kube.pvc.usage
 
@@ -331,7 +331,7 @@ A node that cannot be read is named, because a missing node means missing claims
 | input:node    | string — one node instead of every node                                                                                                                                                                     |
 | input:context | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted                                                        |
 | set a key     | rta config set plugins.kube.context \<value>                                                                                                                                                                |
-| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.pvc.usage\`, or + on it in the TUI, puts it there, re-run every few seconds                                           |
+| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.pvc.usage\`, or + on it in the TUI, puts it there, re-run every 30s                                                   |
 
 ## kube.quota.list
 
@@ -351,7 +351,7 @@ One row per resource a quota tracks, not one row per quota object — cpu, memor
 | input:all-namespaces | bool, widens --namespace (refused while a profile fences it) — every namespace instead of one                                                                                                               |
 | input:context        | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted                                                        |
 | set a key            | rta config set plugins.kube.namespace \<value>                                                                                                                                                              |
-| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.quota.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                          |
+| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.quota.list\`, or + on it in the TUI, puts it there, re-run every 30s                                                  |
 
 ## kube.serviceaccount.list
 
@@ -370,7 +370,7 @@ Only ServiceAccounts carrying provision's own label — not every ServiceAccount
 | input:all-namespaces | bool, widens --namespace (refused while a profile fences it) — every namespace instead of one                                                                                                               |
 | input:context        | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted                                                        |
 | set a key            | rta config set plugins.kube.namespace \<value>                                                                                                                                                              |
-| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.serviceaccount.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                 |
+| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.serviceaccount.list\`, or + on it in the TUI, puts it there, re-run every 30s                                         |
 
 ## kube.serviceaccount.provision
 
