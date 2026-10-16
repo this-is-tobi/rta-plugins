@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.6.3...plugins/cnpg/v0.6.4) (2026-10-16)
+
+
+### Bug Fixes
+
+* **cnpg:** a list under a cluster fence lists that cluster and no other ([23f8e83](https://github.com/this-is-tobi/rta-plugins/commit/23f8e83ae9fde7ca26899e207b5a935fe989102b))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.43.0 ([7908558](https://github.com/this-is-tobi/rta-plugins/commit/7908558eebe83028cb7f1ae171ae237277854106))
+
 ## [0.6.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.6.2...plugins/cnpg/v0.6.3) (2026-10-16)
 
 
