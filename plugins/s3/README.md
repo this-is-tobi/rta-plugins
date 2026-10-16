@@ -112,7 +112,7 @@ Every bucket the credentials can see, with region and age. With a `bucket` — n
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                 |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.s3.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                                                        |
 | set a key             | rta config set plugins.s3.bucket \<value>                                                                                                                                                                                 |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add s3.bucket.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                                         |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add s3.bucket.list\`, or + on it in the TUI, puts it there, re-run every 30s                                                                 |
 
 ## s3.bucket.upload
 
@@ -235,7 +235,7 @@ Bounded: a bucket can hold millions of keys, so this returns `limit` of them and
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                                                                                                         |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.s3.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                                                                                                                                                |
 | set a key             | rta config set plugins.s3.bucket \<value>                                                                                                                                                                                                                                                                         |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add s3.object.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                                                                                                                                 |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add s3.object.list\`, or + on it in the TUI, puts it there, re-run every 30s                                                                                                                                                         |
 
 ## s3.object.presign
 
@@ -379,7 +379,7 @@ The bucket is the operator's `bucket` setting: an agent cannot name one, and the
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                        |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.s3.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                                                               |
 | set a key             | rta config set plugins.s3.bucket \<value>                                                                                                                                                                                        |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add s3.object.show --set key=…\` puts it there, re-run every few seconds                                                                            |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add s3.object.show --set key=…\` puts it there, re-run every 30s                                                                                    |
 
 ## s3.object.tree
 
@@ -413,7 +413,7 @@ One request, however deep the result: the folders are built here from the keys, 
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                                                                              |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.s3.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                                                                                                                     |
 | set a key             | rta config set plugins.s3.bucket \<value>                                                                                                                                                                                                                                              |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add s3.object.tree\`, or + on it in the TUI, puts it there, re-run every few seconds                                                                                                                      |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add s3.object.tree\`, or + on it in the TUI, puts it there, re-run every 30s                                                                                                                              |
 
 ## s3.overview
 
@@ -462,4 +462,4 @@ With a `bucket` — named, or the one a profile fences with `only: bucket:` — 
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.s3.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                                                       |
 | set a key             | rta config set plugins.s3.bucket \<value>                                                                                                                                                                                |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add s3.policy.get\`, or + on it in the TUI, puts it there, re-run every few seconds                                                         |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add s3.policy.get\`, or + on it in the TUI, puts it there, re-run every 30s                                                                 |

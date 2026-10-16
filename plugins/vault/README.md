@@ -143,7 +143,7 @@ Every version the engine still knows about, when each was written, and whether i
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                 |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                                         |
 | set a key             | rta config set plugins.vault.kv-mount secret                                                                                                                                                                 |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.kv.history --set path=…\` puts it there, re-run every few seconds                                                     |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.kv.history --set path=…\` puts it there, re-run every 30s                                                             |
 
 ## vault.kv.list
 
@@ -167,7 +167,7 @@ Names only, never values — vault.kv.get is where a secret's data is. A name en
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                 |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                                         |
 | set a key             | rta config set plugins.vault.kv-mount secret                                                                                                                                                                 |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.kv.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                             |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.kv.list\`, or + on it in the TUI, puts it there, re-run every 30s                                                     |
 
 ## vault.kv.set
 
@@ -221,7 +221,7 @@ Bounded in both directions, and it says when it stopped. A folder the token may 
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                 |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                                         |
 | set a key             | rta config set plugins.vault.kv-mount secret                                                                                                                                                                 |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.kv.tree\`, or + on it in the TUI, puts it there, re-run every few seconds                                             |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.kv.tree\`, or + on it in the TUI, puts it there, re-run every 30s                                                     |
 
 ## vault.kv.undelete
 
@@ -269,7 +269,7 @@ When a leased secret (a database credential, an issued certificate) expires and 
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                 |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                                         |
 | set a key             | rta config set plugins.vault.address http://127.0.0.1:8200                                                                                                                                                   |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.lease.show --set id=…\` puts it there, re-run every few seconds                                                       |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.lease.show --set id=…\` puts it there, re-run every 30s                                                               |
 
 ## vault.overview
 
@@ -290,7 +290,7 @@ Whether this Vault is worth talking to at all, and what the configured token can
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                 |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                                         |
 | set a key             | rta config set plugins.vault.address http://127.0.0.1:8200                                                                                                                                                   |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.overview\`, or + on it in the TUI, puts it there, re-run every few seconds                                            |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.overview\`, or + on it in the TUI, puts it there, re-run every 30s                                                    |
 | input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                                           |
 
 ## vault.policy.get
@@ -311,7 +311,7 @@ Whether this Vault is worth talking to at all, and what the configured token can
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                 |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                                         |
 | set a key             | rta config set plugins.vault.address http://127.0.0.1:8200                                                                                                                                                   |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.policy.get --set name=…\` puts it there, re-run every few seconds                                                     |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.policy.get --set name=…\` puts it there, re-run every 30s                                                             |
 
 ## vault.policy.list
 
@@ -332,7 +332,7 @@ Names, not rules — vault.policy.get shows one policy's own document. A policy 
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                 |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                                         |
 | set a key             | rta config set plugins.vault.address http://127.0.0.1:8200                                                                                                                                                   |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.policy.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                         |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.policy.list\`, or + on it in the TUI, puts it there, re-run every 30s                                                 |
 
 ## vault.restore
 
@@ -380,7 +380,7 @@ Where the vault is and what it would take to open it, without opening it or touc
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                 |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                                         |
 | set a key             | rta config set plugins.vault.address http://127.0.0.1:8200                                                                                                                                                   |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.seal.status\`, or + on it in the TUI, puts it there, re-run every few seconds                                         |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.seal.status\`, or + on it in the TUI, puts it there, re-run every 30s                                                 |
 
 ## vault.snapshot
 
@@ -427,7 +427,7 @@ Always the caller's own token (Vault's own `auth/token/lookup-self`) — looking
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                 |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the address's host                                         |
 | set a key             | rta config set plugins.vault.address http://127.0.0.1:8200                                                                                                                                                   |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.token.status\`, or + on it in the TUI, puts it there, re-run every few seconds                                        |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.token.status\`, or + on it in the TUI, puts it there, re-run every 30s                                                |
 
 ## vault.transit.decrypt
 

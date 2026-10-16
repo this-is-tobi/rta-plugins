@@ -3,7 +3,7 @@ module github.com/this-is-tobi/rta-plugins/plugins/etcd
 go 1.26.9
 
 require (
-	github.com/this-is-tobi/rta v0.42.0
+	github.com/this-is-tobi/rta v0.43.0
 	go.etcd.io/etcd/api/v3 v3.7.1
 	go.etcd.io/etcd/client/v3 v3.7.1
 	google.golang.org/grpc v1.83.2

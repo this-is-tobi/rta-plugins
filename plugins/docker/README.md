@@ -91,7 +91,7 @@ Running containers by default; `all` includes the stopped ones, which is usually
 | input:host    | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted                                         |
 | input:context | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                                                                       |
 | set a key     | rta config set plugins.docker.all true                                                                                                                                                                        |
-| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add docker.container.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                      |
+| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add docker.container.list\`, or + on it in the TUI, puts it there, re-run every 30s                                              |
 
 ## docker.container.restart
 
@@ -172,7 +172,7 @@ What is on this machine's disk. Dangling images — the untagged leftovers of a 
 | input:host    | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted                                         |
 | input:context | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                                                                       |
 | set a key     | rta config set plugins.docker.host \<value>                                                                                                                                                                   |
-| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add docker.image.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                          |
+| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add docker.image.list\`, or + on it in the TUI, puts it there, re-run every 30s                                                  |
 
 ## docker.overview
 
@@ -190,5 +190,5 @@ Whether the daemon answers, how many containers are up against how many exist, a
 | input:host    | string, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted                                         |
 | input:context | string, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                                                                       |
 | set a key     | rta config set plugins.docker.host \<value>                                                                                                                                                                   |
-| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add docker.overview\`, or + on it in the TUI, puts it there, re-run every few seconds                                            |
+| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add docker.overview\`, or + on it in the TUI, puts it there, re-run every 30s                                                    |
 | input:detail  | bool, default false — return the full detailed view instead of the compact summary                                                                                                                            |

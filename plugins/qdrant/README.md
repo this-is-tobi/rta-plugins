@@ -57,7 +57,7 @@ Names and counts only, never a point.
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                 |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                                        |
 | set a key             | rta config set plugins.qdrant.endpoint 127.0.0.1:6333                                                                                                                                                         |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.collection.list\`, or + on it in the TUI, puts it there, re-run every few seconds                                     |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.collection.list\`, or + on it in the TUI, puts it there, re-run every 30s                                             |
 
 ## qdrant.collection.show
 
@@ -86,7 +86,7 @@ Configuration only, never a point — this describes the shape of the data and r
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                 |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                                        |
 | set a key             | rta config set plugins.qdrant.collection \<value>                                                                                                                                                             |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.collection.show\`, or + on it in the TUI, puts it there, re-run every few seconds                                     |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.collection.show\`, or + on it in the TUI, puts it there, re-run every 30s                                             |
 
 ## qdrant.dump
 
@@ -143,7 +143,7 @@ Describes collections and returns no point. Reading points is qdrant.points.scro
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                 |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                                        |
 | set a key             | rta config set plugins.qdrant.endpoint 127.0.0.1:6333                                                                                                                                                         |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.overview\`, or + on it in the TUI, puts it there, re-run every few seconds                                            |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.overview\`, or + on it in the TUI, puts it there, re-run every 30s                                                    |
 | input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                                            |
 
 ## qdrant.points.count
@@ -172,7 +172,7 @@ A number, never a point. This is the read tier — it says how much is there and
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                 |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the endpoint's host                                        |
 | set a key             | rta config set plugins.qdrant.collection \<value>                                                                                                                                                             |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.points.count\`, or + on it in the TUI, puts it there, re-run every few seconds                                        |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.points.count\`, or + on it in the TUI, puts it there, re-run every 30s                                                |
 
 ## qdrant.points.scroll
 
