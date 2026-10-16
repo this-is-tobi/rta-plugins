@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.6.1...plugins/cnpg/v0.6.2) (2026-10-16)
+
+
+### Bug Fixes
+
+* **cnpg:** a failure an older backup arrangement left is not a warning on a plugin cluster ([c054a00](https://github.com/this-is-tobi/rta-plugins/commit/c054a003878b8824379dd8d5b1440784c75dc003))
+
 ## [0.6.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.6.0...plugins/cnpg/v0.6.1) (2026-10-15)
 
 
