@@ -243,10 +243,14 @@ func Plugin() plugin.Plugin {
 					"ready/desired instances; a cluster short of its own spec is graded as a " +
 					"problem whatever its phase says. Reads the context's own namespace unless " +
 					"`namespace` names another or `all-namespaces` reads every one, and an empty " +
-					"answer says which it read. Reads one custom resource and nothing " +
-					"else: no pods, no exec, no logs.",
-				Inputs: []plugin.Field{allNamespacesField()},
-				Run:    runList,
+					"answer says which it read. `cluster` narrows the listing to one: a profile " +
+					"that fences it (`only: cluster:`) lists the clusters it names and no other. " +
+					"Reads one custom resource and nothing else: no pods, no exec, no logs.",
+				Inputs: []plugin.Field{
+					clusterField("only this cluster — every cluster of the namespace when omitted", false),
+					allNamespacesField(),
+				},
+				Run: runList,
 			}),
 			cap(plugin.Capability{
 				ID: "cnpg.status", Summary: "One cluster in depth: instances, replication, backups, storage",
@@ -307,12 +311,25 @@ func runList(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr != nil {
 		return nil, verr
 	}
+	name := strings.TrimSpace(req.String("cluster"))
+	if verr := checkName("cluster", name); verr != nil {
+		return nil, verr
+	}
 	var list clusterList
-	if verr := getJSON(ctx, s, "", &list); verr != nil {
+	// Asked of the API server and not filtered here, as storage does for a
+	// volume's label: the clusters a call is not about are not read to be thrown
+	// away, and a profile that fences `cluster` lists the ones it names and no
+	// other. Without it a connection fenced to one cluster answered with every
+	// cluster of the namespace, names the fence was written to keep out.
+	var extra []string
+	if name != "" {
+		extra = []string{"--field-selector", "metadata.name=" + name}
+	}
+	if verr := getResource(ctx, s, clusterCRD, "", &list, extra...); verr != nil {
 		return nil, verr
 	}
 	if len(list.Items) == 0 {
-		return view.Text{Body: emptyClusterBody(s)}, nil
+		return view.Text{Body: emptyClusterBody(name, s)}, nil
 	}
 
 	t := view.Table{Columns: []view.Column{
@@ -343,8 +360,11 @@ func runList(ctx context.Context, req plugin.Request) (view.View, error) {
 // answer that did not say so read as "there are none" to somebody whose
 // clusters live in another namespace. Unless the read already covered them
 // all, it names the call that does.
-func emptyClusterBody(s selection) string {
+func emptyClusterBody(name string, s selection) string {
 	body := "No CloudNativePG clusters in " + s.where() + "."
+	if name != "" {
+		body = "No CloudNativePG cluster called " + strconv.Quote(name) + " in " + s.where() + "."
+	}
 	if !s.allNamespace {
 		body += "\n\n" + s.caller().listEverywhere() + " reads every namespace."
 	}
