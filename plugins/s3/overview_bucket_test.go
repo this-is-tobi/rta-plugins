@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -179,5 +180,47 @@ func TestTheOverviewTilePacesItself(t *testing.T) {
 		if c.ID == "s3.overview" && c.Refresh == 0 {
 			t.Error("s3.overview is re-run at the host's own pace, every few seconds, several requests a time")
 		}
+	}
+}
+
+// format.Ago already ends in "ago" ("35 seconds ago"), and the overview added
+// its own: "created 2026-10-17 (35 seconds ago ago)". The date check above only
+// looked at the opening parenthesis, so it read the same either way.
+func TestNoTimeRowSaysAgoTwice(t *testing.T) {
+	srv := accountServer(t, "Enabled")
+	v, err := runOverview(context.Background(), reqFor(t, "s3.overview", endpointOf(t, srv),
+		map[string]any{"bucket": "mirai-ocr-preprod", "detail": true}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := v.(view.Sections)
+	var rows []string
+	for _, s := range page.Items {
+		for k, val := range pairsOf(t, s.View) {
+			rows = append(rows, k+" = "+val)
+		}
+	}
+	created := regexp.MustCompile(`^created = \d{4}-\d{2}-\d{2} \([^()]+ ago\)$`)
+	newest := regexp.MustCompile(`^newest = [^()]+ ago \(\d{4}-\d{2}-\d{2} \d{2}:\d{2}\)$`)
+	var sawCreated, sawNewest bool
+	for _, row := range rows {
+		if strings.Contains(row, "ago ago") {
+			t.Errorf("%q says ago twice", row)
+		}
+		switch {
+		case strings.HasPrefix(row, "created"):
+			sawCreated = true
+			if !created.MatchString(row) {
+				t.Errorf("%q is not a date and how long ago it was", row)
+			}
+		case strings.HasPrefix(row, "newest"):
+			sawNewest = true
+			if !newest.MatchString(row) {
+				t.Errorf("%q is not how long ago and the date", row)
+			}
+		}
+	}
+	if !sawCreated || !sawNewest {
+		t.Errorf("rows = %v, want both a created and a newest row", rows)
 	}
 }

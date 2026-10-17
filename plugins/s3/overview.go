@@ -123,7 +123,7 @@ func targetOverview(ctx context.Context, req plugin.Request, client *minio.Clien
 		{Key: "bucket", Value: plugin.ListedName(bucket)},
 	}
 	if created, ok := createdOf(ctx, client, bucket); ok {
-		pairs = append(pairs, view.Pair{Key: "created", Value: created.Format("2006-01-02") + " (" + format.Ago(created) + " ago)"})
+		pairs = append(pairs, view.Pair{Key: "created", Value: created.Format("2006-01-02") + " (" + format.Ago(created) + ")"})
 	}
 	if v, err := client.GetBucketVersioning(ctx, bucket); err == nil {
 		pairs = append(pairs, view.Pair{Key: "versioning", Value: versioningWord(v)})
@@ -214,7 +214,7 @@ func contentsOf(ctx context.Context, req plugin.Request, client *minio.Client, b
 	if objects > 0 {
 		pairs = append(pairs,
 			view.Pair{Key: "size", Value: format.Bytes(bytes)},
-			view.Pair{Key: "newest", Value: format.Ago(newest) + " ago (" + newest.Format("2006-01-02 15:04") + ")"},
+			view.Pair{Key: "newest", Value: format.Ago(newest) + " (" + newest.Format("2006-01-02 15:04") + ")"},
 		)
 	}
 	return view.KeyValue{Pairs: pairs}, nil
