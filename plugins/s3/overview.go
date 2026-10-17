@@ -172,50 +172,91 @@ func versioningWord(v minio.BucketVersioningConfiguration) string {
 // contentsOf is what the bucket holds, counted over at most walkKeys keys: the
 // objects, their size, and the newest write — the line a backup bucket is read
 // for, since a bucket whose newest object is a week old is a backup that has
-// stopped. Said to be partial when it is, because "2000 objects" of a bucket
-// that has two million reads as the whole of it.
+// stopped. Said to be partial when it is, on every row it affects, because
+// "2000 objects" of a bucket that has two million reads as the whole of it, and
+// a size or a newest write beside it reads as the bucket's too.
+//
+// **Stopped at the budget, not one key past it.** The iterator only knows
+// there is a key beyond the last of a page by fetching the next page, so
+// reading the 2001st to find out whether the 2000th was the end cost a whole
+// third page, a thousand keys of metadata, to answer yes or no. The walk breaks
+// as soon as the budget is read and asks the server for the one key that
+// follows it, which is the same answer in a request that carries one line. A
+// bucket of exactly the budget is the case that distinguishes the two:
+// nothing follows, and it is not partial.
 func contentsOf(ctx context.Context, req plugin.Request, client *minio.Client, bucket string) (view.View, *view.Error) {
 	var (
 		objects, read int
 		bytes         int64
 		newest        time.Time
-		truncated     bool
+		last          string
 	)
 	for obj := range listObjects(ctx, client, bucket, minio.ListObjectsOptions{Recursive: true}) {
 		if obj.Err != nil {
 			return nil, classify(obj.Err, req)
 		}
-		if read == walkKeys {
-			truncated = true
-			break
-		}
 		read++
+		last = obj.Key
 		// A zero-byte directory marker is not an object anybody stored (see
 		// runObjectTree).
-		if strings.HasSuffix(obj.Key, "/") {
-			continue
+		if !strings.HasSuffix(obj.Key, "/") {
+			objects++
+			bytes += obj.Size
+			if obj.LastModified.After(newest) {
+				newest = obj.LastModified
+			}
 		}
-		objects++
-		bytes += obj.Size
-		if obj.LastModified.After(newest) {
-			newest = obj.LastModified
+		if read == walkKeys {
+			break
 		}
 	}
 	if verr := ctxErr(ctx, req); verr != nil {
 		return nil, verr
 	}
 
-	scope := ""
-	if truncated {
-		scope = " — counted over the first " + format.CountOf(walkKeys, "key") + " only; " +
+	partial := false
+	if read == walkKeys {
+		more, err := hasKeyAfter(ctx, client, bucket, last)
+		if err != nil {
+			return nil, classify(err, req)
+		}
+		if verr := ctxErr(ctx, req); verr != nil {
+			return nil, verr
+		}
+		partial = more
+	}
+
+	count := format.CountOf(objects, "object")
+	if partial {
+		count = strconv.Itoa(objects) + "+ objects — read through " + plugin.ListedName(last) + " in key order; " +
 			req.Surface().CapabilityName("s3.object.tree") + " reads further"
 	}
-	pairs := []view.Pair{{Key: "objects", Value: format.CountOf(objects, "object") + scope}}
+	pairs := []view.Pair{{Key: "objects", Value: count}}
 	if objects > 0 {
+		size := format.Bytes(bytes)
+		when := format.Ago(newest) + " (" + newest.Format("2006-01-02 15:04") + ")"
+		if partial {
+			size = "at least " + size
+			when += " — the newest of the keys read, not necessarily of the bucket"
+		}
 		pairs = append(pairs,
-			view.Pair{Key: "size", Value: format.Bytes(bytes)},
-			view.Pair{Key: "newest", Value: format.Ago(newest) + " (" + newest.Format("2006-01-02 15:04") + ")"},
+			view.Pair{Key: "size", Value: size},
+			view.Pair{Key: "newest", Value: when},
 		)
 	}
 	return view.KeyValue{Pairs: pairs}, nil
+}
+
+// hasKeyAfter asks whether the bucket holds anything after key: one listing
+// of one key, which is all a yes or a no needs.
+func hasKeyAfter(ctx context.Context, client *minio.Client, bucket, key string) (bool, error) {
+	for obj := range listObjects(ctx, client, bucket, minio.ListObjectsOptions{
+		Recursive: true, StartAfter: key, MaxKeys: 1,
+	}) {
+		if obj.Err != nil {
+			return false, obj.Err
+		}
+		return true, nil
+	}
+	return false, nil
 }
