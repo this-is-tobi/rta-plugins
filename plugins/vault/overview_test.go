@@ -169,3 +169,54 @@ func TestOverviewStillRefusesWhenNothingCanBeRead(t *testing.T) {
 		t.Errorf("error code = %q, want vault.overview.unavailable", verr.Code)
 	}
 }
+
+// unsealedVault answers the seal status and the token as a healthy Vault does
+// and refuses everything else — the policy list among it — with the paragraph
+// the client library writes for a refusal: several lines, the request's URL and
+// the status code.
+func unsealedVault(t *testing.T, refusal int) (*httptest.Server, func() []string) {
+	t.Helper()
+	return recordingVaultWith(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case strings.Contains(r.URL.Path, "seal-status"):
+			_, _ = w.Write([]byte(`{"sealed":false,"initialized":true,"version":"1.14.4"}`))
+		case strings.Contains(r.URL.Path, "lookup-self"):
+			_, _ = w.Write([]byte(`{"data":{"policies":["default"],"ttl":3600}}`))
+		default:
+			w.WriteHeader(refusal)
+			_, _ = w.Write([]byte(`{"errors":["permission denied"]}`))
+		}
+	})
+}
+
+// A section that could not be read becomes a warning on the page, and a
+// warning is a line: it was the client's own paragraph, which names the
+// request's URL and its status code over several lines, and through a forward
+// that URL is a port that closed with the call. The overview's own header
+// says a failed read is classified before it is shown, and the detail did not
+// do it for the policy list.
+func TestADetailWarningIsTheClassifiedMessageNotTheClientsParagraph(t *testing.T) {
+	srv, _ := unsealedVault(t, http.StatusForbidden)
+	v, err := overviewOf(t, srv, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, ok := v.(view.Sections)
+	if !ok {
+		t.Fatalf("overview is %s, want a page", view.TypeOf(v))
+	}
+	if len(page.Warnings) == 0 {
+		t.Fatal("the policy list was refused and the page says nothing about it")
+	}
+	for _, w := range page.Warnings {
+		for _, raw := range []string{"URL:", "Code:", "Error making API request", "\n"} {
+			if strings.Contains(w.Message, raw) {
+				t.Errorf("warning %q carries the client's own text, %q", w.Message, raw)
+			}
+		}
+		if w.Code != "vault.denied" {
+			t.Errorf("warning code = %q, want the classified vault.denied", w.Code)
+		}
+	}
+}

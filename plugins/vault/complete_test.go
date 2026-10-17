@@ -47,6 +47,28 @@ func recordingVault(t *testing.T, routes map[string]string) (*httptest.Server, f
 	}
 }
 
+// recordingVaultWith is recordingVault for a server whose answer depends on
+// the request, not only on its path.
+func recordingVaultWith(t *testing.T, handle http.HandlerFunc) (*httptest.Server, func() []string) {
+	t.Helper()
+	var (
+		mu    sync.Mutex
+		asked []string
+	)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		asked = append(asked, r.Method+" "+r.URL.RequestURI())
+		mu.Unlock()
+		handle(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	return srv, func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		return append([]string(nil), asked...)
+	}
+}
+
 // readOnly asserts every recorded request was GET or LIST — a completion
 // must never write, whatever the plugin author wires it to.
 func readOnly(t *testing.T, asked []string) {
