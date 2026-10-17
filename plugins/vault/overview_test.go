@@ -300,3 +300,32 @@ func TestAnUnsealedVaultStillAnswersTheTokenAndThePolicies(t *testing.T) {
 		t.Errorf("requests = %v, want the seal status, the token and the policies", got)
 	}
 }
+
+// "A read that failed is said, not skipped" holds for an answer that was
+// empty: a token created without the default policy carries none, and a page
+// with no policies row reads as one that did not look.
+func TestATokenWithNoPoliciesSaysSo(t *testing.T) {
+	for name, policies := range map[string]string{"an empty list": `[]`, "null": `null`} {
+		t.Run(name, func(t *testing.T) {
+			srv, _ := recordingVaultWith(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if strings.Contains(r.URL.Path, "seal-status") {
+					_, _ = w.Write([]byte(`{"sealed":false,"initialized":true,"version":"1.14.4"}`))
+					return
+				}
+				_, _ = w.Write([]byte(`{"data":{"policies":` + policies + `,"ttl":3600}}`))
+			})
+			v, err := overviewOf(t, srv, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := map[string]string{}
+			for _, p := range v.(view.KeyValue).Pairs {
+				got[p.Key] = p.Value
+			}
+			if got["token policies"] != "none" {
+				t.Errorf("token policies = %q in %v, want none said", got["token policies"], got)
+			}
+		})
+	}
+}
