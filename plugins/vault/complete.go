@@ -66,7 +66,7 @@ func suggestPaths(ctx context.Context, req plugin.Request) []string {
 	if i := strings.LastIndex(partial, "/"); i >= 0 {
 		dir = partial[:i+1]
 	}
-	secret, err := client.Logical().ListWithContext(ctx, req.String("mount")+"/metadata/"+dir)
+	secret, err := client.Logical().ListWithContext(ctx, kvListRoot(ctx, client, req.String("mount"))+"/"+dir)
 	if err != nil {
 		return nil
 	}
