@@ -47,13 +47,15 @@ func TestOnlySucceededIsHealthyAmongTheNonRunningPhases(t *testing.T) {
 		},
 		{
 			name: "running and fully ready",
-			body: `{"status":{"phase":"Running","containerStatuses":[{"ready":true,"restartCount":0},
-				{"ready":true,"restartCount":0}]}}`,
+			body: `{"spec":{"containers":[{"name":"a"},{"name":"b"}]},
+				"status":{"phase":"Running","containerStatuses":[{"ready":true,"restartCount":0,"state":{"running":{}}},
+				{"ready":true,"restartCount":0,"state":{"running":{}}}]}}`,
 			want: true,
 		},
 		{
 			name: "running but only some containers ready",
-			body: `{"status":{"phase":"Running","containerStatuses":[{"ready":true,"restartCount":0},
+			body: `{"spec":{"containers":[{"name":"a"},{"name":"b"}]},
+				"status":{"phase":"Running","containerStatuses":[{"ready":true,"restartCount":0,"state":{"running":{}}},
 				{"ready":false,"restartCount":7,"state":{"waiting":{"reason":"CrashLoopBackOff"}}}]}}`,
 			want: false,
 		},
