@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -144,8 +145,11 @@ func serviceAccountCapabilities() []plugin.Capability {
 				"objects already being gone (a previous partial provision, or a previous revoke run " +
 				"twice) rather than refusing on the first missing piece.",
 			Inputs: []plugin.Field{
+				// Live, as namespace is: a cluster read answers a press, not a
+				// keystroke.
 				{Name: "name", Type: plugin.String, Positional: true, Required: true,
-					Help: "the ServiceAccount to revoke"},
+					Help: "the ServiceAccount to revoke",
+					Live: true, Suggest: suggestProvisionedAccounts},
 				// Local: Scope covers "name" alone, so a caller-settable
 				// namespace would let a grant to revoke one identity reach
 				// the identically-named ServiceAccount in a namespace the
@@ -423,11 +427,9 @@ type provisionedSAItem struct {
 	} `json:"metadata"`
 }
 
-func runServiceAccountList(ctx context.Context, req plugin.Request) (view.View, error) {
-	s, verr := selectionOf(req)
-	if verr != nil {
-		return nil, verr
-	}
+// fetchProvisionedAccounts reads the ServiceAccounts carrying provision's own
+// label, which is the set list reports and the only set revoke will act on.
+func fetchProvisionedAccounts(ctx context.Context, s selection) ([]provisionedSAItem, *view.Error) {
 	raw, verr := run(ctx, s.sf, s.args("get", "serviceaccounts",
 		"-l", provisionedByLabel+"="+provisionedByValue, "-o", "json")...)
 	if verr != nil {
@@ -437,11 +439,67 @@ func runServiceAccountList(ctx context.Context, req plugin.Request) (view.View, 
 	if err := json.Unmarshal(raw, &sas); err != nil {
 		return nil, view.Errorf("kube.unreadable", "kubectl's answer for serviceaccounts could not be read: %v", err)
 	}
+	return sas.Items, nil
+}
+
+// suggestProvisionedAccounts completes revoke's name with the ServiceAccounts
+// provision made.
+//
+// Only the labelled ones, because revoke refuses any other: offering every
+// ServiceAccount would offer targets that fail. Narrowed to the namespace when
+// one is already given and across every namespace when not, since the name
+// box comes before the namespace box and the answer to the second should not
+// be a precondition of completing the first. Across namespaces the namespace
+// is the entry's description, so two accounts of the same name are told apart.
+//
+// Like suggestNamespaces it reads the context and the namespace directly and
+// not through selectionOf, which refuses combinations a completion should
+// answer through, and it is silent on any failure.
+func suggestProvisionedAccounts(ctx context.Context, req plugin.Request) []string {
+	s := selection{
+		Context:   strings.TrimSpace(req.String("context")),
+		Namespace: strings.TrimSpace(req.String("namespace")),
+		sf:        req.Surface(),
+	}
+	if checkName("context", s.Context) != nil || checkName("namespace", s.Namespace) != nil {
+		return nil
+	}
+	s.AllNS = s.Namespace == ""
+	items, verr := fetchProvisionedAccounts(ctx, s)
+	if verr != nil {
+		return nil
+	}
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].Metadata.Name != items[j].Metadata.Name {
+			return items[i].Metadata.Name < items[j].Metadata.Name
+		}
+		return items[i].Metadata.Namespace < items[j].Metadata.Namespace
+	})
+	names := make([]string, 0, len(items))
+	for _, item := range items {
+		if s.AllNS {
+			names = append(names, item.Metadata.Name+"\t"+item.Metadata.Namespace)
+		} else {
+			names = append(names, item.Metadata.Name)
+		}
+	}
+	return names
+}
+
+func runServiceAccountList(ctx context.Context, req plugin.Request) (view.View, error) {
+	s, verr := selectionOf(req)
+	if verr != nil {
+		return nil, verr
+	}
+	items, verr := fetchProvisionedAccounts(ctx, s)
+	if verr != nil {
+		return nil, verr
+	}
 
 	t := view.Table{Columns: []view.Column{
 		{Name: "Namespace"}, {Name: "Name"}, {Name: "Age"}, {Name: "TTL"}, {Name: "Status", Kind: view.KindStatus},
 	}}
-	for _, item := range sas.Items {
+	for _, item := range items {
 		ttlStr := item.Metadata.Annotations["rta.dev/ttl"]
 		issuedStr := item.Metadata.Annotations["rta.dev/issued-at"]
 		status := "unknown — not stamped at provision time"
