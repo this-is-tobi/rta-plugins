@@ -203,7 +203,7 @@ func listForDownload(ctx context.Context, client *minio.Client,
 	req plugin.Request) ([]minio.ObjectInfo, *view.Error) {
 	limit := req.Int("limit")
 	var out []minio.ObjectInfo
-	for obj := range client.ListObjectsIter(ctx, req.String("bucket"), minio.ListObjectsOptions{
+	for obj := range listObjects(ctx, client, req.String("bucket"), minio.ListObjectsOptions{
 		Prefix:    req.String("prefix"),
 		Recursive: true,
 	}) {

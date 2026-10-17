@@ -65,7 +65,7 @@ func runObjectList(ctx context.Context, req plugin.Request) (view.View, error) {
 		limit := req.Int("limit")
 		t := view.Table{Columns: []view.Column{{Name: "Key"}, {Name: "Size", Kind: view.KindNumber}, {Name: "Modified", Kind: view.KindTimestamp}}}
 		last := ""
-		for obj := range client.ListObjectsIter(ctx, bucket, minio.ListObjectsOptions{
+		for obj := range listObjects(ctx, client, bucket, minio.ListObjectsOptions{
 			Prefix:     req.String("prefix"),
 			Recursive:  req.Bool("recursive"),
 			StartAfter: req.String("after"),

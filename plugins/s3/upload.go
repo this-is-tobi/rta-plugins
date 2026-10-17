@@ -253,7 +253,7 @@ func checkUploadTarget(ctx context.Context, client *minio.Client, req plugin.Req
 	if req.Bool("overwrite") {
 		return nil
 	}
-	for obj := range client.ListObjectsIter(ctx, req.String("bucket"), minio.ListObjectsOptions{
+	for obj := range listObjects(ctx, client, req.String("bucket"), minio.ListObjectsOptions{
 		Prefix:    prefix,
 		Recursive: true,
 	}) {

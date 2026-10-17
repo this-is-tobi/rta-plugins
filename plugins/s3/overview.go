@@ -181,7 +181,7 @@ func contentsOf(ctx context.Context, req plugin.Request, client *minio.Client, b
 		newest        time.Time
 		truncated     bool
 	)
-	for obj := range client.ListObjectsIter(ctx, bucket, minio.ListObjectsOptions{Recursive: true}) {
+	for obj := range listObjects(ctx, client, bucket, minio.ListObjectsOptions{Recursive: true}) {
 		if obj.Err != nil {
 			return nil, classify(obj.Err, req)
 		}
