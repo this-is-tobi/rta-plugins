@@ -79,7 +79,8 @@ func runPVCList(ctx context.Context, req plugin.Request) (view.View, error) {
 			quantityBytes(p.Spec.Resources.Requests.Storage),
 			p.Spec.StorageClassName, age(p.Metadata.CreationTimestamp)))
 	}
-	return view.Table{Columns: cols, Rows: rows, Total: len(rows)}, nil
+	return withEmpty(view.Table{Columns: cols, Rows: rows, Total: len(rows)},
+		"no persistent volume claims in "+s.scopeWords()), nil
 }
 
 // quantityBytes renders a Kubernetes byte quantity through this codebase's

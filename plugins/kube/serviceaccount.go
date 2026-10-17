@@ -519,7 +519,8 @@ func runServiceAccountList(ctx context.Context, req plugin.Request) (view.View, 
 		})
 	}
 	t.Total = len(t.Rows)
-	return t, nil
+	return withEmpty(t, "no ServiceAccounts provisioned in "+s.scopeWords()+" — "+
+		req.Surface().CapabilityName("kube.serviceaccount.provision")+" makes one"), nil
 }
 
 func runServiceAccountRevoke(ctx context.Context, req plugin.Request) (view.View, error) {
