@@ -143,10 +143,14 @@ func detailedOverview(ctx context.Context, client *vaultapi.Client, req plugin.R
 	if err == nil {
 		put("policies", policyTable(names), nil)
 	} else {
+		// Classified before it is a warning, for the reason the compact page
+		// gives its rows the classified message: the client's own text is a
+		// paragraph that names the request's URL, in a place that is a line.
+		refusal := classify(err, req)
 		if cause == nil {
-			cause = classify(err, req)
+			cause = refusal
 		}
-		put("policies", nil, err)
+		put("policies", nil, refusal)
 	}
 
 	if p.Empty() {
