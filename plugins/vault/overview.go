@@ -110,7 +110,13 @@ func overviewStatus(ctx context.Context, client *vaultapi.Client, req plugin.Req
 	if secret, err := client.Auth().Token().LookupSelfWithContext(ctx); err == nil {
 		read++
 		if policies, ok := secret.Data["policies"]; ok {
-			add("token policies", nameCell(policies))
+			// A token made without the default policy carries none, and the
+			// row's absence would read as a page that did not look.
+			list := nameCell(policies)
+			if list == "" {
+				list = "none"
+			}
+			add("token policies", list)
 		}
 		if ttl, ok := secret.Data["ttl"]; ok {
 			add("token ttl (seconds)", tokenTTL(ttl))
