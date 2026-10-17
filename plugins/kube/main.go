@@ -206,18 +206,29 @@ func Plugin() plugin.Plugin {
 				{Title: "the pods of one namespace", Inputs: map[string]any{"namespace": "production"}},
 			},
 			Description: "One namespace by default — the context's own — or every namespace " +
-				"with `all-namespaces`. Restarts are worth reading: a pod that is Running and " +
-				"has restarted forty times is not healthy, and only one of those two facts " +
-				"shows in its status. `unhealthy` narrows to pods that are not serving: Failed, " +
-				"Pending, Unknown, or Running without every container ready. A pod in Succeeded is not " +
-				"included — a finished Job is not a broken one. The same judgement " +
-				"kube.overview makes, available here without the rest of the overview.",
+				"with `all-namespaces`. Status, ready and restarts are what `kubectl get pods` " +
+				"prints for the same pod: the status is the word that explains the phase " +
+				"(Evicted, Terminating, Init:1/3, CrashLoopBackOff), and ready counts the " +
+				"containers that are ready over the containers the pod's spec declares, so a pod " +
+				"nothing has started yet reads 0/2 rather than 0/0. Restarts are worth reading: " +
+				"a pod that is Running and has restarted forty times is not healthy, and only " +
+				"one of those two facts shows in its status. `unhealthy` narrows to pods that " +
+				"are not serving: Failed, Pending, Unknown, stuck terminating past the time " +
+				"they were to be gone, or Running without every container ready. A pod in " +
+				"Succeeded is not included — a finished Job is not a broken one. The same " +
+				"judgement kube.overview makes, available here without the rest of the overview.",
+			Agent: "Pods in one namespace, or every one with `all-namespaces`. Status, ready and restarts are " +
+				"what kubectl prints: the status is the word that explains the phase (Evicted, Terminating, " +
+				"Init:1/3, CrashLoopBackOff), and ready is ready containers over the containers the spec " +
+				"declares, so a pod nothing has started reads 0/2. A Running pod restarted forty times is not " +
+				"healthy. `unhealthy` keeps the pods that are not serving: Failed, Pending, Unknown, stuck " +
+				"terminating, or Running without every container ready. A finished Job is not one.",
 			Safety:     plugin.Read,
 			Idempotent: true,
 			Scope:      "namespace",
 			Run:        runPodList,
 		}, append(nsFields(), plugin.Field{Name: "unhealthy", Type: plugin.Bool,
-			Help: "only pods that are not serving — Failed, Pending, Unknown, or Running without every container ready"})...),
+			Help: "only pods that are not serving — Failed, Pending, Unknown, stuck terminating, or Running without every container ready"})...),
 		cap(plugin.Capability{
 			ID:       "kube.deployment.list",
 			Summary:  "Deployments in a namespace, with how many replicas are actually ready",
@@ -399,7 +410,7 @@ func Plugin() plugin.Plugin {
 			Keywords: []string{"summary", "health", "dashboard", "status"},
 			Description: "The context, whether the cluster answers, how many namespaces it " +
 				"has, which nodes are not Ready, and every pod that is not serving — Failed, " +
-				"Pending, Unknown, or Running without every container ready. A finished Job in " +
+				"Pending, Unknown, stuck terminating, or Running without every container ready. A finished Job in " +
 				"Succeeded is not one of them, and a cordoned node is reported separately rather " +
 				"than counted as not ready: both are deliberate states, not faults. Pod-slot " +
 				"headroom comes from the schedulable nodes' own max-pods, which is the number " +
@@ -412,7 +423,7 @@ func Plugin() plugin.Plugin {
 				"credential that cannot list nodes still gets the rest: the node read is " +
 				"reported as unavailable and stepped over, not treated as a failure.",
 			Agent: "The context, whether the cluster answers, the namespace count, nodes that are not Ready, and " +
-				"every pod not serving (Failed, Pending, Unknown, or Running without every container ready). " +
+				"every pod not serving (Failed, Pending, Unknown, stuck terminating, or Running without every container ready). " +
 				"A finished Job and a cordoned node are not faults and are not counted as such. Pod-slot " +
 				"headroom comes from the schedulable nodes' max-pods. With `detail`: every node, deployments " +
 				"short of replicas, and the pods. Reads every ResourceQuota and every TLS Secret in every " +

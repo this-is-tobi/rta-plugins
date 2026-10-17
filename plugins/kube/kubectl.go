@@ -469,6 +469,7 @@ type meta struct {
 	Name              string            `json:"name"`
 	Namespace         string            `json:"namespace"`
 	CreationTimestamp time.Time         `json:"creationTimestamp"`
+	DeletionTimestamp *time.Time        `json:"deletionTimestamp,omitempty"`
 	Labels            map[string]string `json:"labels,omitempty"`
 }
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
@@ -22,16 +23,32 @@ type namespaceItem struct {
 type podItem struct {
 	Metadata meta `json:"metadata"`
 	Spec     struct {
-		NodeName string `json:"nodeName"`
+		NodeName       string     `json:"nodeName"`
+		Containers     []struct{} `json:"containers"`
+		InitContainers []struct {
+			Name          string `json:"name"`
+			RestartPolicy string `json:"restartPolicy"`
+		} `json:"initContainers"`
 	} `json:"spec"`
 	Status struct {
-		Phase             string `json:"phase"`
-		ContainerStatuses []struct {
-			Ready        bool  `json:"ready"`
-			RestartCount int   `json:"restartCount"`
-			State        state `json:"state"`
-		} `json:"containerStatuses"`
+		Phase      string `json:"phase"`
+		Reason     string `json:"reason"`
+		Conditions []struct {
+			Type   string `json:"type"`
+			Status string `json:"status"`
+			Reason string `json:"reason"`
+		} `json:"conditions"`
+		InitContainerStatuses []containerStatus `json:"initContainerStatuses"`
+		ContainerStatuses     []containerStatus `json:"containerStatuses"`
 	} `json:"status"`
+}
+
+type containerStatus struct {
+	Name         string `json:"name"`
+	Ready        bool   `json:"ready"`
+	Started      *bool  `json:"started"`
+	RestartCount int    `json:"restartCount"`
+	State        state  `json:"state"`
 }
 
 // state is a container's current state, of which exactly one field is set.
@@ -39,8 +56,11 @@ type state struct {
 	Waiting *struct {
 		Reason string `json:"reason"`
 	} `json:"waiting,omitempty"`
+	Running    *struct{} `json:"running,omitempty"`
 	Terminated *struct {
-		Reason string `json:"reason"`
+		Reason   string `json:"reason"`
+		ExitCode int    `json:"exitCode"`
+		Signal   int    `json:"signal"`
 	} `json:"terminated,omitempty"`
 }
 
@@ -82,7 +102,7 @@ func runNamespaceList(ctx context.Context, req plugin.Request) (view.View, error
 	}, nil
 }
 
-// podHealth is the two things about a pod that a phase alone does not say.
+// podHealth is what a pod's row says about it, and whether it is serving.
 type podHealth struct {
 	ready    string
 	restarts int
@@ -90,35 +110,176 @@ type podHealth struct {
 	healthy  bool
 }
 
-func healthOf(p podItem) podHealth {
-	ready, total, restarts := 0, len(p.Status.ContainerStatuses), 0
-	reason := ""
-	for _, c := range p.Status.ContainerStatuses {
-		if c.Ready {
-			ready++
+// The words of a pod's status that the code below has to recognise rather
+// than pass through.
+const (
+	podCompleted       = "Completed"
+	podNodeLost        = "NodeLost"
+	podSchedulingGated = "SchedulingGated"
+	podInitializing    = "PodInitializing"
+)
+
+// podView is the READY, STATUS and RESTARTS cells of a pod, computed the way
+// `kubectl get pods` computes them.
+type podView struct {
+	ready, total, restarts int
+	status                 string
+}
+
+// viewOf is printPod from kubernetes/pkg/printers/internalversion/printers.go
+// without the cells this table does not print, and it is a port rather than a
+// reading of the phase because the two disagree in exactly the states a
+// person opens this table to look at. The phase says Failed for a pod the
+// kubelet evicted, Running for one that is being deleted, Pending for one
+// whose init container has restarted seven times; the status column kubectl
+// prints says Evicted, Terminating and Init:CrashLoopBackOff, and a table
+// read next to `kubectl get pods` that says otherwise is one nobody trusts.
+//
+// The order of the steps is the algorithm and is kept as upstream has it:
+// a later step overwrites the word an earlier one chose, the init loop stops
+// at the first init container that has not finished, and the regular
+// containers are walked last to first so that the first one in the spec has
+// the final word. READY is over the containers the spec declares, plus the
+// init containers that keep running beside them (restartPolicy: Always), and
+// not over the statuses the kubelet has reported: a pod nothing has started
+// has no statuses, and 0/0 for it is a claim that it asks for nothing.
+func viewOf(p podItem) podView {
+	st := p.Status
+	reason := st.Phase
+	if st.Reason != "" {
+		reason = st.Reason
+	}
+	for _, c := range st.Conditions {
+		if c.Type == "PodScheduled" && c.Reason == podSchedulingGated {
+			reason = podSchedulingGated
 		}
+	}
+
+	total := len(p.Spec.Containers)
+	sidecars := map[string]bool{}
+	for _, c := range p.Spec.InitContainers {
+		if c.RestartPolicy == "Always" {
+			sidecars[c.Name] = true
+			total++
+		}
+	}
+
+	ready, restarts, sidecarRestarts := 0, 0, 0
+	initializing := false
+	for i, c := range st.InitContainerStatuses {
 		restarts += c.RestartCount
-		// The first container that has something to say about why it is not
-		// running. A waiting reason (ImagePullBackOff, CrashLoopBackOff) is
-		// the actual diagnosis, and the pod's own phase reports "Pending" for
-		// all of them.
-		if reason == "" {
+		if sidecars[c.Name] {
+			sidecarRestarts += c.RestartCount
+		}
+		switch {
+		case c.State.Terminated != nil && c.State.Terminated.ExitCode == 0:
+			continue
+		case sidecars[c.Name] && c.Started != nil && *c.Started:
+			if c.Ready {
+				ready++
+			}
+			continue
+		case c.State.Terminated != nil:
+			reason = "Init:" + terminationWord(c.State.Terminated.Reason, c.State.Terminated.Signal, c.State.Terminated.ExitCode)
+			initializing = true
+		case c.State.Waiting != nil && c.State.Waiting.Reason != "" && c.State.Waiting.Reason != podInitializing:
+			reason = "Init:" + c.State.Waiting.Reason
+			initializing = true
+		default:
+			reason = fmt.Sprintf("Init:%d/%d", i, len(p.Spec.InitContainers))
+			initializing = true
+		}
+		break
+	}
+
+	if !initializing || conditionIsTrue(p, "Initialized") {
+		// What is still being counted is the containers that are running now:
+		// an init container that finished and restarted twice on the way is
+		// history, and the sidecars are running and counted with the rest.
+		restarts = sidecarRestarts
+		hasRunning := false
+		errorReason := ""
+		for i := len(st.ContainerStatuses) - 1; i >= 0; i-- {
+			c := st.ContainerStatuses[i]
+			restarts += c.RestartCount
 			switch {
 			case c.State.Waiting != nil && c.State.Waiting.Reason != "":
 				reason = c.State.Waiting.Reason
-			case c.State.Terminated != nil && c.State.Terminated.Reason != "":
-				reason = c.State.Terminated.Reason
+			case c.State.Terminated != nil:
+				reason = terminationWord(c.State.Terminated.Reason, c.State.Terminated.Signal, c.State.Terminated.ExitCode)
+				if c.State.Terminated.ExitCode != 0 {
+					errorReason = reason
+				}
+			case c.Ready && c.State.Running != nil:
+				hasRunning = true
+				ready++
+			}
+		}
+		// A container that finished beside others that are running is not the
+		// pod's word: Completed is what the last container to exit said, and
+		// the pod is as ready as its Ready condition says.
+		if reason == podCompleted {
+			switch {
+			case hasRunning && conditionIsTrue(p, "Ready"):
+				reason = "Running"
+			case errorReason != "":
+				reason = errorReason
+			case hasRunning:
+				reason = "NotReady"
 			}
 		}
 	}
-	status := p.Status.Phase
-	if reason != "" {
-		status = reason
+
+	switch {
+	case p.Metadata.DeletionTimestamp != nil && st.Reason == podNodeLost:
+		reason = "Unknown"
+	case p.Metadata.DeletionTimestamp != nil && !finished(st.Phase):
+		reason = "Terminating"
 	}
+
+	// Every word above may be one the cluster supplied: status.reason is
+	// writable by anything that can update pods/status, and a container's
+	// reasons come from a runtime. A cell is not where a stranger writes an
+	// escape sequence or a second row, so the word is shown the way a name is.
+	if reason != "" {
+		reason = plugin.ListedName(reason)
+	}
+	return podView{ready: ready, total: total, restarts: restarts, status: reason}
+}
+
+// terminationWord is how a container's end is worded when kubectl words it:
+// the runtime's reason when there is one, else the signal that killed it, else
+// the exit code.
+func terminationWord(reason string, signal, exitCode int) string {
+	switch {
+	case reason != "":
+		return reason
+	case signal != 0:
+		return fmt.Sprintf("Signal:%d", signal)
+	default:
+		return fmt.Sprintf("ExitCode:%d", exitCode)
+	}
+}
+
+func conditionIsTrue(p podItem, condition string) bool {
+	for _, c := range p.Status.Conditions {
+		if c.Type == condition {
+			return c.Status == "True"
+		}
+	}
+	return false
+}
+
+// finished is a phase a pod does not leave.
+func finished(phase string) bool { return phase == "Succeeded" || phase == "Failed" }
+
+func healthOf(p podItem) podHealth {
+	v := viewOf(p)
+	phase := p.Status.Phase
 	return podHealth{
-		ready:    fmt.Sprintf("%d/%d", ready, total),
-		restarts: restarts,
-		status:   status,
+		ready:    fmt.Sprintf("%d/%d", v.ready, v.total),
+		restarts: v.restarts,
+		status:   v.status,
 		// Two conditions, and the second one was originally missing.
 		//
 		// Running is not enough on its own: a pod whose containers are not
@@ -134,9 +295,24 @@ func healthOf(p podItem) podHealth {
 		// Pending and Unknown stay unhealthy, which is the distinction that
 		// matters — a pod that stopped because it was done is not a pod that
 		// stopped because it broke.
-		healthy: p.Status.Phase == "Succeeded" ||
-			(p.Status.Phase == "Running" && total > 0 && ready == total),
+		//
+		// Two facts about a pod veto both, because its containers cannot say
+		// them. A pod on a node the control plane gave up on carries the
+		// reason NodeLost, and its containers' statuses are whatever the
+		// kubelet last reported before it went quiet. And a pod still listed
+		// after the time it was to be gone is stuck on a finalizer or on a
+		// node that never answered. That time is when the API says the pod is
+		// expected to be gone, so a pod inside its grace period is not
+		// flagged: every rollout would otherwise flap this list for as long
+		// as the old pods take to stop.
+		healthy: p.Status.Reason != podNodeLost && !stuckDeleting(p) &&
+			(phase == "Succeeded" || (phase == "Running" && v.total > 0 && v.ready == v.total)),
 	}
+}
+
+func stuckDeleting(p podItem) bool {
+	t := p.Metadata.DeletionTimestamp
+	return t != nil && !finished(p.Status.Phase) && time.Now().After(*t)
 }
 
 func fetchPods(ctx context.Context, s selection) ([]podItem, *view.Error) {
