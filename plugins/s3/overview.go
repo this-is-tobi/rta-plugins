@@ -38,6 +38,12 @@ const walkKeys = 2000
 // — and not the list of every bucket the key can see, which is also what the
 // fence was written to keep out of a connection's answers.
 //
+// **And the keys of it, when the connection is for part of one.** `prefix` is
+// declared here, with the Config key s3.object.tree and s3.object.list already
+// use, because a fence binds only the inputs a capability declares: without it
+// `only: prefix:` held the other two and left the overview counting, summing
+// and dating the whole bucket past it.
+//
 // NoPreview like every capability here (cap's job): the automatic dashboard
 // must not decide on its own that an S3 endpoint is worth polling every few
 // seconds. dashboard.tiles still accepts it explicitly — naming a
@@ -58,9 +64,13 @@ func overviewCapability() plugin.Capability {
 			"is about that bucket: whether it exists, when it was created and whether " +
 			"it keeps versions, and with `detail` how many objects it holds, how large they are " +
 			"and when the newest was written (counted over the first " + strconv.Itoa(walkKeys) +
-			" keys, and it says when it stopped).",
+			" keys, and it says when it stopped). With a `prefix`, only the keys under it are " +
+			"counted — a profile that fences `prefix` holds the page to it.",
 		Run: runOverview,
-	}, optionalBucketField("only this bucket — every bucket the credentials can see when omitted"))
+	}, optionalBucketField("only this bucket — every bucket the credentials can see when omitted"),
+		plugin.Field{Name: "prefix", Short: "p", Type: plugin.String, Config: "prefix",
+			Help: "with a bucket, count only the keys starting with this",
+			Live: true, Suggest: suggestKeys("prefix")})
 }
 
 func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
@@ -133,7 +143,7 @@ func targetOverview(ctx context.Context, req plugin.Request, client *minio.Clien
 		return head, nil
 	}
 
-	contents, verr := contentsOf(ctx, req, client, bucket)
+	contents, verr := contentsOf(ctx, req, client, bucket, req.String("prefix"))
 	if verr != nil {
 		return nil, verr
 	}
@@ -184,14 +194,14 @@ func versioningWord(v minio.BucketVersioningConfiguration) string {
 // follows it, which is the same answer in a request that carries one line. A
 // bucket of exactly the budget is the case that distinguishes the two:
 // nothing follows, and it is not partial.
-func contentsOf(ctx context.Context, req plugin.Request, client *minio.Client, bucket string) (view.View, *view.Error) {
+func contentsOf(ctx context.Context, req plugin.Request, client *minio.Client, bucket, prefix string) (view.View, *view.Error) {
 	var (
 		objects, read int
 		bytes         int64
 		newest        time.Time
 		last          string
 	)
-	for obj := range listObjects(ctx, client, bucket, minio.ListObjectsOptions{Recursive: true}) {
+	for obj := range listObjects(ctx, client, bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
 		if obj.Err != nil {
 			return nil, classify(obj.Err, req)
 		}
@@ -216,7 +226,7 @@ func contentsOf(ctx context.Context, req plugin.Request, client *minio.Client, b
 
 	partial := false
 	if read == walkKeys {
-		more, err := hasKeyAfter(ctx, client, bucket, last)
+		more, err := hasKeyAfter(ctx, client, bucket, prefix, last)
 		if err != nil {
 			return nil, classify(err, req)
 		}
@@ -231,7 +241,11 @@ func contentsOf(ctx context.Context, req plugin.Request, client *minio.Client, b
 		count = strconv.Itoa(objects) + "+ objects — read through " + plugin.ListedName(last) + " in key order; " +
 			req.Surface().CapabilityName("s3.object.tree") + " reads further"
 	}
-	pairs := []view.Pair{{Key: "objects", Value: count}}
+	var pairs []view.Pair
+	if prefix != "" {
+		pairs = append(pairs, view.Pair{Key: "prefix", Value: plugin.ListedName(prefix)})
+	}
+	pairs = append(pairs, view.Pair{Key: "objects", Value: count})
 	if objects > 0 {
 		size := format.Bytes(bytes)
 		when := format.Ago(newest) + " (" + newest.Format("2006-01-02 15:04") + ")"
@@ -249,9 +263,9 @@ func contentsOf(ctx context.Context, req plugin.Request, client *minio.Client, b
 
 // hasKeyAfter asks whether the bucket holds anything after key: one listing
 // of one key, which is all a yes or a no needs.
-func hasKeyAfter(ctx context.Context, client *minio.Client, bucket, key string) (bool, error) {
+func hasKeyAfter(ctx context.Context, client *minio.Client, bucket, prefix, key string) (bool, error) {
 	for obj := range listObjects(ctx, client, bucket, minio.ListObjectsOptions{
-		Recursive: true, StartAfter: key, MaxKeys: 1,
+		Prefix: prefix, Recursive: true, StartAfter: key, MaxKeys: 1,
 	}) {
 		if obj.Err != nil {
 			return false, obj.Err

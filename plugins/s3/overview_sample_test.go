@@ -4,7 +4,9 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
@@ -97,5 +99,75 @@ func TestEveryRowOfAPartialCountSaysItIsPartial(t *testing.T) {
 	}
 	if !strings.Contains(got["newest"], "newest of the keys read") {
 		t.Errorf("newest = %q, want it said to be the newest of those read", got["newest"])
+	}
+}
+
+func overviewCapabilityOf(t *testing.T) plugin.Capability {
+	t.Helper()
+	for _, c := range Plugin().Capabilities {
+		if c.ID == "s3.overview" {
+			return c
+		}
+	}
+	t.Fatal("no s3.overview")
+	return plugin.Capability{}
+}
+
+// A profile that fences `prefix` to where an application writes has said what
+// the connection may see of a bucket. The overview declared no prefix, so the
+// fence neither bound it nor filled it, and the page counted, summed and dated
+// the whole bucket past the fence while s3.object.tree and s3.object.list, which
+// do declare it, refused.
+func TestAFencedPrefixFillsTheOverviewAndAnotherIsRefused(t *testing.T) {
+	c := overviewCapabilityOf(t)
+	fence := plugin.Fence{"bucket": {"backups"}, "prefix": {"app/"}}
+
+	if breach := plugin.CheckFence(c, plugin.Inputs{Fence: fence, Caller: map[string]any{}}); breach != nil {
+		t.Fatalf("a call naming nothing was refused under a one-entry fence: %+v", breach)
+	}
+	filled := plugin.ResolveRequest(c, plugin.Inputs{Fence: fence, Caller: map[string]any{}}, false, false)
+	if got := filled.String("prefix"); got != "app/" {
+		t.Errorf("the fence filled prefix = %q, want app/", got)
+	}
+	if plugin.CheckFence(c, plugin.Inputs{Fence: fence, Caller: map[string]any{"prefix": "other/"}}) == nil {
+		t.Error("a prefix outside the fence was let through")
+	}
+}
+
+// With a prefix the page is about the keys under it: the listing asks for
+// them, and so does the question of whether there are more, and the page says
+// which prefix it counted so "3 objects" is not read as the bucket's.
+func TestTheOverviewOfAPrefixCountsOnlyThatPrefix(t *testing.T) {
+	at := time.Date(2026, 10, 1, 10, 0, 0, 0, time.UTC)
+	keys := []fakeKey{
+		{Key: "app/a", Size: 100, Modified: at}, {Key: "app/b", Size: 200, Modified: at}, {Key: "app/c", Size: 300, Modified: at},
+		{Key: "other/x", Size: 1 << 20, Modified: at}, {Key: "other/y", Size: 1 << 20, Modified: at},
+	}
+	f := newBucketFake(t, "backups", keys)
+	v, err := runOverview(context.Background(), reqFor(t, "s3.overview", endpointOf(t, f.Server),
+		map[string]any{"bucket": "backups", "prefix": "app/", "detail": true}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var contents map[string]string
+	for _, s := range v.(view.Sections).Items {
+		if s.Title == "contents" {
+			contents = pairsOf(t, s.View)
+		}
+	}
+	if contents["objects"] != "3 objects" || contents["size"] != "600 B" {
+		t.Errorf("contents = %v, want the three objects under app/ and nothing of other/", contents)
+	}
+	if contents["prefix"] != "app/" {
+		t.Errorf("prefix = %q, want the page to say what it counted", contents["prefix"])
+	}
+	lists := f.listings()
+	if len(lists) == 0 {
+		t.Fatal("nothing was listed")
+	}
+	for _, q := range lists {
+		if q.Get("prefix") != "app/" {
+			t.Errorf("a listing went out without the prefix: %v", q)
+		}
 	}
 }
