@@ -220,6 +220,28 @@ func (s selection) where() string {
 	return "context " + s.Context
 }
 
+// scopeWords is where a listing looked, for the sentence that says it found
+// nothing there. An empty list is most often a namespace nobody meant, so the
+// namespace is the part that has to be in it.
+func (s selection) scopeWords() string {
+	switch {
+	case s.AllNS:
+		return "any namespace"
+	case s.Namespace != "":
+		return "namespace " + s.Namespace
+	default:
+		return "the current namespace"
+	}
+}
+
+// withEmpty says what a table with no rows is, for the person reading it.
+func withEmpty(t view.Table, sentence string) view.Table {
+	if len(t.Rows) == 0 {
+		t.Empty = sentence
+	}
+	return t
+}
+
 // run executes kubectl and returns its stdout.
 //
 // stderr is captured separately and never merged into stdout: stdout is

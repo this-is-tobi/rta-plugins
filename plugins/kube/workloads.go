@@ -338,6 +338,7 @@ func runPodList(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr != nil {
 		return nil, verr
 	}
+	checked := len(pods)
 	if req.Bool("unhealthy") {
 		kept := pods[:0]
 		for _, p := range pods {
@@ -347,7 +348,14 @@ func runPodList(ctx context.Context, req plugin.Request) (view.View, error) {
 		}
 		pods = kept
 	}
-	return podTable(pods, s.AllNS), nil
+	// "Every pod is serving" is the answer to a question, and a bare header is
+	// not; but it is only true of pods that exist, so a namespace with none
+	// says that instead.
+	empty := "no pods in " + s.scopeWords()
+	if checked > 0 {
+		empty = fmt.Sprintf("every pod in %s is serving (%d checked)", s.scopeWords(), checked)
+	}
+	return withEmpty(podTable(pods, s.AllNS), empty), nil
 }
 
 func podTable(pods []podItem, withNS bool) view.Table {
@@ -410,7 +418,7 @@ func runDeploymentList(ctx context.Context, req plugin.Request) (view.View, erro
 	if verr != nil {
 		return nil, verr
 	}
-	return deploymentTable(deps, s.AllNS), nil
+	return withEmpty(deploymentTable(deps, s.AllNS), "no deployments in "+s.scopeWords()), nil
 }
 
 func deploymentTable(deps []deploymentItem, withNS bool) view.Table {

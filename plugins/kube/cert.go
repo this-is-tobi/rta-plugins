@@ -114,7 +114,8 @@ func runCertList(ctx context.Context, req plugin.Request) (view.View, error) {
 		subject, notAfter, status := certRow(sec.Data.Cert)
 		rows = append(rows, append(row, sec.Metadata.Name, subject, notAfter, status))
 	}
-	return view.Table{Columns: cols, Rows: rows, Total: len(rows)}, nil
+	return withEmpty(view.Table{Columns: cols, Rows: rows, Total: len(rows)},
+		"no TLS Secrets in "+s.scopeWords()), nil
 }
 
 // warnDays mirrors builtin/internal/x509check.DefaultWarnDays — see the

@@ -98,7 +98,8 @@ func runQuotaList(ctx context.Context, req plugin.Request) (view.View, error) {
 		}
 	}
 
-	t := view.Table{Columns: cols, Rows: rows, Total: len(rows)}
+	t := withEmpty(view.Table{Columns: cols, Rows: rows, Total: len(rows)},
+		"no resource quotas in "+s.scopeWords())
 	return quotaView(t, limits, limitErr), nil
 }
 

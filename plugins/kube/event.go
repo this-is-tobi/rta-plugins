@@ -167,7 +167,11 @@ func runEventList(ctx context.Context, req plugin.Request) (view.View, error) {
 	sort.SliceStable(items, func(i, j int) bool {
 		return items[i].lastAt().After(items[j].lastAt())
 	})
-	return eventTable(items, s.AllNS), nil
+	empty := "no events in " + s.scopeWords()
+	if !req.Bool("normal") {
+		empty = "no warning events in " + s.scopeWords() + " — " + req.Surface().InputName("normal") + " includes the routine ones"
+	}
+	return withEmpty(eventTable(items, s.AllNS), empty), nil
 }
 
 func eventTable(events []eventItem, withNS bool) view.Table {

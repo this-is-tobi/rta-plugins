@@ -1,0 +1,18 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "metadata": {"name": "web-0", "namespace": "demo", "creationTimestamp": "2026-10-10T08:00:00Z"},
+      "spec": {"nodeName": "pi7", "containers": [{"name": "app"}]},
+      "status": {"phase": "Running",
+                 "containerStatuses": [{"name": "app", "ready": true, "restartCount": 0, "state": {"running": {"startedAt": "2026-10-10T08:00:05Z"}}}]}
+    },
+    {
+      "metadata": {"name": "job-0", "namespace": "demo", "creationTimestamp": "2026-10-10T08:00:00Z"},
+      "spec": {"nodeName": "pi7", "containers": [{"name": "job"}]},
+      "status": {"phase": "Succeeded",
+                 "containerStatuses": [{"name": "job", "ready": false, "restartCount": 0, "state": {"terminated": {"exitCode": 0, "reason": "Completed"}}}]}
+    }
+  ]
+}
