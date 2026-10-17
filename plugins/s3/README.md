@@ -93,7 +93,7 @@ Written into a directory this creates — never one that already exists, so a ba
 
 ## s3.bucket.list
 
-Every bucket the credentials can see, with region and age. With a `bucket` — named, or the one a profile fences with `only: bucket:` — only that one.
+Every bucket the credentials can see, with age, and region where the server reports one. With a `bucket` — named, or the one a profile fences with `only: bucket:` — only that one.
 
 | Field                 | Value                                                                                                                                                                                                                     |
 |-----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -418,7 +418,7 @@ One request, however deep the result: the folders are built here from the keys, 
 
 ## s3.overview
 
-Whether this endpoint is reachable at all, and how many buckets the configured credentials can see. `detail` adds the bucket list, with region and age, to the same page.
+Whether this endpoint is reachable at all, and how many buckets the configured credentials can see. `detail` adds the bucket list, with age and, where the server reports one, region, to the same page.
 
 With a `bucket` — named, or the one a profile fences with `only: bucket:` — the page is about that bucket: whether it exists, when it was created and whether it keeps versions, and with `detail` how many objects it holds, how large they are and when the newest was written (counted over the first 2000 keys, and it says when it stopped). With a `prefix`, only the keys under it are counted — a profile that fences `prefix` holds the page to it.
 

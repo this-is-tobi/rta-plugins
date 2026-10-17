@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/minio/minio-go/v7"
+
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -158,5 +160,35 @@ func TestSizesAreReadable(t *testing.T) {
 	}
 	if _, err := strconv.ParseInt(tbl.Rows[0][1], 10, 64); err == nil {
 		t.Error("the size column is still a raw byte count")
+	}
+}
+
+// A Region column that is blank on every row is a heading over nothing, and
+// RustFS and SeaweedFS, like most S3-compatible servers, never fill it. It is
+// there when a server reports one, and the cells then still line up with the
+// headings.
+func TestTheRegionColumnIsOnlyThereWhenABucketReportsOne(t *testing.T) {
+	names := func(tbl view.Table) string {
+		var cols []string
+		for _, c := range tbl.Columns {
+			cols = append(cols, c.Name)
+		}
+		return strings.Join(cols, ",")
+	}
+
+	none := bucketTable([]minio.BucketInfo{{Name: "a"}, {Name: "b"}})
+	if got := names(none); got != "Name,Created" {
+		t.Errorf("columns = %s, want Name,Created when no bucket reports a region", got)
+	}
+	if len(none.Rows[0]) != 2 {
+		t.Errorf("a row has %d cells under %d headings", len(none.Rows[0]), len(none.Columns))
+	}
+
+	some := bucketTable([]minio.BucketInfo{{Name: "a"}, {Name: "b", BucketRegion: "eu-west-3"}})
+	if got := names(some); got != "Name,Region,Created" {
+		t.Errorf("columns = %s, want the region kept when a bucket reports one", got)
+	}
+	if some.Rows[1][1] != "eu-west-3" || some.Rows[0][1] != "" || len(some.Rows[0]) != 3 {
+		t.Errorf("rows = %v, want the region in its own column and blank only where unreported", some.Rows)
 	}
 }

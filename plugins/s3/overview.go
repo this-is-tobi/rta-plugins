@@ -58,7 +58,7 @@ func overviewCapability() plugin.Capability {
 		Detailed:   true,
 		Refresh:    overviewRefresh,
 		Description: "Whether this endpoint is reachable at all, and how many buckets the " +
-			"configured credentials can see. `detail` adds the bucket list, with region and age, " +
+			"configured credentials can see. `detail` adds the bucket list, with age and, where the server reports one, region, " +
 			"to the same page.\n\n" +
 			"With a `bucket` — named, or the one a profile fences with `only: bucket:` — the page " +
 			"is about that bucket: whether it exists, when it was created and whether " +
