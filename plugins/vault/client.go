@@ -95,6 +95,21 @@ func connect(req plugin.Request) (*vaultapi.Client, *view.Error) {
 	// agent or an operator can simply make again, and a write that a 5xx
 	// answered is not one to repeat on their behalf.
 	cfg.MaxRetries = 0
+	// **A redirect is never followed.** The library follows one itself, once,
+	// with the token on the request, and refuses only a step from https:// down
+	// to http://. The address a call reaches is the one its operator chose, and
+	// the token is the one they gave for it; an address the server names is
+	// neither, and through a forward it is the cluster's own, outside the
+	// forward. A standby that cannot serve a request names the active node's
+	// api_addr this way, and the operator can address that node themselves.
+	//
+	// The library's switch alone would hand a 3xx back to every caller as a
+	// response to decode, and each would fail on the body: so the HTTP client
+	// is made to fail on the redirect itself, with an error classify can name.
+	// Both are set because they guard different steps: the first stops the
+	// library following, the second turns what it then returns into a refusal.
+	cfg.DisableRedirects = true
+	cfg.HttpClient.CheckRedirect = refuseRedirect
 	// DefaultConfig's own ReadEnvironment already pulled in whatever
 	// VAULT_CACERT/VAULT_CLIENT_CERT/VAULT_SKIP_VERIFY/etc. happen to be set
 	// in this shell — harmless for Address, overwritten the line above, but
@@ -156,6 +171,29 @@ func connect(req plugin.Request) (*vaultapi.Client, *view.Error) {
 		client.SetNamespace(ns)
 	}
 	return client, nil
+}
+
+// redirectRefused is the HTTP client's answer to a redirect it was told not to
+// follow, kept as a type so classify can say where the server pointed.
+type redirectRefused struct {
+	status int
+	to     *url.URL
+}
+
+func (e *redirectRefused) Error() string {
+	return fmt.Sprintf("redirected (HTTP %d) to %s", e.status, e.node())
+}
+
+// node is the scheme and host the server named, and nothing of the path or
+// the query it added: where it pointed is the part an operator acts on.
+func (e *redirectRefused) node() string { return e.to.Scheme + "://" + e.to.Host }
+
+func refuseRedirect(next *http.Request, _ []*http.Request) error {
+	refused := &redirectRefused{to: next.URL}
+	if next.Response != nil {
+		refused.status = next.Response.StatusCode
+	}
+	return refused
 }
 
 // caBundle is the PEM the CA file at path holds, read here and handed to the
@@ -251,6 +289,20 @@ func classify(err error, req plugin.Request) *view.Error {
 	// closed with the call, and the token it refused was the profile's, which
 	// is the one thing the reader can change.
 	answered := reached(req)
+
+	var redirect *redirectRefused
+	if errors.As(err, &redirect) {
+		hint := "a standby node answers what it cannot serve by naming the active node, and rta never " +
+			"follows a redirect, which would send the token to an address the server chose — " +
+			"point " + sf.SettingName("address") + " at the active node"
+		if req.Tunnel() != plugin.TunnelNone {
+			hint = "a standby node answers what it cannot serve by naming the active node, whose address " +
+				"is the cluster's own and outside the forward, and rta never follows a redirect, which would " +
+				"send the token to an address the server chose — give the profile a connection to the active node"
+		}
+		return view.Errorf("vault.redirected", "%s answered with a redirect to %s, which is not followed",
+			answered, plugin.ListedName(redirect.node())).WithHint(hint)
+	}
 
 	var respErr *vaultapi.ResponseError
 	if errors.As(err, &respErr) {
