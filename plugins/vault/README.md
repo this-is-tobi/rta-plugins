@@ -147,7 +147,7 @@ Every version the engine still knows about, when each was written, and whether i
 
 ## vault.kv.list
 
-Names only, never values — vault.kv.get is where a secret's data is. A name ending in "/" is itself a path, one level further to list.
+Names only, never values — vault.kv.get is where a secret's data is. A name ending in "/" is itself a path, one level further to list. A KV v1 mount is listed as well as a v2 one; the capabilities that read or write a secret speak v2 only.
 
 | Field                 | Value                                                                                                                                                                                                        |
 |-----------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -198,7 +198,7 @@ Always creates a new version holding exactly `data`: the fields of the current v
 
 vault.kv.list answers one level at a time, and a name ending in "/" is another path to list — so learning where anything lives in somebody else's Vault means calling it over and over. This walks it once and draws the shape.
 
-Names only, never values: vault.kv.get is where a secret's data is.
+Names only, never values: vault.kv.get is where a secret's data is. A KV v1 mount is mapped as well as a v2 one; the capabilities that read or write a secret speak v2 only.
 
 Bounded in both directions, and it says when it stopped. A folder the token may not list is marked and stepped over rather than ending the walk — a policy that grants part of a mount is the normal case, and the part you can see is still the answer you came for.
 

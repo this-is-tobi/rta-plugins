@@ -51,6 +51,39 @@ func pathField(help string) plugin.Field {
 		Live: true, Suggest: suggestPaths}
 }
 
+// kvListRoot is where a KV mount is listed from: the path LIST is sent to, to
+// which a folder's path is appended.
+//
+// **A v2 mount keeps its names under <mount>/metadata, and a v1 mount keeps
+// them at <mount> itself.** Both listings assumed v2, and a v1 mount answers a
+// LIST of metadata/ with a 404 that the client turns into an empty result with
+// no error: ten secrets read as "0 secrets", and the check for a mount that
+// does not exist did not fire because the mount does. Worse, a v1 mount with a
+// folder called metadata is answered, with the wrong names. So the mount is
+// asked what it is before it is listed, as the vault CLI does, and the
+// version is read from the options it reports: 1, or none at all, is v1.
+//
+// A mount that cannot be asked about is listed as v2, which is what it was
+// before and what the plugin's other KV capabilities speak: a token that may
+// list a mount and not look it up, or a Vault without the endpoint, must not
+// be told its mount is gone for it. Asked once per call, by whoever starts the
+// listing, so a walk of two hundred folders pays one request for it.
+func kvListRoot(ctx context.Context, client *vaultapi.Client, mount string) string {
+	secret, err := client.Logical().ReadWithContext(ctx, "sys/internal/ui/mounts/"+mount)
+	if err == nil && secret != nil {
+		if options, present := secret.Data["options"]; present {
+			version := ""
+			if m, ok := options.(map[string]interface{}); ok {
+				version, _ = m["version"].(string)
+			}
+			if version == "" || version == "1" {
+				return mount
+			}
+		}
+	}
+	return mount + "/metadata"
+}
+
 // vault.kv.list is Read for the line builtin/kv's kv.list and kv.get already
 // draw: names describe where secrets live, and only a read of a secret's data
 // is a disclosure.
@@ -65,7 +98,8 @@ func kvListCapability() plugin.Capability {
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Description: "Names only, never values — vault.kv.get is where a secret's data is. A name " +
-			"ending in \"/\" is itself a path, one level further to list.",
+			"ending in \"/\" is itself a path, one level further to list. A KV v1 mount is listed " +
+			"as well as a v2 one; the capabilities that read or write a secret speak v2 only.",
 		Run: runKVList,
 	}, mountField(),
 		plugin.Field{Name: "path", Type: plugin.String, Positional: true, Default: "",
@@ -123,7 +157,8 @@ func unknownMount(ctx context.Context, client *vaultapi.Client, req plugin.Reque
 
 func runKVList(ctx context.Context, req plugin.Request) (view.View, error) {
 	return withClient(req, func(client *vaultapi.Client) (view.View, error) {
-		secret, err := client.Logical().ListWithContext(ctx, req.String("mount")+"/metadata/"+req.String("path"))
+		root := kvListRoot(ctx, client, req.String("mount"))
+		secret, err := client.Logical().ListWithContext(ctx, root+"/"+req.String("path"))
 		if err != nil {
 			return nil, classify(err, req)
 		}

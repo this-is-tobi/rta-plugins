@@ -56,7 +56,8 @@ func kvTreeCapability() plugin.Capability {
 		Description: "vault.kv.list answers one level at a time, and a name ending in \"/\" is " +
 			"another path to list — so learning where anything lives in somebody else's Vault " +
 			"means calling it over and over. This walks it once and draws the shape.\n\n" +
-			"Names only, never values: vault.kv.get is where a secret's data is.\n\n" +
+			"Names only, never values: vault.kv.get is where a secret's data is. A KV v1 mount is " +
+			"mapped as well as a v2 one; the capabilities that read or write a secret speak v2 only.\n\n" +
 			"Bounded in both directions, and it says when it stopped. A folder the token may not " +
 			"list is marked and stepped over rather than ending the walk — a policy that grants " +
 			"part of a mount is the normal case, and the part you can see is still the answer " +
@@ -73,6 +74,7 @@ func kvTreeCapability() plugin.Capability {
 func runKVTree(ctx context.Context, req plugin.Request) (view.View, error) {
 	return withClient(req, func(client *vaultapi.Client) (view.View, error) {
 		w := &treeWalk{ctx: ctx, client: client, req: req, mount: req.String("mount")}
+		w.root = kvListRoot(ctx, client, w.mount)
 		start := strings.Trim(req.String("path"), "/")
 
 		names, err := w.list(start)
@@ -117,6 +119,9 @@ type treeWalk struct {
 	client *vaultapi.Client
 	req    plugin.Request
 	mount  string
+	// root is where the mount is listed from (kvListRoot), asked once for the
+	// walk.
+	root string
 
 	requests int
 	nodes    int
@@ -129,7 +134,7 @@ type treeWalk struct {
 
 func (w *treeWalk) list(path string) ([]string, error) {
 	w.requests++
-	p := w.mount + "/metadata"
+	p := w.root
 	if path != "" {
 		p += "/" + path
 	}
