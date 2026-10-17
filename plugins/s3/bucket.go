@@ -67,7 +67,7 @@ func bucketListCapability() plugin.Capability {
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Run:        runBucketList,
-		Description: "Every bucket the credentials can see, with region and age. With a `bucket` — named, " +
+		Description: "Every bucket the credentials can see, with age, and region where the server reports one. With a `bucket` — named, " +
 			"or the one a profile fences with `only: bucket:` — only that one.",
 	}, optionalBucketField("only this bucket — every bucket the credentials can see when omitted"))
 }
@@ -91,9 +91,21 @@ func runBucketList(ctx context.Context, req plugin.Request) (view.View, error) {
 // not: a name holding a newline or a bidirectional override reaches here.
 func bucketTable(buckets []minio.BucketInfo) view.Table {
 	sort.Slice(buckets, func(i, j int) bool { return buckets[i].Name < buckets[j].Name })
-	t := view.Table{Columns: []view.Column{{Name: "Name"}, {Name: "Region"}, {Name: "Created"}}}
+	// Only when a bucket reports one: AWS does, and RustFS and SeaweedFS leave
+	// it blank on every bucket, so a column of empty cells under a heading is
+	// what those would otherwise get.
+	withRegion := slices.ContainsFunc(buckets, func(b minio.BucketInfo) bool { return b.BucketRegion != "" })
+	t := view.Table{Columns: []view.Column{{Name: "Name"}}}
+	if withRegion {
+		t.Columns = append(t.Columns, view.Column{Name: "Region"})
+	}
+	t.Columns = append(t.Columns, view.Column{Name: "Created"})
 	for _, b := range buckets {
-		t.Rows = append(t.Rows, []string{plugin.ListedName(b.Name), b.BucketRegion, b.CreationDate.Format("2006-01-02")})
+		row := []string{plugin.ListedName(b.Name)}
+		if withRegion {
+			row = append(row, b.BucketRegion)
+		}
+		t.Rows = append(t.Rows, append(row, b.CreationDate.Format("2006-01-02")))
 	}
 	t.Total = len(t.Rows)
 	return t
