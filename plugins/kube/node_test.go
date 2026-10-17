@@ -232,3 +232,31 @@ func TestOverviewStillAnswersWhenNodesAreForbidden(t *testing.T) {
 		}
 	}
 }
+
+// The number in this column is the kubelet's max-pods, what the node can hold,
+// and a column called `pods` next to a node reads as how many it holds now: all
+// nine nodes of a real cluster showed 110 and looked identical and full. The
+// name says which number it is, and kube.overview is where the used count
+// lives.
+func TestTheNodeListNamesTheMaxPodsNotThePodCount(t *testing.T) {
+	tbl := nodeTable([]nodeItem{nodeFrom(t, `{"metadata":{"name":"pi1"},"status":{"allocatable":{"pods":"110"},
+		"conditions":[{"type":"Ready","status":"True"}]}}`)})
+	col := -1
+	for i, c := range tbl.Columns {
+		if c.Name == "pods" {
+			t.Errorf("a column is still called pods: %v", tbl.Columns)
+		}
+		if c.Name == "max pods" {
+			col = i
+		}
+	}
+	if col < 0 {
+		t.Fatalf("no max pods column in %v", tbl.Columns)
+	}
+	if tbl.Columns[col].Kind != view.KindNumber {
+		t.Errorf("max pods has kind %v, want a number", tbl.Columns[col].Kind)
+	}
+	if got := tbl.Rows[0][col]; got != "110" {
+		t.Errorf("max pods = %q, want the node's allocatable 110", got)
+	}
+}

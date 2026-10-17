@@ -221,7 +221,7 @@ func nodeTable(nodes []nodeItem) view.Table {
 		{Name: "node"},
 		{Name: "status", Kind: view.KindStatus},
 		{Name: "pressure"},
-		{Name: "pods", Kind: view.KindNumber},
+		{Name: "max pods", Kind: view.KindNumber},
 		{Name: "version"},
 		{Name: "age", Kind: view.KindDuration},
 	}
