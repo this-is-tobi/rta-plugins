@@ -90,7 +90,7 @@ func runObjectTree(ctx context.Context, req plugin.Request) (view.View, error) {
 		root := &treeNode{}
 		read := 0
 		truncated := false
-		for obj := range client.ListObjectsIter(ctx, bucket, minio.ListObjectsOptions{
+		for obj := range listObjects(ctx, client, bucket, minio.ListObjectsOptions{
 			Prefix:    prefix,
 			Recursive: true,
 		}) {

@@ -61,7 +61,7 @@ func suggestKeys(field string) func(context.Context, plugin.Request) []string {
 		// breaking out at the cap is the whole story — there is no feeder
 		// goroutine left running against a channel nobody reads any more.
 		var out []string
-		for obj := range client.ListObjectsIter(ctx, bucket, minio.ListObjectsOptions{
+		for obj := range listObjects(ctx, client, bucket, minio.ListObjectsOptions{
 			Prefix: req.String(field),
 		}) {
 			if obj.Err != nil {
