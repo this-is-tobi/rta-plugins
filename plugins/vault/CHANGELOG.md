@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.6.8](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.6.7...plugins/vault/v0.6.8) (2026-10-17)
+
+
+### Bug Fixes
+
+* **vault:** a KV v1 mount is listed and mapped from its root, not from metadata ([7c1105f](https://github.com/this-is-tobi/rta-plugins/commit/7c1105f273663b838f0aac5e0eb0f1d73fc5bd3b))
+* **vault:** a redirect is refused and named, never followed with the token on it ([8d388eb](https://github.com/this-is-tobi/rta-plugins/commit/8d388eb06d9f5ce0782207d5e5c5d372fdd96e48))
+* **vault:** a refused policy list is a classified warning in the detail ([ed6f7df](https://github.com/this-is-tobi/rta-plugins/commit/ed6f7df821fe7e55e9b94368cca9a01d9cab646b))
+* **vault:** a sealed vault is one state row and nothing else is asked ([2b40cca](https://github.com/this-is-tobi/rta-plugins/commit/2b40ccaa1e57e1fce263bf826a44d35caa01ccd1))
+* **vault:** the overview says a token carries no policy rather than dropping the row ([b9bb2e0](https://github.com/this-is-tobi/rta-plugins/commit/b9bb2e07cc75c297a6428b6003600c3775fff020))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.44.0 ([230d772](https://github.com/this-is-tobi/rta-plugins/commit/230d7728d786610bb5b85c89cec985ba733ea60e))
+
 ## [0.6.7](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.6.6...plugins/vault/v0.6.7) (2026-10-16)
 
 

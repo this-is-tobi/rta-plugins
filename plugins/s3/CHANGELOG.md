@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.7.0...plugins/s3/v0.7.1) (2026-10-17)
+
+
+### Bug Fixes
+
+* **s3:** a prefix fence holds the overview of a bucket to the prefix ([3dddff0](https://github.com/this-is-tobi/rta-plugins/commit/3dddff0509df2eaad8296b7ca7d8154e576f229c))
+* **s3:** no listing asks the server for object owners ([cd02b32](https://github.com/this-is-tobi/rta-plugins/commit/cd02b324be0050e4773b6a9614940f914bce3a72))
+* **s3:** the bucket table has a region column only when a bucket reports one ([bd23f7d](https://github.com/this-is-tobi/rta-plugins/commit/bd23f7dc4b7068d0581c3ac2bf0a5dae846f7677))
+* **s3:** the overview says ago once in the created and newest rows ([eb6275d](https://github.com/this-is-tobi/rta-plugins/commit/eb6275da193512fe62873b1384ff227caef3e520))
+* **s3:** the overview stops at its budget and says what a partial count is ([ae29a8e](https://github.com/this-is-tobi/rta-plugins/commit/ae29a8ef73b2cf407c6fab0b576877cd62230e2e))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.44.0 ([230d772](https://github.com/this-is-tobi/rta-plugins/commit/230d7728d786610bb5b85c89cec985ba733ea60e))
+
 ## [0.7.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.6.6...plugins/s3/v0.7.0) (2026-10-16)
 
 
