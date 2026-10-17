@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.6.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.5.7...plugins/kube/v0.6.0) (2026-10-17)
+
+
+### Features
+
+* **kube:** a list with nothing in it says what it looked at ([e9cca5e](https://github.com/this-is-tobi/rta-plugins/commit/e9cca5ee61667f96107b03c86fe1212958c8d6b8))
+* **kube:** revoke completes the name of a ServiceAccount provision made ([1a7044b](https://github.com/this-is-tobi/rta-plugins/commit/1a7044bbf5a0938c7a00550852439b822ca23b1e))
+
+
+### Bug Fixes
+
+* **kube:** pod status, ready and restarts are the ones kubectl prints ([fdcd18f](https://github.com/this-is-tobi/rta-plugins/commit/fdcd18f0ff315774070478f0f5a19ce18ee7d6a0))
+* **kube:** the node list's pods column is named for the max it is ([78ad7bb](https://github.com/this-is-tobi/rta-plugins/commit/78ad7bb14fa527176589fee644dbd022e89b9329))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.44.0 ([230d772](https://github.com/this-is-tobi/rta-plugins/commit/230d7728d786610bb5b85c89cec985ba733ea60e))
+
 ## [0.5.7](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.5.6...plugins/kube/v0.5.7) (2026-10-16)
 
 

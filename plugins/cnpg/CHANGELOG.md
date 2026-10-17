@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.5](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.6.4...plugins/cnpg/v0.6.5) (2026-10-17)
+
+
+### Dependencies
+
+* every plugin builds against rta v0.44.0 ([230d772](https://github.com/this-is-tobi/rta-plugins/commit/230d7728d786610bb5b85c89cec985ba733ea60e))
+
 ## [0.6.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.6.3...plugins/cnpg/v0.6.4) (2026-10-16)
 
 
