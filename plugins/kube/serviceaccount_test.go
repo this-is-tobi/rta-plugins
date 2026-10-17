@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -503,5 +504,126 @@ func TestAPartialProvisionNamesTheRevokeItsReaderCanRun(t *testing.T) {
 		if !strings.Contains(verr.Hint, tc.want) {
 			t.Errorf("%s: hint = %q, want %q in it", tc.sf, verr.Hint, tc.want)
 		}
+	}
+}
+
+// kubectlRecording answers every call with stdout and writes each call's
+// arguments, one line a call, to the returned file.
+func kubectlRecording(t *testing.T, stdout string) (logPath string) {
+	t.Helper()
+	dir := t.TempDir()
+	body := filepath.Join(dir, "answer.json")
+	logFile := filepath.Join(dir, "log")
+	if err := os.WriteFile(body, []byte(stdout), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	script := filepath.Join(dir, "kubectl")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\necho \"$@\" >> '"+logFile+"'\ncat '"+body+"'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	orig := kubectlBin
+	kubectlBin = script
+	t.Cleanup(func() { kubectlBin = orig })
+	return logFile
+}
+
+func revokeSuggest(t *testing.T) func(context.Context, plugin.Request) []string {
+	t.Helper()
+	f := revokeNameField(t)
+	if f.Suggest == nil {
+		t.Fatal("kube.serviceaccount.revoke's name suggests nothing")
+	}
+	return f.Suggest
+}
+
+func revokeNameField(t *testing.T) plugin.Field {
+	t.Helper()
+	for _, c := range Plugin().Capabilities {
+		if c.ID != "kube.serviceaccount.revoke" {
+			continue
+		}
+		for _, f := range c.Inputs {
+			if f.Name == "name" {
+				return f
+			}
+		}
+	}
+	t.Fatal("kube.serviceaccount.revoke declares no name input")
+	return plugin.Field{}
+}
+
+const provisionedAccounts = `{"items":[
+	{"metadata":{"name":"agent-b","namespace":"team-b"}},
+	{"metadata":{"name":"agent-a","namespace":"team-a"}},
+	{"metadata":{"name":"agent-c","namespace":"team-a"}}]}`
+
+// A revoke is the one place a person types the name of an identity this plugin
+// made, and the only names it will act on are the ones carrying provision's
+// label: offering anything else would offer targets that fail. The box lists
+// those, from the cluster, on a press (Live) and not on a keystroke.
+func TestRevokeNameCompletesFromTheServiceAccountsProvisionMade(t *testing.T) {
+	f := revokeNameField(t)
+	if f.Suggest == nil || !f.Live {
+		t.Fatalf("name = Suggest %v, Live %v, want a live suggestion of the provisioned ServiceAccounts", f.Suggest != nil, f.Live)
+	}
+
+	logPath := kubectlRecording(t, provisionedAccounts)
+	got := f.Suggest(context.Background(), plugin.NewRequest(map[string]any{}, false, false))
+	want := []string{"agent-a\tteam-a", "agent-b\tteam-b", "agent-c\tteam-a"}
+	if !slices.Equal(got, want) {
+		t.Errorf("suggestions = %q, want %q", got, want)
+	}
+
+	log, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, need := range []string{"get serviceaccounts", "-l " + provisionedByLabel + "=" + provisionedByValue, "--all-namespaces"} {
+		if !strings.Contains(string(log), need) {
+			t.Errorf("the read was %q, want %q in it", log, need)
+		}
+	}
+}
+
+// The namespace box sits after the name, but a person who filled it first, or
+// a config that holds one, has said which namespace the name is in: the list
+// narrows to it rather than offering the same name from a namespace they did
+// not mean.
+func TestRevokeNameCompletionNarrowsToTheNamespaceGiven(t *testing.T) {
+	logPath := kubectlRecording(t, `{"items":[
+		{"metadata":{"name":"agent-a","namespace":"team-a"}},
+		{"metadata":{"name":"agent-c","namespace":"team-a"}}]}`)
+
+	got := revokeSuggest(t)(context.Background(), plugin.NewRequest(map[string]any{"namespace": "team-a"}, false, false))
+	if want := []string{"agent-a", "agent-c"}; !slices.Equal(got, want) {
+		t.Errorf("suggestions = %q, want %q", got, want)
+	}
+
+	log, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(log), "--namespace=team-a") || strings.Contains(string(log), "--all-namespaces") {
+		t.Errorf("the read was %q, want team-a alone", log)
+	}
+}
+
+// A completion that cannot answer slows nobody down and says nothing: the
+// cluster refusing, and a context kubectl would take for a flag, both come
+// back as no suggestions, and the second never reaches kubectl.
+func TestRevokeNameCompletionIsSilentWhenItCannotAnswer(t *testing.T) {
+	suggest := revokeSuggest(t)
+
+	refusingKubectl(t, `Error from server (Forbidden): serviceaccounts is forbidden: User "u" cannot list resource "serviceaccounts"`)
+	if got := suggest(context.Background(), plugin.NewRequest(map[string]any{}, false, false)); got != nil {
+		t.Errorf("a refused read suggested %q", got)
+	}
+
+	logPath := kubectlRecording(t, provisionedAccounts)
+	if got := suggest(context.Background(), plugin.NewRequest(map[string]any{"context": "--kubeconfig=/tmp/theirs"}, false, false)); got != nil {
+		t.Errorf("an injectable context suggested %q", got)
+	}
+	if _, err := os.Stat(logPath); err == nil {
+		t.Error("kubectl was run with an injectable context")
 	}
 }
