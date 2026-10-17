@@ -30,7 +30,8 @@ func overviewCapability() plugin.Capability {
 		Detailed:   true,
 		Description: "Whether this Vault is worth talking to at all, and what the configured " +
 			"token can do — never a secret value. `detail` adds the full policy list to the same " +
-			"page.",
+			"page. A sealed or uninitialized Vault is its state alone: nothing else it could be " +
+			"asked would answer.",
 		Run: runOverview,
 	})
 }
@@ -45,7 +46,25 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 }
 
 func compactOverview(ctx context.Context, client *vaultapi.Client, req plugin.Request) (view.View, error) {
-	kv := view.KeyValue{}
+	kv, _, err := overviewStatus(ctx, client, req)
+	if err != nil {
+		return nil, err
+	}
+	return kv, nil
+}
+
+// overviewStatus is the rows the compact page is, and whether the Vault is in
+// a state to be asked anything else.
+//
+// **A sealed Vault is one row.** Sealed, or not yet initialized, it answers
+// the seal status and refuses everything after it, so the token lookup and the
+// policy list were asked only to be told what the first call had said: a token
+// row reading "unreadable — Vault is sealed" beside a state row that is
+// "sealed", and in the detail a failing call more. The state is the page, and
+// asking nothing more of it is also what keeps a sealed Vault's audit log, and
+// its operator's, from a burst of refused requests for every refresh of a tile.
+func overviewStatus(ctx context.Context, client *vaultapi.Client, req plugin.Request) (view.KeyValue, bool, error) {
+	var kv view.KeyValue
 	add := func(key, value string) {
 		if value != "" {
 			kv.Pairs = append(kv.Pairs, view.Pair{Key: key, Value: value})
@@ -81,6 +100,9 @@ func compactOverview(ctx context.Context, client *vaultapi.Client, req plugin.Re
 			state = "not initialized"
 		}
 		add("state", state+" · "+status.Version)
+		if status.Sealed || !status.Initialized {
+			return kv, false, nil
+		}
 	} else {
 		cause = classify(err, req)
 		add("state", "unreadable — "+cause.Message)
@@ -102,9 +124,9 @@ func compactOverview(ctx context.Context, client *vaultapi.Client, req plugin.Re
 	}
 
 	if read == 0 {
-		return nil, nothingRead(cause)
+		return view.KeyValue{}, true, nothingRead(cause)
 	}
-	return kv, nil
+	return kv, true, nil
 }
 
 // nothingRead is the refusal for an overview that read nothing, and it says why
@@ -133,11 +155,14 @@ func detailedOverview(ctx context.Context, client *vaultapi.Client, req plugin.R
 	}
 
 	var cause *view.Error
-	kv, err := compactOverview(ctx, client, req)
+	kv, serving, err := overviewStatus(ctx, client, req)
 	if err != nil {
 		cause = view.AsError(err, "vault.overview.unavailable")
 	}
 	put("status", kv, err)
+	if !serving && err == nil {
+		return p.View(), nil
+	}
 
 	names, err := client.Sys().ListPoliciesWithContext(ctx)
 	if err == nil {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -218,5 +219,84 @@ func TestADetailWarningIsTheClassifiedMessageNotTheClientsParagraph(t *testing.T
 		if w.Code != "vault.denied" {
 			t.Errorf("warning code = %q, want the classified vault.denied", w.Code)
 		}
+	}
+}
+
+// sealedVault is a Vault that answers its seal status and, as a sealed one
+// does, refuses everything else.
+func sealedVault(t *testing.T, status string) (*httptest.Server, func() []string) {
+	t.Helper()
+	return recordingVaultWith(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if strings.Contains(r.URL.Path, "seal-status") {
+			_, _ = w.Write([]byte(status))
+			return
+		}
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(`{"errors":["Vault is sealed"]}`))
+	})
+}
+
+// A sealed Vault has one thing to say, and the overview said it and then asked
+// the Vault two things it had just been told it cannot answer: a token row
+// reading "unreadable — Vault is sealed", which only restates the state, and in
+// the detail a failing policy list on top of it. The state is the page.
+func TestASealedVaultIsOneStateRowAndAskedNothingElse(t *testing.T) {
+	for name, status := range map[string]string{
+		"sealed":          `{"sealed":true,"initialized":true,"version":"1.14.4","t":3,"n":5,"progress":1}`,
+		"not initialized": `{"sealed":true,"initialized":false,"version":"1.14.4"}`,
+	} {
+		for _, detail := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s detail=%v", name, detail), func(t *testing.T) {
+				srv, asked := sealedVault(t, status)
+				v, err := overviewOf(t, srv, detail)
+				if err != nil {
+					t.Fatal(err)
+				}
+				kv := v
+				if detail {
+					page, ok := v.(view.Sections)
+					if !ok {
+						t.Fatalf("overview is %s, want a page", view.TypeOf(v))
+					}
+					if len(page.Items) != 1 || len(page.Warnings) != 0 {
+						t.Fatalf("page = %d sections and %d warnings, want the state alone", len(page.Items), len(page.Warnings))
+					}
+					kv = page.Items[0].View
+				}
+				pairs := kv.(view.KeyValue).Pairs
+				if len(pairs) != 1 || pairs[0].Key != "state" || !strings.HasPrefix(pairs[0].Value, name+" · 1.14.4") {
+					t.Errorf("pairs = %+v, want one state row that begins %q", pairs, name+" · 1.14.4")
+				}
+				if got := asked(); len(got) != 1 || !strings.Contains(got[0], "seal-status") {
+					t.Errorf("requests = %v, want the seal status alone", got)
+				}
+			})
+		}
+	}
+}
+
+// An unsealed Vault is asked everything it was.
+func TestAnUnsealedVaultStillAnswersTheTokenAndThePolicies(t *testing.T) {
+	srv, asked := recordingVaultWith(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case strings.Contains(r.URL.Path, "seal-status"):
+			_, _ = w.Write([]byte(`{"sealed":false,"initialized":true,"version":"1.14.4"}`))
+		case strings.Contains(r.URL.Path, "policies"):
+			_, _ = w.Write([]byte(`{"data":{"keys":["default","root"]}}`))
+		default:
+			_, _ = w.Write([]byte(`{"data":{"policies":["default"],"ttl":3600}}`))
+		}
+	})
+	v, err := overviewOf(t, srv, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page := v.(view.Sections); len(page.Items) != 2 || len(page.Warnings) != 0 {
+		t.Errorf("page = %d sections and %d warnings, want status and policies", len(page.Items), len(page.Warnings))
+	}
+	if got := asked(); len(got) != 3 {
+		t.Errorf("requests = %v, want the seal status, the token and the policies", got)
 	}
 }
