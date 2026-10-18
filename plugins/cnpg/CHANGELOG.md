@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.7.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.6.5...plugins/cnpg/v0.7.0) (2026-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cnpg:** an empty cluster, backup or volume listing is its table
+
+### Bug Fixes
+
+* **cnpg:** an empty cluster, backup or volume listing is its table ([d2054e8](https://github.com/this-is-tobi/rta-plugins/commit/d2054e865e0494c3942f3474bbb0fb7ce3cdd6ff))
+* **cnpg:** point the lag hint at pg.replication.status ([27fd98e](https://github.com/this-is-tobi/rta-plugins/commit/27fd98e3e346fcf2daae1e501f762a1776231189))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.45.0 ([22447f5](https://github.com/this-is-tobi/rta-plugins/commit/22447f5591e8209bb00f10c405d91167f44fc213))
+
 ## [0.6.5](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.6.4...plugins/cnpg/v0.6.5) (2026-10-17)
 
 

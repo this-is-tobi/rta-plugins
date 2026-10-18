@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.3.8...plugins/docker/v0.4.0) (2026-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **docker:** an empty environment is its table, and the empty listings say what they are
+
+### Bug Fixes
+
+* **docker:** an empty environment is its table, and the empty listings say what they are ([1920cbf](https://github.com/this-is-tobi/rta-plugins/commit/1920cbf457b0752b28cf58a05b908924095dfcc5))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.45.0 ([22447f5](https://github.com/this-is-tobi/rta-plugins/commit/22447f5591e8209bb00f10c405d91167f44fc213))
+
 ## [0.3.8](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.3.7...plugins/docker/v0.3.8) (2026-10-17)
 
 

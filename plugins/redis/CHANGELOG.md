@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.4.8...plugins/redis/v0.5.0) (2026-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **redis:** an empty key list or slow log is its table
+
+### Bug Fixes
+
+* **redis:** an empty key list or slow log is its table ([740494d](https://github.com/this-is-tobi/rta-plugins/commit/740494d3a08921d33a0ba90891d1b2b50f54a0db))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.45.0 ([22447f5](https://github.com/this-is-tobi/rta-plugins/commit/22447f5591e8209bb00f10c405d91167f44fc213))
+
 ## [0.4.8](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.4.7...plugins/redis/v0.4.8) (2026-10-17)
 
 

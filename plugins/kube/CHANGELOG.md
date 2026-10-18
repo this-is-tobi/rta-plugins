@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.6.0...plugins/kube/v0.6.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* **kube:** the namespace, node, context, metrics and volume listings say what an empty one is ([206431c](https://github.com/this-is-tobi/rta-plugins/commit/206431ccc692144af248d26c8f18ef6eff53dc03))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.45.0 ([22447f5](https://github.com/this-is-tobi/rta-plugins/commit/22447f5591e8209bb00f10c405d91167f44fc213))
+
 ## [0.6.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.5.7...plugins/kube/v0.6.0) (2026-10-17)
 
 

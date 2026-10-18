@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.9.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.8.3...plugins/mysql/v0.9.0) (2026-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **mariadb:** the schema is a flag with a config key, so a profile can fence it
+* **mysql:** the schema is a flag with a config key, so a profile can fence it
+
+### Bug Fixes
+
+* **mariadb:** the schema is a flag with a config key, so a profile can fence it ([ce33b1e](https://github.com/this-is-tobi/rta-plugins/commit/ce33b1ec7f04d0ced150274b801a572f2fd3b99b))
+* **mysql:** an empty database, table or session listing says what it is ([78a0267](https://github.com/this-is-tobi/rta-plugins/commit/78a026743842df26f363f0b2eacc50ee243d822f))
+* **mysql:** the schema is a flag with a config key, so a profile can fence it ([7845018](https://github.com/this-is-tobi/rta-plugins/commit/7845018670112d4ba0fc75843f63325d04540e66))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.45.0 ([22447f5](https://github.com/this-is-tobi/rta-plugins/commit/22447f5591e8209bb00f10c405d91167f44fc213))
+
 ## [0.8.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.8.2...plugins/mysql/v0.8.3) (2026-10-17)
 
 

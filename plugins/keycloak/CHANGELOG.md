@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.5.3...plugins/keycloak/v0.5.4) (2026-10-18)
+
+
+### Bug Fixes
+
+* **keycloak:** an empty listing says what it is ([6f15dea](https://github.com/this-is-tobi/rta-plugins/commit/6f15dea1f6972c89b3d59ebf74a1d720707d695b))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.45.0 ([22447f5](https://github.com/this-is-tobi/rta-plugins/commit/22447f5591e8209bb00f10c405d91167f44fc213))
+
 ## [0.5.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.5.2...plugins/keycloak/v0.5.3) (2026-10-17)
 
 
