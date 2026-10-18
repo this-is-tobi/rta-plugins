@@ -240,7 +240,7 @@ func TestRestoreFailuresAreClassified(t *testing.T) {
 		{`connection to server failed: fe_sendauth: no password supplied`,
 			"pg.auth.failed", "RTA_PG_PASSWORD"},
 		{`pg_restore: error: connection to server at "db.internal" (10.0.0.5), port 5432 failed: timeout expired`,
-			"pg.conn.timeout", "a moment before"},
+			"pg.timeout", "a moment before"},
 	} {
 		verr := classifyRestore(exit, tc.stderr, r, formatCustom, versions{})
 		if verr.Code != tc.code {

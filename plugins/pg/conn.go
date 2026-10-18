@@ -467,7 +467,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	// server that reset the handshake was "nothing is listening" too.
 	var netErr *net.OpError
 	if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout()) {
-		return view.Errorf("pg.conn.timeout", "%s did not answer in time", where).
+		return view.Errorf("pg.timeout", "%s did not answer in time", where).
 			WithHint("a firewall that drops rather than refuses looks exactly like this")
 	}
 	if plugin.DialUnroutable(err) {
