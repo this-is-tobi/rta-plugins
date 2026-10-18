@@ -666,7 +666,7 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 				" — it runs as `pg_dump --no-password`, so it fails here instead of " +
 				"waiting at a prompt nothing can answer")
 	case strings.Contains(stderr, "timeout expired"):
-		return view.Errorf("pg.conn.timeout", "%s", msg("timeout expired")).WithHint(childTimeoutHint)
+		return view.Errorf("pg.timeout", "%s", msg("timeout expired")).WithHint(childTimeoutHint)
 	case strings.Contains(stderr, "permission denied"):
 		return view.Errorf("pg.denied", "%s", msg("permission denied")).
 			WithHint("dumping every table needs a role that can read every table — this is " +

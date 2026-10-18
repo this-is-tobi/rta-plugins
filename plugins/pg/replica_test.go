@@ -190,8 +190,8 @@ func TestTheChildsConnectIsBoundAsThePluginsIs(t *testing.T) {
 	}
 	stderr := "pg_dump: error: connection to server at \"192.0.2.1\", port 5432 failed: timeout expired\n"
 	verr := classifyDump(errStub{}, stderr, reqFor(t, "pg.dump", map[string]any{}))
-	if verr.Code != "pg.conn.timeout" || !strings.Contains(verr.Hint, "a moment before") {
-		t.Errorf("the bound's end = %s: %s, want pg.conn.timeout saying the server was there a moment before",
+	if verr.Code != "pg.timeout" || !strings.Contains(verr.Hint, "a moment before") {
+		t.Errorf("the bound's end = %s: %s, want pg.timeout saying the server was there a moment before",
 			verr.Code, verr.Hint)
 	}
 }

@@ -143,7 +143,7 @@ func TestAHostNoRouteReachesIsNotAPortNobodyIsOn(t *testing.T) {
 		syscall.ENETUNREACH:  "pg.conn.unreachable",
 		syscall.EHOSTUNREACH: "pg.conn.unreachable",
 		syscall.EHOSTDOWN:    "pg.conn.unreachable",
-		syscall.ETIMEDOUT:    "pg.conn.timeout",
+		syscall.ETIMEDOUT:    "pg.timeout",
 		syscall.ECONNREFUSED: "pg.conn.refused",
 	} {
 		err := &net.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", errno)}
@@ -508,7 +508,7 @@ func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
 		{"not permitted", &pgconn.PgError{Code: "42501"}, "pg.denied"},
 		{"refused", &net.OpError{Op: "dial", Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)}, "pg.conn.refused"},
 		{"unknown host", &net.DNSError{Err: "no such host", Name: "db.internal"}, "pg.host.unknown"},
-		{"timed out", context.DeadlineExceeded, "pg.conn.timeout"},
+		{"timed out", context.DeadlineExceeded, "pg.timeout"},
 		{"no TLS", errors.New("server does not support SSL"), "pg.tls.unsupported"},
 		{"untrusted CA", x509.UnknownAuthorityError{}, "pg.tls.untrusted"},
 		{"anything else", errors.New("something unexpected"), "pg.conn.failed"},
