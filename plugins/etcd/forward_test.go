@@ -101,7 +101,7 @@ func (emptyKV) Range(context.Context, *etcdserverpb.RangeRequest) (*etcdserverpb
 func TestThroughAForwardTheCertificateIsCheckedForTheNameGiven(t *testing.T) {
 	addr, ca := memberBehindAForward(t)
 	through := func(values map[string]any, tunnel plugin.Tunnel) plugin.Request {
-		values["endpoint"], values["ca-file"] = addr, ca
+		values["address"], values["ca-file"] = addr, ca
 		// What the host forces over a forward, and what ca-file and
 		// tls-server-name each turn back on.
 		values["tls"] = false
@@ -139,7 +139,7 @@ func TestThroughAForwardTheCertificateIsCheckedForTheNameGiven(t *testing.T) {
 	}
 
 	_, verr = connectWithin(context.Background(), through(map[string]any{}, plugin.TunnelNone), 5*time.Second)
-	if verr == nil || verr.Code != "etcd.tls.rejected" || !strings.Contains(verr.Hint, "the host in --endpoint") {
+	if verr == nil || verr.Code != "etcd.tls.rejected" || !strings.Contains(verr.Hint, "the host in --address") {
 		t.Errorf("reached directly: %+v, want etcd.tls.rejected naming the endpoint", verr)
 	}
 }
@@ -174,7 +174,7 @@ func TestAForwardRefusalNamesTheSettingForItsSurface(t *testing.T) {
 // profile would otherwise have been a plaintext call to a TLS port.
 func TestTheServerNameTurnsTLSOn(t *testing.T) {
 	addr, _ := memberBehindAForward(t)
-	verr, _ := connectRefusal(t, map[string]any{"endpoint": addr, "tls": false,
+	verr, _ := connectRefusal(t, map[string]any{"address": addr, "tls": false,
 		"tls-server-name": "svc.example.internal"}, 5*time.Second)
 	if verr.Code != "etcd.tls.untrusted" {
 		t.Errorf("got %s %q, want the handshake's own verdict", verr.Code, verr.Message)

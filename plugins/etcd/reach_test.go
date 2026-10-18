@@ -18,7 +18,7 @@ import (
 // with the call, and "127.0.0.1:41233 rejected the credentials" named nothing
 // the reader could change.
 func TestARefusalTheClusterGaveNamesTheProfileAndNotTheEndOfItsForward(t *testing.T) {
-	r := req(t, "etcd.overview", map[string]any{"endpoint": "127.0.0.1:41233"}).WithProfile("prod", plugin.TunnelKube)
+	r := req(t, "etcd.overview", map[string]any{"address": "127.0.0.1:41233"}).WithProfile("prod", plugin.TunnelKube)
 	for _, code := range []codes.Code{codes.Unauthenticated, codes.PermissionDenied} {
 		got := classify(status.Error(code, "server text"), r)
 		if !strings.Contains(got.Message, "profile prod (through its kube: forward)") ||
@@ -45,17 +45,17 @@ func TestAMissingKeyHintReachesTheClusterItRead(t *testing.T) {
 		want, unwant []string
 	}{
 		{"a terminal, no profile", "", plugin.TunnelNone, plugin.SurfaceCLI,
-			[]string{"rta etcd kv list /k", "--endpoint " + addr, "--ca-file " + ca, "--tls-server-name svc.example.internal"},
+			[]string{"rta etcd kv list /k", "--address " + addr, "--ca-file " + ca, "--tls-server-name svc.example.internal"},
 			[]string{"--profile"}},
 		{"a terminal, through a forward", "lab", plugin.TunnelKube, plugin.SurfaceCLI,
 			[]string{"rta etcd kv list /k", "--profile lab", "--ca-file " + ca},
-			[]string{"--endpoint"}},
+			[]string{"--address"}},
 		{"an agent, through a forward", "lab", plugin.TunnelKube, plugin.SurfaceMCP,
 			[]string{"etcd_kv_list", `"profile":"lab"`, `"prefix":"/k"`},
-			[]string{"endpoint", "ca-file", "tls-server-name"}},
+			[]string{"address", "ca-file", "tls-server-name"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			r := req(t, "etcd.kv.get", map[string]any{"endpoint": addr, "ca-file": ca,
+			r := req(t, "etcd.kv.get", map[string]any{"address": addr, "ca-file": ca,
 				"tls-server-name": "svc.example.internal", "key": "/k"}).
 				WithProfile(tc.profile, tc.tunnel).WithSurface(tc.surface)
 			c, verr := connectWithin(context.Background(), r, 5*time.Second)

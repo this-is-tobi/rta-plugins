@@ -58,7 +58,7 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "a cluster that answers nothing",
-			cli:     "`rta etcd overview --endpoint 127.0.0.1:2379` shows whether the members can see each other",
+			cli:     "`rta etcd overview --address 127.0.0.1:2379` shows whether the members can see each other",
 			other:   "the `etcd_overview` tool shows whether the members can see each other",
 			surface: plugin.SurfaceMCP,
 			refuse: func(sf plugin.Surface) *view.Error {
@@ -67,8 +67,8 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "no endpoint answering",
-			cli:     "is the cluster up, and is --endpoint right?",
-			other:   "is the cluster up, and is the operator's `endpoint` setting right?",
+			cli:     "is the cluster up, and is --address right?",
+			other:   "is the cluster up, and is the operator's `address` setting right?",
 			surface: plugin.SurfaceMCP,
 			refuse: func(sf plugin.Surface) *view.Error {
 				return classify(clientv3.ErrNoAvailableEndpoints, req(t, "etcd.overview", nil).WithSurface(sf))
@@ -84,7 +84,7 @@ func TestARefusalNamesWhatItsSurfaceGives(t *testing.T) {
 			surface: plugin.SurfaceMCP,
 			refuse: func(sf plugin.Surface) *view.Error {
 				err := &stdnet.OpError{Op: "dial", Net: "tcp", Err: &stdnet.DNSError{Err: "no such host", Name: "etcd-0.internal"}}
-				return classify(err, req(t, "etcd.overview", map[string]any{"endpoint": "etcd-0.internal:2379"}).WithSurface(sf))
+				return classify(err, req(t, "etcd.overview", map[string]any{"address": "etcd-0.internal:2379"}).WithSurface(sf))
 			},
 		},
 		{
@@ -155,7 +155,7 @@ func TestADNSRefusalNamesTheHostOfEveryEndpointForm(t *testing.T) {
 	for _, endpoint := range []string{
 		"etcd-0.internal:2379", "https://etcd-0.internal:2379", "http://etcd-0.internal:2379/", "etcd-0.internal",
 	} {
-		got := classify(err, req(t, "etcd.overview", map[string]any{"endpoint": endpoint}))
+		got := classify(err, req(t, "etcd.overview", map[string]any{"address": endpoint}))
 		if want := `no address for "etcd-0.internal"`; got.Message != want {
 			t.Errorf("%s: %q, want %q", endpoint, got.Message, want)
 		}

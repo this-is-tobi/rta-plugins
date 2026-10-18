@@ -332,7 +332,7 @@ func TestTheOtherMembersAreNotAskedWhereAskingWouldBeWrong(t *testing.T) {
 		t.Errorf("mcp = %q", mcp)
 	}
 
-	secured := req(t, "etcd.overview", map[string]any{"username": "monitor", "endpoint": "https://etcd.internal:2379"})
+	secured := req(t, "etcd.overview", map[string]any{"username": "monitor", "address": "https://etcd.internal:2379"})
 	if got := whyNotAsked(secured); got != "" {
 		t.Errorf("a username over an https:// endpoint is not asked: %q", got)
 	}

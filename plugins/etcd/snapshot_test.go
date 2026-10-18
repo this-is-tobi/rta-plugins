@@ -42,8 +42,8 @@ func TestTheSnapshotRefusesMCP(t *testing.T) {
 // connected first would fail with that instead.
 func TestTheRefusalComesBeforeTheConnection(t *testing.T) {
 	r := req(t, "etcd.snapshot", map[string]any{
-		"endpoint": "127.0.0.1:1",
-		"out":      filepath.Join(t.TempDir(), "etcd.snap"),
+		"address": "127.0.0.1:1",
+		"out":     filepath.Join(t.TempDir(), "etcd.snap"),
 	}).WithSurface(plugin.SurfaceMCP)
 	_, err := runSnapshot(context.Background(), r)
 	var verr *view.Error
@@ -73,8 +73,8 @@ func TestASnapshotIsNeverWrittenOverAnExistingFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err := runSnapshot(context.Background(), req(t, "etcd.snapshot", map[string]any{
-		"endpoint": "127.0.0.1:1",
-		"out":      path,
+		"address": "127.0.0.1:1",
+		"out":     path,
 	}))
 	var verr *view.Error
 	if !errors.As(err, &verr) || verr.Code != "etcd.snapshot.exists" {
@@ -91,8 +91,8 @@ func TestASnapshotIsNeverWrittenOverAnExistingFile(t *testing.T) {
 func TestADryRunNamesTheDestinationAndOpensNoConnection(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "etcd.snap")
 	r := plugin.NewRequest(plugin.Resolve(snapshotCapability(), plugin.Inputs{Caller: map[string]any{
-		"endpoint": "127.0.0.1:1",
-		"out":      path,
+		"address": "127.0.0.1:1",
+		"out":     path,
 	}}), true, false)
 
 	v, err := runSnapshot(context.Background(), r)
@@ -281,7 +281,7 @@ func TestASnapshotNamesTheProfileRatherThanAForwardsEnd(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			out := filepath.Join(t.TempDir(), "etcd.snap")
-			r := req(t, "etcd.snapshot", map[string]any{"endpoint": tc.endpoint, "out": out}).
+			r := req(t, "etcd.snapshot", map[string]any{"address": tc.endpoint, "out": out}).
 				WithProfile(tc.profile, tc.tunnel)
 			r.DryRun = true
 			v, err := runSnapshot(context.Background(), r)
@@ -332,7 +332,7 @@ func TestTheStreamsVersionWinsOverTheMembersOwn(t *testing.T) {
 // PermissionDenied — widen the role's key range — is advice that cannot work.
 // Verified against a real server: a user with read on every key gets this.
 func TestASnapshotDenialNamesTheRootRoleRatherThanTheKeyRange(t *testing.T) {
-	r := req(t, "etcd.snapshot", map[string]any{"endpoint": "etcd-0.internal:2379"})
+	r := req(t, "etcd.snapshot", map[string]any{"address": "etcd-0.internal:2379"})
 	verr := classifySnapshot(status.Error(codes.PermissionDenied, "etcdserver: permission denied"), r)
 	if verr.Code != "etcd.snapshot.denied" {
 		t.Fatalf("code = %q, want etcd.snapshot.denied", verr.Code)

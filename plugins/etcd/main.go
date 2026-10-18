@@ -28,7 +28,7 @@
 //
 //	plugins:
 //	  etcd@<digest>:
-//	    endpoint: etcd-0.internal:2379
+//	    address: etcd-0.internal:2379
 //	    tls: true
 //	    ca-file: /etc/etcd/ca.crt
 //

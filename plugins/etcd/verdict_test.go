@@ -62,7 +62,7 @@ func TestARevokedCertificateIsAnsweredInTheSystemsWordsWithNoWayAround(t *testin
 		{"a name that ends like the untrusted verdict", "a" + closing + " certificate is not trusted"},
 	} {
 		for _, sf := range verdictSurfaces {
-			r := req(t, "etcd.overview", map[string]any{"endpoint": "etcd-0.internal:2379"}).WithSurface(sf)
+			r := req(t, "etcd.overview", map[string]any{"address": "etcd-0.internal:2379"}).WithSurface(sf)
 			sent := sdktest.SystemVerdict(tc.certName, sdktest.VerdictRevoked)
 			for call, got := range map[string]*view.Error{
 				"a connection": classify(handshakeOf(sent), r),
@@ -93,7 +93,7 @@ func TestARevokedCertificateIsAnsweredInTheSystemsWordsWithNoWayAround(t *testin
 func TestACertificateNoIssuerHereVouchesForIsAnsweredWithTheCAFileToName(t *testing.T) {
 	sdktest.VerifierSystem(t, "darwin")
 	for _, sf := range verdictSurfaces {
-		r := req(t, "etcd.overview", map[string]any{"endpoint": "etcd-0.internal:2379"}).WithSurface(sf)
+		r := req(t, "etcd.overview", map[string]any{"address": "etcd-0.internal:2379"}).WithSurface(sf)
 		got := classify(handshakeOf(sdktest.SystemVerdict("etcd-0", sdktest.VerdictNotTrusted)), r)
 		if got.Code != "etcd.tls.untrusted" || !strings.Contains(got.Message, "a certificate nothing here trusts") {
 			t.Errorf("%s: classified %s %q, want it read as untrusted", sf, got.Code, got.Message)
@@ -116,7 +116,7 @@ func TestACertificateAppleRefusesForItsLengthSaysSoAndNeverNamesACAFile(t *testi
 		NotAfter:  time.Date(2034, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 	for _, sf := range verdictSurfaces {
-		r := req(t, "etcd.overview", map[string]any{"endpoint": "etcd-0.internal:2379"}).WithSurface(sf)
+		r := req(t, "etcd.overview", map[string]any{"address": "etcd-0.internal:2379"}).WithSurface(sf)
 		sent := sdktest.SystemVerdict("etcd-0", sdktest.VerdictNotStandardsCompliant, tenYears)
 		got := classify(handshakeOf(sent), r)
 		if got.Code != "etcd.tls.rejected" {
@@ -142,7 +142,7 @@ func TestAPolicyRefusalNotAboutTheLengthIsLeftToTheSystemsWords(t *testing.T) {
 		NotBefore: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 		NotAfter:  time.Date(2024, 12, 1, 0, 0, 0, 0, time.UTC),
 	}
-	r := req(t, "etcd.overview", map[string]any{"endpoint": "etcd-0.internal:2379"})
+	r := req(t, "etcd.overview", map[string]any{"address": "etcd-0.internal:2379"})
 	for name, sent := range map[string]error{
 		"a certificate valid for a year": sdktest.SystemVerdict("etcd-0", sdktest.VerdictNotStandardsCompliant, short),
 		"no certificate sent":            sdktest.SystemVerdict("etcd-0", sdktest.VerdictNotStandardsCompliant),
@@ -168,7 +168,7 @@ func TestTheVerdictsOnlyAMacGivesAreNotReadAnywhereElse(t *testing.T) {
 		NotAfter:  time.Date(2034, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 	sdktest.VerifierSystem(t, "linux")
-	r := req(t, "etcd.overview", map[string]any{"endpoint": "etcd-0.internal:2379"})
+	r := req(t, "etcd.overview", map[string]any{"address": "etcd-0.internal:2379"})
 	for name, sent := range map[string]error{
 		"revoked":                 sdktest.SystemVerdict("etcd-0", sdktest.VerdictRevoked),
 		"not trusted":             sdktest.SystemVerdict("etcd-0", sdktest.VerdictNotTrusted),

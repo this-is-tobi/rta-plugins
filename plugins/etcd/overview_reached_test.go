@@ -51,7 +51,7 @@ func TestTheOverviewNamesTheProfileNotTheEndOfItsForward(t *testing.T) {
 		"a forward": {"prod", plugin.TunnelKube, "profile prod (through its kube: forward)"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			r := req(t, "etcd.overview", map[string]any{"endpoint": addr})
+			r := req(t, "etcd.overview", map[string]any{"address": addr})
 			if tc.profile != "" {
 				r = r.WithProfile(tc.profile, tc.tunnel)
 			}
@@ -67,7 +67,7 @@ func TestTheOverviewNamesTheProfileNotTheEndOfItsForward(t *testing.T) {
 					continue
 				}
 				for _, p := range s.View.(view.KeyValue).Pairs {
-					if p.Key == "endpoint" {
+					if p.Key == "address" {
 						got = p.Value
 					}
 				}

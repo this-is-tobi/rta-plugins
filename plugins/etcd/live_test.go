@@ -97,8 +97,8 @@ func liveSnapshot(t *testing.T, endpoint, path string) view.KeyValue {
 
 	_ = os.Remove(path)
 	v, err := runSnapshot(ctx, req(t, "etcd.snapshot", map[string]any{
-		"endpoint": endpoint,
-		"out":      path,
+		"address": endpoint,
+		"out":     path,
 	}))
 	if err != nil {
 		t.Fatalf("etcd.snapshot: %v", err)
@@ -208,8 +208,8 @@ func TestADryRunAgainstARealClusterWritesNothing(t *testing.T) {
 	_ = os.Remove(path)
 
 	r := plugin.NewRequest(plugin.Resolve(snapshotCapability(), plugin.Inputs{Caller: map[string]any{
-		"endpoint": endpoint,
-		"out":      path,
+		"address": endpoint,
+		"out":     path,
 	}}), true, false)
 	if _, err := runSnapshot(context.Background(), r); err != nil {
 		t.Fatalf("dry run: %v", err)

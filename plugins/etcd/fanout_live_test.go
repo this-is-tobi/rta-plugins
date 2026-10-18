@@ -28,7 +28,7 @@ func fanoutOverview(t *testing.T, extra map[string]any) []view.Pair {
 	if endpoint == "" {
 		t.Skip("set RTA_ETCD_FANOUT to a member's client URL — see this file's package comment")
 	}
-	values := map[string]any{"endpoint": endpoint}
+	values := map[string]any{"address": endpoint}
 	if ca := os.Getenv("RTA_ETCD_FANOUT_CA"); ca != "" {
 		values["ca-file"] = ca
 	}
