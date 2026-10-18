@@ -248,13 +248,13 @@ func TestAnAdvertisedURLThatDoesNotReadAsItselfIsWrittenOutWhereAMemberIsNotAske
 func TestAnAdvertisedURLThatDoesNotReadAsItselfIsWrittenOutWhereAMemberDoesNotAnswer(t *testing.T) {
 	odd := "http://" + oddName + ":2379"
 	got := unreachableAt(context.DeadlineExceeded, odd)
-	if want := `no answer within 3s at "http://esc\x1b[31mred\nrow:2379"`; got != want {
+	if want := `no answer within 2s at "http://esc\x1b[31mred\nrow:2379"`; got != want {
 		t.Errorf("why = %q, want %q", got, want)
 	}
 	if !drawsAsItself(got) {
 		t.Errorf("why %q holds a character that does not draw as itself", got)
 	}
-	if got, want := unreachableAt(context.DeadlineExceeded, "https://café:2379"), "no answer within 3s at https://café:2379"; got != want {
+	if got, want := unreachableAt(context.DeadlineExceeded, "https://café:2379"), "no answer within 2s at https://café:2379"; got != want {
 		t.Errorf("why = %q, want an ordinary address unchanged: %q", got, want)
 	}
 }

@@ -27,7 +27,8 @@ func (statusServer) Status(context.Context, *etcdserverpb.StatusRequest) (*etcds
 
 // The endpoint row is what a page kept or pasted into a ticket says about the
 // server, and through a forward the address is 127.0.0.1 and a port that closed
-// with the call. It names the server the way its reader reaches it again.
+// with the call. It names the server the way its reader reaches it again. The
+// compact answer holds no address, so this is read from the detail page.
 func TestTheOverviewNamesTheProfileNotTheEndOfItsForward(t *testing.T) {
 	addr := serveGRPC(t, func(s *grpc.Server) {
 		etcdserverpb.RegisterClusterServer(s, &memberListServer{members: []*etcdserverpb.Member{
@@ -51,7 +52,7 @@ func TestTheOverviewNamesTheProfileNotTheEndOfItsForward(t *testing.T) {
 		"a forward": {"prod", plugin.TunnelKube, "profile prod (through its kube: forward)"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			r := req(t, "etcd.overview", map[string]any{"address": addr})
+			r := req(t, "etcd.overview", map[string]any{"address": addr, "detail": true})
 			if tc.profile != "" {
 				r = r.WithProfile(tc.profile, tc.tunnel)
 			}

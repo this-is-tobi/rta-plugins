@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -31,36 +32,34 @@ func overviewCapability() plugin.Capability {
 		Keywords:   []string{"summary", "status", "version", "leader", "quorum"},
 		Safety:     plugin.Read,
 		Idempotent: true,
+		Detailed:   true,
 		Refresh:    overviewRefresh,
-		Description: "The endpoint's own status — version, who it thinks the leader is, its raft " +
-			"term, committed and applied index and revision — with its storage, and every member " +
-			"beside it: role, term, index, how many entries it is behind the leader, revision, " +
-			"database size and health, each read from the member itself.\n\n" +
-			"The storage row is the one to watch. etcd raises NOSPACE when the database file " +
-			"reaches its quota and then refuses every write while continuing to answer reads, " +
-			"which looks like a working cluster from anywhere except here. The use column is " +
-			"graded against that quota, and a server older than 3.6 does not report one, so " +
-			"the column is blank there rather than guessed.\n\n" +
-			"The members table is how a split is visible: members that disagree about who the " +
-			"leader is, or about the term, are not a cluster. A member 5000 entries behind the " +
-			"leader or more is graded, because etcd keeps no more log than that after a " +
-			"snapshot and sends a member further back the whole snapshot instead. Members are " +
-			"asked together and not at one instant, so a few entries either way is the cost of " +
-			"asking. The quorum line says how many voting members answered and how many a write " +
-			"needs.\n\n" +
-			"Each member is asked at the client URL it advertises, and a published port or a " +
-			"forward rarely reaches those names: through a kube: or ssh: forward only the " +
-			"endpoint's own member is asked, and a member this machine cannot reach says why " +
-			"instead of reading as down. A username without TLS asks no other member, and with it " +
-			"asks only those that advertise an https:// URL, so a credential is never sent in the " +
-			"clear to an address the member list supplied.",
-		Agent: "The endpoint's own status (version, leader, raft term, committed and applied index, " +
-			"revision) with its storage, and a row per member read from the member itself: role, term, " +
-			"index, entries behind the leader, revision, database size and health. Storage is graded " +
-			"against the quota (blank before etcd 3.6, which reports none): at the quota etcd refuses " +
-			"every write and still answers reads. Members that disagree about leader or term are not a " +
-			"cluster; one 5000 entries behind is graded. The quorum line counts the voting members that " +
-			"answered against what a write needs. Through a forward only the endpoint's own member is asked.",
+		Description: "Whether writes work, in a few rows, worst first. `status` leads and is `ok`, or " +
+			"`warn` or `fail` followed by the worst fact. Then the alarms, how many voting members " +
+			"answer with a leader against what a write needs, who the leader is, how much of its " +
+			"quota the database takes, the revision, and last the version and the member asked.\n\n" +
+			"Storage is the row to watch. etcd raises NOSPACE when the database file reaches its " +
+			"quota and then refuses every write while continuing to answer reads, which looks like " +
+			"a working cluster from anywhere except here: a NOSPACE alarm is a `fail`. A server " +
+			"older than 3.6 does not report a quota, and the row says so rather than guessing one.\n\n" +
+			"Each member is asked at the client URL it advertises, and waited for two seconds: a " +
+			"member that does not answer is named. Through a kube: or ssh: forward only the " +
+			"endpoint's own member is asked, and the quorum is not counted. A username without " +
+			"TLS asks no other member, and with it asks only those that advertise an https:// " +
+			"URL, so a credential is never sent in the clear to an address the member list supplied.\n\n" +
+			"`detail` adds the endpoint's own status (member id, raft term, committed and applied " +
+			"index, revision, alarms) and a table of every member read from the member itself: role, " +
+			"term, index, entries behind the leader, revision, database size and health. Members " +
+			"that disagree about the leader or the term are not a cluster. A member 5000 entries " +
+			"behind the leader or more is graded, because etcd keeps no more log than that after a " +
+			"snapshot and sends a member further back the whole snapshot instead.",
+		Agent: "Whether writes work, worst first: `status` is `ok`, or `warn` or `fail` and the worst " +
+			"fact. Then alarms (NOSPACE is a fail: at the quota etcd refuses every write and still answers " +
+			"reads), voting members answering against what a write needs, the leader, storage against the " +
+			"quota (blank before etcd 3.6), the revision and the version. A member that does not answer " +
+			"in two seconds is named. Through a forward only the endpoint's member is asked and the quorum " +
+			"is not counted. `detail` adds the endpoint's status and a row per member read from the member " +
+			"itself: role, term, index, entries behind the leader, revision, size, health.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withClient(ctx, req, func(ctx context.Context, c *clientv3.Client) (view.View, error) {
 				return overviewView(ctx, c, req)
@@ -76,15 +75,18 @@ func overviewView(ctx context.Context, c *clientv3.Client, req plugin.Request) (
 		return nil, classify(err, req)
 	}
 
+	// The endpoint answered, so what it cannot say about the others is a row
+	// that says so and not a page that is an error: a role may read the status
+	// and not the member list, and a quorum nobody counted must not read as ok.
+	var unread string
 	rows, err := askMembers(ctx, c, req, st)
 	if err != nil {
-		return nil, err
+		rows, unread = []memberRow{{id: st.Header.MemberId, st: st}}, memberListWhy(classify(err, req))
 	}
-	lead := leaderView{id: st.Leader}
-	for _, r := range rows {
-		if r.id == st.Leader {
-			lead.st = r.st
-		}
+	lead := leaderOf(st, rows)
+	summary := compactOverview(st, rows, lead, unread)
+	if !req.Bool("detail") {
+		return summary, nil
 	}
 
 	pairs := []view.Pair{
@@ -97,7 +99,9 @@ func overviewView(ctx context.Context, c *clientv3.Client, req plugin.Request) (
 		{Key: "applied index", Value: appliedText(st)},
 		{Key: "revision", Value: strconv.FormatInt(st.Header.Revision, 10)},
 	}
-	if text, ok := quorumText(rows, st.Leader); ok {
+	if unread != "" {
+		pairs = append(pairs, view.Pair{Key: "quorum", Value: unreadText(unread)})
+	} else if text, ok := quorumText(rows, st.Leader); ok {
 		pairs = append(pairs, view.Pair{Key: "quorum", Value: text})
 	}
 	if len(rows) == 1 && rows[0].learner && rows[0].name == "" {
@@ -116,11 +120,236 @@ func overviewView(ctx context.Context, c *clientv3.Client, req plugin.Request) (
 	}
 
 	p := plugin.NewPage(ctx, req)
+	p.Put("summary", summary)
 	p.Put("status", view.KeyValue{Pairs: pairs})
 	p.Put("storage", storageTable(st))
 
-	p.Put("members", membersTable(rows, lead))
+	if unread != "" {
+		p.Put("members", view.Text{Body: unreadText(unread)})
+	} else {
+		p.Put("members", membersTable(rows, lead))
+	}
 	return p.View(), nil
+}
+
+// memberListWhy is why the member list could not be read, short enough for a
+// row: the error a refusal comes as names the endpoint and the server's own
+// sentence, which the row beside it does not need.
+func memberListWhy(verr *view.Error) string {
+	switch verr.Code {
+	case "etcd.denied":
+		return "the role may not list the members"
+	case "etcd.timeout":
+		return "no answer in time"
+	}
+	return "the member list failed (" + verr.Code + ")"
+}
+
+func unreadText(why string) string { return "could not be read — " + why }
+
+// leaderOf is the leader as the endpoint named it, with its status when the
+// leader was among the members asked: the figure every other member's distance
+// is read against.
+func leaderOf(st *clientv3.StatusResponse, rows []memberRow) leaderView {
+	lead := leaderView{id: st.Leader}
+	for _, r := range rows {
+		if r.id == st.Leader {
+			lead.st = r.st
+		}
+	}
+	return lead
+}
+
+// grade is how bad a fact is, in the words the status row leads with and the
+// theme colours: nothing, warn, fail.
+type grade int
+
+const (
+	_ grade = iota
+	gradeWarn
+	gradeFail
+)
+
+// finding is one thing wrong, in a few words, for the status row.
+type finding struct {
+	grade grade
+	text  string
+}
+
+// verdict is the status row: ok, or the worst finding with its grade. Of
+// several equally bad, the first stands, and the rows are built in the order
+// that puts the alarms first, then the leader, then the members.
+func verdict(found []finding) string {
+	var worst *finding
+	for i := range found {
+		if worst == nil || found[i].grade > worst.grade {
+			worst = &found[i]
+		}
+	}
+	switch {
+	case worst == nil:
+		return "ok"
+	case worst.grade == gradeFail:
+		return "fail — " + worst.text
+	}
+	return "warn — " + worst.text
+}
+
+// alarmPattern is how the status of a member spells an alarm in its errors:
+// the member that raised it as a decimal id, which no tool of etcd's prints a
+// member id as, and the alarm's name.
+var alarmPattern = regexp.MustCompile(`^memberID:(\d+) alarm:(\w+)$`)
+
+// noLeaderError is what a member with no leader reports among its errors, which
+// the leader row already says.
+const noLeaderError = "etcdserver: no leader"
+
+// compactOverview is the answer a tile and an agent read by default, built from
+// what the overview already asked: the endpoint's status and every member's own.
+//
+// **The order is the order of a glance, and it is the order of what stops a
+// write.** The verdict, then the alarms, then whether a quorum answers and who
+// leads, then how close the database is to the quota that raises NOSPACE, and
+// last the counters and the version, which are what a healthy cluster and a
+// dying one have in common. A tile is cut from the bottom, and the four raft
+// counters this used to open with were the first lines of every tile.
+//
+// **A member that is down is a warning, not a failure, unless the endpoint has
+// no leader.** The cluster is serving on the others, and what an on-call
+// person needs is which member to go and look at: its name is in the status
+// row and the quorum row. Whether the cluster can still take a write is the
+// leader's absence, which is the failure.
+//
+// **A member list the role may not read leaves the quorum unsaid and says so**
+// (unread is why): the verdict is a warning that names the row, and the rows
+// that came from the endpoint's own status stand.
+func compactOverview(st *clientv3.StatusResponse, rows []memberRow, lead leaderView, unread string) view.KeyValue {
+	name := func(id uint64) string {
+		for _, r := range rows {
+			if r.id == id && r.name != "" {
+				return plugin.ListedName(r.name)
+			}
+		}
+		return hexID(id)
+	}
+	alarms, alarmFound := alarmsRow(st, name)
+	quorum, memberFound := quorumRow(rows, lead, name)
+	if unread != "" {
+		quorum, memberFound = unreadText(unread), []finding{{gradeWarn, "quorum could not be read"}}
+	}
+	leader, leaderFound := leaderRow(st, name)
+	storage, storageFound := storageRow(st)
+
+	// The order a finding wins in, which is not the order of the rows: what
+	// stops a write, then the leader, then the members, then the room left.
+	var found []finding
+	for _, fs := range [][]finding{alarmFound, leaderFound, memberFound, storageFound} {
+		found = append(found, fs...)
+	}
+	return view.KeyValue{Pairs: []view.Pair{
+		{Key: "status", Value: verdict(found)},
+		{Key: "alarms", Value: alarms},
+		{Key: "quorum", Value: quorum},
+		{Key: "leader", Value: leader},
+		{Key: "storage", Value: storage},
+		{Key: "revision", Value: strconv.FormatInt(st.Header.Revision, 10)},
+		{Key: "version", Value: st.Version + ", answered by " + name(st.Header.MemberId)},
+	}}
+}
+
+// alarmsRow is what the endpoint reports among its errors, which is where etcd
+// puts its alarms: each as the member that raised it, in decimal, and its name.
+// The absence of a leader is among them too, and the leader row says it.
+func alarmsRow(st *clientv3.StatusResponse, name func(uint64) string) (string, []finding) {
+	var texts []string
+	var found []finding
+	for _, e := range st.Errors {
+		if e == noLeaderError {
+			continue
+		}
+		m := alarmPattern.FindStringSubmatch(e)
+		if m == nil {
+			texts = append(texts, plugin.ListedName(e))
+			found = append(found, finding{gradeFail, plugin.ListedName(e)})
+			continue
+		}
+		id, _ := strconv.ParseUint(m[1], 10, 64)
+		text := m[2] + " on " + name(id)
+		texts = append(texts, text)
+		if m[2] == "NOSPACE" {
+			text += ": writes are refused, reads still answer"
+		}
+		found = append(found, finding{gradeFail, text})
+	}
+	if len(texts) == 0 {
+		return "none", nil
+	}
+	return strings.Join(texts, "; "), found
+}
+
+// quorumRow says how many of the voting members answer with a leader against
+// how many a write needs, and names the ones that do not answer at all.
+//
+// **It makes no claim where it did not ask.** A count of the members that were
+// asked is a statement about the cluster only when all of them were, and
+// through a forward, or with a username over plaintext, the others are not:
+// the row says it did not count, and that is the route's limit and no fault of
+// the cluster's, so it grades nothing.
+func quorumRow(rows []memberRow, lead leaderView, name func(uint64) string) (string, []finding) {
+	if len(rows) == 1 && rows[0].learner && rows[0].name == "" {
+		return "not counted — a learner is not served the member list", nil
+	}
+	var found []finding
+	var unreachable []string
+	for _, r := range rows {
+		state, short, _ := memberVerdict(r, lead)
+		switch state {
+		case "ok", "info":
+			continue
+		case "unreachable":
+			unreachable = append(unreachable, name(r.id))
+		}
+		found = append(found, finding{gradeWarn, "member " + name(r.id) + " " + short})
+	}
+	voters, answered, ok := quorumCount(rows)
+	if !ok {
+		return "not counted — not every member is asked from here", found
+	}
+	text := fmt.Sprintf("%d of %s healthy, a write needs %d", answered, format.CountOf(voters, "member"), voters/2+1)
+	if len(unreachable) > 0 {
+		text += "; " + strings.Join(unreachable, ", ") + " unreachable"
+	}
+	return text, found
+}
+
+// leaderRow is who leads, by name. A member that reports leader 0 has none: an
+// election is under way or the cluster has lost its quorum, and either way no
+// write is committed until one ends.
+func leaderRow(st *clientv3.StatusResponse, name func(uint64) string) (string, []finding) {
+	if st.Leader == 0 {
+		const why = "an election is under way or quorum is lost"
+		return "none — " + why, []finding{{gradeFail, "no leader: " + why}}
+	}
+	return name(st.Leader), nil
+}
+
+// storageRow is how much of its quota the database file takes, which is where
+// NOSPACE is raised. At the quota etcd refuses every write; before it the
+// cluster is only closer, so the row warns from the theme's own amber and fails
+// when the file is the quota.
+func storageRow(st *clientv3.StatusResponse) (string, []finding) {
+	share, ok := quotaShare(st.DbSize, st.DbSizeQuota)
+	if !ok {
+		return format.Bytes(st.DbSize) + ", no quota reported (before etcd 3.6)", nil
+	}
+	text := strconv.FormatFloat(share, 'f', 1, 64) + "% of " + format.Bytes(st.DbSizeQuota) + " quota"
+	switch {
+	case share >= 100:
+		return text, []finding{{gradeFail, "storage is at its quota: writes are refused"}}
+	case share >= view.UsageWarn:
+		return text, []finding{{gradeWarn, "storage at " + strconv.FormatFloat(share, 'f', 1, 64) + "% of its quota"}}
+	}
+	return text, nil
 }
 
 // storageTable is the endpoint's own backend: how large the database file is,
