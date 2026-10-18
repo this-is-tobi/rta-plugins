@@ -38,7 +38,7 @@ func TestARedirectToPlainHTTPIsNeverFollowedWithTheTokenOnIt(t *testing.T) {
 		if err := os.WriteFile(ca, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: secure.Certificate().Raw}), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		verr := seal(t, map[string]any{"address": secure.URL, "ca-file": ca, "token": "s.secret"}, plugin.TunnelNone)
+		verr := seal(t, map[string]any{"url": secure.URL, "ca-file": ca, "token": "s.secret"}, plugin.TunnelNone)
 		secure.Close()
 		if verr == nil {
 			t.Errorf("a %d to plain HTTP was answered as if it were Vault", code)
@@ -62,7 +62,7 @@ func TestTheEnvironmentCannotChooseTheAddressTheGuardJudged(t *testing.T) {
 
 	c := capabilityByID(t, "vault.seal.status")
 	rq := plugin.NewRequest(plugin.Resolve(c, plugin.Inputs{Caller: map[string]any{
-		"address": "https://127.0.0.1:1", "ca-file": ca, "token": "s.secret"}}), false, false)
+		"url": "https://127.0.0.1:1", "ca-file": ca, "token": "s.secret"}}), false, false)
 	client, verr := connect(rq)
 	if verr != nil {
 		t.Fatalf("connect: %+v", verr)
@@ -104,7 +104,7 @@ func TestARedirectIsRefusedNamingWhereItPointedAndNeverFollowed(t *testing.T) {
 	} {
 		t.Run(http.StatusText(code), func(t *testing.T) {
 			from, hits := redirectingVault(t, code)
-			verr := seal(t, map[string]any{"address": from.URL, "token": "s.secret"}, plugin.TunnelNone)
+			verr := seal(t, map[string]any{"url": from.URL, "token": "s.secret"}, plugin.TunnelNone)
 			if verr == nil || verr.Code != "vault.redirected" {
 				t.Fatalf("err = %+v, want vault.redirected", verr)
 			}
@@ -146,7 +146,7 @@ func TestNoCapabilityFollowsARedirect(t *testing.T) {
 // the client does.)
 func TestTheLibraryItselfIsToldNotToFollow(t *testing.T) {
 	from, hits := redirectingVault(t, http.StatusTemporaryRedirect)
-	client, verr := connect(req(t, "vault.seal.status", map[string]any{"address": from.URL, "token": "t"}))
+	client, verr := connect(req(t, "vault.seal.status", map[string]any{"url": from.URL, "token": "t"}))
 	if verr != nil {
 		t.Fatal(verr)
 	}

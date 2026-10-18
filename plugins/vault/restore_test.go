@@ -71,7 +71,7 @@ func restorePair(t *testing.T, v view.View, key string) string {
 
 func TestRestoreRefusesMCP(t *testing.T) {
 	r := req(t, "vault.restore", map[string]any{
-		"address": "http://127.0.0.1:1", "token": "t", "file": archiveOnDisk(t, "bytes"),
+		"url": "http://127.0.0.1:1", "token": "t", "file": archiveOnDisk(t, "bytes"),
 	}).WithSurface(plugin.SurfaceMCP)
 	_, err := runRestoreSnapshot(t.Context(), r)
 	verr, ok := err.(*view.Error)
@@ -88,7 +88,7 @@ func TestRestoreRefusesMCP(t *testing.T) {
 
 func TestRestoreRefusesAMissingFile(t *testing.T) {
 	_, err := runRestoreSnapshot(t.Context(), req(t, "vault.restore", map[string]any{
-		"address": "http://127.0.0.1:1", "token": "t",
+		"url": "http://127.0.0.1:1", "token": "t",
 		"file": filepath.Join(t.TempDir(), "nope.snap"),
 	}))
 	verr, ok := err.(*view.Error)
@@ -99,7 +99,7 @@ func TestRestoreRefusesAMissingFile(t *testing.T) {
 
 func TestRestoreRefusesAnEmptyFile(t *testing.T) {
 	_, err := runRestoreSnapshot(t.Context(), req(t, "vault.restore", map[string]any{
-		"address": "http://127.0.0.1:1", "token": "t", "file": archiveOnDisk(t, ""),
+		"url": "http://127.0.0.1:1", "token": "t", "file": archiveOnDisk(t, ""),
 	}))
 	verr, ok := err.(*view.Error)
 	if !ok || verr.Code != "vault.restore.empty" {
@@ -115,7 +115,7 @@ func TestRestoreStreamsTheArchiveAndReadsBackWithoutAToken(t *testing.T) {
 	srv, paths, uploaded := restoreServer(t, 0, "")
 	content := "gzip-tar-bytes\x1f\x8b"
 	v, err := runRestoreSnapshot(t.Context(), req(t, "vault.restore", map[string]any{
-		"address": srv.URL, "token": "t", "file": archiveOnDisk(t, content),
+		"url": srv.URL, "token": "t", "file": archiveOnDisk(t, content),
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -139,7 +139,7 @@ func TestRestoreStreamsTheArchiveAndReadsBackWithoutAToken(t *testing.T) {
 func TestRestoreForceUsesTheForceEndpoint(t *testing.T) {
 	srv, paths, _ := restoreServer(t, 0, "")
 	_, err := runRestoreSnapshot(t.Context(), req(t, "vault.restore", map[string]any{
-		"address": srv.URL, "token": "t", "file": archiveOnDisk(t, "bytes"), "force": true,
+		"url": srv.URL, "token": "t", "file": archiveOnDisk(t, "bytes"), "force": true,
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -162,7 +162,7 @@ func TestRestoreMismatchNamesTheForceFlagAndItsPrice(t *testing.T) {
 	srv, _, _ := restoreServer(t, http.StatusBadRequest,
 		`{"errors":["could not verify hash file, possibly the snapshot is using a different set of unseal keys"]}`)
 	_, err := runRestoreSnapshot(t.Context(), req(t, "vault.restore", map[string]any{
-		"address": srv.URL, "token": "t", "file": archiveOnDisk(t, "bytes"),
+		"url": srv.URL, "token": "t", "file": archiveOnDisk(t, "bytes"),
 	}))
 	verr, ok := err.(*view.Error)
 	if !ok || verr.Code != "vault.restore.mismatch" {
@@ -180,7 +180,7 @@ func TestRestoreOnNonRaftStorageSaysSo(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 	_, err := runRestoreSnapshot(t.Context(), req(t, "vault.restore", map[string]any{
-		"address": srv.URL, "token": "t", "file": archiveOnDisk(t, "bytes"),
+		"url": srv.URL, "token": "t", "file": archiveOnDisk(t, "bytes"),
 	}))
 	verr, ok := err.(*view.Error)
 	if !ok || verr.Code != "vault.restore.unsupported" {
@@ -198,7 +198,7 @@ func TestARestoreReadBackThatFailedIsOneLineNamingTheProfile(t *testing.T) {
 		_, _ = w.Write([]byte(`{"errors":["permission denied"]}`))
 	}))
 	t.Cleanup(srv.Close)
-	r := req(t, "vault.restore", map[string]any{"address": srv.URL, "token": "t"}).
+	r := req(t, "vault.restore", map[string]any{"url": srv.URL, "token": "t"}).
 		WithProfile("prod", plugin.TunnelKube)
 	client, verr := connect(r)
 	if verr != nil {

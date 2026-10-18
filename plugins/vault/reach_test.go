@@ -12,7 +12,7 @@ import (
 // The snapshot and restore refusals the Vault gave, as the status ones are,
 // name the Vault as the reader reaches it again and not the end of a forward.
 func TestASnapshotRefusalNamesTheProfileAndNotTheEndOfItsForward(t *testing.T) {
-	r := req(t, "vault.snapshot", map[string]any{"address": "http://127.0.0.1:41233"}).
+	r := req(t, "vault.snapshot", map[string]any{"url": "http://127.0.0.1:41233"}).
 		WithProfile("prod", plugin.TunnelKube)
 	notFound := &vaultapi.ResponseError{StatusCode: 404}
 	mismatch := &vaultapi.ResponseError{StatusCode: 400, Errors: []string{"could not verify hash file"}}
@@ -48,12 +48,12 @@ func TestAnAnsweredRefusalNamesTheProfileAndItsStatusCheckReachesTheVault(t *tes
 	}{
 		{"a token refused through a forward", 403, plugin.TunnelKube, "prod", plugin.SurfaceCLI,
 			[]string{"profile prod (through its kube: forward) refused"},
-			[]string{"`rta vault token status --profile prod`"}, []string{"--address"}},
+			[]string{"`rta vault token status --profile prod`"}, []string{"--url"}},
 		{"a token refused reached directly", 403, plugin.TunnelNone, "prod", plugin.SurfaceCLI,
 			[]string{"https://vault.internal:8200 (profile prod) refused"},
-			[]string{"`rta vault token status --profile prod --address https://vault.internal:8200`"}, nil},
+			[]string{"`rta vault token status --profile prod --url https://vault.internal:8200`"}, nil},
 		{"a token refused, to an agent", 403, plugin.TunnelKube, "prod", plugin.SurfaceMCP, nil,
-			[]string{"`vault_token_status {\"profile\":\"prod\"}`"}, []string{"address"}},
+			[]string{"`vault_token_status {\"profile\":\"prod\"}`"}, []string{"url"}},
 		{"a sealed Vault through a forward", 412, plugin.TunnelSSH, "prod", plugin.SurfaceCLI,
 			[]string{"profile prod (through its ssh: forward) is sealed"},
 			[]string{"`rta vault seal status --profile prod`"}, nil},
@@ -61,7 +61,7 @@ func TestAnAnsweredRefusalNamesTheProfileAndItsStatusCheckReachesTheVault(t *tes
 			[]string{"nothing at that path on profile prod (through its kube: forward)"}, nil, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			r := req(t, "vault.kv.get", map[string]any{"path": "app/db", "address": "https://vault.internal:8200"}).
+			r := req(t, "vault.kv.get", map[string]any{"path": "app/db", "url": "https://vault.internal:8200"}).
 				WithProfile(tc.profile, tc.tunnel).WithSurface(tc.surface)
 			verr := classify(&vaultapi.ResponseError{StatusCode: tc.status, Errors: []string{"permission denied"}}, r)
 			for _, w := range tc.message {

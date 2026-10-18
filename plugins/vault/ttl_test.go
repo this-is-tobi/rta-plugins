@@ -69,7 +69,7 @@ func tokenStatusOf(t *testing.T, srv *httptest.Server) view.View {
 			continue
 		}
 		v, err := c.Run(t.Context(), plugin.NewRequest(
-			plugin.Resolve(c, plugin.Inputs{Caller: map[string]any{"address": srv.URL, "token": "t"}}), false, false))
+			plugin.Resolve(c, plugin.Inputs{Caller: map[string]any{"url": srv.URL, "token": "t"}}), false, false))
 		if err != nil {
 			t.Fatal(err)
 		}

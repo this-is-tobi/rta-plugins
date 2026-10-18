@@ -24,7 +24,7 @@ var dryRunRoutes = map[string]string{
 
 func dryReq(t *testing.T, capID, address string, values map[string]any) plugin.Request {
 	t.Helper()
-	values["address"] = address
+	values["url"] = address
 	values["token"] = "test"
 	for _, c := range Plugin().Capabilities {
 		if c.ID == capID {

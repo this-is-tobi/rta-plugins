@@ -18,7 +18,7 @@ func overviewOf(t *testing.T, srv *httptest.Server, detail bool) (view.View, err
 		if c.ID != "vault.overview" {
 			continue
 		}
-		values := map[string]any{"address": srv.URL, "token": "t"}
+		values := map[string]any{"url": srv.URL, "token": "t"}
 		if detail {
 			values["detail"] = true
 		}

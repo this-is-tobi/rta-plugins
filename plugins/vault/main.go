@@ -7,13 +7,13 @@
 //
 //	cd plugins/vault && go build -o ~/.local/bin/rta-plugin-vault .
 //
-// State the address once, in rta's config, under the artifact's own section
+// State the URL once, in rta's config, under the artifact's own section
 // — `rta explain vault.seal.status` prints the exact heading including the
 // digest:
 //
 //	plugins:
 //	  vault@<digest>:
-//	    address: https://vault.internal:8200
+//	    url: https://vault.internal:8200
 //
 // and export RTA_VAULT_TOKEN. Every capability here reaches off the box, so
 // none of them — including vault.overview — appear on the automatic

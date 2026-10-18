@@ -105,7 +105,7 @@ func seal(t *testing.T, values map[string]any, tunnel plugin.Tunnel) *view.Error
 func TestThroughAForwardTheCertificateIsCheckedForTheNameGiven(t *testing.T) {
 	hostport, ca := vaultBehindAForward(t)
 	at := func(extra map[string]any) map[string]any {
-		values := map[string]any{"address": "https://" + hostport, "ca-file": ca}
+		values := map[string]any{"url": "https://" + hostport, "ca-file": ca}
 		for k, v := range extra {
 			values[k] = v
 		}
@@ -135,7 +135,7 @@ func TestThroughAForwardTheCertificateIsCheckedForTheNameGiven(t *testing.T) {
 	}
 
 	verr = seal(t, at(nil), plugin.TunnelNone)
-	if verr == nil || verr.Code != "vault.tls.rejected" || !strings.Contains(verr.Hint, "the host in --address") {
+	if verr == nil || verr.Code != "vault.tls.rejected" || !strings.Contains(verr.Hint, "the host in --url") {
 		t.Errorf("reached directly: %+v, want vault.tls.rejected naming the address", verr)
 	}
 }
@@ -145,13 +145,13 @@ func TestThroughAForwardTheCertificateIsCheckedForTheNameGiven(t *testing.T) {
 // out is the connection's tunnelTLS, since the host wrote the http://.
 func TestAServerNameOverPlainHTTPIsRefused(t *testing.T) {
 	hostport, ca := vaultBehindAForward(t)
-	values := map[string]any{"address": "http://" + hostport, "ca-file": ca, "tls-server-name": "svc.example.internal"}
+	values := map[string]any{"url": "http://" + hostport, "ca-file": ca, "tls-server-name": "svc.example.internal"}
 	verr := seal(t, values, plugin.TunnelKube)
 	if verr == nil || verr.Code != "vault.tls.plaintext" || !strings.Contains(verr.Hint, "tunnelTLS: true") {
 		t.Errorf("through a forward: %+v, want vault.tls.plaintext naming tunnelTLS", verr)
 	}
 	verr = seal(t, values, plugin.TunnelNone)
-	if verr == nil || verr.Code != "vault.tls.plaintext" || !strings.Contains(verr.Hint, "an https:// address") {
+	if verr == nil || verr.Code != "vault.tls.plaintext" || !strings.Contains(verr.Hint, "an https:// URL") {
 		t.Errorf("reached directly: %+v, want vault.tls.plaintext naming the scheme", verr)
 	}
 }
@@ -166,9 +166,9 @@ func TestAPlaintextRefusalAlsoNamesTheWayToClearTheSetting(t *testing.T) {
 		values          map[string]any
 		direct, forward string
 	}{
-		{"a CA", map[string]any{"address": "http://127.0.0.1:1", "ca-file": "/nonexistent/ca.pem"},
+		{"a CA", map[string]any{"url": "http://127.0.0.1:1", "ca-file": "/nonexistent/ca.pem"},
 			"to call a plain server, clear --ca-file", "give that profile's set: an empty ca-file"},
-		{"a name", map[string]any{"address": "http://127.0.0.1:1", "tls-server-name": "svc.example.internal"},
+		{"a name", map[string]any{"url": "http://127.0.0.1:1", "tls-server-name": "svc.example.internal"},
 			"to call a plain server, clear --tls-server-name", "give that profile's set: an empty tls-server-name"},
 	} {
 		values := func() map[string]any {
@@ -204,10 +204,10 @@ func TestACAFileOverPlainHTTPIsRefusedBeforeAnythingIsSent(t *testing.T) {
 	_, ca := vaultBehindAForward(t)
 
 	values := func() map[string]any {
-		return map[string]any{"address": plain.URL, "ca-file": ca, "token": "s.secret"}
+		return map[string]any{"url": plain.URL, "ca-file": ca, "token": "s.secret"}
 	}
 	verr := seal(t, values(), plugin.TunnelNone)
-	if verr == nil || verr.Code != "vault.tls.ca.unused" || !strings.Contains(verr.Hint, "an https:// address") ||
+	if verr == nil || verr.Code != "vault.tls.ca.unused" || !strings.Contains(verr.Hint, "an https:// URL") ||
 		!strings.Contains(verr.Hint, "--ca-file") {
 		t.Fatalf("reached directly: %+v, want vault.tls.ca.unused naming the scheme and the setting", verr)
 	}
@@ -223,7 +223,7 @@ func TestACAFileOverPlainHTTPIsRefusedBeforeAnythingIsSent(t *testing.T) {
 		t.Errorf("%d requests reached the plain-HTTP server, the token on them, before the refusal", n)
 	}
 
-	values = func() map[string]any { return map[string]any{"address": plain.URL, "ca-file": "/nonexistent/ca.pem"} }
+	values = func() map[string]any { return map[string]any{"url": plain.URL, "ca-file": "/nonexistent/ca.pem"} }
 	if verr := seal(t, values(), plugin.TunnelNone); verr == nil || verr.Code != "vault.tls.ca.unused" {
 		t.Errorf("a CA file that cannot be read: %+v, want the refusal for the scheme before the file is opened", verr)
 	}
@@ -234,15 +234,15 @@ func TestACAFileOverPlainHTTPIsRefusedBeforeAnythingIsSent(t *testing.T) {
 // the http:// is the host's, and the connection's tunnelTLS is the way out.
 func TestPlainHTTPToATLSListenerNamesTheScheme(t *testing.T) {
 	hostport, _ := vaultBehindAForward(t)
-	verr := seal(t, map[string]any{"address": "http://" + hostport}, plugin.TunnelKube)
+	verr := seal(t, map[string]any{"url": "http://" + hostport}, plugin.TunnelKube)
 	if verr == nil || verr.Code != "vault.tls.expected" || !strings.Contains(verr.Hint, "tunnelTLS: true") {
 		t.Errorf("through a forward: %+v, want vault.tls.expected naming tunnelTLS", verr)
 	}
 	if verr != nil && !strings.Contains(verr.Message, "to profile lab (through its kube: forward), which speaks only HTTPS") {
 		t.Errorf("%q names the forward's end rather than the profile", verr.Message)
 	}
-	verr = seal(t, map[string]any{"address": "http://" + hostport}, plugin.TunnelNone)
-	if verr == nil || verr.Code != "vault.tls.expected" || !strings.Contains(verr.Hint, "--address names the scheme") {
+	verr = seal(t, map[string]any{"url": "http://" + hostport}, plugin.TunnelNone)
+	if verr == nil || verr.Code != "vault.tls.expected" || !strings.Contains(verr.Hint, "--url names the scheme") {
 		t.Errorf("reached directly: %+v, want vault.tls.expected naming the address", verr)
 	}
 }
@@ -274,7 +274,7 @@ func TestAForwardRefusalNamesTheSettingForItsSurface(t *testing.T) {
 // A snapshot's restore line connects as the snapshot did, the name the
 // certificate was checked for included.
 func TestTheRestoreLineCarriesTheServerName(t *testing.T) {
-	got := restoreCommand(req(t, "vault.snapshot", map[string]any{"address": "https://10.0.0.9:8200",
+	got := restoreCommand(req(t, "vault.snapshot", map[string]any{"url": "https://10.0.0.9:8200",
 		"tls-server-name": "svc.example.internal"}), "/backups/vault.snap")
 	if !strings.Contains(got, "--tls-server-name svc.example.internal") {
 		t.Errorf("restore = %q, want the server name on it", got)

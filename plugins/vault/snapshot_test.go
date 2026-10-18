@@ -79,7 +79,7 @@ func snapshotServer(t *testing.T, body []byte) *httptest.Server {
 func snapshotReq(t *testing.T, srv *httptest.Server, out string) plugin.Request {
 	t.Helper()
 	return req(t, "vault.snapshot", map[string]any{
-		"address": srv.URL, "token": "t", "out": out,
+		"url": srv.URL, "token": "t", "out": out,
 	})
 }
 
@@ -125,7 +125,7 @@ func TestASnapshotIsWrittenSealedAndAtTheRightMode(t *testing.T) {
 	// every backup that turned out not to be one — and the restore it names
 	// goes back to the Vault the snapshot came from, not to whatever
 	// $VAULT_ADDR says where the line is pasted.
-	if want := "rta vault restore " + path + " --address " + srv.URL; pairs["restore with"] != want {
+	if want := "rta vault restore " + path + " --url " + srv.URL; pairs["restore with"] != want {
 		t.Errorf("restore with = %q, want %q", pairs["restore with"], want)
 	}
 }
@@ -135,10 +135,10 @@ func TestASnapshotIsWrittenSealedAndAtTheRightMode(t *testing.T) {
 // carries the scheme. The token never does.
 func TestTheRestoreReachesTheVaultTheSnapshotCameFrom(t *testing.T) {
 	got := restoreCommand(req(t, "vault.snapshot", map[string]any{
-		"address": "https://vault.internal:8200", "namespace": "ops",
+		"url": "https://vault.internal:8200", "namespace": "ops",
 		"ca-file": "/etc/vault/ca.pem", "token": "hunter2", "out": "/backups/vault.snap",
 	}), "/backups/vault.snap")
-	want := "rta vault restore /backups/vault.snap --address https://vault.internal:8200 " +
+	want := "rta vault restore /backups/vault.snap --url https://vault.internal:8200 " +
 		"--namespace ops --ca-file /etc/vault/ca.pem"
 	if got != want {
 		t.Errorf("restore = %q, want %q", got, want)
@@ -162,9 +162,9 @@ func TestTheRestoreLineReachesTheSameVaultAgain(t *testing.T) {
 		want    string
 	}{
 		{"no profile", "", plugin.TunnelNone,
-			"rta vault restore /backups/vault.snap --address https://vault.internal:8200"},
+			"rta vault restore /backups/vault.snap --url https://vault.internal:8200"},
 		{"a profile reached directly", "prod", plugin.TunnelNone,
-			"rta vault restore /backups/vault.snap --profile prod --address https://vault.internal:8200"},
+			"rta vault restore /backups/vault.snap --profile prod --url https://vault.internal:8200"},
 		{"a profile through a forward", "prod", plugin.TunnelSSH,
 			"rta vault restore /backups/vault.snap --profile prod"},
 	} {
@@ -173,7 +173,7 @@ func TestTheRestoreLineReachesTheSameVaultAgain(t *testing.T) {
 			if tc.tunnel != plugin.TunnelNone {
 				address = "https://127.0.0.1:54321"
 			}
-			r := req(t, "vault.snapshot", map[string]any{"address": address}).WithProfile(tc.profile, tc.tunnel)
+			r := req(t, "vault.snapshot", map[string]any{"url": address}).WithProfile(tc.profile, tc.tunnel)
 			if got := restoreCommand(r, "/backups/vault.snap"); got != tc.want {
 				t.Errorf("restore = %q, want %q", got, tc.want)
 			}
@@ -194,7 +194,7 @@ func TestAReceiptNamesTheProfileRatherThanAForwardsEnd(t *testing.T) {
 		{"a profile through a forward", "prod", "http://127.0.0.1:54321",
 			"profile prod (through its kube: forward)", plugin.TunnelKube},
 	} {
-		r := req(t, "vault.snapshot", map[string]any{"address": tc.address}).WithProfile(tc.profile, tc.tunnel)
+		r := req(t, "vault.snapshot", map[string]any{"url": tc.address}).WithProfile(tc.profile, tc.tunnel)
 		if got := reached(r); got != tc.want {
 			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)
 		}
@@ -298,7 +298,7 @@ func TestSnapshotDryRunCreatesNothing(t *testing.T) {
 
 	c := capabilityByID(t, "vault.snapshot")
 	dry := plugin.NewRequest(plugin.Resolve(c, plugin.Inputs{Caller: map[string]any{
-		"address": srv.URL, "token": "t", "out": path,
+		"url": srv.URL, "token": "t", "out": path,
 	}}), true, false)
 
 	if _, err := runSnapshot(context.Background(), dry); err != nil {

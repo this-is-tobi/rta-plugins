@@ -27,7 +27,7 @@ import (
 //
 // Every field here is Local, and that is a security property rather than a
 // detail — the same reasoning plugins/pg's own connFields documents at
-// length. `address` names which Vault this call reaches and
+// length. `url` names which Vault this call reaches and
 // `namespace` names which tenant inside it; an MCP caller may not choose
 // either, or an agent could point rta at a Vault it controls and have the
 // host supply $RTA_VAULT_TOKEN beside it. Both remain Config-backed and
@@ -38,8 +38,8 @@ func connFields() []plugin.Field {
 	return []plugin.Field{
 		// One input holding a whole URL, which is the url role — the third
 		// shape, and the other reason the roles are shapes rather than names.
-		{Name: "address", Type: plugin.String, Default: "http://127.0.0.1:8200", Config: "address",
-			Local: true, Endpoint: plugin.EndpointURL, Help: "Vault server address"},
+		{Name: "url", Type: plugin.String, Default: "http://127.0.0.1:8200", Config: "url",
+			Local: true, Endpoint: plugin.EndpointURL, Help: "Vault server URL"},
 		{Name: "namespace", Type: plugin.String, Default: "", Config: "namespace",
 			Local: true, Help: "Vault Enterprise namespace — empty for OSS or the root namespace"},
 		{Name: "token", Type: plugin.Secret, Local: true, EnvFallback: true,
@@ -53,18 +53,18 @@ func connFields() []plugin.Field {
 		// connection with `tls: true`: the server's own certificate is
 		// commonly signed by a cluster-internal CA (a Vault operator's
 		// generated root, cert-manager's cluster issuer) the host's trust
-		// store does not carry, and address alone reaching https:// does not
+		// store does not carry, and the URL alone reaching https:// does not
 		// change what rta is willing to trust.
 		{Name: "ca-file", Type: plugin.String, Default: "", Config: "ca-file",
 			Local: true, Help: "PEM bundle to verify the server against, beyond the host's own trust store"},
 		// The name the certificate is checked for when it is not the host in
-		// address — above all through a kube: or ssh: forward, whose end is
+		// url — above all through a kube: or ssh: forward, whose end is
 		// 127.0.0.1 whatever the Vault is called, and which its certificate
 		// names only by luck. Checked as strictly as the host would have been:
-		// it moves the check, never loosens it. Local for the reason address
+		// it moves the check, never loosens it. Local for the reason url
 		// is: what a certificate has to prove is the operator's to say.
 		{Name: "tls-server-name", Type: plugin.String, Default: "", Config: "tls-server-name",
-			Local: true, Help: "name to check the server's certificate for, in place of the address's host"},
+			Local: true, Help: "name to check the server's certificate for, in place of the URL's host"},
 	}
 }
 
@@ -78,7 +78,7 @@ func connect(req plugin.Request) (*vaultapi.Client, *view.Error) {
 	if cfg.Error != nil {
 		return nil, classify(cfg.Error, req)
 	}
-	cfg.Address = req.String("address")
+	cfg.Address = req.String("url")
 	// **The address the guard below judges has to be the one the client dials.**
 	// The client prefers an agent address to Address whenever one is set, and
 	// DefaultConfig fills it from VAULT_AGENT_ADDR: a process that had that
@@ -128,7 +128,7 @@ func connect(req plugin.Request) (*vaultapi.Client, *view.Error) {
 	// a CA sitting in the operator's home was answered as no such file.
 	//
 	// tls-server-name is the handshake's ServerName and the SNI it sends, in
-	// place of the address's host. Refused over plain HTTP rather than
+	// place of the URL's host. Refused over plain HTTP rather than
 	// ignored: a name given is an operator expecting a certificate to be
 	// checked, and the call would have gone in the clear with nothing said.
 	//
@@ -141,7 +141,7 @@ func connect(req plugin.Request) (*vaultapi.Client, *view.Error) {
 	// does nothing. pg, mysql and mariadb refuse a CA that nothing will verify
 	// against under the same code.
 	name, ca := serverName(req), plugin.ExpandHome(req.String("ca-file"))
-	if !strings.HasPrefix(strings.ToLower(req.String("address")), "https://") {
+	if !strings.HasPrefix(strings.ToLower(req.String("url")), "https://") {
 		switch {
 		case name != "":
 			return nil, plaintextServerName(req)
@@ -221,7 +221,7 @@ func caBundle(req plugin.Request, path string) ([]byte, *view.Error) {
 }
 
 // serverName is the name the certificate is checked for in place of the
-// address's host, or "" for the host.
+// URL's host, or "" for the host.
 func serverName(req plugin.Request) string { return strings.TrimSpace(req.String("tls-server-name")) }
 
 // forwardPlaintextHint is where a call that spoke plain HTTP through a forward
@@ -231,10 +231,10 @@ const forwardPlaintextHint = "a forward carries plain http:// unless the profile
 	"speaks TLS, as Vault's own listener does: tunnelTLS: true on that connection"
 
 // plaintextServerName is the refusal for a certificate's name given to a
-// call that would check no certificate: an address that is not https://.
-// Through a forward that is the host's doing — it fills address with
+// call that would check no certificate: a URL that is not https://.
+// Through a forward that is the host's doing — it fills url with
 // http:// unless the connection says its far end speaks TLS — so the way out
-// is named there, not in an address the forward fills.
+// is named there, not in a URL the forward fills.
 func plaintextServerName(req plugin.Request) *view.Error {
 	sf := req.Surface()
 	refusal := view.Errorf("vault.tls.plaintext", "%s names a certificate to check, and this call would "+
@@ -242,12 +242,12 @@ func plaintextServerName(req plugin.Request) *view.Error {
 	if req.Tunnel() != plugin.TunnelNone {
 		return refusal.WithHint(forwardPlaintextHint + plainExit(req, "tls-server-name"))
 	}
-	return refusal.WithHint("an https:// address is what makes the call TLS, and " + sf.SettingName("tls-server-name") +
+	return refusal.WithHint("an https:// URL is what makes the call TLS, and " + sf.SettingName("tls-server-name") +
 		" the name its certificate is checked for" + plainExit(req, "tls-server-name"))
 }
 
 // plaintextCAFile is plaintextServerName for a CA: the refusal for one named
-// beside an address that is not https://, which never verifies against it.
+// beside a URL that is not https://, which never verifies against it.
 func plaintextCAFile(req plugin.Request) *view.Error {
 	sf := req.Surface()
 	refusal := view.Errorf("vault.tls.ca.unused", "%s names a CA, and this call would reach %s over plain HTTP, "+
@@ -255,12 +255,12 @@ func plaintextCAFile(req plugin.Request) *view.Error {
 	if req.Tunnel() != plugin.TunnelNone {
 		return refusal.WithHint(forwardPlaintextHint + plainExit(req, "ca-file"))
 	}
-	return refusal.WithHint("an https:// address is what makes the call TLS, and " + sf.SettingName("ca-file") +
+	return refusal.WithHint("an https:// URL is what makes the call TLS, and " + sf.SettingName("ca-file") +
 		" the CA its certificate is checked against" + plainExit(req, "ca-file"))
 }
 
 // plainExit is the second way out of a refusal for a TLS setting given beside an
-// address that is not https://: the setting cleared, for a server that really is
+// URL that is not https://: the setting cleared, for a server that really is
 // plain.
 //
 // **A refusal that names only the way to TLS reads as the only way.** The CA is
@@ -283,7 +283,7 @@ func plainExit(req plugin.Request, setting string) string {
 // same job plugins/pg's classify does for a driver error, against Vault's
 // own error shapes instead of PostgreSQL's.
 func classify(err error, req plugin.Request) *view.Error {
-	addr, sf := req.String("address"), req.Surface()
+	addr, sf := req.String("url"), req.Surface()
 	// The Vault as its reader reaches it again, for a refusal the Vault
 	// itself gave: through a forward the address is 127.0.0.1 and a port that
 	// closed with the call, and the token it refused was the profile's, which
@@ -294,7 +294,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	if errors.As(err, &redirect) {
 		hint := "a standby node answers what it cannot serve by naming the active node, and rta never " +
 			"follows a redirect, which would send the token to an address the server chose — " +
-			"point " + sf.SettingName("address") + " at the active node"
+			"point " + sf.SettingName("url") + " at the active node"
 		if req.Tunnel() != plugin.TunnelNone {
 			hint = "a standby node answers what it cannot serve by naming the active node, whose address " +
 				"is the cluster's own and outside the forward, and rta never follows a redirect, which would " +
@@ -382,11 +382,11 @@ func classify(err error, req plugin.Request) *view.Error {
 	// set: a name given and not matched is the certificate's to explain.
 	var hostErr x509.HostnameError
 	if errors.As(err, &hostErr) && req.Tunnel() != plugin.TunnelNone && serverName(req) == "" {
-		return plugin.ForwardNameRefusal(req, "vault.tls.forward", req.String("address"), "Vault", hostErr)
+		return plugin.ForwardNameRefusal(req, "vault.tls.forward", req.String("url"), "Vault", hostErr)
 	}
 	var verifyErr *tls.CertificateVerificationError
 	if errors.As(err, &verifyErr) {
-		checked := "the host in " + sf.SettingName("address")
+		checked := "the host in " + sf.SettingName("url")
 		if serverName(req) != "" {
 			checked = "the name in " + sf.SettingName("tls-server-name")
 		}
@@ -418,12 +418,12 @@ func classify(err error, req plugin.Request) *view.Error {
 		}
 		return view.Errorf("vault.conn.unreachable", "%s cannot be reached from this machine: %v", addr, reason).
 			WithHint("no route leads there from here — a VPN or tunnel the server sits behind that is " +
-				"down looks exactly like this, and so does " + sf.SettingName("address") + " naming " +
+				"down looks exactly like this, and so does " + sf.SettingName("url") + " naming " +
 				"an address on a network this machine is not on")
 	}
 	if plugin.DialRefused(err) {
 		return view.Errorf("vault.conn.refused", "nothing is listening on %s", addr).
-			WithHint("is the server up, and is " + sf.SettingName("address") + " right? Vault listens on 8200 by default")
+			WithHint("is the server up, and is " + sf.SettingName("url") + " right? Vault listens on 8200 by default")
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
@@ -442,7 +442,7 @@ func tlsExpected(req plugin.Request) *view.Error {
 	if req.Tunnel() != plugin.TunnelNone {
 		return refusal.WithHint(forwardPlaintextHint)
 	}
-	return refusal.WithHint("an https:// address is what makes the call TLS: " + req.Surface().SettingName("address") +
+	return refusal.WithHint("an https:// URL is what makes the call TLS: " + req.Surface().SettingName("url") +
 		" names the scheme")
 }
 
@@ -464,7 +464,7 @@ func reachArgs(req plugin.Request) []plugin.Arg {
 	if req.Surface() == plugin.SurfaceMCP {
 		return req.ReachArgs()
 	}
-	args := req.ReachArgs(plugin.Arg{Name: "address", Value: req.String("address")})
+	args := req.ReachArgs(plugin.Arg{Name: "url", Value: req.String("url")})
 	for _, name := range []string{"namespace", "ca-file", "tls-server-name"} {
 		if v := strings.TrimSpace(req.String(name)); v != "" {
 			args = append(args, plugin.Arg{Name: name, Value: v})
@@ -496,11 +496,11 @@ func dataHint(sf plugin.Surface) string {
 }
 
 // reached names the Vault this call reached the way its reader reaches it
-// again once the call is over (Request.Reached): the address is the input
+// again once the call is over (Request.Reached): the url is the input
 // that names it.
-func reached(req plugin.Request) string { return req.Reached(req.String("address")) }
+func reached(req plugin.Request) string { return req.Reached(req.String("url")) }
 
-// hostOf is the name in address, the one DNS was asked for: address is a
+// hostOf is the name in url, the one DNS was asked for: url is a
 // URL, and a lookup given the whole of it, scheme and port and all, answers
 // for no name anybody has. The address itself when it holds no host to take.
 func hostOf(address string) string {

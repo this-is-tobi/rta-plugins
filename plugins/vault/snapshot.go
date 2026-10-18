@@ -192,7 +192,7 @@ func runSnapshot(ctx context.Context, req plugin.Request) (view.View, error) {
 // and restores into whatever $VAULT_ADDR says in the shell it is pasted into —
 // another cluster's storage replaced wholesale by a line that read as this
 // one's backup, and trusted by whatever $VAULT_CACERT happened to say. So it
-// carries address, which holds the scheme and with it TLS, the namespace when
+// carries url, which holds the scheme and with it TLS, the namespace when
 // one was set, and ca-file and tls-server-name when named; never the token. And it names
 // rta's own restore rather than the vault CLI's, as pg's receipt names
 // pg.restore: the path quoted for a shell, and the file's checks and the
