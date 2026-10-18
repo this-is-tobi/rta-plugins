@@ -157,7 +157,8 @@ func summarise(st state, channels []channelRow) facet {
 			gaps = append(gaps, string(s))
 		}
 	}
-	incomplete := "could not read the " + strings.Join(gaps, ", the ") + " — this is not the whole picture"
+	gap := "could not read the " + strings.Join(gaps, ", the ")
+	incomplete := gap + " — this is not the whole picture"
 
 	if len(facets) == 0 {
 		if len(gaps) > 0 {
@@ -175,7 +176,7 @@ func summarise(st state, channels []channelRow) facet {
 			if role == "" {
 				role = "unknown"
 			}
-			return facet{role: role, status: "warn", detail: incomplete}
+			return facet{role: role, status: "warn", detail: incomplete, short: gap}
 		}
 		// Asked only of a server whose binary log is on, so an unread list is
 		// a server that may have replicas: neither standalone nor a source
@@ -183,6 +184,10 @@ func summarise(st state, channels []channelRow) facet {
 		if st.unread[sectionHosts] != nil {
 			return facet{role: "not a replica, binary log on", status: "none",
 				detail: "no replica threads here; whether replicas are connected is not readable by this account"}
+		}
+		if st.clusterElsewhere {
+			return facet{role: "not a replica", status: "none",
+				detail: "not replicating from anything and no replica is connected"}
 		}
 		return facet{role: "standalone", status: "none",
 			detail: standaloneDetail}
@@ -193,41 +198,48 @@ func summarise(st state, channels []channelRow) facet {
 	// full status.
 	roles := make([]string, len(facets))
 	status, worst := "ok", 0
-	var bad, all []string
+	var bad, all, briefs []string
 	for i, f := range facets {
 		roles[i] = f.role
 		all = append(all, f.detail)
 		if r := rank(f.status); r > 0 {
-			bad = append(bad, f.detail)
+			bad = append(bad, firstSet(f.short, f.detail))
 			if r > worst {
 				status, worst = strings.Fields(f.status)[0], r
 			}
+		} else if f.brief != "" {
+			briefs = append(briefs, f.brief)
 		}
 	}
 	detail := strings.Join(all, "; ")
+	short := strings.Join(bad, "; ")
 	if len(bad) > 0 {
-		detail = strings.Join(bad, "; ")
+		detail = short
 	}
 	if len(gaps) > 0 {
 		detail = join("; ", detail, incomplete)
+		short = join("; ", short, gap)
 		if worst == 0 {
 			status = "warn"
 		}
 	}
-	return facet{role: strings.Join(roles, " and "), status: status, detail: detail}
+	return facet{role: strings.Join(roles, " and "), status: status, detail: detail,
+		brief: strings.Join(briefs, ", "), short: short}
 }
 
 func replicaFacet(channels []channelRow) facet {
 	if len(channels) == 1 {
 		c := channels[0]
-		detail := reason(c.status)
+		detail, brief := reason(c.status), ""
 		if c.status == "ok" {
 			detail = "IO and SQL threads running, " + c.behind + " behind"
+			brief = c.behind + " behind"
 			if c.delay != "" {
 				detail += ", keeping a " + c.delay + " delay"
+				brief += ", " + c.delay + " delay"
 			}
 		}
-		return facet{role: "replica of " + c.source, status: c.status, detail: detail}
+		return facet{role: "replica of " + c.source, status: c.status, detail: detail, brief: brief}
 	}
 	f := facet{role: "replica of " + format.CountOf(len(channels), "source"), status: "ok"}
 	var bad []string
@@ -242,6 +254,8 @@ func replicaFacet(channels []channelRow) facet {
 	f.detail = "all " + format.CountOf(len(channels), "channel") + " running"
 	if len(bad) > 0 {
 		f.detail = strings.Join(bad, "; ")
+	} else {
+		f.brief = f.detail
 	}
 	return f
 }

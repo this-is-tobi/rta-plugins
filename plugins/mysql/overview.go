@@ -4,11 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -41,23 +41,47 @@ type serverInfo struct {
 	threads  int64
 	running  int64
 	maxConns int64
+	// lockWaits is the transactions waiting on an InnoDB row lock right now, and
+	// is known only where the server reports it: one without InnoDB does not.
+	// slowQueries counts the statements slower than long_query_time since the
+	// server started, whether or not the slow query log is on.
+	lockWaits      int64
+	lockWaitsKnown bool
+	slowQueries    int64
 }
 
+// readServerInfo is the two statements a glance starts from. They are read
+// apart for the overview, whose rows each cost only themselves when the other
+// half cannot be read.
 func readServerInfo(ctx context.Context, db *sql.DB) (serverInfo, error) {
+	info, err := readIdentity(ctx, db)
+	if err != nil {
+		return info, err
+	}
+	return readCounters(ctx, db, info)
+}
+
+// readIdentity is what answered and how many connections it will take.
+func readIdentity(ctx context.Context, db *sql.DB) (serverInfo, error) {
 	var info serverInfo
 	row := db.QueryRowContext(ctx, `SELECT VERSION(), @@max_connections`)
 	if err := row.Scan(&info.version, &info.maxConns); err != nil {
 		return info, err
 	}
 	info.flavour = flavourOf(info.version)
+	return info, nil
+}
 
-	// SHOW GLOBAL STATUS rather than performance_schema: it is available to
-	// an unprivileged user and on every version back to 5.x, where the
-	// performance_schema tables need a grant somebody has to have thought to
-	// give. A description of the server should not be the call that needs the
-	// most privilege.
-	rows, err := db.QueryContext(ctx,
-		`SHOW GLOBAL STATUS WHERE Variable_name IN ('Uptime','Threads_connected','Threads_running')`)
+// readCounters adds the server's own counters to what readIdentity found.
+//
+// SHOW GLOBAL STATUS rather than performance_schema: it is available to
+// an unprivileged user and on every version back to 5.x, where the
+// performance_schema tables need a grant somebody has to have thought to
+// give. A description of the server should not be the call that needs the
+// most privilege.
+func readCounters(ctx context.Context, db *sql.DB, info serverInfo) (serverInfo, error) {
+	rows, err := db.QueryContext(ctx, `SHOW GLOBAL STATUS WHERE Variable_name IN `+
+		`('Uptime','Threads_connected','Threads_running','Innodb_row_lock_current_waits','Slow_queries')`)
 	if err != nil {
 		return info, err
 	}
@@ -75,6 +99,10 @@ func readServerInfo(ctx context.Context, db *sql.DB) (serverInfo, error) {
 			info.threads = n
 		case "Threads_running":
 			info.running = n
+		case "Innodb_row_lock_current_waits":
+			info.lockWaits, info.lockWaitsKnown = n, true
+		case "Slow_queries":
+			info.slowQueries = n
 		}
 	}
 	return info, rows.Err()
@@ -112,7 +140,7 @@ func statusPairs(info serverInfo, req plugin.Request) []view.Pair {
 		{Key: "server", Value: req.Reached(address(req))},
 		{Key: "flavour", Value: info.flavour},
 		{Key: "version", Value: info.version},
-		{Key: "uptime", Value: format.Duration(info.uptime)},
+		{Key: "uptime", Value: uptime(info.uptime)},
 		{Key: "connections", Value: fmt.Sprintf("%d of %d", info.threads, info.maxConns)},
 		{Key: "running", Value: strconv.FormatInt(info.running, 10)},
 	}
@@ -130,31 +158,151 @@ func overviewCapability() plugin.Capability {
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Detailed:   true,
-		Description: "What server this is, how long it has been up, how much of its connection " +
-			"budget is in use, one line on whether replication is healthy (mysql.replication.status " +
-			"has the rest), and the largest databases on it.\n\n" +
-			"`detail` adds what every session is doing, without the statement text — state, " +
-			"time and command, which answers \"is anything stuck\" and hands back nothing " +
-			"anybody stored. The statement text is mysql.activity, and it is a write for " +
-			"exactly that reason.",
+		Description: "The compact form is what a dashboard tile shows and what an agent reads by default, " +
+			"ordered for five seconds: `status` first (ok, or warn or fail and the worst fact in a few " +
+			"words), then `up since`, `replication` (led by ok, warn or fail, with the thread that " +
+			"stopped or how far behind a replica is; mysql.replication.status has the rest), " +
+			"`connections` (of max_connections, led by warn past 85% and fail past 95%), `lock waits` " +
+			"(transactions waiting on an InnoDB row lock), `running` (the other threads running a " +
+			"statement and the slow queries since the server started, when there are any), `cluster` " +
+			"(a Group Replication member's state, only where one is configured) and `server` (the " +
+			"address and the version). A row the account cannot read says so, and the status names " +
+			"it.\n\n" +
+			"The full page (`detail`) is everything the compact form holds and what it leaves out: the " +
+			"server's status, one line on replication, the largest databases on it, and what every " +
+			"session is doing, without the statement text — state, time and command, which answers " +
+			"\"is anything stuck\" and hands back nothing anybody stored. The statement text is " +
+			"mysql.activity, and it is a write for exactly that reason. The databases are an " +
+			"aggregation over INFORMATION_SCHEMA that the compact form never runs.",
+		Agent: "A status row first (ok, or warn or fail and the worst fact), then up since, replication " +
+			"(led by ok, warn or fail, with the stopped thread or the lag), connections of " +
+			"max_connections (warn past 85%, fail past 95%), InnoDB row lock waits, the other threads " +
+			"running and the slow queries since start when there are any, the Group Replication " +
+			"member's state where one is configured, and the address and version. A row the account " +
+			"cannot read says so and the status names it. `detail` adds the largest databases and " +
+			"what every session is doing, without statement text. States and counts only, never " +
+			"stored values.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withDB(ctx, req, func(ctx context.Context, db *sql.DB) (view.View, error) {
-				return overviewView(ctx, db, req)
+				if req.Bool("detail") {
+					return detailedOverview(ctx, db, req)
+				}
+				return compactOverview(ctx, db, req)
 			})
 		},
 	})
 }
 
-// overviewView composes its sections through the one connection its own Run
-// already opened, rather than through plugin.Page.AddAs, which would open a
-// connection per section for what is meant to be a single glance.
-func overviewView(ctx context.Context, db *sql.DB, req plugin.Request) (view.View, error) {
-	status, err := statusView(ctx, db, req)
-	if err != nil {
-		return nil, err
+// compactOverview is the form a dashboard tile and an agent read by default, and
+// a tile shows the first eight lines of it, so what it says is ordered for
+// someone with five seconds: the verdict, then how the server is doing (when it
+// started, replication, connections, lock waits, what is running, a cluster),
+// and what it is called last.
+//
+// Each part is read on its own, in the same "add what answered" style as
+// builtin/sys's runOverview: a statement that fails costs the reader its rows,
+// said as rows that could not be read and named in the verdict, and never the
+// page. Only when nothing at all could be read is it an error, and it is the
+// first statement's.
+//
+// **It asks the server for less than the page did**: the same statements, less
+// the aggregation over INFORMATION_SCHEMA that totals every table of every
+// database for a table the compact form does not show. The counters it adds to
+// SHOW GLOBAL STATUS are names in the statement that was already there.
+func compactOverview(ctx context.Context, db *sql.DB, req plugin.Request) (view.View, error) {
+	id, idErr := readIdentity(ctx, db)
+	info, cErr := readCounters(ctx, db, id)
+	st, replErr := readState(ctx, db, req)
+	if idErr != nil && cErr != nil && replErr != nil {
+		return nil, classify(idErr, req)
 	}
+
+	var (
+		rows       []view.Pair
+		findings   []finding
+		unreadable []string
+	)
+	add := func(r row) {
+		rows = append(rows, r.pair)
+		if r.finding.grade != "" {
+			findings = append(findings, r.finding)
+		}
+		if r.unreadable != "" && !slices.Contains(unreadable, r.unreadable) {
+			unreadable = append(unreadable, r.unreadable)
+		}
+	}
+	plain := func(key, value string) { add(row{pair: view.Pair{Key: key, Value: value}}) }
+	// A part that could not be read names itself once in the verdict, however
+	// many rows are made from it.
+	unread := func(name, key string, err error) {
+		r := unreadRow(key, classify(err, req).Message)
+		r.unreadable = name
+		add(r)
+	}
+
+	if cErr != nil {
+		unread("status variables", "up since", cErr)
+	} else {
+		plain("up since", upSince(info.uptime))
+	}
+
+	if replErr != nil {
+		add(unreadRow("replication", replErr.Message))
+	} else {
+		add(replicationRowOf(st))
+	}
+
+	switch {
+	case cErr != nil:
+		unread("status variables", "connections", cErr)
+	case idErr != nil:
+		unread("max_connections", "connections", idErr)
+	default:
+		r := row{pair: view.Pair{Key: "connections", Value: info.connectionsText()}, finding: info.connectionsFinding()}
+		add(r)
+	}
+	if cErr == nil && info.lockWaitsKnown {
+		plain("lock waits", info.lockWaitsText())
+	}
+	if cErr == nil && info.loadText() != "" {
+		plain("running", info.loadText())
+	}
+	if replErr == nil {
+		if cluster := clusterRowOf(st); cluster != nil {
+			add(*cluster)
+		}
+	}
+
+	if idErr != nil {
+		add(row{pair: view.Pair{Key: "server", Value: req.Reached(address(req)) + " · version could not be read"},
+			unreadable: "version"})
+	} else {
+		plain("server", serverText(req.Reached(address(req)), info))
+	}
+
+	status := view.Pair{Key: "status", Value: statusText(findings, unreadable)}
+	return view.KeyValue{Pairs: append([]view.Pair{status}, rows...)}, nil
+}
+
+// detailedOverview is the full page: the server's status, replication, the
+// largest databases, and what every session is doing, composed through the one
+// connection its own Run already opened rather than through plugin.Page.AddAs,
+// which would open a connection per section for what is meant to be a single
+// glance. It carries everything the compact form does and the databases and
+// sessions it leaves out.
+func detailedOverview(ctx context.Context, db *sql.DB, req plugin.Request) (view.View, error) {
+	info, err := readServerInfo(ctx, db)
+	if err != nil {
+		return nil, classify(err, req)
+	}
+	pairs := statusPairs(info, req)
+	pairs = append(pairs, view.Pair{Key: "up since", Value: upSince(info.uptime)})
+	if info.lockWaitsKnown {
+		pairs = append(pairs, view.Pair{Key: "lock waits", Value: info.lockWaitsText()})
+	}
+	pairs = append(pairs, view.Pair{Key: "slow queries", Value: strconv.FormatInt(info.slowQueries, 10) + " since start"})
 	p := plugin.NewPage(ctx, req)
-	p.Put("status", status)
+	p.Put("status", view.KeyValue{Pairs: pairs})
 
 	line, warnings := replicationSummary(ctx, db, req)
 	p.Put("replication", line)
@@ -168,13 +316,11 @@ func overviewView(ctx context.Context, db *sql.DB, req plugin.Request) (view.Vie
 	}
 	p.Put("databases", databases)
 
-	if req.Bool("detail") {
-		activity, err := activityView(ctx, db, req, false, false)
-		if err != nil {
-			return nil, err
-		}
-		p.Put("activity", activity)
+	activity, err := activityView(ctx, db, req, false, false)
+	if err != nil {
+		return nil, err
 	}
+	p.Put("activity", activity)
 	return p.View(), nil
 }
 
