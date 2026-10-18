@@ -7,29 +7,29 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: pg
-version: 0.9.3
+version: 0.10.0
 summary: "PostgreSQL: connection health, replication, schema, rows and activity"
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/pg
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.9.3/rta-plugin-pg_0.9.3_darwin_amd64.tar.gz
-  sha256: 6cf98d0baba299a2d11141e5e2121cb44a3b4265cfff449a43a487774ed83951
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.10.0/rta-plugin-pg_0.10.0_darwin_amd64.tar.gz
+  sha256: a8646f8280518f7994acd71b2d047f5ba8c5e16811f70e0c7157381f1bf0f81a
   bin: rta-plugin-pg
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.9.3/rta-plugin-pg_0.9.3_darwin_arm64.tar.gz
-  sha256: fe98f950b8c72ee28c43e470ac438848eacb60a1964442db9d2bf4c1db73adee
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.10.0/rta-plugin-pg_0.10.0_darwin_arm64.tar.gz
+  sha256: 38c3612ac9b3c3afa06425cea3451a617cef06ada0182a36d1f4047eb335caf9
   bin: rta-plugin-pg
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.9.3/rta-plugin-pg_0.9.3_linux_amd64.tar.gz
-  sha256: 3481cc2eabe167eb10ebd1ffd96a030bc398c64c42e39951f56cde6b6cf686a6
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.10.0/rta-plugin-pg_0.10.0_linux_amd64.tar.gz
+  sha256: 3a6dd1b08b557c8559f92c89b0969db22e6d1d2ca540db43cc49dfb500baf657
   bin: rta-plugin-pg
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.9.3/rta-plugin-pg_0.9.3_linux_arm64.tar.gz
-  sha256: 098892c2337025e956d1fe686861edf2d88de2fa3410704abe71148db2b20bf2
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.10.0/rta-plugin-pg_0.10.0_linux_arm64.tar.gz
+  sha256: 3b31d1aba340b5a773b657d1824b29d268a55697617932276a20df4ea41cc576
   bin: rta-plugin-pg
 capabilities:
 - id: pg.status
@@ -41,10 +41,10 @@ capabilities:
 - id: pg.query
   summary: Run a read-only query
   safety: write
-- id: pg.schema.dump
+- id: pg.schema
   summary: Describe a schema's tables, columns and keys — no values
   safety: read
-- id: pg.table.dump
+- id: pg.table.rows
   summary: Read every row of one named table
   safety: write
   grant: true
@@ -60,7 +60,7 @@ capabilities:
 - id: pg.activity
   summary: What every connected session is doing right now
   safety: write
-- id: pg.replication
+- id: pg.replication.status
   summary: Where every member of the replication is, and how far behind
   safety: read
 - id: pg.overview

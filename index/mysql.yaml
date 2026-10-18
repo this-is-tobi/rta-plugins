@@ -7,29 +7,29 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: mysql
-version: 0.8.3
+version: 0.9.0
 summary: "MySQL: connection health, schema, rows, activity and replication"
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/mysql
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmysql%2Fv0.8.3/rta-plugin-mysql_0.8.3_darwin_amd64.tar.gz
-  sha256: 67a7d0dd18a2c7d159faae98379f5ec283bf27620250e909609796b3e5116c7c
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmysql%2Fv0.9.0/rta-plugin-mysql_0.9.0_darwin_amd64.tar.gz
+  sha256: d157d15c6e884378bb06ccd22ecacb7673a097a521807e97600ec3486e90b97b
   bin: rta-plugin-mysql
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmysql%2Fv0.8.3/rta-plugin-mysql_0.8.3_darwin_arm64.tar.gz
-  sha256: 451e35d5ee343557c5f0a48eae7869b77c5f1a2298ce98eb3455ad5744314d5c
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmysql%2Fv0.9.0/rta-plugin-mysql_0.9.0_darwin_arm64.tar.gz
+  sha256: 956fe48dce14955db3c447861e56cbda4bee5cb91cef91f514782a4ea4729743
   bin: rta-plugin-mysql
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmysql%2Fv0.8.3/rta-plugin-mysql_0.8.3_linux_amd64.tar.gz
-  sha256: 2a5e03b3454ab11fc5efb6f6101d0a415c310ae03c3c7332a7636edf04104309
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmysql%2Fv0.9.0/rta-plugin-mysql_0.9.0_linux_amd64.tar.gz
+  sha256: c382adaa486aebbcb11ec3ade640e3658c705ce9e449aefc74af78797bd3c9fd
   bin: rta-plugin-mysql
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmysql%2Fv0.8.3/rta-plugin-mysql_0.8.3_linux_arm64.tar.gz
-  sha256: 6c51214d27b1d74750b31085c2ee796f70783043e2c7b7eec654873b3052c301
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fmysql%2Fv0.9.0/rta-plugin-mysql_0.9.0_linux_arm64.tar.gz
+  sha256: 86c611313c01bac222edd67f7ed7b2968460b1d0c23012be8454259b50e6e0d6
   bin: rta-plugin-mysql
 capabilities:
 - id: mysql.overview
