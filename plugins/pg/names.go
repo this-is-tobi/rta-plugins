@@ -24,7 +24,7 @@ import (
 // What is deliberately not passed through it, so the next reader does not
 // wonder whether it was forgotten:
 //
-//   - A value stored in a row. pg.query and pg.table.dump return data, a body
+//   - A value stored in a row. pg.query and pg.table.rows return data, a body
 //     the renderer already cleans, and a multi-line value is ordinary there;
 //     quoting each one would rewrite every cell that holds a newline.
 //   - A session's application name and a slot's name. The server writes the

@@ -123,7 +123,7 @@ func cap(c plugin.Capability, own ...plugin.Field) plugin.Capability {
 //
 // **The position is a bonus on a call whose job is to say the server answers,
 // and it never costs that answer.** It is left out, with no warning and no
-// error row, on a server older than the 14 that pg.replication refuses, on a
+// error row, on a server older than the 14 that pg.replication.status refuses, on a
 // role the server refuses the functions to, and on a standby that has neither
 // received nor replayed anything; a connection that fails here has already
 // failed the query above, and says so there. A line that sometimes appears
@@ -282,7 +282,7 @@ func databaseListView(ctx context.Context, conn querier, req plugin.Request) (vi
 // embeds, and it is a disclosure boundary rather than a layout choice. **A
 // running query is a place a value hides** — `select * from patients where
 // mrn = '...'` is a row of somebody's data wearing a WHERE clause — which is
-// the same rule the schema dump follows, and it is why pg.activity is Write
+// the same rule pg.schema follows, and it is why pg.activity is Write
 // while pg.overview stays Read. The overview answers "is anything stuck"
 // from state and duration, which needs no literal; pg.activity answers "what
 // exactly is running", which is the question whose answer carries values.
@@ -372,7 +372,7 @@ func Plugin() plugin.Plugin {
 					"its timeline and WAL file, a standby's received and replayed positions. That " +
 					"line is left out, without an error, on a server older than PostgreSQL 14, for " +
 					"a role the server will not answer it to, and for a standby that has received " +
-					"and replayed nothing yet; `pg.replication` has every standby's positions and lags.",
+					"and replayed nothing yet; `pg.replication.status` has every standby's positions and lags.",
 				Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 					return withConn(ctx, req, func(ctx context.Context, conn *pgx.Conn) (view.View, error) {
 						return statusView(ctx, conn, req)
@@ -493,7 +493,7 @@ func Plugin() plugin.Plugin {
 					Help: "maximum rows to return; a larger result set is refused, not shortened"}),
 
 			cap(plugin.Capability{
-				ID:       "pg.schema.dump",
+				ID:       "pg.schema",
 				Summary:  "Describe a schema's tables, columns and keys — no values",
 				Keywords: []string{"ddl", "structure", "erd", "indexes"},
 				Examples: []plugin.Example{
@@ -522,7 +522,7 @@ func Plugin() plugin.Plugin {
 					"check constraints, view and function bodies are left out and counted in the header), so " +
 					"this shows the shape and no stored value, and it is not a restorable dump. `schema` " +
 					"defaults to public; `limit` bounds how many tables are described (default 100).",
-				Run: runSchemaDump,
+				Run: runSchema,
 			},
 				plugin.Field{Name: "schema", Type: plugin.String, Default: "public", Positional: true,
 					Help: "schema to describe"},
@@ -530,9 +530,9 @@ func Plugin() plugin.Plugin {
 					Help: "how many tables to describe"}),
 
 			cap(plugin.Capability{
-				ID:       "pg.table.dump",
+				ID:       "pg.table.rows",
 				Summary:  "Read every row of one named table",
-				Keywords: []string{"export", "copy", "rows", "csv"},
+				Keywords: []string{"export", "copy", "csv"},
 				Examples: []plugin.Example{
 					{Title: "two columns of the first hundred rows", Inputs: map[string]any{"table": "public.orders", "columns": []string{"id", "status"}, "limit": 100}},
 				},
@@ -548,7 +548,7 @@ func Plugin() plugin.Plugin {
 				// keys.backup and kv.copy refuse MCP outright, and why there is
 				// no whole-database dump here: its single authorized use would
 				// be "everything". One table has a radius a person can consent
-				// to, so a grant (`grant.allow`, for `pg.table.dump` and
+				// to, so a grant (`grant.allow`, for `pg.table.rows` and
 				// `public.orders`) authorizes that relation and nothing beside
 				// it.
 				//
@@ -579,7 +579,7 @@ func Plugin() plugin.Plugin {
 					"byte-for-byte, so a bare name would follow whichever schema resolved first. A " +
 					"person at a terminal keeps the short form.\n\n" +
 					"Bounded on rows and on bytes, and over either bound it is refused rather than " +
-					"shortened: a truncated dump is a different answer wearing the right shape. Ordered " +
+					"shortened: a truncated table is a different answer wearing the right shape. Ordered " +
 					"by primary key where there is one, so the first thousand rows are the same thousand " +
 					"next time. `columns` narrows what is read and can never widen it.",
 				Agent: "Reads the rows of one table, in a READ ONLY transaction. `table` must be written " +
@@ -587,7 +587,7 @@ func Plugin() plugin.Plugin {
 					"`columns` narrows what is read and never widens it. Ordered by primary key when there is " +
 					"one. At most `limit` rows (default 1000); a larger table, or one over the size bound, is " +
 					"refused rather than shortened.",
-				Run: runTableDump,
+				Run: runTableRows,
 			},
 				// No Config key, deliberately: a Scope input that config can
 				// fill is checked as the empty scope when the caller omits it
@@ -595,10 +595,10 @@ func Plugin() plugin.Plugin {
 				// person granted and the object read would not be the same
 				// string.
 				plugin.Field{Name: "table", Type: plugin.String, Positional: true, Required: true,
-					Help: "table to dump, as schema.table (required over MCP; bare names are resolved for a person)"},
+					Help: "table to read, as schema.table (required over MCP; bare names are resolved for a person)"},
 				plugin.Field{Name: "columns", Short: "c", Type: plugin.StringSlice,
 					Help: "only these columns; empty means all"},
-				plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 1000, Min: 1, Max: maxDumpRows,
+				plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 1000, Min: 1, Max: maxTableRows,
 					Help: "maximum rows to return; a larger table is refused, not shortened"}),
 
 			cap(plugin.Capability{
@@ -617,7 +617,7 @@ func Plugin() plugin.Plugin {
 					"rather than asking for a grant**, which is the same line keys.backup and kv.copy " +
 					"draw: every control in rta bounds a call by what it names, and a full dump's one " +
 					"authorized use is everything, so a grant covering it would be a rubber stamp with " +
-					"an expiry date rather than consent. An agent that needs rows asks for pg.table.dump " +
+					"an expiry date rather than consent. An agent that needs rows asks for pg.table.rows " +
 					"and a person names the table in the grant.\n\n" +
 					"Runs `pg_dump` rather than reimplementing it: a restorable dump has to get " +
 					"sequences, extensions, ownership, row-level security and COPY escaping right, " +
@@ -745,7 +745,7 @@ func Plugin() plugin.Plugin {
 				// place a value hides.** `select * from patients where mrn =
 				// '...'` is a row of somebody's data wearing a WHERE clause,
 				// and this returns eighty characters of every statement on
-				// the server. The same rule pg.schema.dump follows, applied
+				// the server. The same rule pg.schema follows, applied
 				// to the one other capability that hands back text somebody
 				// else wrote.
 				Safety:     plugin.Write,
@@ -766,7 +766,7 @@ func Plugin() plugin.Plugin {
 					Help: "how many sessions to show"}),
 
 			cap(plugin.Capability{
-				ID:         "pg.replication",
+				ID:         "pg.replication.status",
 				Summary:    "Where every member of the replication is, and how far behind",
 				Keywords:   []string{"lag", "standby", "wal", "streaming", "slots", "failover"},
 				Safety:     plugin.Read,
@@ -820,10 +820,10 @@ func Plugin() plugin.Plugin {
 				Description: "The compact form is a few figures worth a glance: role, size, WAL " +
 					"position (a primary's write position, a standby's received and replayed " +
 					"positions), active queries, cache hit ratio and one line of replication. " +
-					"The full page (`detail`) adds the whole replication page (`pg.replication`: " +
+					"The full page (`detail`) adds the whole replication page (`pg.replication.status`: " +
 					"positions, standbys with their " +
 					"lag, slots, what needs attention), the largest tables and current activity — " +
-					"everything pg.status, pg.replication, pg.table.list and pg.activity would otherwise " +
+					"everything pg.status, pg.replication.status, pg.table.list and pg.activity would otherwise " +
 					"take four calls to assemble, through the one connection this call already opened.",
 				Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 					return withConn(ctx, req, func(ctx context.Context, conn *pgx.Conn) (view.View, error) {

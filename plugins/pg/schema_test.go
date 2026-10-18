@@ -7,7 +7,7 @@ import (
 	"github.com/this-is-tobi/rta/pkg/plugin"
 )
 
-// renderDDL is the half of the schema dump that needs no database: given the
+// renderDDL is the half of the schema description that needs no database: given the
 // structure, does it write SQL that says what it means and parses?
 //
 // The catalogue half is covered by the live smoke against a real server —
@@ -94,7 +94,7 @@ func TestAWithheldDefaultIsNamedOnItsColumn(t *testing.T) {
 }
 
 // **An omission nobody is told about is indistinguishable from an absence.**
-// A schema dump that quietly drops four views reads exactly like a schema
+// A description that quietly drops four views reads exactly like a schema
 // with no views in it — the same defect view.Table.Page existed to fix for
 // listings, and the reason every count is in the header.
 func TestTheHeaderCountsWhatWasLeftOut(t *testing.T) {
@@ -169,18 +169,18 @@ func TestForeignKeysAreEmittedAfterEveryTable(t *testing.T) {
 	}
 }
 
-// pg.schema.dump is the one dump that needs no grant, and the entire
+// pg.schema is the one that returns structure and needs no grant, and the entire
 // argument for that is that it carries no values. The declaration has to say
 // so where an operator reading `rta explain` will see it.
 func TestTheDeclarationStatesWhyItIsUngated(t *testing.T) {
 	var found bool
 	for _, c := range Plugin().Capabilities {
-		if c.ID != "pg.schema.dump" {
+		if c.ID != "pg.schema" {
 			continue
 		}
 		found = true
 		if c.NeedsGrant {
-			t.Error("pg.schema.dump needs a grant, which the description argues it does not")
+			t.Error("pg.schema needs a grant, which the description argues it does not")
 		}
 		if c.Safety != plugin.Read {
 			t.Errorf("safety = %s, want read", c.Safety)
@@ -193,7 +193,7 @@ func TestTheDeclarationStatesWhyItIsUngated(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatal("pg.schema.dump is not declared")
+		t.Fatal("pg.schema is not declared")
 	}
 }
 

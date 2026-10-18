@@ -237,7 +237,7 @@ func TestTheHiddenWarningNamesTheRoleAndWhatGrantsIt(t *testing.T) {
 		{plugin.SurfaceCLI, "with --user"},
 		{plugin.SurfaceMCP, "with the operator's `user` setting"},
 	} {
-		r := reqFor(t, "pg.replication", map[string]any{"user": "mon"}).WithSurface(tc.surface)
+		r := reqFor(t, "pg.replication.status", map[string]any{"user": "mon"}).WithSurface(tc.surface)
 		w := hiddenWarning(f, r)
 		if w == nil || w.Code != "pg.replication.hidden" {
 			t.Fatalf("warning = %v, want pg.replication.hidden", w)
@@ -248,7 +248,7 @@ func TestTheHiddenWarningNamesTheRoleAndWhatGrantsIt(t *testing.T) {
 			}
 		}
 	}
-	if w := hiddenWarning(primaryFacts([]standbyRow{caughtUpStandby()}, nil), reqFor(t, "pg.replication", nil)); w != nil {
+	if w := hiddenWarning(primaryFacts([]standbyRow{caughtUpStandby()}, nil), reqFor(t, "pg.replication.status", nil)); w != nil {
 		t.Errorf("a role that sees everything was warned: %v", w)
 	}
 }
@@ -269,7 +269,7 @@ func TestTheGrantTheHiddenWarningOffersQuotesTheRoleAsSQLDoes(t *testing.T) {
 		`back\slash`: "`GRANT pg_monitor TO \"back\\slash\"`",
 		oddName:      "`GRANT pg_monitor TO U&\"esc\\001b[31mred\\000aline\"`",
 	} {
-		w := hiddenWarning(f, reqFor(t, "pg.replication", map[string]any{"user": user}))
+		w := hiddenWarning(f, reqFor(t, "pg.replication.status", map[string]any{"user": user}))
 		if w == nil || !strings.Contains(w.Hint, want) {
 			t.Errorf("role %q: hint = %v, want %s in it", user, w, want)
 			continue
@@ -283,8 +283,8 @@ func TestTheOverviewPointsAtThePageOnlyWhereThereIsOne(t *testing.T) {
 		surface plugin.Surface
 		want    string
 	}{
-		{plugin.SurfaceCLI, "`rta pg replication`"},
-		{plugin.SurfaceMCP, "`pg_replication`"},
+		{plugin.SurfaceCLI, "`rta pg replication status`"},
+		{plugin.SurfaceMCP, "`pg_replication_status`"},
 	} {
 		line := replicationLine(primaryFacts([]standbyRow{caughtUpStandby()}, nil), tc.surface)
 		if !strings.Contains(line, tc.want) {
@@ -302,7 +302,7 @@ func TestTheOverviewCountsWhatTheAttentionListHolds(t *testing.T) {
 		t.Errorf("a healthy replication asks for attention: %q", healthy)
 	}
 	one := replicationLine(primaryFacts(nil, []slotRow{extendedSlot()}), plugin.SurfaceCLI)
-	if !strings.Contains(one, ", 1 thing needs attention — `rta pg replication`") {
+	if !strings.Contains(one, ", 1 thing needs attention — `rta pg replication status`") {
 		t.Errorf("one finding: %q", one)
 	}
 	two := replicationLine(primaryFacts([]standbyRow{driftingStandby()}, []slotRow{lostSlot()}), plugin.SurfaceCLI)
@@ -311,13 +311,13 @@ func TestTheOverviewCountsWhatTheAttentionListHolds(t *testing.T) {
 	}
 	sync := primaryFacts(nil, nil)
 	sync.server.syncNames = "FIRST 1 (ghost)"
-	if line := replicationLine(sync, plugin.SurfaceMCP); !strings.Contains(line, "`pg_replication`") {
+	if line := replicationLine(sync, plugin.SurfaceMCP); !strings.Contains(line, "`pg_replication_status`") {
 		t.Errorf("a finding with no standby and no slot has nothing to point at: %q", line)
 	}
 }
 
 func TestAServerTooOldIsRefusedByName(t *testing.T) {
-	r := reqFor(t, "pg.replication", nil).WithSurface(plugin.SurfaceMCP)
+	r := reqFor(t, "pg.replication.status", nil).WithSurface(plugin.SurfaceMCP)
 	// server_version as postgres:13 reports it, banner and all: the message
 	// names the release, not the build.
 	verr := tooOldForReplication(serverFacts{versionNum: 130023, version: "13.23 (Debian 13.23-1.pgdg13+1)"}, r)

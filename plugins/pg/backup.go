@@ -68,7 +68,7 @@ func runFullDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr := humanOnly(req, "pg.dump",
 		"a whole-database dump has no blast radius a grant could name — its one "+
 			"authorized use is everything. Ask for the table you need with "+
-			req.Surface().CapabilityName("pg.table.dump")+", which takes a grant naming that table"); verr != nil {
+			req.Surface().CapabilityName("pg.table.rows")+", which takes a grant naming that table"); verr != nil {
 		return nil, verr
 	}
 

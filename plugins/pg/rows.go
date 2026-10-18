@@ -14,7 +14,7 @@ import (
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
-// The row dump — one relation, named in the grant.
+// The rows of one relation, named in the grant.
 //
 // **The rule this exists to satisfy: a capability whose blast radius cannot
 // be named in a grant does not belong on the agent surface.** rta's entire
@@ -23,8 +23,8 @@ import (
 // `s3.object.get <key>`, `net.hosts.toggle <hostname>`. A full database dump
 // has no such radius; its single authorized use is "everything", which is
 // why keys.backup and kv.copy refuse MCP outright rather than merely asking
-// for a grant. One table does have a radius, so this is the shape a dump can
-// take and still be consented to: `grant allow pg.table.dump --scope
+// for a grant. One table does have a radius, so this is the shape a bulk read can
+// take and still be consented to: `grant allow pg.table.rows --scope
 // public.orders` authorizes that relation and nothing beside it.
 //
 // **Which is not a claim that the named table is the harmless one.** From
@@ -52,20 +52,20 @@ import (
 //     the grant expires. Write does not imply a grant (grant.Required is
 //     NeedsGrant, Destructive, or a profiled call), so this is opted into.
 //   - **A bound on rows and on bytes**, refused rather than truncated,
-//     because a shortened dump is a different answer wearing the right
+//     because a shortened table is a different answer wearing the right
 //     shape.
 //
 // Why pg.query next door stays Read and ungated, which is a fair thing to
 // ask: its result is bounded per call by --limit, and where it matters —
 // a profiled connection, i.e. any environment an operator has actually
 // named — grant.Required is already true for every call in the namespace,
-// pg.query included. The line this draws is magnitude: the dump is the one
+// pg.query included. The line this draws is magnitude: this is the one
 // that says "all of it", and it is the one that has to be asked for.
 
-// maxDumpRows is the ceiling on --limit. Above it the byte bound would
+// maxTableRows is the ceiling on --limit. Above it the byte bound would
 // almost always fire first, so a larger number would only ever be an
 // invitation to discover that the hard way.
-const maxDumpRows = 100000
+const maxTableRows = 100000
 
 // relation is one resolved, unambiguous relation.
 type relation struct {
@@ -81,7 +81,7 @@ func (r relation) listed() string {
 }
 func (r relation) sanitized() string { return pgx.Identifier{r.schema, r.name}.Sanitize() }
 
-func runTableDump(ctx context.Context, req plugin.Request) (view.View, error) {
+func runTableRows(ctx context.Context, req plugin.Request) (view.View, error) {
 	return withConn(ctx, req, func(ctx context.Context, conn *pgx.Conn) (view.View, error) {
 		var out view.View
 		// READ ONLY for the reason pg.query is: it makes the safety class a
@@ -95,7 +95,7 @@ func runTableDump(ctx context.Context, req plugin.Request) (view.View, error) {
 			if verr != nil {
 				return verr
 			}
-			v, verr := dumpRows(ctx, tx, req, rel)
+			v, verr := readRows(ctx, tx, req, rel)
 			if verr != nil {
 				return verr
 			}
@@ -137,13 +137,13 @@ func resolveRelation(ctx context.Context, q querier, req plugin.Request) (relati
 			// refused over MCP only, and for a grant-integrity reason — an
 			// unqualified name would resolve through whichever schema comes
 			// first, so the exact-match grant a person issued and the table
-			// actually dumped could disagree. That is a policy line about
+			// actually read could disagree. That is a policy line about
 			// who is asking, which is Refusef's test.
 			return relation{}, view.Refusef("pg.table.unqualified",
 				"name the table as schema.table, not %q", raw).
 				WithHint("a grant for this name will not help — grants are matched exactly, so " +
 					"an unqualified one would follow whichever schema resolves first. For the " +
-					"qualified name, " + plugin.AskOperator("grant allow pg.table.dump <schema>."+raw) + "; " +
+					"qualified name, " + plugin.AskOperator("grant allow pg.table.rows <schema>."+raw) + "; " +
 					nextCall(req, "pg.table.list") + " shows the schema of each table")
 		}
 		schema, name = "", raw
@@ -180,7 +180,7 @@ func resolveRelation(ctx context.Context, q querier, req plugin.Request) (relati
 		return relation{}, view.Errorf("pg.table.missing",
 			"%s has no table named %q", req.String("database"), raw).
 			WithHint(nextCall(req, "pg.table.list") + " shows what is there — foreign tables and the " +
-				"system catalogues are deliberately not dumpable, since neither has rows " +
+				"system catalogues are deliberately not read here, since neither has rows " +
 				"this database owns")
 	default:
 		var where []string
@@ -195,9 +195,9 @@ func resolveRelation(ctx context.Context, q querier, req plugin.Request) (relati
 	}
 }
 
-// dumpRows reads the relation, narrowed to the requested columns and bounded
+// readRows reads the relation, narrowed to the requested columns and bounded
 // twice.
-func dumpRows(ctx context.Context, q querier, req plugin.Request, rel relation) (view.View, *view.Error) {
+func readRows(ctx context.Context, q querier, req plugin.Request, rel relation) (view.View, *view.Error) {
 	cols, err := columnsOf(ctx, q, rel.oid)
 	if err != nil {
 		return nil, classify(err, req)
@@ -243,8 +243,8 @@ func dumpRows(ctx context.Context, q querier, req plugin.Request, rel relation) 
 
 	// Ordered by primary key where there is one, so that "the first thousand
 	// rows" is the same thousand rows on the next call. Without a key
-	// PostgreSQL promises no order at all, and a dump that returns a
-	// different sample each time is not a dump.
+	// PostgreSQL promises no order at all, and a read that returns a
+	// different sample each time is not a read of the table.
 	key, err := primaryKeyOf(ctx, q, rel.oid)
 	if err != nil {
 		return nil, classify(err, req)
@@ -269,14 +269,14 @@ func dumpRows(ctx context.Context, q querier, req plugin.Request, rel relation) 
 	t, err := rowsToTable(rows, limit)
 	switch {
 	case errors.Is(err, ErrTooManyRows):
-		return nil, view.Errorf("pg.dump.toomany",
+		return nil, view.Errorf("pg.table.rows.toomany",
 			"%s has more than %s", rel.listed(), format.CountOf(limit, "row")).
-			WithHint("raise " + req.Surface().InputName("limit") + ", or narrow the dump with " +
+			WithHint("raise " + req.Surface().InputName("limit") + ", or narrow the read with " +
 				req.Surface().InputName("columns") + " — refused rather " +
-				"than shortened, because a truncated dump is a different answer wearing " +
+				"than shortened, because a truncated table is a different answer wearing " +
 				"the right shape. `psql \\copy` is the tool for a whole table")
 	case errors.Is(err, ErrTooLarge):
-		return nil, view.Errorf("pg.dump.toolarge",
+		return nil, view.Errorf("pg.table.rows.toolarge",
 			"the rows of %s are over the %s a result may be",
 			rel.listed(), format.Bytes(maxBytes)).
 			WithHint("lower " + req.Surface().InputName("limit") + ", or name the columns you need with " +
@@ -295,11 +295,11 @@ func dumpRows(ctx context.Context, q querier, req plugin.Request, rel relation) 
 	return t, nil
 }
 
-// rlsOf asks the catalogue whether an empty dump might be a policy rather
-// than an empty table. A failure to ask is not a failure to dump: the
+// rlsOf asks the catalogue whether an empty result might be a policy rather
+// than an empty table. A failure to ask is not a failure to read: the
 // caveat is an explanation of a result that is already in hand, so a
 // catalogue this connection cannot read leaves the table to speak for
-// itself rather than turning a successful dump into an error.
+// itself rather than turning a successful read into an error.
 func rlsOf(ctx context.Context, q querier, rel relation) *view.Error {
 	row := q.QueryRow(ctx,
 		`select relrowsecurity, relforcerowsecurity from pg_class where oid = $1`, rel.oid)
@@ -308,29 +308,29 @@ func rlsOf(ctx context.Context, q querier, rel relation) *view.Error {
 	}
 	var enabled, forced bool
 	if err := row.Scan(&enabled, &forced); err != nil {
-		return nil //nolint:nilerr // deliberate, and the doc comment says why: a catalogue this connection cannot read leaves the table to speak for itself rather than failing a dump that worked
+		return nil //nolint:nilerr // deliberate, and the doc comment says why: a catalogue this connection cannot read leaves the table to speak for itself rather than failing a read that worked
 	}
 	return rlsRefusal(rel, enabled, forced)
 }
 
-// rlsRefusal turns an empty dump of a row-level-security table into the
+// rlsRefusal turns an empty read of a row-level-security table into the
 // answer it actually is.
 //
 // **PostgreSQL enforces row-level security by narrowing the query, not by
 // refusing it.** A policy that matches nothing for this role returns zero
 // rows and no error — the same shape an empty table returns — on the one
 // capability whose entire job is to show what is in a table. So an operator
-// who granted pg.table.dump to look at a table, and got a well-formed table
+// who granted pg.table.rows to look at a table, and got a well-formed table
 // with the right headers and no rows, was told it is empty when a
 // tenant-isolation policy keyed off a session setting rta never sets had
 // filtered every row away.
 //
 // Refused rather than annotated, for the reason the row and size bounds a
-// few lines up are refused: a dump that is not the table's contents is a
+// few lines up are refused: a result that is not the table's contents is a
 // different answer wearing the right shape, and a view.Table has nowhere to
 // say which one it is holding.
 //
-// The query it offers is for the table this call dumped, schema included, with
+// The query it offers is for the table this call read, schema included, with
 // both names as the SQL literals they are: a table called it's, or one that
 // shares its name with another schema's, was a query that failed or listed
 // somebody else's policies.
@@ -341,11 +341,11 @@ func rlsRefusal(rel relation, enabled, forced bool) *view.Error {
 	hint := "either the table is empty or a policy filtered every row away, and this cannot tell " +
 		"which — `select * from pg_policies where schemaname = " + sqlLiteral(rel.schema) +
 		" and tablename = " + sqlLiteral(rel.name) + "` names the policies, " +
-		"and a role they admit dumps what they admit"
+		"and a role they admit reads what they admit"
 	if forced {
 		hint += ". FORCE ROW LEVEL SECURITY is set, so the policies apply to the table's owner too"
 	}
-	return view.Errorf("pg.dump.rls",
+	return view.Errorf("pg.table.rows.rls",
 		"%s returned no rows, and row-level security is enabled on it", rel.listed()).
 		WithHint(hint)
 }

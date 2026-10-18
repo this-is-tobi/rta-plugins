@@ -13,10 +13,10 @@ import (
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
-// The schema dump, and the one rule that makes it safe to hand to an agent.
+// The schema description, and the one rule that makes it safe to hand to an agent.
 //
 // **"Zero rows" is not "zero values", and the difference is where a schema
-// dump leaks.** A default expression can be `'sk_live_51H...'`. A check
+// description leaks.** A default expression can be `'sk_live_51H...'`. A check
 // constraint can be `region in ('eu-west-1','classified-3')`. A view body
 // carries whatever WHERE clause somebody wrote, a function body can carry a
 // dblink connection string with a password in it, and a partial index's
@@ -35,11 +35,11 @@ import (
 // What it costs: the output is a description, not a restorable dump. That is
 // said out loud in the header rather than left for somebody to discover when
 // psql rejects it, and the header names `pg_dump --schema-only` for the
-// person who wants the rest. Everything dropped is *counted*, because a dump
+// person who wants the rest. Everything dropped is *counted*, because a description
 // that silently omits things reads exactly like a database that does not
 // have them — the same defect view.Table.Page existed to fix for listings.
 //
-// Why it needs no grant, while pg.table.dump does: an agent holding pg.query
+// Why it needs no grant, while pg.table.rows does: an agent holding pg.query
 // can already `select table_name, column_name, data_type from
 // information_schema.columns`, so refusing this would be theatre rather than
 // a boundary. It discloses what a caller could already assemble, in one call
@@ -54,7 +54,7 @@ import (
 const maxSchemaTables = 500
 
 // querier is whatever the catalogue queries and the views built from them run
-// against: a connection, or the read-only transaction the row dump insists on.
+// against: a connection, or the read-only transaction the rows read insists on.
 // Both satisfy it, and so does a test's script of answers, which is why no view
 // asks for more than this: what a view does with a name the server returned is
 // testable without a server.
@@ -105,7 +105,7 @@ type dropped struct {
 	truncated bool
 }
 
-func runSchemaDump(ctx context.Context, req plugin.Request) (view.View, error) {
+func runSchema(ctx context.Context, req plugin.Request) (view.View, error) {
 	return withConn(ctx, req, func(ctx context.Context, conn *pgx.Conn) (view.View, error) {
 		return schemaDDL(ctx, conn, req)
 	})
@@ -367,7 +367,7 @@ func readSchema(ctx context.Context, q querier, schema string, limit int) ([]sch
 // renderDDL writes the description.
 //
 // Uppercase keywords and PostgreSQL's own spelling of everything it
-// generated, because a schema dump is a thing operators already read in one
+// generated, because a schema's DDL is a thing operators already read in one
 // specific dialect — pg_dump's. The same argument statusView makes for
 // pg_size_pretty: where the server has a vocabulary for this, borrowing it
 // beats inventing one.

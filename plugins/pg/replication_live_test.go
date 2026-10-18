@@ -20,7 +20,7 @@ import (
 // the reader expects, which is where a version's differing catalogue shows.
 func TestReplicationReadsARealServer(t *testing.T) {
 	ctx := context.Background()
-	req := reqFor(t, "pg.replication", liveValues(t, nil))
+	req := reqFor(t, "pg.replication.status", liveValues(t, nil))
 	v, err := withConn(ctx, req, func(ctx context.Context, conn *pgx.Conn) (view.View, error) {
 		return replicationView(ctx, conn, req)
 	})

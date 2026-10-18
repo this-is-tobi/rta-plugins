@@ -57,7 +57,7 @@ func compactOverview(ctx context.Context, conn querier, req plugin.Request) (vie
 	if role, err := roleOf(ctx, conn); err == nil {
 		add("role", role)
 	}
-	// Two lines, from the same reads pg.replication makes, so the glance and
+	// Two lines, from the same reads pg.replication.status makes, so the glance and
 	// the page cannot disagree about where the log is or whether anything is
 	// behind. Left out when a read fails or the server is too old to answer,
 	// like every other figure here.

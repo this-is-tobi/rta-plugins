@@ -132,8 +132,8 @@ func TestOddNamesAgainstARealServer(t *testing.T) {
 		}
 	})
 
-	t.Run("the dump of an odd table", func(t *testing.T) {
-		dump := runLive(t, "pg.table.dump", map[string]any{"database": src, "table": oddSchema + "." + oddTable}).(view.Table)
+	t.Run("the rows of an odd table", func(t *testing.T) {
+		dump := runLive(t, "pg.table.rows", map[string]any{"database": src, "table": oddSchema + "." + oddTable}).(view.Table)
 		if want := `"col\x1b[0m\nz"`; dump.Columns[1].Name != want {
 			t.Errorf("columns = %+v, want the odd one written out as %s", dump.Columns, want)
 		}
