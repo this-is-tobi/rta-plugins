@@ -58,7 +58,7 @@ Reads the realm and grades what it finds: whether a second factor is required or
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.keycloak.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                         |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.keycloak.tls-server-name — name to check the server's certificate for, in place of the URL's host                                                                     |
 | set a key             | rta config set plugins.keycloak.limit 200                                                                                                                                                                                               |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.audit\`, or + on it in the TUI, puts it there, re-run every 30s                                                                               |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.audit\`, or + on it in the TUI, puts it there, re-run every 1h                                                                                |
 | input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                                                                      |
 
 ## keycloak.client.list
@@ -217,7 +217,7 @@ The executions of one flow, nested the way the console nests them. Read it for t
 
 ## keycloak.overview
 
-Whether this realm is worth talking to and what state it is in: user and client counts, brute-force detection, SSL requirement, self-registration, whether login and admin events are recorded, and the flow each login goes through. The server version when the client is allowed to see it — only a master-realm client is. `detail` adds the client list, the flows and the active sessions per client. For the grade, `keycloak.audit`.
+Whether this realm is worth talking to and what state it is in: the user count, how many sessions the clients hold, brute-force detection, SSL requirement, self-registration, whether login and admin events are recorded, and the flow each login goes through. Nothing here reads the client list, which carries every confidential client's secret to its reader. `detail` adds the client tally, the server version when the client is allowed to see it — only a master-realm client is — the client list, the flows and the active sessions per client. For the grade, `keycloak.audit`.
 
 | Field                 | Value                                                                                                                                                                                                                   |
 |-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -236,7 +236,7 @@ Whether this realm is worth talking to and what state it is in: user and client 
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.keycloak.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                         |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.keycloak.tls-server-name — name to check the server's certificate for, in place of the URL's host                                                     |
 | set a key             | rta config set plugins.keycloak.url http://127.0.0.1:8080                                                                                                                                                               |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.overview\`, or + on it in the TUI, puts it there, re-run every 30s                                                            |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.overview\`, or + on it in the TUI, puts it there, re-run every 2m                                                             |
 | input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                                                      |
 
 ## keycloak.role.list

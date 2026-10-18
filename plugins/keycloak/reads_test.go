@@ -46,22 +46,28 @@ func TestOverviewSaysWhatTheRealmIs(t *testing.T) {
 	f := newFakeKeycloak(t)
 	got := pairs(t, run(t, f, "keycloak.overview", map[string]any{}))
 	for key, want := range map[string]string{
-		"realm":        "demo · enabled",
-		"users":        "3",
-		"clients":      "8 · 1 confidential, 5 public, 2 bearer-only",
-		"brute force":  "off",
-		"events":       "login on · admin on",
-		"browser flow": "browser",
+		"realm":           "demo · enabled",
+		"users":           "3",
+		"client sessions": "none",
+		"brute force":     "off",
+		"events":          "login on · admin on",
+		"browser flow":    "browser",
 	} {
 		if got[key] != want {
 			t.Errorf("%s = %q, want %q", key, got[key], want)
 		}
 	}
-	if _, shown := got["version"]; shown {
+	detail := func() map[string]string {
+		return pairs(t, sections(t, run(t, f, "keycloak.overview", map[string]any{"detail": true}))["summary"])
+	}
+	if got := detail(); got["clients"] != "8 · 1 confidential, 5 public, 2 bearer-only" {
+		t.Errorf("clients = %q, want the tally of the fixture's eight", got["clients"])
+	}
+	if _, shown := detail()["version"]; shown {
 		t.Error("a realm-scoped client cannot see the version, yet one was shown")
 	}
 	f.admin = true
-	if got := pairs(t, run(t, f, "keycloak.overview", map[string]any{})); got["version"] != "26.7.3" {
+	if got := detail(); got["version"] != "26.7.3" {
 		t.Errorf("a master-realm client sees version %q, want 26.7.3", got["version"])
 	}
 }

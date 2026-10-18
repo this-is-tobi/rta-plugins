@@ -56,6 +56,12 @@ func auditCapability() plugin.Capability {
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Detailed:   true,
+		// A run is a token, nine reads of the realm and a credentials read for
+		// every enabled user without an OTP up to --limit, and a realm's
+		// posture is settled by an administrator's change, not by the minute.
+		// Declared so that a tile of it, named in a config on purpose, is not
+		// two hundred requests every thirty seconds.
+		Refresh: time.Hour,
 		Description: "Reads the realm and grades what it finds: whether a second factor is required " +
 			"or merely offered and how many users have one; brute-force detection; the password " +
 			"policy; every client's grants, redirect URIs, origins, PKCE and service-account " +
@@ -77,7 +83,7 @@ func runAudit(ctx context.Context, req plugin.Request) (view.View, error) {
 			return nil, verr
 		}
 		r := &findings.Report{}
-		version := s.serverVersion(ctx)
+		version, _ := s.serverVersion(ctx)
 		auditRealm(r, req.Surface(), realm, s.realm == "master", version)
 		if s.realm == "master" {
 			s.auditBootstrapAdmin(ctx, r)

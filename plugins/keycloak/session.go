@@ -90,17 +90,29 @@ func runSessionList(ctx context.Context, req plugin.Request) (view.View, error) 
 }
 
 func (s *session) sessionStats(ctx context.Context) (view.View, *view.Error) {
+	stats, verr := s.clientSessionStats(ctx)
+	if verr != nil {
+		return nil, verr
+	}
+	return sessionStatTable(stats), nil
+}
+
+func (s *session) clientSessionStats(ctx context.Context) ([]clientSessionStat, *view.Error) {
 	var stats []clientSessionStat
 	if verr := s.get(ctx, "client-session-stats", nil, &stats); verr != nil {
 		return nil, verr
 	}
+	return stats, nil
+}
+
+func sessionStatTable(stats []clientSessionStat) view.View {
 	sort.Slice(stats, func(i, j int) bool { return stats[i].ClientID < stats[j].ClientID })
 	t := columns(col("Client"), view.Column{Name: "Active", Kind: view.KindNumber},
 		view.Column{Name: "Offline", Kind: view.KindNumber})
 	for _, st := range stats {
 		t.Rows = append(t.Rows, []string{listed(st.ClientID), st.Active, st.Offline})
 	}
-	return finish(withEmpty(t, "no active sessions")), nil
+	return finish(withEmpty(t, "no active sessions"))
 }
 
 func sessionTable(sessions []userSessionRep) view.Table {

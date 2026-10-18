@@ -44,17 +44,30 @@ func runClientList(ctx context.Context, req plugin.Request) (view.View, error) {
 }
 
 func (s *session) clientTable(ctx context.Context) (view.View, *view.Error) {
+	clients, verr := s.clients(ctx)
+	if verr != nil {
+		return nil, verr
+	}
+	return clientTableOf(clients), nil
+}
+
+// clients is every client of the realm, as the Admin API lists them.
+func (s *session) clients(ctx context.Context) ([]clientRep, *view.Error) {
 	var clients []clientRep
 	if verr := s.get(ctx, "clients", nil, &clients); verr != nil {
 		return nil, verr
 	}
+	return clients, nil
+}
+
+func clientTableOf(clients []clientRep) view.View {
 	sort.Slice(clients, func(i, j int) bool { return clients[i].ClientID < clients[j].ClientID })
 	t := columns(col("Client"), col("Kind"), col("Flows"), col("PKCE"), col("Full scope"), col("Enabled"))
 	for _, c := range clients {
 		t.Rows = append(t.Rows, []string{listed(c.ClientID), c.kind(), flows(c), firstOf(listed(c.pkce()), "none"),
 			yesNo(c.FullScopeAllowed), yesNo(c.Enabled)})
 	}
-	return finish(withEmpty(t, "no clients")), nil
+	return finish(withEmpty(t, "no clients"))
 }
 
 // flows is the grants a client may use, in the words the console uses.
