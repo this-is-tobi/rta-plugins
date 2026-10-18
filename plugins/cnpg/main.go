@@ -400,9 +400,9 @@ func runStatus(ctx context.Context, req plugin.Request) (view.View, error) {
 func lagPointer(req plugin.Request) string {
 	sf, call := req.Surface(), ""
 	if profile := req.Profile(); profile != "" {
-		call = "`" + sf.Call("pg.replication", plugin.Arg{Name: "profile", Value: profile}) + "`"
+		call = "`" + sf.Call("pg.replication.status", plugin.Arg{Name: "profile", Value: profile}) + "`"
 	} else {
-		call = sf.CapabilityName("pg.replication")
+		call = sf.CapabilityName("pg.replication.status")
 	}
 	return "not in the Cluster resource — " + call + " lists each standby's sent, write, flush and replay " +
 		"position (LSN) and how far behind it is, read from the primary over a connection to " + readWriteService(req) +
