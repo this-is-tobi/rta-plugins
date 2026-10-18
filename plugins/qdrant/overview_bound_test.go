@@ -46,7 +46,7 @@ func collectionReads(f *fakeQdrant) int {
 
 func TestTheOverviewReadsAtMostAHundredCollectionsAndSaysHowManyThereAre(t *testing.T) {
 	f := newFakeQdrant(t, manyRoutes(150, nil))
-	v, err := runOverview(t.Context(), reqAt(t, f, "qdrant.overview", map[string]any{}))
+	v, err := runOverview(t.Context(), reqAt(t, f, "qdrant.overview", map[string]any{"detail": true}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestTheOverviewReadsAtMostAHundredCollectionsAndSaysHowManyThereAre(t *test
 
 func TestAnInstanceOfExactlyAHundredIsNotPartial(t *testing.T) {
 	f := newFakeQdrant(t, manyRoutes(overviewCollections, nil))
-	v, err := runOverview(t.Context(), reqAt(t, f, "qdrant.overview", map[string]any{}))
+	v, err := runOverview(t.Context(), reqAt(t, f, "qdrant.overview", map[string]any{"detail": true}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func TestAnInstanceOfExactlyAHundredIsNotPartial(t *testing.T) {
 // first is the worst of the ones read.
 func TestTheCollectionsReadAreListedWorstFirst(t *testing.T) {
 	f := newFakeQdrant(t, manyRoutes(5, map[string]string{"c001": "yellow", "c003": "red"}))
-	v, err := runOverview(t.Context(), reqAt(t, f, "qdrant.overview", map[string]any{}))
+	v, err := runOverview(t.Context(), reqAt(t, f, "qdrant.overview", map[string]any{"detail": true}))
 	if err != nil {
 		t.Fatal(err)
 	}

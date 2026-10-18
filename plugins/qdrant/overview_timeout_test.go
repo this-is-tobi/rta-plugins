@@ -65,7 +65,7 @@ func TestTheBoundIsOfEachRequestAndNotOfTheWholePage(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	started := time.Now()
-	v, err := runOverview(t.Context(), req(t, "qdrant.overview", map[string]any{
+	v, err := runOverview(t.Context(), req(t, "qdrant.overview", map[string]any{"detail": true,
 		"address": strings.TrimPrefix(srv.URL, "http://")}))
 	if err != nil {
 		t.Fatalf("a slow instance that answers every request was given up on: %v", err)

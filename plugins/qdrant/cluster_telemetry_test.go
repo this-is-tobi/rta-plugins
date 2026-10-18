@@ -26,7 +26,7 @@ func peerRoutes(telemetry string) map[string]string {
 // send-failure list that graded it before is empty on a follower.
 func TestThePeersTableReportsEachPeerFromTheTelemetryOfThePeerAsked(t *testing.T) {
 	f := newFakeQdrant(t, peerRoutes(fxTelemetryDown))
-	v, err := runOverview(t.Context(), reqAt(t, f, "qdrant.overview", map[string]any{}))
+	v, err := runOverview(t.Context(), reqAt(t, f, "qdrant.overview", map[string]any{"detail": true}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestThePeersTableReportsEachPeerFromTheTelemetryOfThePeerAsked(t *testing.T
 func TestAClusterOnSeveralVersionsSaysSo(t *testing.T) {
 	skewed := strings.Replace(fxTelemetryUp, `"version":"1.19.1"`, `"version":"1.18.0"`, 1)
 	f := newFakeQdrant(t, peerRoutes(skewed))
-	v, err := runOverview(t.Context(), reqAt(t, f, "qdrant.overview", map[string]any{}))
+	v, err := runOverview(t.Context(), reqAt(t, f, "qdrant.overview", map[string]any{"detail": true}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestAClusterOnSeveralVersionsSaysSo(t *testing.T) {
 // collections is refused it: the page is whole without it, as it was.
 func TestAServerWithNoPeerTelemetryIsGradedAsItWas(t *testing.T) {
 	f := newFakeQdrant(t, peerRoutes(""))
-	v, err := runOverview(t.Context(), reqAt(t, f, "qdrant.overview", map[string]any{}))
+	v, err := runOverview(t.Context(), reqAt(t, f, "qdrant.overview", map[string]any{"detail": true}))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -71,7 +71,7 @@ func distributedRoutes() map[string]string {
 
 func TestAnOverviewOfAClusterShowsEveryPeerAndWhichReplicasServe(t *testing.T) {
 	f := newFakeQdrant(t, distributedRoutes())
-	v, err := runOverview(t.Context(), reqAt(t, f, "qdrant.overview", map[string]any{}))
+	v, err := runOverview(t.Context(), reqAt(t, f, "qdrant.overview", map[string]any{"detail": true}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -271,7 +271,7 @@ func TestAStandaloneInstanceHasNoReplicaColumnAndSaysWhy(t *testing.T) {
 		"/": fxRoot, "/collections": fxCollections, "/collections/docs3": fxInfo,
 		"/cluster": fxClusterDisabled, "/collections/docs3/cluster": fxShardsSolo,
 	})
-	v, err := runOverview(t.Context(), reqAt(t, f, "qdrant.overview", map[string]any{}))
+	v, err := runOverview(t.Context(), reqAt(t, f, "qdrant.overview", map[string]any{"detail": true}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -299,7 +299,7 @@ func TestAServerWithoutTheClusterEndpointStillListsItsCollections(t *testing.T) 
 	f := newFakeQdrant(t, map[string]string{
 		"/": fxRoot, "/collections": fxCollections, "/collections/docs3": fxInfo,
 	})
-	v, err := runOverview(t.Context(), reqAt(t, f, "qdrant.overview", map[string]any{}))
+	v, err := runOverview(t.Context(), reqAt(t, f, "qdrant.overview", map[string]any{"detail": true}))
 	if err != nil {
 		t.Fatal(err)
 	}

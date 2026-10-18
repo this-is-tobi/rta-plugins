@@ -63,7 +63,7 @@ func TestAFencedCollectionFillsTheListingsAndAnotherIsRefused(t *testing.T) {
 
 func TestTheOverviewOfANamedCollectionIsAboutThatCollectionAndReadsNoOther(t *testing.T) {
 	f := newFakeQdrant(t, instanceRoutes())
-	v, err := runOverview(t.Context(), reqAt(t, f, "qdrant.overview", map[string]any{"collection": "docs"}))
+	v, err := runOverview(t.Context(), reqAt(t, f, "qdrant.overview", map[string]any{"collection": "docs", "detail": true}))
 	if err != nil {
 		t.Fatal(err)
 	}
