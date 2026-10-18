@@ -385,7 +385,7 @@ func TestACallAHintNamesReadsTheClusterWhereItWasFound(t *testing.T) {
 			"`cnpg_status {\"cluster\":\"shop\",\"namespace\":\"prod\"}`",
 			"`cnpg_backup_list {\"cluster\":\"shop\",\"namespace\":\"prod\"}`"},
 	} {
-		body := emptyBackupBody("shop", selected(t, map[string]any{"context": "kind", "namespace": "prod"}, tc.sf))
+		body := emptyBackups("shop", selected(t, map[string]any{"context": "kind", "namespace": "prod"}, tc.sf))
 		if !strings.Contains(body, tc.empty) {
 			t.Errorf("%s: an empty listing reads %q, want %q in it", tc.sf, body, tc.empty)
 		}
@@ -721,7 +721,7 @@ func TestAnEmptyListingSaysWhichKindOfEmptyItIs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if body := v.(view.Text).Body; !strings.Contains(body, "rta cnpg status --cluster shop") {
+	if body := v.(view.Table).Empty; !strings.Contains(body, "rta cnpg status --cluster shop") {
 		t.Errorf("a named cluster with no backups says %q, and points nowhere", body)
 	}
 
@@ -730,7 +730,7 @@ func TestAnEmptyListingSaysWhichKindOfEmptyItIs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if body := v.(view.Text).Body; strings.Contains(body, "rta cnpg status") {
+	if body := v.(view.Table).Empty; strings.Contains(body, "rta cnpg status") {
 		t.Errorf("a whole namespace with no backups is not a configuration question: %q", body)
 	}
 }

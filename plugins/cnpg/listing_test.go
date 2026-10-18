@@ -106,7 +106,7 @@ func TestTheListingACallWithNoClusterOffersReachesTheContextItWasMadeIn(t *testi
 			if err != nil {
 				t.Fatal(err)
 			}
-			if body := v.(view.Text).Body; !strings.Contains(body, want) {
+			if body := v.(view.Table).Empty; !strings.Contains(body, want) {
 				t.Errorf("body = %q, want %s in it", body, want)
 			}
 		})
