@@ -35,11 +35,11 @@ func TestAClusterWithReplicasPointsAtWhereLagIsRead(t *testing.T) {
 		surface plugin.Surface
 		want    string
 	}{
-		{"a terminal", "", plugin.SurfaceCLI, "`rta pg replication`" + lists},
-		{"a terminal, through a profile", "prod", plugin.SurfaceCLI, "`rta pg replication --profile prod`" + lists},
-		{"an agent", "", plugin.SurfaceMCP, "the `pg_replication` tool" + lists},
-		{"an agent, through a profile", "prod", plugin.SurfaceMCP, "`pg_replication {\"profile\":\"prod\"}`" + lists},
-		{"a form", "", plugin.SurfaceTUI, "`pg.replication`" + lists},
+		{"a terminal", "", plugin.SurfaceCLI, "`rta pg replication status`" + lists},
+		{"a terminal, through a profile", "prod", plugin.SurfaceCLI, "`rta pg replication status --profile prod`" + lists},
+		{"an agent", "", plugin.SurfaceMCP, "the `pg_replication_status` tool" + lists},
+		{"an agent, through a profile", "prod", plugin.SurfaceMCP, "`pg_replication_status {\"profile\":\"prod\"}`" + lists},
+		{"a form", "", plugin.SurfaceTUI, "`pg.replication.status`" + lists},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := req(map[string]any{"cluster": "app-db"}).WithProfile(tc.profile, plugin.TunnelNone).WithSurface(tc.surface)
