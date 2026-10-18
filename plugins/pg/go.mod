@@ -9,7 +9,7 @@ go 1.26.9
 
 require (
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/this-is-tobi/rta v0.45.0
+	github.com/this-is-tobi/rta v0.46.0
 )
 
 require (
