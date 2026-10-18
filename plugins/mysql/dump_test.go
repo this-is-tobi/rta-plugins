@@ -300,7 +300,7 @@ func TestClassifyDumpNamesTheFailure(t *testing.T) {
 		"in progress": {fmt.Sprintf("mysqldump: Got error: 2003: Can't connect to MySQL server on 'db.internal:3306' "+
 			"(%d) when trying to connect", int(syscall.EINPROGRESS)), "mysql.conn.refused"},
 		"timed out": {fmt.Sprintf("mysqldump: Got error: 2003: Can't connect to MySQL server on 'db.internal:3306' "+
-			"(%d) when trying to connect", int(syscall.ETIMEDOUT)), "mysql.conn.timeout"},
+			"(%d) when trying to connect", int(syscall.ETIMEDOUT)), "mysql.timeout"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			verr := classifyDump(boom, tc.stderr, r)
