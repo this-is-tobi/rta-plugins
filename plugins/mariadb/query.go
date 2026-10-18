@@ -235,6 +235,7 @@ func activityView(ctx context.Context, db *sql.DB, req plugin.Request, withState
 	}
 	t = cutAtLimit(t, limit, "session", say, req.Surface())
 	t.Total = len(t.Rows)
+	t.Empty = "no active sessions"
 	if hidden := hiddenSessions(ctx, db); hidden > 0 {
 		t.Warnings = append(t.Warnings, view.Error{
 			Code: "mariadb.activity.partial",
