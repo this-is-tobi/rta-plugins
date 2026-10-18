@@ -40,11 +40,11 @@ type overviewFetch struct {
 	podErr     *view.Error
 	quotas     list[resourceQuotaItem]
 	quotaErr   *view.Error
-	certs      list[tlsSecretItem]
+	certs      certRead
 	certErr    *view.Error
 }
 
-func fetchOverview(ctx context.Context, all, nsSel selection) overviewFetch {
+func fetchOverview(ctx context.Context, all, nsSel selection, cfg *kubeconfig) overviewFetch {
 	var f overviewFetch
 	var wg sync.WaitGroup
 	wg.Add(5)
@@ -52,7 +52,7 @@ func fetchOverview(ctx context.Context, all, nsSel selection) overviewFetch {
 	go func() { defer wg.Done(); f.nodes, f.nodeErr = fetchNodes(ctx, nsSel) }()
 	go func() { defer wg.Done(); f.pods, f.podErr = fetchPods(ctx, all) }()
 	go func() { defer wg.Done(); f.quotas, f.quotaErr = fetchQuotas(ctx, all) }()
-	go func() { defer wg.Done(); f.certs, f.certErr = fetchTLSSecrets(ctx, all) }()
+	go func() { defer wg.Done(); f.certs, f.certErr = tlsCerts(ctx, all, cfg) }()
 	wg.Wait()
 	return f
 }
@@ -68,9 +68,11 @@ func fetchOverview(ctx context.Context, all, nsSel selection) overviewFetch {
 // it calls the node NotReady, a crash-looping pod backs off for tens of
 // seconds and then minutes, and quota pressure and certificate expiry move
 // by the hour. A minute shows each of those as soon as the cluster has
-// decided it. The other kube capabilities keep the host's pace: a pod or
-// event list is one call, and a person who names one while a rollout runs
-// wants it to move.
+// decided it. The Secret list is the exception to once a run: its answer is
+// kept for certLife and shared with kube.cert.list (cert.go says why), so an
+// hour of this tile reads the TLS Secrets four times and not sixty. The other
+// kube capabilities keep the host's pace: a pod or event list is one call, and
+// a person who names one while a rollout runs wants it to move.
 const overviewRefresh = time.Minute
 
 // quotaPressureThreshold is when a tracked resource is worth naming in an
@@ -110,7 +112,11 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 	nsSel := s
 	nsSel.Namespace, nsSel.AllNS = "", false
 
-	f := fetchOverview(ctx, all, nsSel)
+	var known *kubeconfig
+	if cfgErr == nil {
+		known = &cfg
+	}
+	f := fetchOverview(ctx, all, nsSel, known)
 
 	if f.nsErr != nil {
 		// The cluster not answering is the headline, not a failure: this is
@@ -257,7 +263,7 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 	}
 	var expiredCerts, soonCerts []string
 	if f.certErr == nil {
-		expiredCerts, soonCerts = certPressure(f.certs)
+		expiredCerts, soonCerts = certPressure(f.certs.certs, time.Now())
 		if len(expiredCerts) > 0 {
 			pairs = append(pairs, view.Pair{
 				Key:   plural(len(expiredCerts), "cert expired", "certs expired"),

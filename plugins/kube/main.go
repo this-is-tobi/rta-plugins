@@ -50,6 +50,8 @@
 package main
 
 import (
+	"time"
+
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/sdk"
 )
@@ -314,11 +316,20 @@ func Plugin() plugin.Plugin {
 				"it does select arrive whole, tls.key included — Kubernetes cannot project a subset " +
 				"of a Secret's data, so no way of asking avoids that. Only tls.crt is decoded; the " +
 				"private key is never parsed, rendered, logged or stored, but it does cross the " +
-				"wire into this process. The leaf certificate's own expiry is judged on the same " +
-				"30-day window `cert.expiry` and `audit.web` use.",
+				"wire into this process, and each read is a Secret list in the API server's audit " +
+				"log. So the certificates are read at most every 15 minutes per context and " +
+				"namespace, and kube.overview draws on the same read: an answer can be that old, " +
+				"and says so when it is. As a tile it is re-run at most hourly. The leaf " +
+				"certificate's own expiry is judged on the same 30-day window `cert.expiry` and " +
+				"`audit.web` use.",
+			Agent: "Every kubernetes.io/tls Secret's leaf certificate: subject, expiry and a status on the same " +
+				"30-day window `cert.expiry` uses. Only tls.crt is decoded. The Secrets arrive whole, private keys " +
+				"included, so they are read at most every 15 minutes per context and namespace, shared with " +
+				"kube.overview: an answer can be that old, and says so when it is.",
 			Safety:     plugin.Read,
 			Idempotent: true,
 			Scope:      "namespace",
+			Refresh:    time.Hour,
 			Run:        runCertList,
 		}, nsFields()...),
 		cap(plugin.Capability{
@@ -418,17 +429,20 @@ func Plugin() plugin.Plugin {
 				"With `detail`: every node, deployments whose replicas are short, and the pods " +
 				"themselves.\n\nReads more than it names: every ResourceQuota and every " +
 				"TLS Secret in every namespace, on every run and regardless of any namespace " +
-				"narrowing, to report quota pressure and certificate expiry. See kube.cert.list " +
-				"for what reading a TLS Secret costs — it applies here too, unconditionally. A " +
-				"credential that cannot list nodes still gets the rest: the node read is " +
-				"reported as unavailable and stepped over, not treated as a failure.",
+				"narrowing, to report quota pressure and certificate expiry. The TLS Secrets " +
+				"arrive whole, private keys included (see kube.cert.list), so they are read at " +
+				"most every 15 minutes per context and shared with kube.cert.list, while the rest " +
+				"is read on every run. A credential that cannot list nodes still gets the rest: " +
+				"the node read is reported as unavailable and stepped over, not treated as a " +
+				"failure.",
 			Agent: "The context, whether the cluster answers, the namespace count, nodes that are not Ready, and " +
 				"every pod not serving (Failed, Pending, Unknown, stuck terminating, or Running without every container ready). " +
 				"A finished Job and a cordoned node are not faults and are not counted as such. Pod-slot " +
 				"headroom comes from the schedulable nodes' max-pods. With `detail`: every node, deployments " +
 				"short of replicas, and the pods. Reads every ResourceQuota and every TLS Secret in every " +
-				"namespace on each run, whatever the namespace narrowing, to report quota pressure and " +
-				"certificate expiry. A credential that cannot list nodes still gets the rest.",
+				"namespace, whatever the namespace narrowing, to report quota pressure and certificate " +
+				"expiry; the Secrets, private keys included, at most every 15 minutes. A credential that " +
+				"cannot list nodes still gets the rest.",
 			Safety:     plugin.Read,
 			Idempotent: true,
 			Detailed:   true,
