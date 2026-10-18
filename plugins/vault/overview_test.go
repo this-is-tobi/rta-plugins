@@ -72,8 +72,11 @@ func TestOverviewSaysWhichReadFailedInsteadOfDroppingIt(t *testing.T) {
 	if !present {
 		t.Fatalf("the seal status was dropped rather than reported: %+v", kv.Pairs)
 	}
-	if !strings.HasPrefix(state, "unreadable") {
+	if !strings.HasPrefix(state, "could not be read") {
 		t.Errorf("state = %q, want it to say the seal status could not be read", state)
+	}
+	if status := got["status"]; !strings.HasPrefix(status, "warn — ") || !strings.Contains(status, "state") {
+		t.Errorf("status = %q, want a warning that names the state", status)
 	}
 	// The read that did work still answers, so a half-blind token still gets
 	// the half it is entitled to.
@@ -85,8 +88,10 @@ func TestOverviewSaysWhichReadFailedInsteadOfDroppingIt(t *testing.T) {
 // The row that says a read failed says it in a line, in the words the other
 // refusals use. The client's own text is a paragraph over several lines that
 // names the request's URL, which through a forward is the end of one that
-// closed with the call.
-func TestAnOverviewRowForAFailedReadIsOneLineNamingTheProfile(t *testing.T) {
+// closed with the call. The reason is the short one — the tile is titled with
+// the profile, and the three rows that cannot be read do not each repeat where
+// the server is.
+func TestAnOverviewRowForAFailedReadIsOneLine(t *testing.T) {
 	srv := halfBlindVault(t)
 	r := mountReq(t, "vault.overview", srv.URL, map[string]any{}).WithProfile("prod", plugin.TunnelKube)
 	v, err := runOverview(t.Context(), r)
@@ -99,7 +104,7 @@ func TestAnOverviewRowForAFailedReadIsOneLineNamingTheProfile(t *testing.T) {
 			state = p.Value
 		}
 	}
-	if want := "unreadable — profile prod (through its kube: forward) refused: permission denied"; state != want {
+	if want := "could not be read — permission denied"; state != want {
 		t.Errorf("state = %q, want %q", state, want)
 	}
 
@@ -124,7 +129,7 @@ func TestAnOverviewRowForAFailedReadIsOneLineNamingTheProfile(t *testing.T) {
 			token = p.Value
 		}
 	}
-	if want := "unreadable — profile prod (through its kube: forward) refused: permission denied"; token != want {
+	if want := "could not be read — permission denied"; token != want {
 		t.Errorf("token = %q, want %q", token, want)
 	}
 }
@@ -238,10 +243,11 @@ func sealedVault(t *testing.T, status string) (*httptest.Server, func() []string
 }
 
 // A sealed Vault has one thing to say, and the overview said it and then asked
-// the Vault two things it had just been told it cannot answer: a token row
+// the Vault things it had just been told it cannot answer: a token row
 // reading "unreadable — Vault is sealed", which only restates the state, and in
-// the detail a failing policy list on top of it. The state is the page.
-func TestASealedVaultIsOneStateRowAndAskedNothingElse(t *testing.T) {
+// the detail a failing policy list on top of it. The state is the page, and it is
+// the verdict: the word the theme colours red leads the one row.
+func TestASealedVaultIsOneRowAndAskedNothingElseInEitherForm(t *testing.T) {
 	for name, status := range map[string]string{
 		"sealed":          `{"sealed":true,"initialized":true,"version":"1.14.4","t":3,"n":5,"progress":1}`,
 		"not initialized": `{"sealed":true,"initialized":false,"version":"1.14.4"}`,
@@ -265,8 +271,8 @@ func TestASealedVaultIsOneStateRowAndAskedNothingElse(t *testing.T) {
 					kv = page.Items[0].View
 				}
 				pairs := kv.(view.KeyValue).Pairs
-				if len(pairs) != 1 || pairs[0].Key != "state" || !strings.HasPrefix(pairs[0].Value, name+" · 1.14.4") {
-					t.Errorf("pairs = %+v, want one state row that begins %q", pairs, name+" · 1.14.4")
+				if len(pairs) != 1 || pairs[0].Key != "status" || pairs[0].Value != name+" · 1.14.4" {
+					t.Errorf("pairs = %+v, want one status row %q", pairs, name+" · 1.14.4")
 				}
 				if got := asked(); len(got) != 1 || !strings.Contains(got[0], "seal-status") {
 					t.Errorf("requests = %v, want the seal status alone", got)
@@ -276,7 +282,8 @@ func TestASealedVaultIsOneStateRowAndAskedNothingElse(t *testing.T) {
 	}
 }
 
-// An unsealed Vault is asked everything it was.
+// An unsealed Vault is asked for every row, and the detail asks nothing more:
+// the request that counts the policies is the one that names them.
 func TestAnUnsealedVaultStillAnswersTheTokenAndThePolicies(t *testing.T) {
 	srv, asked := recordingVaultWith(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -293,11 +300,11 @@ func TestAnUnsealedVaultStillAnswersTheTokenAndThePolicies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if page := v.(view.Sections); len(page.Items) != 2 || len(page.Warnings) != 0 {
-		t.Errorf("page = %d sections and %d warnings, want status and policies", len(page.Items), len(page.Warnings))
+	if page := v.(view.Sections); len(page.Items) != 2 || page.Items[0].Key() != "summary" || page.Items[1].Key() != "policies" {
+		t.Errorf("page = %d sections, want the summary and the policies", len(page.Items))
 	}
-	if got := asked(); len(got) != 3 {
-		t.Errorf("requests = %v, want the seal status, the token and the policies", got)
+	if got := asked(); len(got) != 6 {
+		t.Errorf("requests = %v, want the seal status, the leader, the token, the mounts, the auth methods and the policies", got)
 	}
 }
 

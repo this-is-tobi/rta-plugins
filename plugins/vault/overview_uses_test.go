@@ -38,7 +38,7 @@ func tokenRow(t *testing.T, srv *httptest.Server, detail bool) (string, bool) {
 	}
 	if detail {
 		for _, s := range v.(view.Sections).Items {
-			if s.Title == "status" {
+			if s.Title == "summary" {
 				v = s.View
 			}
 		}
@@ -57,9 +57,9 @@ func TestATokenWithAUseLimitSaysThisPageSpendsOne(t *testing.T) {
 		uses string
 		want string
 	}{
-		{"three left", `,"num_uses":3`, "has 3 uses left; this page spends one"},
-		{"one left", `,"num_uses":1`, "has 1 use left; this page spends one"},
-		{"the last was just spent", `,"num_uses":-1`, "has no uses left; this page spent the last one"},
+		{"three left", `,"num_uses":3`, "expires in 1h, has 3 uses left; this page spends one"},
+		{"one left", `,"num_uses":1`, "expires in 1h, has 1 use left; this page spends one"},
+		{"the last was just spent", `,"num_uses":-1`, "expires in 1h, has no uses left; this page spent the last one"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, detail := range []bool{false, true} {
@@ -74,8 +74,9 @@ func TestATokenWithAUseLimitSaysThisPageSpendsOne(t *testing.T) {
 
 func TestATokenWithNoUseLimitSaysNothingOfUses(t *testing.T) {
 	for name, uses := range map[string]string{"unlimited": `,"num_uses":0`, "not reported": ``} {
-		if got, there := tokenRow(t, vaultWithUses(t, uses), false); there {
-			t.Errorf("%s: token = %q, want no row about uses", name, got)
+		got, there := tokenRow(t, vaultWithUses(t, uses), false)
+		if !there || got != "expires in 1h" {
+			t.Errorf("%s: token = %q (present %v), want the expiry alone", name, got, there)
 		}
 	}
 }
