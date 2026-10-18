@@ -79,6 +79,19 @@ func suggestCollections(ctx context.Context, req plugin.Request) []string {
 	return names
 }
 
+// overviewCollections is how many collections the overview reads, one request
+// each, and no more: a collection's status is only known by asking for it, so
+// the cost of the page is the number of them, and an instance of a thousand
+// tenants made a thousand and three requests a run, seven seconds and 195 KB at
+// three milliseconds each, on a tile that re-ran it at the host's pace.
+// qdrant.collection.list is the report that reads every one.
+const overviewCollections = 100
+
+// overviewRefresh is how often a dashboard tile of qdrant.overview is re-run,
+// and the pace a configuration cannot shorten: a run is three requests and one
+// for each collection it shows, to an instance somebody's search depends on.
+const overviewRefresh = time.Minute
+
 func overviewCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "qdrant.overview",
@@ -87,10 +100,10 @@ func overviewCapability() plugin.Capability {
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Detailed:   true,
+		Refresh:    overviewRefresh,
 		Description: "Version, reachability and every collection with its point count and status.\n\n" +
 			"The status column is the one to read. A collection in `yellow` is serving searches " +
-			"from a partly-built index, so its results are quietly incomplete rather than absent " +
-			"— which looks like a working search returning slightly wrong answers.\n\n" +
+			"from a partly-built index, so its results are quietly incomplete rather than absent.\n\n" +
 			"Against a distributed instance it also lists the peers and adds a replicas column. " +
 			"This peer's row has its raft term, commit index and pending operations and a grade of " +
 			"its consensus thread and its leader. Every other peer's row has the version, role, term " +
@@ -109,9 +122,10 @@ func overviewCapability() plugin.Capability {
 			"copy. The cluster's own state needs global read access: the read-only API key has it, " +
 			"and a JWT scoped to collections does not, in which case the replicas are still shown " +
 			"and the page says so.\n\n" +
-			"With a `collection`, or the one a profile fences with `only: collection:`, only that one.\n\n" +
-			"Describes collections and returns no point. Reading points is qdrant.points.scroll, " +
-			"and it is a write.",
+			"At most 100 collections are read, worst first, and the page says how many there are " +
+			"(qdrant.collection.list reads every one). With a `collection`, or the one a profile fences " +
+			"with `only: collection:`, only that one.\n\n" +
+			"Describes collections and returns no point; reading points is qdrant.points.scroll, a write.",
 		Agent: "Version, reachability and every collection with its point count and status. `yellow` means a " +
 			"collection serves searches from a partly built index, so its results are quietly incomplete. " +
 			"Against a distributed instance it also lists the peers (this peer's raft term, commit index, " +
@@ -119,8 +133,8 @@ func overviewCapability() plugin.Capability {
 			"reported to this one, red when it does not answer) and adds a replicas column: how many of a " +
 			"collection's replicas serve and which shards on which peer do not (Dead is red, Recovery and " +
 			"Partial amber). Ask the leader: a follower reports peers it never talks to as not observed. " +
-			"The cluster's own state needs global read access. With a collection, only that one. " +
-			"Returns no point.",
+			"The cluster's own state needs global read access. Reads 100 collections at most, worst " +
+			"first. Returns no point.",
 		Run: runOverview,
 	}, optionalCollectionField("only this collection — every collection the key can see when omitted"))
 }
@@ -140,9 +154,14 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr != nil {
 		return nil, verr
 	}
-	table, verr := collectionTableIn(ctx, req, cs)
+	table, verr := collectionTableIn(ctx, req, cs, overviewCollections)
 	if verr != nil {
 		return nil, verr
+	}
+	collections := strconv.Itoa(len(table.Rows))
+	if table.Total > len(table.Rows) {
+		collections = collections + " of " + strconv.Itoa(table.Total) + " — the first " +
+			strconv.Itoa(len(table.Rows)) + " by name; " + req.Surface().CapabilityName("qdrant.collection.list") + " reads every one"
 	}
 
 	p := plugin.NewPage(ctx, req)
@@ -151,7 +170,7 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 		{Key: "title", Value: root.Title},
 		{Key: "version", Value: root.Version},
 		{Key: "cluster", Value: cs.modeText()},
-		{Key: "collections", Value: strconv.Itoa(len(table.Rows))},
+		{Key: "collections", Value: collections},
 	}})
 	if cs.mode == modeDistributed {
 		p.Put("peers", peersTable(cs, time.Now()))
@@ -196,7 +215,7 @@ func collectionTable(ctx context.Context, req plugin.Request) (view.Table, *view
 	if verr != nil {
 		return view.Table{}, verr
 	}
-	return collectionTableIn(ctx, req, cs)
+	return collectionTableIn(ctx, req, cs, 0)
 }
 
 // collectionTableIn lists the collections, and in a cluster adds the column
@@ -215,7 +234,13 @@ func collectionTable(ctx context.Context, req plugin.Request) (view.Table, *view
 // scoped to one collection may not be allowed it either. The collection that
 // is not there is then the finding, as the bucket is in plugins/s3's overview,
 // and not a row of "unreadable" that reads as one the key may not see.
-func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState) (view.Table, *view.Error) {
+//
+// **With a limit, only that many are read, the first by name, and the table says
+// how many there are.** Each collection is a request, and its status is only
+// known by making it, so the ones to read cannot be chosen by their health: the
+// worst of those read are put first, which is all the order can promise. The cut
+// is Total, which a program reads, and a warning, which a person does.
+func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState, limit int) (view.Table, *view.Error) {
 	only := strings.TrimSpace(req.String("collection"))
 	var names []string
 	if only != "" {
@@ -233,6 +258,10 @@ func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState)
 		// calls cannot be diffed.
 		sort.Strings(names)
 	}
+	total := len(names)
+	if limit > 0 && total > limit {
+		names = names[:limit]
+	}
 
 	t := view.Table{Columns: []view.Column{
 		{Name: "Collection"},
@@ -241,7 +270,7 @@ func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState)
 		{Name: "Segments", Kind: view.KindNumber},
 		{Name: "Status", Kind: view.KindStatus},
 	}}
-	replicas := make([]string, 0, len(names))
+	read := make([]collectionRow, 0, len(names))
 	anyDistributed := false
 	for _, name := range names {
 		listed := plugin.ListedName(name)
@@ -253,7 +282,6 @@ func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState)
 				anyDistributed = true
 			}
 		}
-		replicas = append(replicas, replica)
 
 		var info collectionInfo
 		if verr := get(ctx, req, pathFor("/collections/%s", name), &info); verr != nil {
@@ -263,26 +291,60 @@ func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState)
 			// Reported, not fatal. A collection this key may not see is the
 			// normal case on a shared instance, and ending the listing at the
 			// first one would turn "here is what you can see" into nothing.
-			t.Rows = append(t.Rows, []string{listed, "-", "-", "-", "unreadable"})
+			read = append(read, collectionRow{[]string{listed, "-", "-", "-", "unreadable"}, replica})
 			continue
 		}
-		t.Rows = append(t.Rows, []string{
+		read = append(read, collectionRow{[]string{
 			listed,
 			countText(info.PointsCount),
 			countText(info.IndexedVectorsCount),
 			strconv.FormatInt(info.SegmentsCount, 10),
 			info.Status,
-		})
+		}, replica})
+	}
+	if limit > 0 {
+		sort.SliceStable(read, func(a, b int) bool { return statusRank(read[a].cells[4]) < statusRank(read[b].cells[4]) })
 	}
 	if anyDistributed {
 		t.Columns = append(t.Columns, view.Column{Name: "Replicas", Kind: view.KindStatus})
-		for i := range t.Rows {
-			t.Rows[i] = append(t.Rows[i], replicas[i])
-		}
 	}
-	t.Total = len(t.Rows)
+	for _, r := range read {
+		if anyDistributed {
+			r.cells = append(r.cells, r.replica)
+		}
+		t.Rows = append(t.Rows, r.cells)
+	}
+	t.Total = total
+	if total > len(t.Rows) {
+		t.Warnings = append(t.Warnings, view.Error{
+			Code:    "qdrant.collections.partial",
+			Message: "read " + strconv.Itoa(len(t.Rows)) + " of " + strconv.Itoa(total) + " collections, the first by name",
+			Hint:    nextCall(req, "qdrant.collection.list") + " reads every one",
+		})
+	}
 	t.Empty = "no collections"
 	return t, nil
+}
+
+// collectionRow is a row of the table and the replicas cell that follows it
+// when the instance is distributed, kept together so that ordering the rows
+// cannot part them.
+type collectionRow struct {
+	cells   []string
+	replica string
+}
+
+// statusRank orders a collection's status for a page that can show only some:
+// red first, then everything that is neither red nor green (yellow, grey, a
+// collection the key cannot read, one that reported nothing), then green.
+func statusRank(status string) int {
+	switch status {
+	case "red":
+		return 0
+	case "green":
+		return 2
+	}
+	return 1
 }
 
 // countText distinguishes "none" from "not reported". Qdrant omits these

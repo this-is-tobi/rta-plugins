@@ -124,15 +124,15 @@ Created with O_EXCL at 0600, so an existing file is never written over; a failed
 
 Version, reachability and every collection with its point count and status.
 
-The status column is the one to read. A collection in `yellow` is serving searches from a partly-built index, so its results are quietly incomplete rather than absent — which looks like a working search returning slightly wrong answers.
+The status column is the one to read. A collection in `yellow` is serving searches from a partly-built index, so its results are quietly incomplete rather than absent.
 
 Against a distributed instance it also lists the peers and adds a replicas column. This peer's row has its raft term, commit index and pending operations and a grade of its consensus thread and its leader. Every other peer's row has the version, role, term and commit it reported to this one over the cluster's own channel, whichever peer is asked, and is red when it does not answer, so a stopped peer is named wherever you ask; a cluster on more than one version says so. A server too old for that leaves those cells blank and grades a peer by whether this one can message it, which only the leader does for every peer: ask the leader, since a follower reports the peers it never talks to as not observed rather than as fine. The replicas column says how many of a collection's replicas are serving and, for those that are not, which shards on which peer: Dead is a replica that missed a write and is red, and Recovery, Partial and the other states of one being brought level are amber.
 
 A replica on another peer is known by the state consensus recorded for it, so it stays active until a write fails on it — except that a peer known not to answer has its replicas counted as not serving and graded amber, or red when it was the shard's only copy. The cluster's own state needs global read access: the read-only API key has it, and a JWT scoped to collections does not, in which case the replicas are still shown and the page says so.
 
-With a `collection`, or the one a profile fences with `only: collection:`, only that one.
+At most 100 collections are read, worst first, and the page says how many there are (qdrant.collection.list reads every one). With a `collection`, or the one a profile fences with `only: collection:`, only that one.
 
-Describes collections and returns no point. Reading points is qdrant.points.scroll, and it is a write.
+Describes collections and returns no point; reading points is qdrant.points.scroll, a write.
 
 | Field                 | Value                                                                                                                                                                                                         |
 |-----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -150,7 +150,7 @@ Describes collections and returns no point. Reading points is qdrant.points.scro
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                 |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the address's host                                         |
 | set a key             | rta config set plugins.qdrant.collection \<value>                                                                                                                                                             |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.overview\`, or + on it in the TUI, puts it there, re-run every 30s                                                    |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.overview\`, or + on it in the TUI, puts it there, re-run every 1m                                                     |
 | input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                                            |
 
 ## qdrant.points.count
