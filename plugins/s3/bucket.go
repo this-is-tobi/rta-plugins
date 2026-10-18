@@ -78,10 +78,15 @@ func runBucketList(ctx context.Context, req plugin.Request) (view.View, error) {
 		if err != nil {
 			return nil, classify(err, req)
 		}
-		if name := strings.TrimSpace(req.String("bucket")); name != "" {
+		name := strings.TrimSpace(req.String("bucket"))
+		if name != "" {
 			buckets = slices.DeleteFunc(buckets, func(b minio.BucketInfo) bool { return b.Name != name })
 		}
-		return bucketTable(buckets), nil
+		t := bucketTable(buckets)
+		if name != "" {
+			t.Empty = "no bucket named " + quoted(name)
+		}
+		return t, nil
 	})
 }
 
@@ -108,6 +113,7 @@ func bucketTable(buckets []minio.BucketInfo) view.Table {
 		t.Rows = append(t.Rows, append(row, b.CreationDate.Format("2006-01-02")))
 	}
 	t.Total = len(t.Rows)
+	t.Empty = "no buckets"
 	return t
 }
 

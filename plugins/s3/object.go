@@ -109,6 +109,10 @@ func runObjectList(ctx context.Context, req plugin.Request) (view.View, error) {
 			return nil, verr
 		}
 		t.Total = len(t.Rows)
+		t.Empty = "no objects in " + plugin.ListedName(bucket)
+		if prefix := req.String("prefix"); prefix != "" {
+			t.Empty = "no objects under " + quoted(prefix)
+		}
 		return t, nil
 	})
 }
