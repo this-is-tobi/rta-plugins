@@ -91,7 +91,12 @@ func runContainerList(ctx context.Context, req plugin.Request) (view.View, error
 	if verr != nil {
 		return nil, verr
 	}
-	return containerTable(rows), nil
+	t := containerTable(rows)
+	t.Empty = "no running containers"
+	if req.Bool("all") {
+		t.Empty = "no containers"
+	}
+	return t, nil
 }
 
 // inspected is the part of `docker inspect` this plugin renders.
@@ -246,9 +251,6 @@ func runEnv(ctx context.Context, req plugin.Request) (view.View, error) {
 // per variable; it is made once, per container, by the person who issues the
 // grant.
 func envView(env []string, masked bool) view.View {
-	if len(env) == 0 {
-		return view.Text{Body: "this container declares no environment variables"}
-	}
 	rows := make([][]string, 0, len(env))
 	for _, e := range env {
 		name, value, found := strings.Cut(e, "=")
@@ -262,6 +264,7 @@ func envView(env []string, masked bool) view.View {
 		Columns: []view.Column{{Name: "variable"}, {Name: "value"}},
 		Rows:    rows,
 		Total:   len(rows),
+		Empty:   "this container declares no environment variables",
 	}
 	if masked {
 		t.Redacted = []string{"value"}
