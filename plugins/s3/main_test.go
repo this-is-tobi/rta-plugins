@@ -47,7 +47,7 @@ func TestConformance(t *testing.T) {
 // in a temp directory nobody looks at.
 func conformanceInputs(dir string) map[string]map[string]any {
 	conn := func(m map[string]any) map[string]any {
-		m["endpoint"] = "127.0.0.1:1"
+		m["address"] = "127.0.0.1:1"
 		m["access-key"], m["secret-key"] = "conformance", "conformance"
 		return m
 	}
@@ -96,7 +96,7 @@ func TestANameDNSCannotResolveIsNotReadAsNothingListening(t *testing.T) {
 	err := &url.Error{Op: "Get", URL: "http://s3.internal:9000/",
 		Err: &net.OpError{Op: "dial", Net: "tcp",
 			Err: &net.DNSError{Err: "no such host", Name: "s3.internal", IsNotFound: true}}}
-	verr := classify(err, req(t, "s3.overview", map[string]any{"endpoint": "s3.internal:9000"}))
+	verr := classify(err, req(t, "s3.overview", map[string]any{"address": "s3.internal:9000"}))
 	if verr.Code != "s3.host.unknown" {
 		t.Errorf("code = %s, want s3.host.unknown: %s", verr.Code, verr.Message)
 	}
@@ -135,7 +135,7 @@ func TestAMalformedBucketNameIsNotReportedAsAConnectionFailure(t *testing.T) {
 func TestAMissingObjectPointsAtAListingTheCLITakes(t *testing.T) {
 	verr := classify(minio.ErrorResponse{Code: minio.NoSuchKey, BucketName: "shop", Key: "k"},
 		req(t, "s3.object.get", map[string]any{"key": "k"}))
-	if want := "`rta s3 object list --bucket shop --endpoint 127.0.0.1:9000` shows what is there"; !strings.Contains(verr.Hint, want) {
+	if want := "`rta s3 object list --bucket shop --address 127.0.0.1:9000` shows what is there"; !strings.Contains(verr.Hint, want) {
 		t.Errorf("hint = %q, want %q in it", verr.Hint, want)
 	}
 }
@@ -193,7 +193,7 @@ func TestEveryToolActingInTheOperatorsBucketSaysSo(t *testing.T) {
 // plugins/pg and plugins/vault's own classify hold themselves to, against
 // S3's error shapes.
 func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
-	r := req(t, "s3.overview", map[string]any{"endpoint": "s3.internal:9000"})
+	r := req(t, "s3.overview", map[string]any{"address": "s3.internal:9000"})
 	dial := func(errno syscall.Errno) error {
 		return &url.Error{Op: "Get", URL: "http://x",
 			Err: &net.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", errno)}}
@@ -254,7 +254,7 @@ func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
 // way around the revocation check. Elsewhere an untyped verdict is never a
 // question of trust, and none is a server that could not be reached.
 func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
-	r := req(t, "s3.overview", map[string]any{"endpoint": "s3.internal:9000"})
+	r := req(t, "s3.overview", map[string]any{"address": "s3.internal:9000"})
 	gos := func(err error) error { return &tls.CertificateVerificationError{Err: err} }
 	for _, tc := range []struct {
 		name   string
@@ -296,7 +296,7 @@ func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
 // the dial's words, read first, would have had it.
 func TestACertificatesOwnNamesAreNeverReadAsTheDialsFailure(t *testing.T) {
 	sdktest.VerifierSystem(t, "darwin")
-	r := req(t, "s3.overview", map[string]any{"endpoint": "minio.internal:9000"})
+	r := req(t, "s3.overview", map[string]any{"address": "minio.internal:9000"})
 	for _, verdict := range []error{
 		&tls.CertificateVerificationError{Err: x509.HostnameError{
 			Certificate: &x509.Certificate{DNSNames: []string{syscall.ECONNREFUSED.Error()}}, Host: "minio.internal"}},

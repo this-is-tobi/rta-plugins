@@ -23,12 +23,12 @@ import (
 
 // connFields are the inputs every capability here shares.
 //
-// endpoint/region/tls default to a local MinIO's own defaults (127.0.0.1:9000,
+// address/region/tls default to a local MinIO's own defaults (127.0.0.1:9000,
 // plain HTTP) rather than a real AWS endpoint, the same reason plugins/vault
 // defaults address to a local `vault server -dev` — zero config should reach
 // something a person can actually stand up and try this against, not a SaaS
 // endpoint that needs an account first. Real S3 (or R2, or Ceph) is an
-// operator's own config: endpoint: s3.amazonaws.com, tls: true.
+// operator's own config: address: s3.amazonaws.com, tls: true.
 //
 // access-key mirrors pg's `user`: identifying, not secret, Config-settable.
 // secret-key mirrors pg's `password` and vault's `token`: Secret, Local, and
@@ -38,7 +38,7 @@ import (
 // detail — the same reasoning plugins/pg's own connFields documents at
 // length. Together they name which endpoint this call
 // reaches and as whom, and an MCP caller may not choose that: an agent that
-// could set `endpoint` could point rta at a bucket it controls and have the
+// could set `address` could point rta at a bucket it controls and have the
 // host supply $RTA_S3_SECRET_KEY beside it. They remain Config-backed and
 // remain ordinary flags for a person at a terminal.
 func connFields() []plugin.Field {
@@ -46,8 +46,8 @@ func connFields() []plugin.Field {
 		// One input holding host[:port], which is the address role. This is
 		// the shape that made a two-role Host/Port scheme unworkable and the
 		// reason the roles are what they are.
-		{Name: "endpoint", Type: plugin.String, Default: "127.0.0.1:9000", Config: "endpoint",
-			Local: true, Endpoint: plugin.EndpointAddress, Help: "S3-compatible endpoint, host[:port]"},
+		{Name: "address", Type: plugin.String, Default: "127.0.0.1:9000", Config: "address",
+			Local: true, Endpoint: plugin.EndpointAddress, Help: "S3-compatible service address, host[:port]"},
 		{Name: "region", Type: plugin.String, Default: "us-east-1", Config: "region",
 			Local: true, Help: "bucket region"},
 		// Local for the downgrade reason rather than the redirect one: an
@@ -78,7 +78,7 @@ func connFields() []plugin.Field {
 		// have been: it moves the check, never loosens it. Local for the reason
 		// tls is: what a certificate has to prove is the operator's to say.
 		{Name: "tls-server-name", Type: plugin.String, Default: "", Config: "tls-server-name",
-			Local: true, Help: "name to check the server's certificate for, in place of the endpoint's host"},
+			Local: true, Help: "name to check the server's certificate for, in place of the address's host"},
 	}
 }
 
@@ -92,7 +92,7 @@ func connect(req plugin.Request) (*minio.Client, *view.Error) {
 
 // connectWith is connect with a say in how many times a request may be tried.
 func connectWith(req plugin.Request, attempts int) (*minio.Client, *view.Error) {
-	endpoint := req.String("endpoint")
+	endpoint := req.String("address")
 	access := req.String("access-key")
 	secret := req.String("secret-key")
 	opts := &minio.Options{
@@ -127,7 +127,8 @@ func connectWith(req plugin.Request, attempts int) (*minio.Client, *view.Error) 
 	client, err := minio.New(endpoint, opts)
 	if err != nil {
 		return nil, view.Errorf("s3.conn.invalid", "%s: %v", endpoint, err).
-			WithHint("endpoint is host[:port] with no scheme — set " + req.Surface().SettingName("tls") + " separately")
+			WithHint(req.Surface().SettingName("address") + " is host[:port] with no scheme — set " +
+				req.Surface().SettingName("tls") + " separately")
 	}
 	return client, nil
 }
@@ -182,7 +183,7 @@ func serverName(req plugin.Request) string { return strings.TrimSpace(req.String
 // operator could change.
 func tlsExpected(req plugin.Request) *view.Error {
 	refusal := view.Errorf("s3.tls.expected", "this call spoke plain HTTP to %s, which speaks only HTTPS",
-		req.Reached(req.String("endpoint")))
+		req.Reached(req.String("address")))
 	if req.Tunnel() != plugin.TunnelNone {
 		return refusal.WithHint("a forward carries plain HTTP unless the profile's connection says its far end " +
 			"speaks TLS: tunnelTLS: true on that connection")
@@ -201,7 +202,7 @@ func tlsExpected(req plugin.Request) *view.Error {
 // the standard http.Client produced, the same net.OpError/net.DNSError/
 // *url.Error family plugins/pg and plugins/vault already classify.
 func classify(err error, req plugin.Request) *view.Error {
-	where, sf := req.String("endpoint"), req.Surface()
+	where, sf := req.String("address"), req.Surface()
 	// The server as its reader reaches it again, for a refusal the server
 	// itself gave: through a forward the endpoint is 127.0.0.1 and a port
 	// that closed with the call, and the credentials it rejected were the
@@ -337,7 +338,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	}
 	var verifyErr *tls.CertificateVerificationError
 	if errors.As(err, &verifyErr) {
-		checked := "the host in " + sf.SettingName("endpoint")
+		checked := "the host in " + sf.SettingName("address")
 		if serverName(req) != "" {
 			checked = "the name in " + sf.SettingName("tls-server-name")
 		}
@@ -369,7 +370,7 @@ func classify(err error, req plugin.Request) *view.Error {
 		}
 		return view.Errorf("s3.conn.unreachable", "%s cannot be reached from this machine: %v", where, reason).
 			WithHint("no route leads there from here — a VPN or tunnel the server sits behind that is " +
-				"down looks exactly like this, and so does " + sf.SettingName("endpoint") + " naming " +
+				"down looks exactly like this, and so does " + sf.SettingName("address") + " naming " +
 				"an address on a network this machine is not on")
 	}
 	if plugin.DialRefused(err) {
@@ -382,7 +383,7 @@ func classify(err error, req plugin.Request) *view.Error {
 				"points at a port the server does not answer on: is the server up, and does the profile forward the " +
 				"port it serves S3 on? MinIO serves it on 9000 by default")
 		}
-		return refused.WithHint("is the server up, and is " + sf.SettingName("endpoint") + " right? " +
+		return refused.WithHint("is the server up, and is " + sf.SettingName("address") + " right? " +
 			"MinIO serves S3 on 9000 by default")
 	}
 	var urlErr *url.Error
@@ -452,7 +453,7 @@ func rmCall(req plugin.Request, bucket, key string) string {
 // tls-server-name when named, as qdrant's restore line carries them.
 //
 // **Without them, the removal reached another server.** A copy made through
-// --profile, or with --endpoint typed, was handed a removal naming neither,
+// --profile, or with --address typed, was handed a removal naming neither,
 // and pasted it ran against whatever endpoint the configuration named — a
 // delete on a server the copy never touched, of an object that may well be
 // there under the same name. Over MCP the call gives the profile alone: the
@@ -461,7 +462,7 @@ func reachArgs(req plugin.Request) []plugin.Arg {
 	if req.Surface() == plugin.SurfaceMCP {
 		return req.ReachArgs()
 	}
-	args := req.ReachArgs(plugin.Arg{Name: "endpoint", Value: req.String("endpoint")})
+	args := req.ReachArgs(plugin.Arg{Name: "address", Value: req.String("address")})
 	if req.Bool("tls") {
 		args = append(args, plugin.Arg{Name: "tls", Value: true})
 	}
@@ -480,7 +481,7 @@ func reachArgs(req plugin.Request) []plugin.Arg {
 // agent than a tool beside an empty object.
 //
 // **Without reachArgs, the listing a refusal offers reads another server.**
-// "No such bucket" through --profile or a typed --endpoint was answered with
+// "No such bucket" through --profile or a typed --address was answered with
 // a listing naming neither, and pasted it listed whatever the configuration
 // there named.
 func nextCall(req plugin.Request, id string, args ...plugin.Arg) string {

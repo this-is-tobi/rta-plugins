@@ -37,7 +37,7 @@ func verdictRefusal(t *testing.T, sf plugin.Surface, verdict sdktest.Verdict, se
 func refusedBy(t *testing.T, system string, sf plugin.Surface, verdict sdktest.Verdict, sent ...*x509.Certificate) *view.Error {
 	t.Helper()
 	sdktest.VerifierSystem(t, system)
-	r := req(t, "s3.overview", map[string]any{"endpoint": "s3.internal:9000"}).WithSurface(sf)
+	r := req(t, "s3.overview", map[string]any{"address": "s3.internal:9000"}).WithSurface(sf)
 	err := &url.Error{Op: "Get", URL: "https://s3.internal:9000/",
 		Err: sdktest.SystemVerdict("s3.internal", verdict, sent...)}
 	return classify(err, r)

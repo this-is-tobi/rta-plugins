@@ -13,7 +13,7 @@
 //
 //	plugins:
 //	  s3@<digest>:
-//	    endpoint: s3.amazonaws.com
+//	    address: s3.amazonaws.com
 //	    region: us-west-2
 //	    tls: true
 //	    access-key: AKIA...
