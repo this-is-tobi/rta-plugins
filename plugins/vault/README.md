@@ -15,7 +15,7 @@ HashiCorp Vault: secrets, tokens, leases, policies and transit encryption
 | vault.kv.tree         | read        | The whole shape of a KV mount in one call — names only                                |
 | vault.kv.undelete     | write       | Bring back deleted versions of a secret                                               |
 | vault.lease.show      | read        | A lease's TTL and renewability                                                        |
-| vault.overview        | read        | Seal state, the current token and the policy list at a glance                         |
+| vault.overview        | read        | Whether this Vault serves, and what the token can do                                  |
 | vault.policy.get      | read        | One policy's own rules, as HCL                                                        |
 | vault.policy.list     | read        | Every ACL policy defined on this Vault                                                |
 | vault.restore         | destructive | Restore a vault.snapshot file into a Vault, for a person at a terminal                |
@@ -273,12 +273,16 @@ When a leased secret (a database credential, an issued certificate) expires and 
 
 ## vault.overview
 
-Whether this Vault is worth talking to at all, and what the configured token can do — never a secret value. `detail` adds the full policy list to the same page. A sealed or uninitialized Vault is its state alone: nothing else it could be asked would answer. Reading the token spends one of its uses, which a token with a use limit is told. A Vault that has not answered in ten seconds is a timeout.
+Whether this Vault is worth talking to at all, in a few rows, worst first — never a secret value. `status` leads and is `ok`, or `warn` or `fail` followed by the worst fact: no active node, a raft cluster that is not healthy, a row the token may not read. Then whether this node is the active one or a standby and who leads, for raft storage whether the cluster is healthy and how many failures it tolerates, when the token expires and what it can do, how many secret engines, auth methods and policies the Vault has, and last the version and the storage.
+
+A sealed or uninitialized Vault is its state alone: nothing else it could be asked would answer. Reading the token spends one of its uses, which a token with a use limit is told, and such a token is read for nothing else: every other row is a use more. A Vault that has not answered in ten seconds is a timeout.
+
+The rows are seven requests: the seal status, the leader, the token, the raft state, the mounts, the auth methods and the policy list. `detail` adds the policy names, from the same request that counts them.
 
 | Field                 | Value                                                                                                                                                                                                        |
 |-----------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | id                    | vault.overview                                                                                                                                                                                               |
-| summary               | Seal state, the current token and the policy list at a glance                                                                                                                                                |
+| summary               | Whether this Vault serves, and what the token can do                                                                                                                                                         |
 | safety                | read                                                                                                                                                                                                         |
 | idempotent            | true                                                                                                                                                                                                         |
 | cli                   | rta vault overview \[--url \<string>\] \[--namespace \<string>\] \[--token \<secret>\] \[--ca-file \<string>\] \[--tls-server-name \<string>\] \[--detail\]                                                  |
@@ -290,7 +294,7 @@ Whether this Vault is worth talking to at all, and what the configured token can
 | input:ca-file         | string, group tls, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                      |
 | input:tls-server-name | string, group tls, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the URL's host                                  |
 | set a key             | rta config set plugins.vault.url http://127.0.0.1:8200                                                                                                                                                       |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.overview\`, or + on it in the TUI, puts it there, re-run every 30s                                                    |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.overview\`, or + on it in the TUI, puts it there, re-run every 1m                                                     |
 | input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                                           |
 
 ## vault.policy.get

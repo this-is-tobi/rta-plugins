@@ -37,18 +37,23 @@ func TestATokenThatNeverExpiresIsNotShownAsOutOfTime(t *testing.T) {
 		}
 		var ttl string
 		for _, p := range kv.Pairs {
-			if strings.Contains(p.Key, "ttl") {
+			if strings.Contains(p.Key, "ttl") || p.Key == "token" {
 				ttl = p.Value
 			}
 		}
-		if ttl != "0 — does not expire" {
-			t.Errorf("%s: ttl = %q, want it to say the token does not expire", name, ttl)
+		want := "0 — does not expire"
+		if name == "vault.overview" {
+			want = "does not expire"
+		}
+		if ttl != want {
+			t.Errorf("%s: ttl = %q, want it to say the token does not expire: %q", name, ttl, want)
 		}
 	}
 
 }
 
-// A token with time left still shows the seconds, bare.
+// A token with time left still shows the seconds, bare, in the call that is about
+// the token; the overview says when it expires.
 func TestATokenWithTimeLeftStillShowsTheSeconds(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
