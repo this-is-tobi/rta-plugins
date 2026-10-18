@@ -141,9 +141,7 @@ func slowlogView(ctx context.Context, c *client, req plugin.Request) (view.View,
 		})
 	}
 	t.Total = len(t.Rows)
-	if len(t.Rows) == 0 {
-		return view.Text{Body: "The slow log is empty — nothing has exceeded slowlog-log-slower-than since it was last reset."}, nil
-	}
+	t.Empty = "the slow log is empty"
 	return t, nil
 }
 

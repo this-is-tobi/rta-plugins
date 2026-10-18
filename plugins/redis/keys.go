@@ -112,9 +112,7 @@ func keyListView(ctx context.Context, c *client, req plugin.Request) (view.View,
 		t.Rows = append(t.Rows, []string{plugin.ListedName(k), typ.text(), ttlText(ttl.num)})
 	}
 	t.Total = len(t.Rows)
-	if len(t.Rows) == 0 {
-		return view.Text{Body: fmt.Sprintf("No keys match %q on %s.", req.String("pattern"), c.reached)}, nil
-	}
+	t.Empty = "no keys match " + quotedName(req.String("pattern"))
 	if truncated {
 		// A listing that quietly ended at the limit reads exactly like a
 		// keyspace that size. The last row says so, the way etcd's tree does.
