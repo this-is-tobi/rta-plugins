@@ -141,7 +141,21 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 	if cfgErr == nil {
 		known = &cfg
 	}
-	f := fetchOverview(ctx, scope, nsSel, known)
+	var f overviewFetch
+	if cfgErr == nil && len(cfg.Contexts) == 0 {
+		// No kubeconfig at all, which a current kubectl does not say: it tries
+		// localhost:8080 and answers with a client-go log line about a refused
+		// connection, which this page then put in its cluster row as "did not
+		// answer", beside a hint to check the VPN. `config view` has answered,
+		// and lists no context, so no cluster is asked.
+		f.nsErr = view.Errorf("kube.noconfig", "no kubeconfig context").
+			WithHint(contextHint(req.Surface(),
+				"ask the operator to put a kubeconfig with a context where this machine reads one",
+				"this machine's kubeconfig lists no context — `kubectl config get-contexts` is the same question, "+
+					"and KUBECONFIG names the files it reads"))
+	} else {
+		f = fetchOverview(ctx, scope, nsSel, known)
+	}
 
 	if f.nsErr != nil {
 		// The cluster not answering is the headline, not a failure: this is
