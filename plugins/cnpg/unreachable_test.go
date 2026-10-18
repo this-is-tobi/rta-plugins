@@ -5,9 +5,30 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
 )
+
+// A cluster that does not answer in time and one that refuses the connection
+// are one thing to the person reading, and plugins/kube gives them one code:
+// kube.unreachable. This plugin had a code of its own for the timeout, so the
+// same hung cluster read cnpg.timeout here and kube.unreachable beside it.
+func TestAKubectlThatTimesOutIsTheCodeAClusterThatRefusesTheConnectionHas(t *testing.T) {
+	s, verr := selectionOf(req(map[string]any{}).WithSurface(plugin.SurfaceCLI))
+	if verr != nil {
+		t.Fatal(verr)
+	}
+	expired, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+	got := classify(expired, &exec.ExitError{}, "", nil, s.caller())
+	if got.Code != "cnpg.unreachable" {
+		t.Errorf("a call that timed out has the code %q, want cnpg.unreachable", got.Code)
+	}
+	if !strings.Contains(got.Message, "did not answer within") || !strings.Contains(got.Hint, "kubectl cluster-info") {
+		t.Errorf("the timeout lost what it says: %q / %q", got.Message, got.Hint)
+	}
+}
 
 // A cluster that does not answer, and a kubeconfig with nothing to answer
 // from, are what a first call meets. Both fell to "that message is kubectl's;

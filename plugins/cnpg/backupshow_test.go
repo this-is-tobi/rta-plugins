@@ -443,7 +443,7 @@ func TestARefusedClusterReadFailsThePage(t *testing.T) {
 	routedKubectl(t, answers{clusterCRD: {stderr: `Error from server (Forbidden): clusters.postgresql.cnpg.io is forbidden: ` +
 		`User "u" cannot get resource "clusters" in API group "postgresql.cnpg.io" in the namespace "prod"`}})
 	_, err := showOf(t, nil)
-	if verr := asViewError(t, err); verr.Code != "cnpg.denied" || !strings.Contains(verr.Message, "get clusters.postgresql.cnpg.io") {
+	if verr := asViewError(t, err); verr.Code != "cnpg.forbidden" || !strings.Contains(verr.Message, "get clusters.postgresql.cnpg.io") {
 		t.Errorf("got %q %q", verr.Code, verr.Message)
 	}
 }
