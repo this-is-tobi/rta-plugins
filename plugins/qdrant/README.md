@@ -22,6 +22,7 @@ Under `plugins: qdrant:` in rta's configuration, or in a profile's `set:`. An in
 |-----------------|-----------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------|
 | address         | qdrant.collection.list, qdrant.collection.show, qdrant.dump, qdrant.overview, qdrant.points.count, qdrant.points.scroll, qdrant.restore | Qdrant REST address, host\[:port\]                                         |
 | ca-file         | qdrant.collection.list, qdrant.collection.show, qdrant.dump, qdrant.overview, qdrant.points.count, qdrant.points.scroll, qdrant.restore | PEM bundle to verify the server against, beyond the host's own trust store |
+| collection      | qdrant.collection.list, qdrant.overview                                                                                                 | only this collection — every collection the key can see when omitted       |
 | collection      | qdrant.collection.show                                                                                                                  | collection to describe                                                     |
 | collection      | qdrant.dump                                                                                                                             | collection to dump                                                         |
 | collection      | qdrant.points.count                                                                                                                     | collection to count                                                        |
@@ -40,6 +41,8 @@ Indexed against total is the number worth watching: a collection still building 
 
 In a cluster a replicas column says whether every replica of the collection is serving, as the overview does.
 
+With a `collection` — named, or the one a profile fences with `only: collection:` — only that one.
+
 Names and counts only, never a point.
 
 | Field                 | Value                                                                                                                                                                                                         |
@@ -48,15 +51,16 @@ Names and counts only, never a point.
 | summary               | Every collection, with its size and index status                                                                                                                                                              |
 | safety                | read                                                                                                                                                                                                          |
 | idempotent            | true                                                                                                                                                                                                          |
-| cli                   | rta qdrant collection list \[--address \<string>\] \[--tls\] \[--api-key \<secret>\] \[--ca-file \<string>\] \[--tls-server-name \<string>\]                                                                  |
+| cli                   | rta qdrant collection list \[--collection \<string>\] \[--address \<string>\] \[--tls\] \[--api-key \<secret>\] \[--ca-file \<string>\] \[--tls-server-name \<string>\]                                       |
 | mcp-tool              | qdrant_collection_list                                                                                                                                                                                        |
 | profiles              | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow qdrant --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
+| input:collection      | string, completes, from config plugins.qdrant.collection — only this collection — every collection the key can see when omitted                                                                               |
 | input:address         | string, default 127.0.0.1:6333, local (never offered to MCP callers), from config plugins.qdrant.address, filled by a profile's tunnel (the forward's address) — Qdrant REST address, host\[:port\]           |
 | input:tls             | bool, default false, local (never offered to MCP callers), from config plugins.qdrant.tls, filled by a profile's tunnel (the forward's tls) — use HTTPS (a local Qdrant ordinarily does not)                  |
 | input:api-key         | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                           |
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                 |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the address's host                                         |
-| set a key             | rta config set plugins.qdrant.address 127.0.0.1:6333                                                                                                                                                          |
+| set a key             | rta config set plugins.qdrant.collection \<value>                                                                                                                                                             |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.collection.list\`, or + on it in the TUI, puts it there, re-run every 30s                                             |
 
 ## qdrant.collection.show
@@ -126,6 +130,8 @@ Against a distributed instance it also lists the peers and adds a replicas colum
 
 A replica on another peer is known by the state consensus recorded for it, so it stays active until a write fails on it — except that a peer known not to answer has its replicas counted as not serving and graded amber, or red when it was the shard's only copy. The cluster's own state needs global read access: the read-only API key has it, and a JWT scoped to collections does not, in which case the replicas are still shown and the page says so.
 
+With a `collection`, or the one a profile fences with `only: collection:`, only that one.
+
 Describes collections and returns no point. Reading points is qdrant.points.scroll, and it is a write.
 
 | Field                 | Value                                                                                                                                                                                                         |
@@ -134,15 +140,16 @@ Describes collections and returns no point. Reading points is qdrant.points.scro
 | summary               | What this instance is and what it holds                                                                                                                                                                       |
 | safety                | read                                                                                                                                                                                                          |
 | idempotent            | true                                                                                                                                                                                                          |
-| cli                   | rta qdrant overview \[--address \<string>\] \[--tls\] \[--api-key \<secret>\] \[--ca-file \<string>\] \[--tls-server-name \<string>\] \[--detail\]                                                            |
+| cli                   | rta qdrant overview \[--collection \<string>\] \[--address \<string>\] \[--tls\] \[--api-key \<secret>\] \[--ca-file \<string>\] \[--tls-server-name \<string>\] \[--detail\]                                 |
 | mcp-tool              | qdrant_overview                                                                                                                                                                                               |
 | profiles              | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow qdrant --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
+| input:collection      | string, completes, from config plugins.qdrant.collection — only this collection — every collection the key can see when omitted                                                                               |
 | input:address         | string, default 127.0.0.1:6333, local (never offered to MCP callers), from config plugins.qdrant.address, filled by a profile's tunnel (the forward's address) — Qdrant REST address, host\[:port\]           |
 | input:tls             | bool, default false, local (never offered to MCP callers), from config plugins.qdrant.tls, filled by a profile's tunnel (the forward's tls) — use HTTPS (a local Qdrant ordinarily does not)                  |
 | input:api-key         | secret, local (never offered to MCP callers), from $RTA_QDRANT_API_KEY — API key, for an instance that requires one                                                                                           |
 | input:ca-file         | string, local (never offered to MCP callers), from config plugins.qdrant.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                 |
 | input:tls-server-name | string, local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the address's host                                         |
-| set a key             | rta config set plugins.qdrant.address 127.0.0.1:6333                                                                                                                                                          |
+| set a key             | rta config set plugins.qdrant.collection \<value>                                                                                                                                                             |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.overview\`, or + on it in the TUI, puts it there, re-run every 30s                                                    |
 | input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                                            |
 

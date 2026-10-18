@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -44,6 +45,22 @@ type collectionInfo struct {
 func collectionField(help string) plugin.Field {
 	return plugin.Field{Name: "collection", Short: "c", Type: plugin.String, Required: true, Config: "collection",
 		Help: help, Live: true, Suggest: suggestCollections}
+}
+
+// optionalCollectionField is collectionField for a listing that is about one
+// collection when it is given one and about every collection the key sees when
+// it is not.
+//
+// It exists so that a profile's `only: collection:` has something to hold the
+// listing to: a connection fenced to its application's collection answered the
+// overview and the collection list with every collection of the instance, names
+// and point counts the fence was written to keep out. Declared with the fence's
+// own Config key, a one-entry list fills it, and a call that names another
+// collection is refused. The same shape as plugins/s3's optionalBucketField.
+func optionalCollectionField(help string) plugin.Field {
+	f := collectionField(help)
+	f.Required = false
+	return f
 }
 
 func suggestCollections(ctx context.Context, req plugin.Request) []string {
@@ -92,6 +109,7 @@ func overviewCapability() plugin.Capability {
 			"copy. The cluster's own state needs global read access: the read-only API key has it, " +
 			"and a JWT scoped to collections does not, in which case the replicas are still shown " +
 			"and the page says so.\n\n" +
+			"With a `collection`, or the one a profile fences with `only: collection:`, only that one.\n\n" +
 			"Describes collections and returns no point. Reading points is qdrant.points.scroll, " +
 			"and it is a write.",
 		Agent: "Version, reachability and every collection with its point count and status. `yellow` means a " +
@@ -101,9 +119,10 @@ func overviewCapability() plugin.Capability {
 			"reported to this one, red when it does not answer) and adds a replicas column: how many of a " +
 			"collection's replicas serve and which shards on which peer do not (Dead is red, Recovery and " +
 			"Partial amber). Ask the leader: a follower reports peers it never talks to as not observed. " +
-			"The cluster's own state needs global read access. Returns no point.",
+			"The cluster's own state needs global read access. With a collection, only that one. " +
+			"Returns no point.",
 		Run: runOverview,
-	})
+	}, optionalCollectionField("only this collection — every collection the key can see when omitted"))
 }
 
 func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
@@ -155,6 +174,8 @@ func collectionListCapability() plugin.Capability {
 			"how incomplete the answers currently are.\n\n" +
 			"In a cluster a replicas column says whether every replica of the collection is " +
 			"serving, as the overview does.\n\n" +
+			"With a `collection` — named, or the one a profile fences with `only: collection:` — " +
+			"only that one.\n\n" +
 			"Names and counts only, never a point.",
 		// Not `return collectionTable(ctx, req)`, which reads the same and
 		// is not: the *view.Error comes back inside Run's error interface,
@@ -167,7 +188,7 @@ func collectionListCapability() plugin.Capability {
 			}
 			return table, nil
 		},
-	})
+	}, optionalCollectionField("only this collection — every collection the key can see when omitted"))
 }
 
 func collectionTable(ctx context.Context, req plugin.Request) (view.Table, *view.Error) {
@@ -187,18 +208,31 @@ func collectionTable(ctx context.Context, req plugin.Request) (view.Table, *view
 // the per-collection endpoint answers a token scoped to collections where
 // /cluster does not, and a collection that turns out to be unsharded in a
 // mode nobody could name reads "-" rather than inventing a replica count.
+//
+// **With a `collection`, the page is about it and the instance's listing is
+// never asked for.** A fence on `collection` is written to keep the other names
+// out of a connection's answers, and the listing is where they are; a key
+// scoped to one collection may not be allowed it either. The collection that
+// is not there is then the finding, as the bucket is in plugins/s3's overview,
+// and not a row of "unreadable" that reads as one the key may not see.
 func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState) (view.Table, *view.Error) {
-	var list collectionsResponse
-	if verr := get(ctx, req, "/collections", &list); verr != nil {
-		return view.Table{}, verr
+	only := strings.TrimSpace(req.String("collection"))
+	var names []string
+	if only != "" {
+		names = []string{only}
+	} else {
+		var list collectionsResponse
+		if verr := get(ctx, req, "/collections", &list); verr != nil {
+			return view.Table{}, verr
+		}
+		names = make([]string, 0, len(list.Collections))
+		for _, c := range list.Collections {
+			names = append(names, c.Name)
+		}
+		// Qdrant does not promise an order, and a listing that reshuffles between
+		// calls cannot be diffed.
+		sort.Strings(names)
 	}
-	names := make([]string, 0, len(list.Collections))
-	for _, c := range list.Collections {
-		names = append(names, c.Name)
-	}
-	// Qdrant does not promise an order, and a listing that reshuffles between
-	// calls cannot be diffed.
-	sort.Strings(names)
 
 	t := view.Table{Columns: []view.Column{
 		{Name: "Collection"},
@@ -223,6 +257,9 @@ func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState)
 
 		var info collectionInfo
 		if verr := get(ctx, req, pathFor("/collections/%s", name), &info); verr != nil {
+			if only != "" {
+				return view.Table{}, verr
+			}
 			// Reported, not fatal. A collection this key may not see is the
 			// normal case on a shared instance, and ending the listing at the
 			// first one would turn "here is what you can see" into nothing.
