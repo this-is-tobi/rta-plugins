@@ -565,7 +565,7 @@ func unreached(sf plugin.Surface, line string) *view.Error {
 	errno, numbered := childErrno(line)
 	switch {
 	case numbered && errno == syscall.ETIMEDOUT:
-		return view.Errorf("mariadb.conn.timeout", "%s", line).
+		return view.Errorf("mariadb.timeout", "%s", line).
 			WithHint("rta's own connection reached the server a moment before — a failover, a port-forward " +
 				"that exited, or a firewall that began dropping rather than refusing looks exactly like this")
 	case numbered && plugin.DialUnroutable(errno):
