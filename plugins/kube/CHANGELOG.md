@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.7.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.6.1...plugins/kube/v0.7.0) (2026-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **kube:** read the namespace a fence holds and no other in the overview
+
+### Bug Fixes
+
+* **kube:** declare that a tile of the volume usage is re-run at most every five minutes ([eebcb85](https://github.com/this-is-tobi/rta-plugins/commit/eebcb85f84c4de8498b7a29ba49f9ec1e33b4faf))
+* **kube:** read the namespace a fence holds and no other in the overview ([244803f](https://github.com/this-is-tobi/rta-plugins/commit/244803f3fc6b2c77ba05d743d7ea72ebb90ab384))
+* **kube:** read the TLS Secrets at most every 15 minutes and share the read with the listing ([2276583](https://github.com/this-is-tobi/rta-plugins/commit/22765835b670946e9d52318a89db6a224f9133ac))
+* **kube:** say that no cluster was contacted when the kubeconfig names no context ([fe4db12](https://github.com/this-is-tobi/rta-plugins/commit/fe4db128a3d633ef134788ca88c33cdea7ca20f9))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.46.0 ([0d5cf69](https://github.com/this-is-tobi/rta-plugins/commit/0d5cf691585edbeb566d4b5f2f3f7597e677ed7d))
+
 ## [0.6.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.6.0...plugins/kube/v0.6.1) (2026-10-18)
 
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.9.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.8.0...plugins/s3/v0.9.0) (2026-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **s3:** a service that does not answer is s3.timeout, and the overview waits ten seconds
+
+### Bug Fixes
+
+* **s3:** a service that does not answer is s3.timeout, and the overview waits ten seconds ([789f6db](https://github.com/this-is-tobi/rta-plugins/commit/789f6db67d308e494babce55b9f06b746b39d638))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.46.0 ([0d5cf69](https://github.com/this-is-tobi/rta-plugins/commit/0d5cf691585edbeb566d4b5f2f3f7597e677ed7d))
+
 ## [0.8.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.7.1...plugins/s3/v0.8.0) (2026-10-18)
 
 

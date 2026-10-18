@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.6.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.5.4...plugins/keycloak/v0.6.0) (2026-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **keycloak:** poll the realm, the users and the sessions, and read the clients only with detail
+
+### Bug Fixes
+
+* **keycloak:** poll the realm, the users and the sessions, and read the clients only with detail ([87aa9f7](https://github.com/this-is-tobi/rta-plugins/commit/87aa9f74c009e3a98ebadf9b4f11d482da0d424b))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.46.0 ([0d5cf69](https://github.com/this-is-tobi/rta-plugins/commit/0d5cf691585edbeb566d4b5f2f3f7597e677ed7d))
+
 ## [0.5.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.5.3...plugins/keycloak/v0.5.4) (2026-10-18)
 
 

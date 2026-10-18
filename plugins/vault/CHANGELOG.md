@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.8.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.7.0...plugins/vault/v0.8.0) (2026-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **vault:** a Vault that does not answer is vault.timeout, and the overview waits ten seconds
+
+### Bug Fixes
+
+* **vault:** a Vault that does not answer is vault.timeout, and the overview waits ten seconds ([c633d51](https://github.com/this-is-tobi/rta-plugins/commit/c633d51874841b2e1ae329bbb89b9d8cbeec3650))
+* **vault:** the overview tells a token with a use limit that it spends one ([23c0be3](https://github.com/this-is-tobi/rta-plugins/commit/23c0be3cd29d25b0303520e05ebf1837917ea6ee))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.46.0 ([0d5cf69](https://github.com/this-is-tobi/rta-plugins/commit/0d5cf691585edbeb566d4b5f2f3f7597e677ed7d))
+
 ## [0.7.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.6.8...plugins/vault/v0.7.0) (2026-10-18)
 
 

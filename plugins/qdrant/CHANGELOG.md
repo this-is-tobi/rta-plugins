@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.7.0...plugins/qdrant/v0.7.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* **qdrant:** a collection fence narrows the overview and the collection list ([818f2f0](https://github.com/this-is-tobi/rta-plugins/commit/818f2f078ef20c69616ed726c1d1025d36377898))
+* **qdrant:** each request of the overview waits ten seconds, and a 5xx says to retry ([3a39c91](https://github.com/this-is-tobi/rta-plugins/commit/3a39c91fa61e51802b108c389de74f998b211dab))
+* **qdrant:** the overview reads at most a hundred collections and is paced at a minute ([3a8b681](https://github.com/this-is-tobi/rta-plugins/commit/3a8b6817407b463201733098a1477469491bdf54))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.46.0 ([0d5cf69](https://github.com/this-is-tobi/rta-plugins/commit/0d5cf691585edbeb566d4b5f2f3f7597e677ed7d))
+
 ## [0.7.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.6.8...plugins/qdrant/v0.7.0) (2026-10-18)
 
 

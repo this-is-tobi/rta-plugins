@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.4.0...plugins/docker/v0.4.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* **docker:** say the daemon was never contacted or refused when that is what happened ([29a6dd3](https://github.com/this-is-tobi/rta-plugins/commit/29a6dd3aa1618fca883b3c3d0659702c014c7e30))
+* **docker:** see a container failing its healthcheck on a CLI whose ps has no health field ([3569fce](https://github.com/this-is-tobi/rta-plugins/commit/3569fcec23b4643866a6040436864068a89972f8))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.46.0 ([0d5cf69](https://github.com/this-is-tobi/rta-plugins/commit/0d5cf691585edbeb566d4b5f2f3f7597e677ed7d))
+
 ## [0.4.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.3.8...plugins/docker/v0.4.0) (2026-10-18)
 
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.10.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.9.0...plugins/mysql/v0.10.0) (2026-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **mysql:** the code of a timeout is mysql.timeout, as the other plugins spell it
+
+### Bug Fixes
+
+* **mysql:** the code of a timeout is mysql.timeout, as the other plugins spell it ([264deaa](https://github.com/this-is-tobi/rta-plugins/commit/264deaa19e873aca99899098460abc79057176c3))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.46.0 ([0d5cf69](https://github.com/this-is-tobi/rta-plugins/commit/0d5cf691585edbeb566d4b5f2f3f7597e677ed7d))
+
 ## [0.9.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.8.3...plugins/mysql/v0.9.0) (2026-10-18)
 
 
