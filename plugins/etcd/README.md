@@ -211,7 +211,7 @@ Each member is asked at the client URL it advertises, and a published port or a 
 | input:username        | string, local (never offered to MCP callers), from config plugins.etcd.username — user to authenticate as, if the cluster has auth enabled                                                                       |
 | input:password        | secret, local (never offered to MCP callers), from $RTA_ETCD_PASSWORD — password for the user                                                                                                                    |
 | set a key             | rta config set plugins.etcd.address 127.0.0.1:2379                                                                                                                                                               |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.overview\`, or + on it in the TUI, puts it there, re-run every 30s                                                         |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.overview\`, or + on it in the TUI, puts it there, re-run every 1m                                                          |
 
 ## etcd.snapshot
 
