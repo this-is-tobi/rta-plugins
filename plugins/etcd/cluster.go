@@ -389,5 +389,6 @@ func leaseTable(ctx context.Context, c *clientv3.Client, req plugin.Request) (vi
 		})
 	}
 	t.Total = len(t.Rows)
+	t.Empty = "no leases"
 	return t, nil
 }

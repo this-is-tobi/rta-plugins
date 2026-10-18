@@ -138,7 +138,11 @@ func kvListView(ctx context.Context, c *clientv3.Client, req plugin.Request) (vi
 	if verr != nil {
 		return nil, verr
 	}
-	return kvListTable(resp.Kvs, limit, req.Surface()), nil
+	t := kvListTable(resp.Kvs, limit, req.Surface())
+	if prefix := req.String("prefix"); prefix != "" {
+		t.Empty = "no keys under " + quoted(prefix)
+	}
+	return t, nil
 }
 
 // kvListTable is split from the fetch so what a stopped page says is
@@ -185,6 +189,7 @@ func kvListTable(kvs []*mvccpb.KeyValue, limit int, sf plugin.Surface) view.Tabl
 		})
 	}
 	t.Total = len(t.Rows)
+	t.Empty = "no keys"
 	return t
 }
 
