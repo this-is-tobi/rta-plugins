@@ -104,5 +104,7 @@ func runImageList(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr != nil {
 		return nil, verr
 	}
-	return imageTable(rows), nil
+	t := imageTable(rows)
+	t.Empty = "no images"
+	return t, nil
 }
