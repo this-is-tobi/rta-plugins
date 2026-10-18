@@ -161,7 +161,7 @@ func whyNotAsked(req plugin.Request) string {
 // endpoint, the usual secured cluster, was refused the other members as if its
 // token travelled in the clear.
 func overTLS(req plugin.Request) bool {
-	endpoint := strings.ToLower(req.String("endpoint"))
+	endpoint := strings.ToLower(req.String("address"))
 	switch {
 	case strings.HasPrefix(endpoint, "https://"):
 		return true

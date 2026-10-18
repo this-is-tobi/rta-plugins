@@ -73,8 +73,8 @@ func TestConformance(t *testing.T) {
 func conformanceInputs(dir string) map[string]map[string]any {
 	const endpoint = "127.0.0.1:1"
 	return map[string]map[string]any{
-		"etcd.kv.get":   {"endpoint": endpoint, "key": "/conformance"},
-		"etcd.snapshot": {"endpoint": endpoint, "out": filepath.Join(dir, "etcd.snap")},
+		"etcd.kv.get":   {"address": endpoint, "key": "/conformance"},
+		"etcd.snapshot": {"address": endpoint, "out": filepath.Join(dir, "etcd.snap")},
 	}
 }
 
@@ -90,6 +90,28 @@ func TestEveryConnectionInputIsLocal(t *testing.T) {
 		if !f.Local {
 			t.Errorf("%s: connection input is not Local — an MCP caller could redirect this call", f.Name)
 		}
+	}
+}
+
+// Where the service is has one name per shape across the plugins: `address`
+// takes host[:port] and `url` takes a URL, so a profile's `set:` reads the
+// same whichever plugin it fills and nobody needs the card to know which word
+// this one chose. Written against the role the input declares rather than a
+// list of names, so a destination added later is held to it the day it is added.
+func TestTheDestinationInputIsNamedForItsRole(t *testing.T) {
+	found := false
+	for _, f := range connFields() {
+		if f.Endpoint != plugin.EndpointAddress {
+			continue
+		}
+		found = true
+		if f.Name != "address" || f.Config != "address" {
+			t.Errorf("the %s input is %q (config %q), want %q: it takes host[:port], and that is the word the plugins share",
+				f.Endpoint, f.Name, f.Config, "address")
+		}
+	}
+	if !found {
+		t.Error("no connection input declares the address role")
 	}
 }
 
@@ -316,7 +338,7 @@ func TestHalfAnMTLSPairIsRefusedWithTheMissingHalfNamed(t *testing.T) {
 // typed error, and the codes are the stable part. Each must produce a distinct
 // code and a hint naming the next step.
 func TestGRPCFailuresAreClassifiedByCode(t *testing.T) {
-	r := req(t, "etcd.overview", map[string]any{"endpoint": "etcd-0.internal:2379"})
+	r := req(t, "etcd.overview", map[string]any{"address": "etcd-0.internal:2379"})
 	cases := []struct {
 		code codes.Code
 		want string
@@ -343,7 +365,7 @@ func TestGRPCFailuresAreClassifiedByCode(t *testing.T) {
 // were both "could not reach" the endpoint, with a hint about connection
 // settings, against a cluster that had answered.
 func TestWhatTheClientRaisesIsClassifiedByItsCode(t *testing.T) {
-	r := req(t, "etcd.overview", map[string]any{"endpoint": "etcd-0.internal:2379"})
+	r := req(t, "etcd.overview", map[string]any{"address": "etcd-0.internal:2379"})
 	for _, tc := range []struct {
 		raised error
 		want   string
@@ -368,7 +390,7 @@ func TestWhatTheClientRaisesIsClassifiedByItsCode(t *testing.T) {
 // port and will never answer a client. The hint has to say so, because nothing
 // about the error does.
 func TestTheWrongPortIsNamedInTheHint(t *testing.T) {
-	r := req(t, "etcd.overview", map[string]any{"endpoint": "etcd-0.internal:2380"})
+	r := req(t, "etcd.overview", map[string]any{"address": "etcd-0.internal:2380"})
 	got := classify(clientv3.ErrNoAvailableEndpoints, r)
 	if got.Code != "etcd.unreachable" {
 		t.Errorf("code = %q, want etcd.unreachable", got.Code)
@@ -434,7 +456,7 @@ func connectRefusal(t *testing.T, values map[string]any, within time.Duration) (
 	took := time.Since(started)
 	if verr == nil {
 		_ = c.Close()
-		t.Fatalf("connected to %v", values["endpoint"])
+		t.Fatalf("connected to %v", values["address"])
 	}
 	return verr, took
 }
@@ -444,7 +466,7 @@ func connectRefusal(t *testing.T, values map[string]any, within time.Duration) (
 // timeout would name a cluster that answers nothing, not a port nobody is on.
 func TestAClosedPortIsRefusedAtOnceAndNamed(t *testing.T) {
 	endpoint := closedPort(t)
-	verr, took := connectRefusal(t, map[string]any{"endpoint": endpoint}, 10*time.Second)
+	verr, took := connectRefusal(t, map[string]any{"address": endpoint}, 10*time.Second)
 	if verr.Code != "etcd.conn.refused" || !strings.Contains(verr.Message, endpoint) {
 		t.Errorf("got %s %q, want etcd.conn.refused naming %s", verr.Code, verr.Message, endpoint)
 	}
@@ -459,7 +481,7 @@ func TestAClosedPortIsRefusedAtOnceAndNamed(t *testing.T) {
 func TestAClosedPortWithCredentialsIsStillRefusedAsOne(t *testing.T) {
 	endpoint := closedPort(t)
 	verr, _ := connectRefusal(t, map[string]any{
-		"endpoint": endpoint, "username": "root", "password": "hunter2",
+		"address": endpoint, "username": "root", "password": "hunter2",
 	}, 300*time.Millisecond)
 	if verr.Code != "etcd.conn.refused" || !strings.Contains(verr.Message, endpoint) {
 		t.Errorf("got %s %q, want etcd.conn.refused naming %s", verr.Code, verr.Message, endpoint)
@@ -474,7 +496,7 @@ func TestAnEndpointThatNeverSpeaksIsATimeoutNamingIt(t *testing.T) {
 		defer func() { _ = conn.Close() }()
 		_, _ = io.Copy(io.Discard, conn)
 	})
-	verr, took := connectRefusal(t, map[string]any{"endpoint": endpoint}, 300*time.Millisecond)
+	verr, took := connectRefusal(t, map[string]any{"address": endpoint}, 300*time.Millisecond)
 	if verr.Code != "etcd.timeout" || !strings.Contains(verr.Message, endpoint) {
 		t.Errorf("got %s %q, want etcd.timeout naming %s", verr.Code, verr.Message, endpoint)
 	}
@@ -489,7 +511,7 @@ func TestAnEndpointThatNeverSpeaksIsATimeoutNamingIt(t *testing.T) {
 // client's second attempt, not at the end of the bound as a firewall.
 func TestAPortThatHangsUpIsNamedAsTheWrongOne(t *testing.T) {
 	endpoint := listener(t, func(conn stdnet.Conn) { _ = conn.Close() })
-	verr, took := connectRefusal(t, map[string]any{"endpoint": endpoint}, 10*time.Second)
+	verr, took := connectRefusal(t, map[string]any{"address": endpoint}, 10*time.Second)
 	if verr.Code != "etcd.conn.protocol" || !strings.Contains(verr.Message, endpoint) {
 		t.Errorf("got %s %q, want etcd.conn.protocol naming %s", verr.Code, verr.Message, endpoint)
 	}
@@ -506,7 +528,7 @@ func TestAPortThatHangsUpIsNamedAsTheWrongOne(t *testing.T) {
 // it is, with what turns TLS on.
 func TestTLSToAPlaintextPortIsNamedAsTheHandshake(t *testing.T) {
 	endpoint := listener(t, func(conn stdnet.Conn) { _ = conn.Close() })
-	verr, _ := connectRefusal(t, map[string]any{"endpoint": endpoint, "tls": true}, 10*time.Second)
+	verr, _ := connectRefusal(t, map[string]any{"address": endpoint, "tls": true}, 10*time.Second)
 	if verr.Code != "etcd.tls.failed" || !strings.Contains(verr.Message, endpoint) {
 		t.Errorf("got %s %q, want etcd.tls.failed naming %s", verr.Code, verr.Message, endpoint)
 	}
@@ -522,7 +544,7 @@ func TestAnUntrustedCertificateIsNamedRatherThanWaitedOn(t *testing.T) {
 	srv := httptest.NewTLSServer(http.NotFoundHandler())
 	t.Cleanup(srv.Close)
 	endpoint := srv.Listener.Addr().String()
-	verr, took := connectRefusal(t, map[string]any{"endpoint": endpoint, "tls": true}, 10*time.Second)
+	verr, took := connectRefusal(t, map[string]any{"address": endpoint, "tls": true}, 10*time.Second)
 	if verr.Code != "etcd.tls.untrusted" || !strings.Contains(verr.Message, endpoint) {
 		t.Errorf("got %s %q, want etcd.tls.untrusted naming %s", verr.Code, verr.Message, endpoint)
 	}
@@ -537,7 +559,7 @@ func TestAnUntrustedCertificateIsNamedRatherThanWaitedOn(t *testing.T) {
 // macOS's verifier gives, which Go passes on untyped, are read in
 // verdict_test.go on any system.
 func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
-	r := req(t, "etcd.overview", map[string]any{"endpoint": "etcd-0.internal:2379"})
+	r := req(t, "etcd.overview", map[string]any{"address": "etcd-0.internal:2379"})
 	for _, tc := range []struct {
 		name string
 		err  error
@@ -575,7 +597,7 @@ func TestAnUntrustedCertificateSaysWhatACAFileReplaces(t *testing.T) {
 // A dial that found no way to the host reached nothing that could refuse it,
 // and is not a port nobody is on; one the host refused still is.
 func TestAHostNoRouteReachesIsNotAPortNobodyIsOn(t *testing.T) {
-	r := req(t, "etcd.overview", map[string]any{"endpoint": "10.0.0.9:2379"})
+	r := req(t, "etcd.overview", map[string]any{"address": "10.0.0.9:2379"})
 	dial := func(errno syscall.Errno) error {
 		return &stdnet.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", errno)}
 	}
@@ -601,7 +623,7 @@ func TestAHostNoRouteReachesIsNotAPortNobodyIsOn(t *testing.T) {
 // errno has on this machine, and a name that did not resolve stays that,
 // whatever its resolver's own failed exchange said.
 func TestADialIsReadByTheErrorItCarries(t *testing.T) {
-	r := req(t, "etcd.overview", map[string]any{"endpoint": "10.0.0.9:2379"})
+	r := req(t, "etcd.overview", map[string]any{"address": "10.0.0.9:2379"})
 	dial := func(errno syscall.Errno) error {
 		return &stdnet.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", errno)}
 	}
@@ -657,7 +679,7 @@ func TestAnEndpointWithNoPortIsTheClientPort(t *testing.T) {
 		"unix:etcd.sock":               "unix:etcd.sock",
 		"[::1":                         "[::1",
 	} {
-		if got := endpointOf(req(t, "etcd.overview", map[string]any{"endpoint": given})); got != want {
+		if got := endpointOf(req(t, "etcd.overview", map[string]any{"address": given})); got != want {
 			t.Errorf("%q became %q, want %q", given, got, want)
 		}
 	}

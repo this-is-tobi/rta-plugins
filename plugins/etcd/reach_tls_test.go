@@ -18,7 +18,7 @@ import (
 // who is not root are as much the profile's server as the answers above, and
 // each quoted the end of the forward, a port that closed with the call.
 func TestATimeoutAProtocolMismatchAndASnapshotDenialNameTheProfileNotTheEndOfItsForward(t *testing.T) {
-	r := req(t, "etcd.snapshot", map[string]any{"endpoint": "127.0.0.1:41233"}).WithProfile("prod", plugin.TunnelKube)
+	r := req(t, "etcd.snapshot", map[string]any{"address": "127.0.0.1:41233"}).WithProfile("prod", plugin.TunnelKube)
 	for name, got := range map[string]*view.Error{
 		"a deadline":        classify(context.DeadlineExceeded, r),
 		"a status deadline": classify(status.Error(codes.DeadlineExceeded, "slow"), r),
@@ -38,7 +38,7 @@ func TestATimeoutAProtocolMismatchAndASnapshotDenialNameTheProfileNotTheEndOfIts
 // What a member answered at the handshake, or with Unavailable, names the
 // profile too: the end of a forward is a port that closed with the call.
 func TestAnAnswerTheMemberGaveAtTheHandshakeNamesTheProfileAndNotTheEndOfItsForward(t *testing.T) {
-	r := req(t, "etcd.overview", map[string]any{"endpoint": "127.0.0.1:41233"}).WithProfile("prod", plugin.TunnelKube)
+	r := req(t, "etcd.overview", map[string]any{"address": "127.0.0.1:41233"}).WithProfile("prod", plugin.TunnelKube)
 	for name, tc := range map[string]struct {
 		err  error
 		code string

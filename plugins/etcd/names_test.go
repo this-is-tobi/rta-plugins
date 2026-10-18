@@ -222,7 +222,7 @@ func TestAnAdvertisedURLThatDoesNotReadAsItselfIsWrittenOutWhereAMemberIsNotAske
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	self := &clientv3.StatusResponse{Header: &etcdserverpb.ResponseHeader{MemberId: selfID}}
-	rq := req(t, "etcd.overview", map[string]any{"username": "monitor", "endpoint": "https://etcd.internal:2379"})
+	rq := req(t, "etcd.overview", map[string]any{"username": "monitor", "address": "https://etcd.internal:2379"})
 	rows, verr := askMembers(ctx, c, rq, self)
 	if verr != nil {
 		t.Fatal(verr)

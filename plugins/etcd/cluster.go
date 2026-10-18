@@ -79,7 +79,7 @@ func overviewView(ctx context.Context, c *clientv3.Client, req plugin.Request) (
 	}
 
 	pairs := []view.Pair{
-		{Key: "endpoint", Value: req.Reached(endpoint)},
+		{Key: "address", Value: req.Reached(endpoint)},
 		{Key: "version", Value: st.Version},
 		{Key: "member id", Value: hexID(st.Header.MemberId)},
 		{Key: "leader", Value: leaderText(st)},
@@ -93,7 +93,7 @@ func overviewView(ctx context.Context, c *clientv3.Client, req plugin.Request) (
 	}
 	if len(rows) == 1 && rows[0].learner && rows[0].name == "" {
 		pairs = append(pairs, view.Pair{Key: "members", Value: "only this one is shown: a learner is not served the " +
-			"member list, so point " + req.Surface().SettingName("endpoint") + " at a voting member to see the rest"})
+			"member list, so point " + req.Surface().SettingName("address") + " at a voting member to see the rest"})
 	}
 	// Alarms are the reason this capability is worth running. A cluster over
 	// its quota answers reads normally and refuses every write, which is

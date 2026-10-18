@@ -28,7 +28,7 @@ import (
 // Every one is Local, and that is the security property rather than a detail.
 // Together they name which cluster this call reaches and as whom, and an MCP
 // caller may not choose that: caller values resolve above config and above the
-// host's own environment, so an agent that could set `endpoint` would point
+// host's own environment, so an agent that could set `address` would point
 // rta at a cluster of its own and have the host supply $RTA_ETCD_PASSWORD
 // beside it. Config still fills these and a person at a terminal still passes
 // them as ordinary flags.
@@ -39,8 +39,8 @@ import (
 // path gate is not the right place to defend that — not offering the choice is.
 func connFields() []plugin.Field {
 	return []plugin.Field{
-		{Name: "endpoint", Type: plugin.String, Default: "127.0.0.1:2379", Config: "endpoint",
-			Local: true, Endpoint: plugin.EndpointAddress, Help: "etcd endpoint, host[:port]"},
+		{Name: "address", Type: plugin.String, Default: "127.0.0.1:2379", Config: "address",
+			Local: true, Endpoint: plugin.EndpointAddress, Help: "etcd address, host[:port]"},
 		// Defaults to plaintext because that is what a local `etcd` started
 		// for a try answers on. Every production cluster is the other way, and
 		// says so in its config rather than being guessed at here.
@@ -55,7 +55,7 @@ func connFields() []plugin.Field {
 		// have been: it moves the check, never loosens it. Local for the reason
 		// tls is: what a certificate has to prove is the operator's to say.
 		{Name: "tls-server-name", Type: plugin.String, Default: "", Config: "tls-server-name",
-			Local: true, Help: "name to check the server's certificate for, in place of the endpoint's host"},
+			Local: true, Help: "name to check the server's certificate for, in place of the address's host"},
 		// etcd clusters are commonly mTLS with no password at all, so the
 		// client certificate is a credential here in the same sense a password
 		// is elsewhere — but it is a path, not a secret value, so it stays a
@@ -480,7 +480,7 @@ func classify(err error, req plugin.Request) *view.Error {
 				nextCall(req, "etcd.overview") + " shows whether the members can see each other")
 	case errors.Is(err, clientv3.ErrNoAvailableEndpoints):
 		return view.Errorf("etcd.unreachable", "no endpoint answered at %s", where).
-			WithHint("is the cluster up, and is " + sf.SettingName("endpoint") + " right? etcd listens on 2379 for clients " +
+			WithHint("is the cluster up, and is " + sf.SettingName("address") + " right? etcd listens on 2379 for clients " +
 				"and 2380 for peers, and the peer port will not answer this")
 	}
 
@@ -550,7 +550,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	}
 	var verifyErr *tls.CertificateVerificationError
 	if errors.As(err, &verifyErr) {
-		checked := "the host in " + sf.SettingName("endpoint")
+		checked := "the host in " + sf.SettingName("address")
 		if serverName(req) != "" {
 			checked = "the name in " + sf.SettingName("tls-server-name")
 		}
@@ -590,12 +590,12 @@ func classify(err error, req plugin.Request) *view.Error {
 		}
 		return view.Errorf("etcd.unreachable", "%s cannot be reached from this machine: %v", where, reason).
 			WithHint("no route leads there from here — a VPN or tunnel the cluster sits behind that is down " +
-				"looks exactly like this, and so does " + sf.SettingName("endpoint") + " naming an address on " +
+				"looks exactly like this, and so does " + sf.SettingName("address") + " naming an address on " +
 				"a network this machine is not on")
 	}
 	if plugin.DialRefused(err) {
 		return view.Errorf("etcd.conn.refused", "nothing is listening on %s", where).
-			WithHint("is the cluster up, and is " + sf.SettingName("endpoint") + " right? etcd listens on 2379 for " +
+			WithHint("is the cluster up, and is " + sf.SettingName("address") + " right? etcd listens on 2379 for " +
 				"clients and 2380 for peers, and the peer port will not answer this")
 	}
 	return view.Errorf("etcd.conn.failed", "could not reach %s: %v", where, err).
@@ -620,7 +620,7 @@ const clientPort = "2379"
 // cannot name a port for — an IPv6 address with a zone, a bracket left open —
 // pass as given, for the dial to refuse.
 func endpointOf(req plugin.Request) string {
-	endpoint := req.String("endpoint")
+	endpoint := req.String("address")
 	if strings.HasPrefix(endpoint, "unix:") || strings.HasPrefix(endpoint, "unixs:") {
 		return endpoint
 	}
@@ -662,7 +662,7 @@ func reachArgs(req plugin.Request) []plugin.Arg {
 	if req.Surface() == plugin.SurfaceMCP {
 		return req.ReachArgs()
 	}
-	args := req.ReachArgs(plugin.Arg{Name: "endpoint", Value: req.String("endpoint")})
+	args := req.ReachArgs(plugin.Arg{Name: "address", Value: req.String("address")})
 	if req.Bool("tls") {
 		args = append(args, plugin.Arg{Name: "tls", Value: true})
 	}

@@ -79,7 +79,7 @@ func TestAMemberAdvertisingAPlaintextURLIsNotHandedTheToken(t *testing.T) {
 	defer c.Close()
 
 	self := &clientv3.StatusResponse{Header: &etcdserverpb.ResponseHeader{MemberId: selfID}}
-	rq := req(t, "etcd.overview", map[string]any{"username": "monitor", "endpoint": "https://etcd.internal:2379"})
+	rq := req(t, "etcd.overview", map[string]any{"username": "monitor", "address": "https://etcd.internal:2379"})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	rows, verr := askMembers(ctx, c, rq, self)
@@ -170,7 +170,7 @@ func TestATLSSettingBesideAnHTTPEndpointIsRefusedBeforeAnythingIsDialled(t *test
 		{"a client certificate", map[string]any{"cert-file": ca}, "etcd.tls.plaintext", "--cert-file asks for TLS"},
 		{"a name", map[string]any{"tls-server-name": "etcd.internal"}, "etcd.tls.plaintext", "--tls-server-name asks for TLS"},
 	} {
-		values := map[string]any{"endpoint": endpoint, "username": "root", "password": "hunter2"}
+		values := map[string]any{"address": endpoint, "username": "root", "password": "hunter2"}
 		for k, v := range tc.values {
 			values[k] = v
 		}
@@ -220,7 +220,7 @@ func writeCAFile(t *testing.T) string {
 // outright. The call goes on to read the CA file, which is not there.
 func TestATLSSettingBesideABareOrHTTPSEndpointIsNotRefusedForItsScheme(t *testing.T) {
 	for _, endpoint := range []string{"etcd.internal:2379", "https://etcd.internal:2379"} {
-		rq := req(t, "etcd.overview", map[string]any{"endpoint": endpoint, "ca-file": "/nonexistent/ca.pem"})
+		rq := req(t, "etcd.overview", map[string]any{"address": endpoint, "ca-file": "/nonexistent/ca.pem"})
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		_, verr := connectWithin(ctx, rq, time.Second)
 		cancel()
@@ -234,7 +234,7 @@ func TestATLSSettingBesideABareOrHTTPSEndpointIsNotRefusedForItsScheme(t *testin
 // etcd's client drops TLS for that scheme, so a username over one is not over
 // TLS and the other members are not asked.
 func TestAnHTTPEndpointIsNotOverTLSWhateverTLSSays(t *testing.T) {
-	rq := req(t, "etcd.overview", map[string]any{"username": "monitor", "tls": true, "endpoint": "http://etcd.internal:2379"})
+	rq := req(t, "etcd.overview", map[string]any{"username": "monitor", "tls": true, "address": "http://etcd.internal:2379"})
 	if overTLS(rq) {
 		t.Error("an http:// endpoint with tls on was read as TLS")
 	}
