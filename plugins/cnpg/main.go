@@ -237,15 +237,28 @@ func Plugin() plugin.Plugin {
 					{Title: "the clusters of one namespace", Inputs: map[string]any{"namespace": "production"}},
 				},
 				Safety: plugin.Read, Idempotent: true,
-				Description: "One `kubectl get clusters.postgresql.cnpg.io -o json`, rendered " +
-					"with the columns the CRD itself declares as printer columns — so this and " +
-					"`kubectl get` answer the same question the same way. Ready is " +
-					"ready/desired instances; a cluster short of its own spec is graded as a " +
-					"problem whatever its phase says. Reads the context's own namespace unless " +
+				Description: "One `kubectl get clusters.postgresql.cnpg.io -o json`, one row " +
+					"per cluster, named namespace/name. Status is the worst finding cnpg.status " +
+					"lists for the cluster under Needs attention — ok, warn or fail — so a cluster " +
+					"short of its own spec, whose WAL archiving fails, with no backup, with a " +
+					"certificate near expiry or without a primary is not ok whatever its phase " +
+					"says. Backup is how long ago the last one succeeded, or `none` when nothing " +
+					"is set up to take one, `never` when one is and none has, `failing` when WAL " +
+					"archiving fails or the last attempt failed after the last success, and " +
+					"`not recorded` for a cluster that archives through a plugin, whose backups " +
+					"the resource does not record (cnpg.backup.list does). Ready is " +
+					"ready/desired instances; Phase is the operator's own, with the sentence of a " +
+					"healthy cluster said as `healthy`. Reads the context's own namespace unless " +
 					"`namespace` names another or `all-namespaces` reads every one, and an empty " +
 					"answer says which it read. `cluster` narrows the listing to one: a profile " +
 					"that fences it (`only: cluster:`) lists the clusters it names and no other. " +
 					"Reads one custom resource and nothing else: no pods, no exec, no logs.",
+				Agent: "One row per cluster, named namespace/name: Status (ok, warn or fail, the worst finding " +
+					"cnpg.status lists, so failing WAL archiving, no backup, a certificate near expiry or a cluster " +
+					"short of its instances is not ok), Backup (age of the last success; none, never, failing, or " +
+					"not recorded for a cluster that archives through a plugin), Ready, Primary and Phase. Reads " +
+					"the context's own namespace, `namespace` names another, `all-namespaces` reads every one and " +
+					"`cluster` narrows to one. One custom resource: no pods, exec or logs.",
 				Inputs: []plugin.Field{
 					clusterField("only this cluster — every cluster of the namespace when omitted", false),
 					allNamespacesField(),
@@ -328,23 +341,26 @@ func runList(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr := getResource(ctx, s, clusterCRD, "", &list, extra...); verr != nil {
 		return nil, verr
 	}
+	// What a narrow tile keeps is decided by the order of these columns and by
+	// Priority (the host's glance rules, glance.go in rta): the first column is
+	// the row's name and always stays, the plain ones go from the last to the
+	// first, and the one that grades itself goes last. So the name leads, the
+	// verdict is next, and what explains the verdict follows it. Primary and
+	// Phase say what the verdict already does and are given up first; the phase
+	// is the prose the host would otherwise let take the slack, at the cost of
+	// the Status when the names are long.
 	t := view.Table{Columns: []view.Column{
-		{Name: "Namespace"}, {Name: "Name"},
-		{Name: "Ready"}, {Name: "Status", Kind: view.KindStatus},
-		{Name: "Primary"}, {Name: "Phase"}, {Name: "Age"},
+		{Name: "Cluster"},
+		{Name: "Status", Kind: view.KindStatus},
+		{Name: "Backup"},
+		{Name: "Ready"},
+		{Name: "Primary", Priority: 1},
+		{Name: "Phase", Priority: 2},
 	}}
 	for _, c := range list.Items {
-		status := "ok"
-		if !c.healthy() {
-			status = "warn"
-		}
-		if c.Status.PrimaryFailingSince != nil || c.Status.CurrentPrimary == "" {
-			status = "fail"
-		}
 		t.Rows = append(t.Rows, []string{
-			c.Metadata.Namespace, c.Metadata.Name, c.ready(), status,
-			orDash(c.Status.CurrentPrimary), orDash(c.Status.Phase),
-			age(c.Metadata.CreationTimestamp),
+			c.Metadata.Namespace + "/" + c.Metadata.Name, c.verdict(), c.backupCell(), c.ready(),
+			orDash(c.Status.CurrentPrimary), shortPhase(c.Status.Phase),
 		})
 	}
 	t.Total = len(t.Rows)
@@ -575,6 +591,40 @@ func settingsTable(c cluster, want []struct{ key, means string }) view.Table {
 	return t
 }
 
+// verdict is the worst finding the status page lists under "Needs attention":
+// fail, else warn, else ok. The same rows from the same function, so that the
+// list cannot call a cluster ok whose status page has a warning on it, which it
+// did when it graded only the instance count and a failing primary and said ok
+// to a cluster whose WAL archiving was failing. A note (the grade of a finding
+// that nothing is known to be wrong with) is not a finding.
+func (c cluster) verdict() string {
+	worst := "ok"
+	for _, row := range problemTable(c, pointers{}).Rows {
+		switch row[1] {
+		case "fail":
+			return "fail"
+		case "warn":
+			worst = "warn"
+		}
+	}
+	return worst
+}
+
+// healthyPhase is the sentence CloudNativePG gives a cluster with nothing to
+// report, the one every row of a healthy fleet would otherwise spend its width
+// on.
+const healthyPhase = "Cluster in healthy state"
+
+// shortPhase is the operator's phase, with the one sentence it says of a
+// healthy cluster as the word it comes to. Every other phase is the operator's
+// own words and the news, and is left as it wrote them.
+func shortPhase(phase string) string {
+	if phase == healthyPhase {
+		return "healthy"
+	}
+	return orDash(phase)
+}
+
 // certWarnDays mirrors builtin/internal/x509check.DefaultWarnDays — restated
 // rather than imported, because this plugin is its own module and that
 // package is internal to the core binary. If the two ever disagree, the core
@@ -768,6 +818,34 @@ func backupLine(c cluster, p pointers) string {
 		return line
 	}
 	return "none recorded"
+}
+
+// backupCell is the Backup column of the list: how long ago the last backup
+// succeeded, or in a word why there is nothing to say of one. Not the reason in
+// full, which the status page has, but enough to read beside the Status.
+//
+// Archiving that fails is first, over an age that would read as a clean record:
+// a backup four days old is the recovery point of a cluster that archives, and
+// of one that has stopped it is the last point there is. A cluster that archives
+// through a plugin is "not recorded" whatever the resource holds, because the
+// record it keeps is of the mechanisms the operator runs itself and says nothing
+// of the plugin's backups (statusIsTheRecord).
+func (c cluster) backupCell() string {
+	success, ever := c.lastSuccess()
+	lastFail, failedOnce := parseWhen(c.Status.LastFailedBackup)
+	switch {
+	case c.archivingFailing():
+		return "failing"
+	case !ever && !c.backupConfigured():
+		return "none"
+	case !c.statusIsTheRecord():
+		return "not recorded"
+	case !ever:
+		return "never"
+	case failedOnce && lastFail.After(success.at):
+		return "failing"
+	}
+	return age(success.at) + " ago"
 }
 
 // groundTruthPointer is the clause that sends somebody to the Backup objects,

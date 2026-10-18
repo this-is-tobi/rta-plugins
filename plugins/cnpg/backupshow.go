@@ -50,7 +50,7 @@ const (
 // conditionsOfBackups are the two conditions of a Cluster that are about
 // backups, shown beside the arrangement because they are its verdict: whether
 // the WAL is reaching the store, and whether the last backup worked.
-var conditionsOfBackups = []string{"ContinuousArchiving", "LastBackupSucceeded"}
+var conditionsOfBackups = []string{continuousArchiving, "LastBackupSucceeded"}
 
 // secretRef is a reference to a Secret, decoded as its name and nothing else.
 // The key inside the Secret is not part of the question and a struct without a
