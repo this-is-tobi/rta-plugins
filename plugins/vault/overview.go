@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	vaultapi "github.com/hashicorp/vault/api"
 
@@ -22,6 +23,16 @@ import (
 // few seconds. `dashboard.tiles` still accepts it explicitly — naming a
 // capability in a config file is the asking.
 
+// overviewTimeout is how long the overview waits for a Vault in all, for the two
+// reads of the compact page and the three of the detail together. The client's
+// own wait is a minute a request, so a Vault that took the connection and never
+// answered held the page for two minutes, and a tile for as long again at every
+// refresh. A variable so a test need not wait ten seconds to see it given up on.
+//
+// The overview's alone: a snapshot moves the whole of the storage and a secret
+// read or written is the caller's to wait for, and neither is held to it.
+var overviewTimeout = 10 * time.Second
+
 func overviewCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "vault.overview",
@@ -34,12 +45,14 @@ func overviewCapability() plugin.Capability {
 			"token can do — never a secret value. `detail` adds the full policy list to the same " +
 			"page. A sealed or uninitialized Vault is its state alone: nothing else it could be " +
 			"asked would answer. Reading the token spends one of its uses, which a token with a " +
-			"use limit is told.",
+			"use limit is told. A Vault that has not answered in ten seconds is a timeout.",
 		Run: runOverview,
 	})
 }
 
 func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
+	ctx, cancel := context.WithTimeout(ctx, overviewTimeout)
+	defer cancel()
 	return withClient(req, func(client *vaultapi.Client) (view.View, error) {
 		if req.Bool("detail") {
 			return detailedOverview(ctx, client, req)

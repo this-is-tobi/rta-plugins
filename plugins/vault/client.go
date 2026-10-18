@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
@@ -326,11 +327,27 @@ func classify(err error, req plugin.Request) *view.Error {
 			return view.Errorf("vault.badrequest", "%s rejected the request: %s", answered, joinErrors(respErr)).
 				WithHint("this is Vault refusing, not rta")
 		case 412:
-			return view.Errorf("vault.sealed", "%s is sealed or not yet initialized", answered).
-				WithHint(nextCall(req, "vault.seal.status") + " shows which")
+			return sealed(req, answered)
 		}
-		return view.Errorf("vault.request.failed", "%s: %s", answered, joinErrors(respErr)).
-			WithHint(fmt.Sprintf("HTTP %d", respErr.StatusCode))
+		// **A sealed Vault answers every path 503 "Vault is sealed"**, and trying
+		// again does not unseal it: it is told apart from the Vault that is failing.
+		if respErr.StatusCode == http.StatusServiceUnavailable &&
+			strings.Contains(strings.ToLower(joinErrors(respErr)), "sealed") {
+			return sealed(req, answered)
+		}
+		hint := fmt.Sprintf("HTTP %d", respErr.StatusCode)
+		if respErr.StatusCode >= http.StatusInternalServerError {
+			hint += ": " + serverErrorHint
+		}
+		return view.Errorf("vault.request.failed", "%s: %s", answered, joinErrors(respErr)).WithHint(hint)
+	}
+
+	// A deadline is the server not answering, as it is for the other plugins, and
+	// not a failure to reach one that took the connection. Read ahead of the
+	// network errors below, since the client hands a bare context error back and
+	// it is no *url.Error to be found among them.
+	if errors.Is(err, context.DeadlineExceeded) {
+		return timedOut(addr)
 	}
 
 	if errors.Is(err, vaultapi.ErrSecretNotFound) {
@@ -427,11 +444,28 @@ func classify(err error, req plugin.Request) *view.Error {
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
-		return view.Errorf("vault.conn.timeout", "%s did not answer in time", addr).
-			WithHint("a firewall that drops rather than refuses looks exactly like this")
+		return timedOut(addr)
 	}
 	return view.Errorf("vault.conn.failed", "could not reach %s: %v", addr, err).
 		WithHint(sf.SettingsHint("vault.seal.status"))
+}
+
+// timedOut is the refusal for a Vault that did not answer in the time it was
+// given, under the one code the plugins that wait on a server share, and with
+// the cause that looks exactly like it.
+func timedOut(addr string) *view.Error {
+	return view.Errorf("vault.timeout", "%s did not answer in time", addr).
+		WithHint("a firewall that drops rather than refuses looks exactly like this")
+}
+
+// serverErrorHint is what a 5xx from a server is to its reader: a failure of the
+// service, which no setting here changes, and one a second call may not meet.
+const serverErrorHint = "the service is overloaded or restarting; retry"
+
+// sealed is the refusal for a Vault that is sealed or not yet initialized.
+func sealed(req plugin.Request, answered string) *view.Error {
+	return view.Errorf("vault.sealed", "%s is sealed or not yet initialized", answered).
+		WithHint(nextCall(req, "vault.seal.status") + " shows which")
 }
 
 // tlsExpected is the refusal for a plain-HTTP call to a port that speaks
