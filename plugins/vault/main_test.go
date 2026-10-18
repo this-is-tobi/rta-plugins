@@ -111,7 +111,7 @@ func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
 		{"reset", &url.Error{Op: "Get", URL: "https://x", Err: &net.OpError{Op: "read", Net: "tcp",
 			Err: os.NewSyscallError("read", syscall.ECONNRESET)}}, "vault.conn.failed"},
 		{"a dial that timed out", &url.Error{Op: "Get", URL: "https://x",
-			Err: &net.OpError{Op: "dial", Net: "tcp", Err: timeoutError{}}}, "vault.conn.timeout"},
+			Err: &net.OpError{Op: "dial", Net: "tcp", Err: timeoutError{}}}, "vault.timeout"},
 		{"a refusal flattened into text", errors.New("Get https://x: dial tcp 10.0.0.9:8200: connect: " +
 			syscall.ECONNREFUSED.Error()), "vault.conn.refused"},
 		{"unknown host", &net.DNSError{Err: "no such host", Name: "vault.internal"}, "vault.host.unknown"},
