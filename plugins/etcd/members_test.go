@@ -71,7 +71,7 @@ func rowsOf(t *testing.T, list string, statuses map[uint64]string) ([]memberRow,
 		if raw, ok := statuses[m.ID]; ok {
 			r.st = statusOfJSON(t, raw)
 		} else {
-			r.why = "no answer within 3s at " + m.ClientURLs[0]
+			r.why = "no answer within 2s at " + m.ClientURLs[0]
 		}
 		rows = append(rows, r)
 	}
@@ -259,8 +259,8 @@ func TestASingleMemberClusterSaysItHasNoPeerToFailOverTo(t *testing.T) {
 // not asked.
 func TestAMemberThatCouldNotBeAskedSaysSoAndWhy(t *testing.T) {
 	lead := leaderView{id: idLeader, st: statusOfJSON(t, statusLeader)}
-	silent := memberRow{id: idFollower, name: "eh2", clientURLs: []string{"http://eh2:2379"}, why: "no answer within 3s at http://eh2:2379"}
-	if got := memberHealth(silent, lead); got != "unreachable — no answer within 3s at http://eh2:2379" {
+	silent := memberRow{id: idFollower, name: "eh2", clientURLs: []string{"http://eh2:2379"}, why: "no answer within 2s at http://eh2:2379"}
+	if got := memberHealth(silent, lead); got != "unreachable — no answer within 2s at http://eh2:2379" {
 		t.Errorf("silent = %q", got)
 	}
 	skipped := memberRow{id: idFollower, name: "eh2", clientURLs: []string{"http://eh2:2379"}, notAsked: true, why: "the kube: forward reaches one member"}
@@ -284,13 +284,13 @@ func TestWhyAMemberWasNotReadIsTheShortestTrueReason(t *testing.T) {
 		err  error
 		want string
 	}{
-		{"a deadline", context.DeadlineExceeded, "no answer within 3s"},
+		{"a deadline", context.DeadlineExceeded, "no answer within 2s"},
 		// What etcd's client returns for a member nothing listens on: it keeps
 		// retrying until the bound, then reports the last dial's error under
 		// DeadlineExceeded.
 		{"a refused dial retried until the bound", status.Error(codes.DeadlineExceeded,
 			`latest balancer error: connection error: desc = "transport: Error while dialing: dial tcp 127.0.0.1:32372: connect: connection refused"`),
-			"no answer within 3s"},
+			"no answer within 2s"},
 		{"a refused dial", refused, "connection refused"},
 		{"a refused dial a status carries as text", status.Error(codes.Unavailable,
 			`connection error: desc = "transport: Error while dialing: dial tcp 127.0.0.1:32372: connect: connection refused"`),

@@ -31,7 +31,12 @@ const catchUpEntries = 5000
 // memberTimeout bounds each member's own answer, so one that drops packets
 // costs a call this long rather than a call as long as every member's wait
 // added up. The members are asked together, so it is also the whole cost.
-const memberTimeout = 3 * time.Second
+//
+// Two seconds, because a tile re-runs the overview and a member that is down
+// costs every refresh the full wait: a member that answers a status does it in
+// milliseconds on the network its peers share, and one that has not by two
+// seconds is the finding. Three held a refresh for three.
+const memberTimeout = 2 * time.Second
 
 // memberRow is one member as the member list names it and, where it could be
 // asked, as it reports itself.
@@ -341,42 +346,82 @@ func unapplied(st *clientv3.StatusResponse) uint64 {
 // and a member that names a different leader than the endpoint does is one
 // that has not heard of the change yet, or is on the far side of a split.
 func memberHealth(r memberRow, lead leaderView) string {
+	state, _, long := memberVerdict(r, lead)
+	if state == "ok" {
+		return "ok"
+	}
+	return state + " — " + long
+}
+
+// memberVerdict is memberHealth's judgement in the two lengths its readers
+// need: long is the cell of the members table, which has the width for the whole
+// reason, and short is the clause of the compact answer's status row, which has
+// the width of a tile and names the member in front of it. state is the word the
+// theme grades the cell by: ok, info, pending, unreachable, warn or fail.
+func memberVerdict(r memberRow, lead leaderView) (state, short, long string) {
 	st := r.st
 	if st == nil {
 		switch {
 		case r.notAsked:
-			return "info — not asked: " + r.why
+			return "info", "", "not asked: " + r.why
 		case len(r.clientURLs) == 0:
-			return "pending — " + r.why
+			return "pending", "has not started", r.why
 		}
-		return "unreachable — " + r.why
+		reason := r.why
+		if at := strings.LastIndex(reason, " at "); at >= 0 {
+			reason = reason[:at]
+		}
+		return "unreachable", "unreachable, " + reason, r.why
 	}
 	// Before the errors, which carry "etcdserver: no leader" for the same
 	// member, and say less: a member cut off from its peers reports it, and
 	// what it means for the reader is what the rest of the cell is for.
 	if st.Leader == 0 {
-		return "fail — no leader: cut off from its peers, or an election is under way"
+		return "fail", "has no leader, cut off from its peers",
+			"no leader: cut off from its peers, or an election is under way"
 	}
 	if len(st.Errors) > 0 {
-		return "fail — " + strings.Join(st.Errors, "; ")
+		errs := strings.Join(st.Errors, "; ")
+		return "fail", "reports " + errs, errs
 	}
 	if lead.id != 0 && st.Leader != lead.id {
-		return "warn — believes " + hexID(st.Leader) + " leads, the endpoint says " + hexID(lead.id)
+		long := "believes " + hexID(st.Leader) + " leads, the endpoint says " + hexID(lead.id)
+		return "warn", "believes " + hexID(st.Leader) + " leads, not " + hexID(lead.id), long
 	}
 	if lead.st != nil && r.id != lead.id && st.RaftTerm != lead.st.RaftTerm {
-		return fmt.Sprintf("warn — term %d, the leader's is %d", st.RaftTerm, lead.st.RaftTerm)
+		long := fmt.Sprintf("term %d, the leader's is %d", st.RaftTerm, lead.st.RaftTerm)
+		return "warn", "is on " + long, long
 	}
 	if n, ok := behind(r, lead); ok && n >= catchUpEntries {
 		if r.learner {
-			return "pending — learner catching up, " + entries(n) + " behind"
+			return "pending", "is a learner catching up", "learner catching up, " + entries(n) + " behind"
 		}
-		return "warn — " + entries(n) + " behind the leader, past the " +
+		return "warn", "is " + entries(n) + " behind the leader", entries(n) + " behind the leader, past the " +
 			strconv.Itoa(catchUpEntries) + " it keeps log for: this member needs a snapshot to catch up"
 	}
 	if n := unapplied(st); n >= catchUpEntries {
-		return "warn — " + entries(n) + " committed and not yet applied"
+		return "warn", "has " + entries(n) + " committed and not applied", entries(n) + " committed and not yet applied"
 	}
-	return "ok"
+	return "ok", "", ""
+}
+
+// quorumCount is how many voting members the cluster has and how many answered
+// with a leader, and false when it cannot be said: some voter was never asked,
+// or there is none. A learner votes for nothing and is not counted.
+func quorumCount(rows []memberRow) (voters, answered int, ok bool) {
+	for _, r := range rows {
+		if r.learner {
+			continue
+		}
+		if r.notAsked {
+			return 0, 0, false
+		}
+		voters++
+		if r.st != nil && r.st.Leader != 0 {
+			answered++
+		}
+	}
+	return voters, answered, voters > 0
 }
 
 // quorumText says how many of the voting members answered and how many a
@@ -390,20 +435,8 @@ func memberHealth(r memberRow, lead leaderView) string {
 // leader is the evidence that decides which it is — a member that can name a
 // leader has heard from a quorum.
 func quorumText(rows []memberRow, endpointLeader uint64) (string, bool) {
-	voters, answered := 0, 0
-	for _, r := range rows {
-		if r.learner {
-			continue
-		}
-		if r.notAsked {
-			return "", false
-		}
-		voters++
-		if r.st != nil && r.st.Leader != 0 {
-			answered++
-		}
-	}
-	if voters == 0 {
+	voters, answered, ok := quorumCount(rows)
+	if !ok {
 		return "", false
 	}
 	need := voters/2 + 1
