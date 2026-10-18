@@ -36,7 +36,7 @@ func TestARedirectIsNeverFollowedWithTheAPIKeyInHand(t *testing.T) {
 			t.Fatal(err)
 		}
 		rq := req(t, "qdrant.overview", map[string]any{
-			"endpoint": strings.TrimPrefix(secure.URL, "https://"), "ca-file": ca, "api-key": "qd-secret-key"})
+			"address": strings.TrimPrefix(secure.URL, "https://"), "ca-file": ca, "api-key": "qd-secret-key"})
 		verr := get(context.Background(), rq, "/collections", &struct{}{})
 		secure.Close()
 		if verr == nil || verr.Code != "qdrant.redirect.refused" || !strings.Contains(verr.Message, plain.URL) {
@@ -51,7 +51,7 @@ func TestARedirectIsNeverFollowedWithTheAPIKeyInHand(t *testing.T) {
 	}))
 	defer hop.Close()
 	verr := get(context.Background(), req(t, "qdrant.overview", map[string]any{
-		"endpoint": strings.TrimPrefix(hop.URL, "http://"), "api-key": "qd-secret-key"}), "/collections", &struct{}{})
+		"address": strings.TrimPrefix(hop.URL, "http://"), "api-key": "qd-secret-key"}), "/collections", &struct{}{})
 	if verr == nil || verr.Code != "qdrant.redirect.refused" {
 		t.Errorf("with no CA: %+v, want qdrant.redirect.refused", verr)
 	}

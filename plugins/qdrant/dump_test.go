@@ -106,7 +106,7 @@ func TestDumpRefusesAnExistingFileBeforeTouchingTheServer(t *testing.T) {
 	}
 	_, err := runDump(t.Context(), req(t, "qdrant.dump", map[string]any{
 		"collection": "docs", "out": path,
-		"endpoint": strings.TrimPrefix(srv.URL, "http://"),
+		"address": strings.TrimPrefix(srv.URL, "http://"),
 	}))
 	verr, ok := err.(*view.Error)
 	if !ok || verr.Code != "qdrant.dump.exists" {
@@ -122,7 +122,7 @@ func TestDumpDryRunTouchesNothing(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "d.snapshot")
 	v, err := runDump(t.Context(), dryReq(t, "qdrant.dump", map[string]any{
 		"collection": "docs", "out": path,
-		"endpoint": strings.TrimPrefix(srv.URL, "http://"),
+		"address": strings.TrimPrefix(srv.URL, "http://"),
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -142,7 +142,7 @@ func TestDumpDryRunTouchesNothing(t *testing.T) {
 // through a forward is the profile and not the forward's end.
 func TestADryRunNamesTheProfileAndItsForward(t *testing.T) {
 	values := func(extra map[string]any) map[string]any {
-		extra["endpoint"], extra["collection"] = "127.0.0.1:54321", "docs"
+		extra["address"], extra["collection"] = "127.0.0.1:54321", "docs"
 		return extra
 	}
 	dump, err := runDump(t.Context(), dryReq(t, "qdrant.dump",
@@ -189,7 +189,7 @@ func TestDumpCreatesDownloadsAndDeletes(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "docs.snapshot")
 	v, err := runDump(t.Context(), req(t, "qdrant.dump", map[string]any{
 		"collection": "docs", "out": path,
-		"endpoint": strings.TrimPrefix(srv.URL, "http://"),
+		"address": strings.TrimPrefix(srv.URL, "http://"),
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -221,11 +221,11 @@ func TestDumpCreatesDownloadsAndDeletes(t *testing.T) {
 	}
 
 	// A call qdrant.restore takes: the snapshot by its place, the collection
-	// and the endpoint as flags. It once gave the collection by place too,
+	// and the address as flags. It once gave the collection by place too,
 	// which the CLI refuses as an unexpected argument.
 	endpoint := strings.TrimPrefix(srv.URL, "http://")
 	if restore := pairValue(t, v, "restore with"); restore != "rta qdrant restore "+path+
-		" --collection docs --endpoint "+endpoint {
+		" --collection docs --address "+endpoint {
 		t.Errorf("the receipt does not name a restore the CLI takes: %q", restore)
 	}
 	if at := pairValue(t, v, "at rest"); !strings.Contains(at, "unencrypted") {
@@ -258,7 +258,7 @@ func TestTheRestoreConnectsAsProtectedAsTheDump(t *testing.T) {
 		{name: "plain HTTP, as a tunnel forces it", values: map[string]any{"tls": false}, without: []string{"--tls"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			tc.values["endpoint"] = "qdrant.internal:6333"
+			tc.values["address"] = "qdrant.internal:6333"
 			tc.values["api-key"] = "hunter2"
 			got := restoreCommand(req(t, "qdrant.dump", tc.values), "docs", "/backups/docs.snapshot")
 			for _, w := range tc.want {
@@ -289,9 +289,9 @@ func TestTheRestoreLineReachesTheSameInstanceAgain(t *testing.T) {
 		want    string
 	}{
 		{"no profile", "", plugin.TunnelNone,
-			"rta qdrant restore /backups/docs.snapshot --collection docs --endpoint qdrant.internal:6333"},
+			"rta qdrant restore /backups/docs.snapshot --collection docs --address qdrant.internal:6333"},
 		{"a profile reached directly", "prod", plugin.TunnelNone,
-			"rta qdrant restore /backups/docs.snapshot --collection docs --profile prod --endpoint qdrant.internal:6333"},
+			"rta qdrant restore /backups/docs.snapshot --collection docs --profile prod --address qdrant.internal:6333"},
 		{"a profile through a forward", "prod", plugin.TunnelKube,
 			"rta qdrant restore /backups/docs.snapshot --collection docs --profile prod"},
 	} {
@@ -300,7 +300,7 @@ func TestTheRestoreLineReachesTheSameInstanceAgain(t *testing.T) {
 			if tc.tunnel != plugin.TunnelNone {
 				endpoint = "127.0.0.1:54321"
 			}
-			r := req(t, "qdrant.dump", map[string]any{"endpoint": endpoint}).WithProfile(tc.profile, tc.tunnel)
+			r := req(t, "qdrant.dump", map[string]any{"address": endpoint}).WithProfile(tc.profile, tc.tunnel)
 			if got := restoreCommand(r, "docs", "/backups/docs.snapshot"); got != tc.want {
 				t.Errorf("restore = %q, want %q", got, tc.want)
 			}
@@ -321,8 +321,8 @@ func TestAReceiptNamesTheProfileRatherThanAForwardsEnd(t *testing.T) {
 		{"a profile through a forward", "prod", "127.0.0.1:54321", "profile prod (through its kube: forward)",
 			plugin.TunnelKube},
 	} {
-		r := req(t, "qdrant.dump", map[string]any{"endpoint": tc.endpoint}).WithProfile(tc.profile, tc.tunnel)
-		if got := r.Reached(r.String("endpoint")); got != tc.want {
+		r := req(t, "qdrant.dump", map[string]any{"address": tc.endpoint}).WithProfile(tc.profile, tc.tunnel)
+		if got := r.Reached(r.String("address")); got != tc.want {
 			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)
 		}
 	}
@@ -354,7 +354,7 @@ func TestDumpFailedDownloadCleansUpBothSides(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "docs.snapshot")
 	_, err := runDump(t.Context(), req(t, "qdrant.dump", map[string]any{
 		"collection": "docs", "out": path,
-		"endpoint": strings.TrimPrefix(srv.URL, "http://"),
+		"address": strings.TrimPrefix(srv.URL, "http://"),
 	}))
 	if err == nil {
 		t.Fatal("a failed download reported success")
@@ -399,7 +399,7 @@ func TestDumpReportsAnUndeletableServerCopy(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "docs.snapshot")
 	v, err := runDump(t.Context(), req(t, "qdrant.dump", map[string]any{
 		"collection": "docs", "out": path,
-		"endpoint": strings.TrimPrefix(srv.URL, "http://"),
+		"address": strings.TrimPrefix(srv.URL, "http://"),
 	}))
 	if err != nil {
 		t.Fatalf("an undeletable server copy failed the dump: %v", err)

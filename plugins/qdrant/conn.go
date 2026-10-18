@@ -26,7 +26,7 @@ import (
 // Every one is Local, and that is the security property rather than a detail.
 // Together they name which instance this call reaches and as whom, and an MCP
 // caller may not choose that: caller values resolve above config and above the
-// host's own environment, so an agent that could set `endpoint` would point
+// host's own environment, so an agent that could set `address` would point
 // rta at an instance of its own and have the host supply $RTA_QDRANT_API_KEY
 // beside it. Config still fills these and a person at a terminal still passes
 // them as ordinary flags.
@@ -35,8 +35,8 @@ func connFields() []plugin.Field {
 		// Qdrant serves REST on 6333 and gRPC on 6334. This speaks REST, so
 		// 6334 will not answer it — which classify says out loud, because the
 		// failure otherwise names neither port nor protocol.
-		{Name: "endpoint", Type: plugin.String, Default: "127.0.0.1:6333", Config: "endpoint",
-			Local: true, Endpoint: plugin.EndpointAddress, Help: "Qdrant REST endpoint, host[:port]"},
+		{Name: "address", Type: plugin.String, Default: "127.0.0.1:6333", Config: "address",
+			Local: true, Endpoint: plugin.EndpointAddress, Help: "Qdrant REST address, host[:port]"},
 		// Local for the downgrade reason rather than the redirect one: an
 		// agent that could set this could ask for plaintext against an
 		// instance the operator configured as HTTPS.
@@ -62,7 +62,7 @@ func connFields() []plugin.Field {
 		// have been: it moves the check, never loosens it. Local for the reason
 		// tls is: what a certificate has to prove is the operator's to say.
 		{Name: "tls-server-name", Type: plugin.String, Default: "", Config: "tls-server-name",
-			Local: true, Help: "name to check the server's certificate for, in place of the endpoint's host"},
+			Local: true, Help: "name to check the server's certificate for, in place of the address's host"},
 	}
 }
 
@@ -179,12 +179,13 @@ func newRequest(ctx context.Context, req plugin.Request, method, path string,
 	if tlsOn(req) {
 		base = "https://"
 	}
-	base += req.String("endpoint")
+	base += req.String("address")
 
 	httpReq, err := http.NewRequestWithContext(ctx, method, base+path, body)
 	if err != nil {
 		return nil, view.Errorf("qdrant.endpoint.invalid", "%v", err).
-			WithHint("endpoint is host[:port] with no scheme — set " + req.Surface().SettingName("tls") + " separately")
+			WithHint(req.Surface().SettingName("address") + " is host[:port] with no scheme — set " +
+				req.Surface().SettingName("tls") + " separately")
 	}
 	httpReq.Header.Set("Accept", "application/json")
 	if key := req.String("api-key"); key != "" {
@@ -284,7 +285,7 @@ func reachArgs(req plugin.Request) []plugin.Arg {
 	if req.Surface() == plugin.SurfaceMCP {
 		return req.ReachArgs()
 	}
-	args := req.ReachArgs(plugin.Arg{Name: "endpoint", Value: req.String("endpoint")})
+	args := req.ReachArgs(plugin.Arg{Name: "address", Value: req.String("address")})
 	if req.Bool("tls") {
 		args = append(args, plugin.Arg{Name: "tls", Value: true})
 	}
@@ -327,7 +328,7 @@ func tlsOn(req plugin.Request) bool {
 // have named nothing the operator could change.
 func tlsExpected(req plugin.Request) *view.Error {
 	refusal := view.Errorf("qdrant.tls.expected", "this call spoke plain HTTP to %s, which speaks only TLS",
-		req.Reached(req.String("endpoint")))
+		req.Reached(req.String("address")))
 	if req.Tunnel() != plugin.TunnelNone {
 		return refusal.WithHint("a forward carries plain HTTP unless the profile's connection says its far end " +
 			"speaks TLS: tunnelTLS: true on that connection")
@@ -347,7 +348,7 @@ var maxResponseBytes int64 = 32 << 20
 // classifyStatus turns an HTTP failure into something an operator can act on.
 // Qdrant puts a reason in the body, and it is usually the useful half.
 func classifyStatus(code int, body []byte, req plugin.Request) *view.Error {
-	where := req.Reached(req.String("endpoint"))
+	where := req.Reached(req.String("address"))
 	detail := qdrantErrorText(body)
 
 	switch code {
@@ -448,12 +449,12 @@ func classify(err error, req plugin.Request) *view.Error {
 	var redirect redirectRefused
 	if errors.As(err, &redirect) {
 		return view.Errorf("qdrant.redirect.refused", "%s answered with a redirect to %s, which this call does not follow",
-			req.Reached(req.String("endpoint")), redirect.to).
+			req.Reached(req.String("address")), redirect.to).
 			WithHint("a redirect would carry the API key to wherever it points, so none is followed: " +
-				req.Surface().SettingName("endpoint") + " is the address the Qdrant itself answers on, and a proxy " +
+				req.Surface().SettingName("address") + " is the address the Qdrant itself answers on, and a proxy " +
 				"that rewrites the scheme or the host is what usually sends one")
 	}
-	where := req.String("endpoint")
+	where := req.String("address")
 
 	if errors.Is(err, context.DeadlineExceeded) {
 		return view.Errorf("qdrant.timeout", "%s did not answer in time", where).
@@ -508,11 +509,11 @@ func classify(err error, req plugin.Request) *view.Error {
 	// set: a name given and not matched is the certificate's to explain.
 	var hostErr x509.HostnameError
 	if errors.As(err, &hostErr) && req.Tunnel() != plugin.TunnelNone && serverName(req) == "" {
-		return plugin.ForwardNameRefusal(req, "qdrant.tls.forward", req.String("endpoint"), "instance", hostErr)
+		return plugin.ForwardNameRefusal(req, "qdrant.tls.forward", req.String("address"), "instance", hostErr)
 	}
 	var verifyErr *tls.CertificateVerificationError
 	if errors.As(err, &verifyErr) {
-		checked := "the host in " + sf.SettingName("endpoint")
+		checked := "the host in " + sf.SettingName("address")
 		if serverName(req) != "" {
 			checked = "the name in " + sf.SettingName("tls-server-name")
 		}
@@ -544,12 +545,12 @@ func classify(err error, req plugin.Request) *view.Error {
 		}
 		return view.Errorf("qdrant.conn.unreachable", "%s cannot be reached from this machine: %v", where, reason).
 			WithHint("no route leads there from here — a VPN or tunnel the instance sits behind that is " +
-				"down looks exactly like this, and so does " + sf.SettingName("endpoint") + " naming " +
+				"down looks exactly like this, and so does " + sf.SettingName("address") + " naming " +
 				"an address on a network this machine is not on")
 	}
 	if plugin.DialRefused(err) {
 		return view.Errorf("qdrant.conn.refused", "nothing is listening on %s", where).
-			WithHint("is the server up, and is " + sf.SettingName("endpoint") + " right? Qdrant serves REST on 6333 " +
+			WithHint("is the server up, and is " + sf.SettingName("address") + " right? Qdrant serves REST on 6333 " +
 				"and gRPC on 6334, and the gRPC port will not answer this")
 	}
 	var urlErr *url.Error
@@ -591,6 +592,6 @@ func pathFor(format string, name string) string {
 // is the gRPC port, it is one character away from 6333, and it accepts the
 // connection before failing to answer.
 func malformed(req plugin.Request) *view.Error {
-	return view.Errorf("qdrant.response.malformed", "%s did not answer with JSON", req.Reached(req.String("endpoint"))).
+	return view.Errorf("qdrant.response.malformed", "%s did not answer with JSON", req.Reached(req.String("address"))).
 		WithHint("Qdrant serves REST on 6333 and gRPC on 6334 — the gRPC port will not answer this")
 }

@@ -20,7 +20,7 @@ const (
 // is named, the peer's address with it when the server quotes one, and the
 // reader is sent to the page that says which peer.
 func TestAReadThatNeedsAPeerThatDoesNotAnswerNamesThePeer(t *testing.T) {
-	r := req(t, "qdrant.collection.show", map[string]any{"endpoint": "10.0.0.1:6333"})
+	r := req(t, "qdrant.collection.show", map[string]any{"address": "10.0.0.1:6333"})
 	for name, tc := range map[string]struct {
 		body, message string
 	}{

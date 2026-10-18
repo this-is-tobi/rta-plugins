@@ -86,7 +86,7 @@ func req(t *testing.T, capID string, values map[string]any) plugin.Request {
 
 func reqAt(t *testing.T, f *fakeQdrant, capID string, values map[string]any) plugin.Request {
 	t.Helper()
-	values["endpoint"] = f.endpoint()
+	values["address"] = f.endpoint()
 	return req(t, capID, values)
 }
 
@@ -116,7 +116,7 @@ func TestConformance(t *testing.T) {
 // one that is not there or is empty.
 func conformanceInputs(dir string) map[string]map[string]any {
 	conn := func(m map[string]any) map[string]any {
-		m["endpoint"] = "127.0.0.1:1"
+		m["address"] = "127.0.0.1:1"
 		m["collection"] = "conformance"
 		return m
 	}
@@ -138,6 +138,28 @@ func TestEveryConnectionInputIsLocal(t *testing.T) {
 		if !f.Local {
 			t.Errorf("%s: connection input is not Local — an MCP caller could redirect this call", f.Name)
 		}
+	}
+}
+
+// Where the service is has one name per shape across the plugins: `address`
+// takes host[:port] and `url` takes a URL, so a profile's `set:` reads the
+// same whichever plugin it fills and nobody needs the card to know which word
+// this one chose. Written against the role the input declares rather than a
+// list of names, so a destination added later is held to it the day it is added.
+func TestTheDestinationInputIsNamedForItsRole(t *testing.T) {
+	found := false
+	for _, f := range connFields() {
+		if f.Endpoint != plugin.EndpointAddress {
+			continue
+		}
+		found = true
+		if f.Name != "address" || f.Config != "address" {
+			t.Errorf("the %s input is %q (config %q), want %q: it takes host[:port], and that is the word the plugins share",
+				f.Endpoint, f.Name, f.Config, "address")
+		}
+	}
+	if !found {
+		t.Error("no connection input declares the address role")
 	}
 }
 
@@ -456,7 +478,7 @@ func TestVectorsRenderAsASummaryRatherThanThousandsOfFloats(t *testing.T) {
 // connection before failing to answer. Nothing about the resulting error says
 // so, which is why the hint has to.
 func TestTheGRPCPortMixupIsNamedInTheHint(t *testing.T) {
-	r := req(t, "qdrant.overview", map[string]any{"endpoint": "qdrant.internal:6334"})
+	r := req(t, "qdrant.overview", map[string]any{"address": "qdrant.internal:6334"})
 	got := malformed(r)
 	if !strings.Contains(got.Hint, "6334") {
 		t.Errorf("the hint does not mention the gRPC port: %q", got.Hint)
@@ -472,7 +494,7 @@ func TestANameDNSCannotResolveIsNotReadAsNothingListening(t *testing.T) {
 	err := &url.Error{Op: "Get", URL: "http://qdrant.internal:6333/",
 		Err: &stdnet.OpError{Op: "dial", Net: "tcp",
 			Err: &stdnet.DNSError{Err: "no such host", Name: "qdrant.internal", IsNotFound: true}}}
-	verr := classify(err, req(t, "qdrant.overview", map[string]any{"endpoint": "qdrant.internal:6333"}))
+	verr := classify(err, req(t, "qdrant.overview", map[string]any{"address": "qdrant.internal:6333"}))
 	if verr.Code != "qdrant.host.unknown" {
 		t.Errorf("code = %s, want qdrant.host.unknown: %s", verr.Code, verr.Message)
 	}
@@ -483,7 +505,7 @@ func TestANameDNSCannotResolveIsNotReadAsNothingListening(t *testing.T) {
 // nobody is on, a reset reached no port that refused it, and a dial that
 // timed out is a timeout. Text that lost its errno is read by its words.
 func TestADialIsReadByTheErrorItCarries(t *testing.T) {
-	r := req(t, "qdrant.overview", map[string]any{"endpoint": "10.0.0.9:6333"})
+	r := req(t, "qdrant.overview", map[string]any{"address": "10.0.0.9:6333"})
 	wrap := func(err error) error { return &url.Error{Op: "Get", URL: "http://10.0.0.9:6333/", Err: err} }
 	dial := func(errno syscall.Errno) error {
 		return wrap(&stdnet.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", errno)})
@@ -525,7 +547,7 @@ func (timeoutError) Temporary() bool { return true }
 // reason, quoted in the verifier's words. The verdicts only a Mac's system
 // verifier gives, untyped, are verdicts_test.go's.
 func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
-	r := req(t, "qdrant.overview", map[string]any{"endpoint": "qdrant.internal:6333"})
+	r := req(t, "qdrant.overview", map[string]any{"address": "qdrant.internal:6333"})
 	for _, tc := range []struct {
 		name string
 		err  error
@@ -572,7 +594,7 @@ func TestPlainHTTPToAPortThatSpeaksOnlyTLSNamesTheScheme(t *testing.T) {
 			"the operator's `tls` setting turns TLS on"},
 		{"through a forward", "lab", plugin.TunnelKube, plugin.SurfaceCLI, "tunnelTLS: true on that connection"},
 	} {
-		r := req(t, "qdrant.overview", map[string]any{"endpoint": "127.0.0.1:54321"}).
+		r := req(t, "qdrant.overview", map[string]any{"address": "127.0.0.1:54321"}).
 			WithProfile(tc.profile, tc.tunnel).WithSurface(tc.sf)
 		got := classify(err, r)
 		if got.Code != "qdrant.tls.expected" || !strings.Contains(got.Hint, tc.hint) {
@@ -590,7 +612,7 @@ func TestPlainHTTPToAPortThatSpeaksOnlyTLSNamesTheScheme(t *testing.T) {
 		}
 	}
 	// With TLS on the answer was never plain HTTP's, whatever it quotes.
-	r := req(t, "qdrant.overview", map[string]any{"endpoint": "127.0.0.1:54321", "tls": true})
+	r := req(t, "qdrant.overview", map[string]any{"address": "127.0.0.1:54321", "tls": true})
 	if got := classify(err, r); got.Code == "qdrant.tls.expected" {
 		t.Errorf("a call over TLS was told it spoke plain HTTP: %q", got.Message)
 	}
@@ -617,7 +639,7 @@ func TestAnAlertForAPlainHTTPRequestIsReadAsTheScheme(t *testing.T) {
 		}
 	}()
 	_, verr := collectionTable(context.Background(), req(t, "qdrant.collection.list",
-		map[string]any{"endpoint": l.Addr().String()}))
+		map[string]any{"address": l.Addr().String()}))
 	if verr == nil || verr.Code != "qdrant.tls.expected" {
 		t.Fatalf("got %+v, want qdrant.tls.expected", verr)
 	}
@@ -630,7 +652,7 @@ func TestAnAlertForAPlainHTTPRequestIsReadAsTheScheme(t *testing.T) {
 // the dial's words, read first, would have had it.
 func TestACertificatesOwnNamesAreNeverReadAsTheDialsFailure(t *testing.T) {
 	sdktest.VerifierSystem(t, "darwin")
-	r := req(t, "qdrant.overview", map[string]any{"endpoint": "qdrant.internal:6333"})
+	r := req(t, "qdrant.overview", map[string]any{"address": "qdrant.internal:6333"})
 	named := func(dnsName string) error {
 		return &tls.CertificateVerificationError{Err: x509.HostnameError{
 			Certificate: &x509.Certificate{DNSNames: []string{dnsName}}, Host: "qdrant.internal"}}
@@ -651,8 +673,8 @@ func TestACertificatesOwnNamesAreNeverReadAsTheDialsFailure(t *testing.T) {
 // step. A 401 against an instance with no key configured is the one people
 // actually hit, and it fails the same way as a wrong key.
 func TestHTTPFailuresAreClassified(t *testing.T) {
-	r := req(t, "qdrant.overview", map[string]any{"endpoint": "qdrant.internal:6333"})
-	forwarded := req(t, "qdrant.overview", map[string]any{"endpoint": "127.0.0.1:41233"}).
+	r := req(t, "qdrant.overview", map[string]any{"address": "qdrant.internal:6333"})
+	forwarded := req(t, "qdrant.overview", map[string]any{"address": "127.0.0.1:41233"}).
 		WithProfile("prod", plugin.TunnelKube)
 	for _, code := range []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound,
 		http.StatusTooManyRequests, http.StatusServiceUnavailable, http.StatusInternalServerError} {
@@ -692,7 +714,7 @@ func TestHTTPFailuresAreClassified(t *testing.T) {
 // cluster's own state: the credential is known, so telling its holder to set
 // the key again sends them round a loop.
 func TestAForbiddenTokenIsNotToldToSetItsKeyAgain(t *testing.T) {
-	r := req(t, "qdrant.overview", map[string]any{"endpoint": "qdrant.internal:6333"})
+	r := req(t, "qdrant.overview", map[string]any{"address": "qdrant.internal:6333"})
 	got := classifyStatus(http.StatusForbidden, []byte(`{"status":{"error":"Forbidden: Global access is required"},"time":0.000027625}`), r)
 	if got.Code != "qdrant.denied" || !strings.Contains(got.Message, "Global access is required") {
 		t.Errorf("403 = %s %q", got.Code, got.Message)
@@ -717,7 +739,7 @@ func TestARejectedKeyNamesWhereItIsReadFromForEverySurface(t *testing.T) {
 		{plugin.SurfaceCLI, "the API key is read from $RTA_QDRANT_API_KEY or --api-key —"},
 		{plugin.SurfaceMCP, "the API key is read from $RTA_QDRANT_API_KEY or the operator's `api-key` setting —"},
 	} {
-		r := req(t, "qdrant.overview", map[string]any{"endpoint": "qdrant.internal:6333"}).WithSurface(tc.surface)
+		r := req(t, "qdrant.overview", map[string]any{"address": "qdrant.internal:6333"}).WithSurface(tc.surface)
 		got := classifyStatus(http.StatusUnauthorized, []byte(`Invalid API key or JWT`), r)
 		if !strings.Contains(got.Hint, tc.want) {
 			t.Errorf("%s: hint = %q, want %q in it", tc.surface, got.Hint, tc.want)
