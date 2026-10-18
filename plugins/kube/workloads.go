@@ -94,12 +94,12 @@ func runNamespaceList(ctx context.Context, req plugin.Request) (view.View, error
 		rows = append(rows, []string{n.Metadata.Name, n.Status.Phase, age(n.Metadata.CreationTimestamp)})
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i][0] < rows[j][0] })
-	return view.Table{
+	return withEmpty(view.Table{
 		Columns: []view.Column{
 			{Name: "namespace"}, {Name: "status", Kind: view.KindStatus}, {Name: "age", Kind: view.KindDuration},
 		},
 		Rows: rows, Total: len(rows),
-	}, nil
+	}, "no namespaces"), nil
 }
 
 // podHealth is what a pod's row says about it, and whether it is serving.

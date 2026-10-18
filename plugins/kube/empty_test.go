@@ -59,6 +59,13 @@ func TestAnEmptyListingSaysWhatItLookedAtAndFound(t *testing.T) {
 		{"volume claims", runPVCList, map[string]any{"namespace": "demo"}, []string{"no persistent volume claims", "namespace demo"}},
 		{"certificates", runCertList, map[string]any{"namespace": "demo"}, []string{"no TLS Secrets", "namespace demo"}},
 		{"quotas", runQuotaList, map[string]any{"namespace": "demo"}, []string{"no resource quotas", "namespace demo"}},
+		{"namespaces", runNamespaceList, map[string]any{}, []string{"no namespaces"}},
+		{"nodes", runNodeList, map[string]any{}, []string{"no nodes"}},
+		{"contexts", runContextList, map[string]any{}, []string{"no contexts", "kubeconfig"}},
+		{"node metrics", runMetricsNode, map[string]any{}, []string{"no node metrics"}},
+		{"pod metrics", runMetricsPod, map[string]any{"namespace": "demo"}, []string{"no pod metrics", "namespace demo"}},
+		{"pressure", runMetricsPressure, map[string]any{}, []string{"no nodes"}},
+		{"volume usage", runPVCUsage, map[string]any{}, []string{"no volume claims"}},
 		{"provisioned accounts", runServiceAccountList, map[string]any{"namespace": "demo"}, []string{"no ServiceAccounts", "namespace demo", "`rta kube serviceaccount provision`"}},
 	}
 	for _, c := range cases {

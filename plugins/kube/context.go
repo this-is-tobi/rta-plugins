@@ -99,13 +99,13 @@ func runContextList(ctx context.Context, req plugin.Request) (view.View, error) 
 		})
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i][1] < rows[j][1] })
-	return view.Table{
+	return withEmpty(view.Table{
 		Columns: []view.Column{
 			{Name: "", Kind: view.KindStatus}, {Name: "context"},
 			{Name: "cluster"}, {Name: "namespace"}, {Name: "server"},
 		},
 		Rows: rows, Total: len(rows),
-	}, nil
+	}, "no contexts in the kubeconfig"), nil
 }
 
 func runContextGet(ctx context.Context, req plugin.Request) (view.View, error) {

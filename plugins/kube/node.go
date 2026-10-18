@@ -213,7 +213,7 @@ func runNodeList(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr != nil {
 		return nil, verr
 	}
-	return nodeTable(nodes.Items), nil
+	return withEmpty(nodeTable(nodes.Items), "no nodes"), nil
 }
 
 func nodeTable(nodes []nodeItem) view.Table {
