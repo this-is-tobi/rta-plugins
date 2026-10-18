@@ -140,6 +140,7 @@ func overviewCapability() plugin.Capability {
 }
 
 func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
+	ctx = boundedTo(ctx, overviewTimeout)
 	var root struct {
 		Title   string `json:"title"`
 		Version string `json:"version"`

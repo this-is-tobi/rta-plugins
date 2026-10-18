@@ -71,6 +71,19 @@ func connFields() []plugin.Field {
 // — are the ones where waiting forever is the wrong behaviour.
 const requestTimeout = 30 * time.Second
 
+// overviewTimeout is how long a request of the overview is allowed, in place of
+// requestTimeout. The overview asks for the instance, its cluster and its
+// collections' status, which a Qdrant answers from memory; none of it is a count
+// over a large collection, which is what the thirty seconds is for. An instance
+// that took the connection and never answered held the page for thirty-one, and
+// a tile for as long again at every refresh.
+//
+// Each request's, and not the page's: the overview reads up to a hundred
+// collections one at a time, and their sum over a slow link is no fault of an
+// instance that answers every one. A variable so a test need not wait ten
+// seconds to see it given up on.
+var overviewTimeout = 10 * time.Second
+
 // get issues one REST call and decodes Qdrant's envelope into out.
 //
 // Qdrant wraps every answer in {"result": ..., "status": ..., "time": ...},
@@ -97,9 +110,25 @@ func getRaw(ctx context.Context, req plugin.Request, path string, out any) *view
 type rawTarget struct{ into any }
 
 func call(ctx context.Context, req plugin.Request, method, path string, body, out any) *view.Error {
-	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
+	timeout := requestTimeout
+	if d, ok := ctx.Value(requestTimeoutKey{}).(time.Duration); ok {
+		timeout = d
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	return slowCall(ctx, req, method, path, body, out)
+}
+
+// requestTimeoutKey carries, on a context, the time each request made under it
+// is allowed in place of requestTimeout. A value on the context and not a
+// parameter, because the requests of the overview are made by helpers the
+// collection listing shares (fetchCluster, collectionTableIn), and a listing is
+// not held to what the overview is.
+type requestTimeoutKey struct{}
+
+// boundedTo is ctx with every request made under it held to d.
+func boundedTo(ctx context.Context, d time.Duration) context.Context {
+	return context.WithValue(ctx, requestTimeoutKey{}, d)
 }
 
 // slowCall is call without the requestTimeout bound. The snapshot operations
@@ -388,6 +417,12 @@ func classifyStatus(code int, body []byte, req plugin.Request) *view.Error {
 				"that shard has a replica on another peer")
 		}
 	}
+	// A 5xx is the instance failing, which no setting here changes: the page of
+	// every input sent its reader looking for a fault of their own.
+	if code >= http.StatusInternalServerError {
+		return view.Errorf("qdrant.request.failed", "%s returned %d: %s", where, code, detail).
+			WithHint("the service is overloaded or restarting; retry")
+	}
 	return view.Errorf("qdrant.request.failed", "%s returned %d: %s", where, code, detail).
 		WithHint(req.Surface().SettingsHint("qdrant.overview"))
 }
@@ -458,8 +493,9 @@ func classify(err error, req plugin.Request) *view.Error {
 
 	if errors.Is(err, context.DeadlineExceeded) {
 		return view.Errorf("qdrant.timeout", "%s did not answer in time", where).
-			WithHint("a count or scroll over a large collection with no index does this — " +
-				"narrow it, or check the collection is indexed")
+			WithHint("a firewall that drops rather than refuses looks exactly like this, and so does " +
+				"a count or scroll over a large collection with no index — narrow it, or check the " +
+				"collection is indexed")
 	}
 	// The name first: a dial that could not resolve its host fails with a
 	// *net.OpError wrapping the *net.DNSError, and read the other way round
