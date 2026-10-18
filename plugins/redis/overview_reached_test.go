@@ -12,7 +12,7 @@ import (
 // server, and through a forward the address is 127.0.0.1 and a port that closed
 // with the call. It names the server the way its reader reaches it again.
 func TestTheOverviewNamesTheProfileNotTheEndOfItsForward(t *testing.T) {
-	srv := newFakeServer(t, map[string]string{"INFO all": bulk(sampleInfo)})
+	srv := newFakeServer(t, map[string]string{"INFO all": bulk(sampleInfo), "SLOWLOG LEN": ":0\r\n"})
 	for name, tc := range map[string]struct {
 		profile string
 		tunnel  plugin.Tunnel
@@ -23,7 +23,7 @@ func TestTheOverviewNamesTheProfileNotTheEndOfItsForward(t *testing.T) {
 		"a forward": {"prod", plugin.TunnelKube, "profile prod (through its kube: forward)"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			r := req(t, "redis.overview", map[string]any{"address": srv.addr()})
+			r := req(t, "redis.overview", map[string]any{"address": srv.addr(), "detail": true})
 			if tc.profile != "" {
 				r = r.WithProfile(tc.profile, tc.tunnel)
 			}
