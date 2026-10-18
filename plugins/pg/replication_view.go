@@ -177,7 +177,7 @@ func serverSection(f replicationFacts) view.KeyValue {
 	} else {
 		add("role", "primary")
 	}
-	add("up since", sinceText(f.server.started))
+	add("up since", upSince(f.server.started))
 	if f.server.recovering {
 		standbyPairs(f, add)
 	} else {
@@ -267,6 +267,7 @@ func replicationSummary(f replicationFacts) string {
 	var streaming, hidden int
 	other := map[string]int{}
 	var furthest *int64
+	var longestLag *float64
 	for _, s := range f.standbys {
 		switch {
 		case s.hidden():
@@ -278,6 +279,9 @@ func replicationSummary(f replicationFacts) string {
 		}
 		if s.behind != nil && (furthest == nil || *s.behind > *furthest) {
 			furthest = s.behind
+		}
+		if s.replLag != nil && (longestLag == nil || *s.replLag > *longestLag) {
+			longestLag = s.replLag
 		}
 	}
 	var parts []string
@@ -291,7 +295,14 @@ func replicationSummary(f replicationFacts) string {
 		parts = append(parts, fmt.Sprintf("%d hidden from this role", hidden))
 	}
 	if furthest != nil {
-		parts = append(parts, "furthest behind "+format.Bytes(*furthest))
+		behind := "furthest behind " + format.Bytes(*furthest)
+		// In bytes always, and in time when a standby reports it: PostgreSQL
+		// clears a lag once a standby has been caught up and idle for a while,
+		// so no seconds is the good news there and never a zero.
+		if longestLag != nil {
+			behind += " (lag " + lagText(*longestLag) + ")"
+		}
+		parts = append(parts, behind)
 	}
 	return strings.Join(parts, ", ")
 }
@@ -311,29 +322,22 @@ func stateWords(state string) string {
 	return state
 }
 
-// replicationLine is the summary with a pointer to the page it summarises,
-// for the overview's glance. Only where there is a page worth opening: a
-// server that replicates to and from nothing has nothing for it to show, and
-// pointing at an empty page would send somebody to read one sentence twice.
-//
-// It counts what the page's attention list holds, because the glance is the
+// replicationLine is the summary and the count of what the page's attention
+// list holds, for the overview's glance. It counts because the glance is the
 // one place somebody looks while nothing is known to be wrong: a standby that
 // went away reads "no standby is connected" and is only a slot that nobody
 // reads, and a sentence that stayed silent about the warning beside it would
 // be the quiet half of the failure. The count is a number, not a grade; the
-// words and the colours are on the page.
-func replicationLine(f replicationFacts, sf plugin.Surface) string {
+// words and the colours are on the page, and the glance's status row names the
+// worst of them.
+func replicationLine(f replicationFacts) string {
 	line := replicationSummary(f)
-	attention := len(attentionTable(f).Rows)
-	switch attention {
+	switch attention := len(attentionTable(f).Rows); attention {
 	case 0:
 	case 1:
 		line += ", 1 thing needs attention"
 	default:
 		line += fmt.Sprintf(", %d things need attention", attention)
-	}
-	if f.server.recovering || len(f.standbys) > 0 || len(f.slots) > 0 || attention > 0 {
-		line += " — " + sf.CapabilityName("pg.replication.status") + " has the positions"
 	}
 	return line
 }

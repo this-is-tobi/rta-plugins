@@ -278,41 +278,36 @@ func TestTheGrantTheHiddenWarningOffersQuotesTheRoleAsSQLDoes(t *testing.T) {
 	}
 }
 
-func TestTheOverviewPointsAtThePageOnlyWhereThereIsOne(t *testing.T) {
-	for _, tc := range []struct {
-		surface plugin.Surface
-		want    string
-	}{
-		{plugin.SurfaceCLI, "`rta pg replication status`"},
-		{plugin.SurfaceMCP, "`pg_replication_status`"},
-	} {
-		line := replicationLine(primaryFacts([]standbyRow{caughtUpStandby()}, nil), tc.surface)
-		if !strings.Contains(line, tc.want) {
-			t.Errorf("%s: %q does not point at %s", tc.surface, line, tc.want)
-		}
-	}
-	if line := replicationLine(primaryFacts(nil, nil), plugin.SurfaceCLI); strings.Contains(line, "rta pg") {
-		t.Errorf("a server with nothing to show points at a page: %q", line)
-	}
-}
-
 func TestTheOverviewCountsWhatTheAttentionListHolds(t *testing.T) {
-	healthy := replicationLine(primaryFacts([]standbyRow{caughtUpStandby()}, nil), plugin.SurfaceCLI)
+	healthy := replicationLine(primaryFacts([]standbyRow{caughtUpStandby()}, nil))
 	if strings.Contains(healthy, "attention") {
 		t.Errorf("a healthy replication asks for attention: %q", healthy)
 	}
-	one := replicationLine(primaryFacts(nil, []slotRow{extendedSlot()}), plugin.SurfaceCLI)
-	if !strings.Contains(one, ", 1 thing needs attention — `rta pg replication status`") {
+	one := replicationLine(primaryFacts(nil, []slotRow{extendedSlot()}))
+	if !strings.HasSuffix(one, ", 1 thing needs attention") {
 		t.Errorf("one finding: %q", one)
 	}
-	two := replicationLine(primaryFacts([]standbyRow{driftingStandby()}, []slotRow{lostSlot()}), plugin.SurfaceCLI)
-	if !strings.Contains(two, ", 2 things need attention — ") {
+	two := replicationLine(primaryFacts([]standbyRow{driftingStandby()}, []slotRow{lostSlot()}))
+	if !strings.HasSuffix(two, ", 2 things need attention") {
 		t.Errorf("two findings: %q", two)
 	}
-	sync := primaryFacts(nil, nil)
-	sync.server.syncNames = "FIRST 1 (ghost)"
-	if line := replicationLine(sync, plugin.SurfaceMCP); !strings.Contains(line, "`pg_replication_status`") {
-		t.Errorf("a finding with no standby and no slot has nothing to point at: %q", line)
+	for _, line := range []string{healthy, one, two} {
+		if strings.Contains(line, "rta pg") || strings.Contains(line, "pg_replication_status") {
+			t.Errorf("the line carries a pointer a tile has no room for: %q", line)
+		}
+	}
+}
+
+// A standby that reports its lag in time is given it beside the bytes; one
+// that does not, because PostgreSQL clears a lag once a standby has been caught
+// up and idle for a while, is given the bytes alone and never a zero.
+func TestTheSummaryGivesTheLagInTimeWhereAStandbyReportsIt(t *testing.T) {
+	if got, want := replicationSummary(primaryFacts([]standbyRow{driftingStandby()}, nil)),
+		"1 standby streaming, furthest behind 101.2 MiB (lag 1s)"; got != want {
+		t.Errorf("summary = %q, want %q", got, want)
+	}
+	if got := replicationSummary(primaryFacts([]standbyRow{caughtUpStandby()}, nil)); strings.Contains(got, "lag") {
+		t.Errorf("a standby with no lag to report is given one: %q", got)
 	}
 }
 
