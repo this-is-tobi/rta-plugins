@@ -16,6 +16,14 @@ import (
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
+// overviewRefresh is how often a dashboard tile of etcd.overview is re-run, and
+// the pace a configuration cannot shorten. A run is a Status, a MemberList and a
+// connection to every other member it can reach, and a member that does not
+// answer holds it for memberTimeout: the host's own pace, which a configuration
+// could bring down to the timer's tick, dialled a cluster at the speed of a clock
+// for a glance.
+const overviewRefresh = time.Minute
+
 func overviewCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "etcd.overview",
@@ -23,6 +31,7 @@ func overviewCapability() plugin.Capability {
 		Keywords:   []string{"summary", "status", "version", "leader", "quorum"},
 		Safety:     plugin.Read,
 		Idempotent: true,
+		Refresh:    overviewRefresh,
 		Description: "The endpoint's own status — version, who it thinks the leader is, its raft " +
 			"term, committed and applied index and revision — with its storage, and every member " +
 			"beside it: role, term, index, how many entries it is behind the leader, revision, " +
