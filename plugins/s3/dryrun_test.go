@@ -29,7 +29,7 @@ const emptyListingXML = `<?xml version="1.0" encoding="UTF-8"?>
 // dryReq is reqFor with DryRun set — the only difference that matters here.
 func dryReq(t *testing.T, capID, endpoint string, values map[string]any) plugin.Request {
 	t.Helper()
-	values["endpoint"] = endpoint
+	values["address"] = endpoint
 	values["access-key"] = "test"
 	values["secret-key"] = "test"
 	for _, c := range Plugin().Capabilities {

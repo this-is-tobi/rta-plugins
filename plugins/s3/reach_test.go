@@ -38,19 +38,19 @@ func TestAnAnsweredRefusalNamesTheProfileAndItsListingReachesTheServer(t *testin
 		{"a bucket that is not there, at a terminal", minio.ErrorResponse{Code: minio.NoSuchBucket, BucketName: "shop"},
 			plugin.TunnelKube, "prod", plugin.SurfaceCLI,
 			[]string{`profile prod (through its kube: forward) has no bucket "shop"`},
-			[]string{"`rta s3 bucket list --profile prod`"}, []string{"--endpoint"}},
+			[]string{"`rta s3 bucket list --profile prod`"}, []string{"--address"}},
 		{"a bucket that is not there, to an agent", minio.ErrorResponse{Code: minio.NoSuchBucket, BucketName: "shop"},
 			plugin.TunnelKube, "prod", plugin.SurfaceMCP,
-			nil, []string{"`s3_bucket_list {\"profile\":\"prod\"}`"}, []string{"endpoint"}},
+			nil, []string{"`s3_bucket_list {\"profile\":\"prod\"}`"}, []string{"address"}},
 		{"an object that is not there, reached directly", minio.ErrorResponse{Code: minio.NoSuchKey, BucketName: "shop", Key: "k"},
 			plugin.TunnelNone, "prod", plugin.SurfaceCLI, nil,
-			[]string{"`rta s3 object list --bucket shop --profile prod --endpoint s3.internal:9000`"}, nil},
+			[]string{"`rta s3 object list --bucket shop --profile prod --address s3.internal:9000`"}, nil},
 		{"a bucket that exists", minio.ErrorResponse{Code: minio.BucketAlreadyExists, BucketName: "shop"},
 			plugin.TunnelKube, "prod", plugin.SurfaceCLI, nil,
-			[]string{"`rta s3 bucket list --profile prod`"}, []string{"--endpoint"}},
+			[]string{"`rta s3 bucket list --profile prod`"}, []string{"--address"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			r := req(t, "s3.object.get", map[string]any{"key": "k", "endpoint": "s3.internal:9000"}).
+			r := req(t, "s3.object.get", map[string]any{"key": "k", "address": "s3.internal:9000"}).
 				WithProfile(tc.profile, tc.tunnel).WithSurface(tc.surface)
 			verr := classify(tc.err, r)
 			for _, w := range tc.message {

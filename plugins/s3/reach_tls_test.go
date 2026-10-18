@@ -21,7 +21,7 @@ func TestATLSRefusalTheServerGaveNamesTheProfileAndNotTheEndOfItsForward(t *test
 			Cert: &x509.Certificate{}, Reason: x509.Expired}}, "s3.tls.rejected"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			r := req(t, "s3.overview", map[string]any{"endpoint": "127.0.0.1:41233"}).
+			r := req(t, "s3.overview", map[string]any{"address": "127.0.0.1:41233"}).
 				WithProfile("prod", plugin.TunnelKube)
 			got := classify(tc.err, r)
 			if got.Code != tc.code {

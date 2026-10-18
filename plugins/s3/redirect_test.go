@@ -39,7 +39,7 @@ func TestARedirectIsNeverFollowedWithASignedRequestInHand(t *testing.T) {
 			t.Fatal(err)
 		}
 		client, verr := connect(req(t, "s3.bucket.list", map[string]any{
-			"endpoint": strings.TrimPrefix(secure.URL, "https://"), "ca-file": ca,
+			"address": strings.TrimPrefix(secure.URL, "https://"), "ca-file": ca,
 			"access-key": "AKIAEXAMPLE", "secret-key": "s3cret-value"}))
 		if verr != nil {
 			secure.Close()
@@ -62,15 +62,15 @@ func TestARedirectIsNeverFollowedWithASignedRequestInHand(t *testing.T) {
 func TestARefusedConnectionAsksAboutTheSettingAndNamesThePort(t *testing.T) {
 	refused := &url.Error{Op: "Get", URL: "http://127.0.0.1:9000/", Err: &net.OpError{Op: "dial", Net: "tcp",
 		Err: &os.SyscallError{Syscall: "connect", Err: syscall.ECONNREFUSED}}}
-	rq := req(t, "s3.overview", map[string]any{"endpoint": "127.0.0.1:9000"})
+	rq := req(t, "s3.overview", map[string]any{"address": "127.0.0.1:9000"})
 	got := classify(refused, rq)
-	if got.Code != "s3.conn.refused" || !strings.Contains(got.Hint, "is --endpoint right?") ||
+	if got.Code != "s3.conn.refused" || !strings.Contains(got.Hint, "is --address right?") ||
 		!strings.Contains(got.Hint, "MinIO serves S3 on 9000 by default") {
-		t.Errorf("directly: %s %q, want s3.conn.refused asking about --endpoint and naming port 9000", got.Code, got.Hint)
+		t.Errorf("directly: %s %q, want s3.conn.refused asking about --address and naming port 9000", got.Code, got.Hint)
 	}
 	got = classify(refused, rq.WithProfile("lab", plugin.TunnelKube))
-	if got.Code != "s3.conn.refused" || strings.Contains(got.Hint, "--endpoint") ||
+	if got.Code != "s3.conn.refused" || strings.Contains(got.Hint, "--address") ||
 		!strings.Contains(got.Hint, "forward") || !strings.Contains(got.Hint, "9000") {
-		t.Errorf("through a forward: %s %q, want a hint about the forward that does not ask about --endpoint", got.Code, got.Hint)
+		t.Errorf("through a forward: %s %q, want a hint about the forward that does not ask about --address", got.Code, got.Hint)
 	}
 }

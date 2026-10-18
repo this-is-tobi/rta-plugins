@@ -25,7 +25,7 @@ func endpointOf(t *testing.T, srv *httptest.Server) string {
 // endpoint, so a handler can be driven end to end without a live S3.
 func reqFor(t *testing.T, capID, endpoint string, values map[string]any) plugin.Request {
 	t.Helper()
-	values["endpoint"] = endpoint
+	values["address"] = endpoint
 	values["access-key"] = "test"
 	values["secret-key"] = "test"
 	return req(t, capID, values)

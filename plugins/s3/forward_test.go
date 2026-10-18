@@ -92,7 +92,7 @@ func serverBehindAForward(t *testing.T) (endpoint, caFile string) {
 func TestThroughAForwardTheCertificateIsCheckedForTheNameGiven(t *testing.T) {
 	endpoint, ca := serverBehindAForward(t)
 	list := func(values map[string]any, tunnel plugin.Tunnel) *view.Error {
-		values["endpoint"], values["ca-file"] = endpoint, ca
+		values["address"], values["ca-file"] = endpoint, ca
 		values["access-key"], values["secret-key"] = "k", "s"
 		// What the host forces over a forward, and what ca-file and
 		// tls-server-name each turn back on.
@@ -137,7 +137,7 @@ func TestThroughAForwardTheCertificateIsCheckedForTheNameGiven(t *testing.T) {
 	t.Run("reached directly", func(t *testing.T) {
 		t.Parallel()
 		verr := list(map[string]any{}, plugin.TunnelNone)
-		if verr == nil || verr.Code != "s3.tls.rejected" || !strings.Contains(verr.Hint, "the host in --endpoint") {
+		if verr == nil || verr.Code != "s3.tls.rejected" || !strings.Contains(verr.Hint, "the host in --address") {
 			t.Errorf("%+v, want s3.tls.rejected naming the endpoint", verr)
 		}
 	})

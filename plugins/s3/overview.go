@@ -91,7 +91,7 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 
 func compactOverview(req plugin.Request, buckets []minio.BucketInfo) view.View {
 	return view.KeyValue{Pairs: []view.Pair{
-		{Key: "endpoint", Value: req.Reached(req.String("endpoint"))},
+		{Key: "address", Value: req.Reached(req.String("address"))},
 		{Key: "buckets", Value: strconv.Itoa(len(buckets))},
 	}}
 }
@@ -123,13 +123,13 @@ func targetOverview(ctx context.Context, req plugin.Request, client *minio.Clien
 	}
 	if !exists {
 		return nil, view.Errorf("s3.bucket.notfound", "%s has no bucket %s",
-			req.Reached(req.String("endpoint")), quoted(bucket)).
+			req.Reached(req.String("address")), quoted(bucket)).
 			WithHint("the name comes from the connection's `bucket` setting or its `only: bucket:` fence — " +
 				"check it against the bucket's real name; the key may also not reach it")
 	}
 
 	pairs := []view.Pair{
-		{Key: "endpoint", Value: req.Reached(req.String("endpoint"))},
+		{Key: "address", Value: req.Reached(req.String("address"))},
 		{Key: "bucket", Value: plugin.ListedName(bucket)},
 	}
 	if created, ok := createdOf(ctx, client, bucket); ok {

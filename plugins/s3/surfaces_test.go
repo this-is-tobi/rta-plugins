@@ -26,7 +26,7 @@ import (
 func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 	refusal := func(verr *view.Error) string { return verr.Message + "\n" + verr.Hint }
 	r := func(sf plugin.Surface) plugin.Request {
-		return req(t, "s3.object.get", map[string]any{"key": "k", "endpoint": "s3.internal:9000"}).WithSurface(sf)
+		return req(t, "s3.object.get", map[string]any{"key": "k", "address": "s3.internal:9000"}).WithSurface(sf)
 	}
 	caRefusal := func(sf plugin.Surface, ca string) string {
 		_, verr := connect(req(t, "s3.overview", map[string]any{"ca-file": ca}).WithSurface(sf))
@@ -66,8 +66,21 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			},
 		},
 		{
+			name:    "an address written as a URL",
+			cli:     "--address is host[:port] with no scheme — set --tls separately",
+			other:   "the operator's `address` setting is host[:port] with no scheme — set the operator's `tls` setting separately",
+			surface: plugin.SurfaceMCP,
+			say: func(sf plugin.Surface) string {
+				_, verr := connect(req(t, "s3.overview", map[string]any{"address": "https://s3.internal:9000"}).WithSurface(sf))
+				if verr == nil {
+					t.Fatal("an address with a scheme was accepted")
+				}
+				return refusal(verr)
+			},
+		},
+		{
 			name:    "a bucket that is not there",
-			cli:     "`rta s3 bucket list --endpoint s3.internal:9000` shows what is there",
+			cli:     "`rta s3 bucket list --address s3.internal:9000` shows what is there",
 			other:   "the `s3_bucket_list` tool shows what is there",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
@@ -85,8 +98,8 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "nothing listening",
-			cli:     "is the server up, and is --endpoint right?",
-			other:   "is the server up, and is the operator's `endpoint` setting right?",
+			cli:     "is the server up, and is --address right?",
+			other:   "is the server up, and is the operator's `address` setting right?",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				return refusal(classify(&net.OpError{Op: "dial", Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)}, r(sf)))
@@ -131,7 +144,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "a destination already taken",
-			cli:     "rta s3 object rm reports/q1.csv --bucket shop --endpoint s3.internal:9000",
+			cli:     "rta s3 object rm reports/q1.csv --bucket shop --address s3.internal:9000",
 			other:   `s3_object_rm {"key":"reports/q1.csv"}`,
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
@@ -211,17 +224,17 @@ func TestTheRemovalOfATakenDestinationReachesTheServerTheCopyReached(t *testing.
 		sf      plugin.Surface
 		want    string
 	}{
-		{"no profile", map[string]any{"endpoint": "s3.internal:9000"}, "", plugin.TunnelNone, plugin.SurfaceCLI,
-			"rta s3 object rm reports/q1.csv --bucket shop --endpoint s3.internal:9000"},
-		{"a profile reached directly", map[string]any{"endpoint": "s3.internal:9000"}, "prod", plugin.TunnelNone,
-			plugin.SurfaceCLI, "rta s3 object rm reports/q1.csv --bucket shop --profile prod --endpoint s3.internal:9000"},
-		{"a profile through a forward", map[string]any{"endpoint": "127.0.0.1:54321"}, "prod", plugin.TunnelKube,
+		{"no profile", map[string]any{"address": "s3.internal:9000"}, "", plugin.TunnelNone, plugin.SurfaceCLI,
+			"rta s3 object rm reports/q1.csv --bucket shop --address s3.internal:9000"},
+		{"a profile reached directly", map[string]any{"address": "s3.internal:9000"}, "prod", plugin.TunnelNone,
+			plugin.SurfaceCLI, "rta s3 object rm reports/q1.csv --bucket shop --profile prod --address s3.internal:9000"},
+		{"a profile through a forward", map[string]any{"address": "127.0.0.1:54321"}, "prod", plugin.TunnelKube,
 			plugin.SurfaceCLI, "rta s3 object rm reports/q1.csv --bucket shop --profile prod"},
-		{"over TLS", map[string]any{"endpoint": "s3.internal:9000", "tls": true, "ca-file": "~/ca.pem",
+		{"over TLS", map[string]any{"address": "s3.internal:9000", "tls": true, "ca-file": "~/ca.pem",
 			"tls-server-name": "minio.svc"}, "", plugin.TunnelNone, plugin.SurfaceCLI,
-			"rta s3 object rm reports/q1.csv --bucket shop --endpoint s3.internal:9000 --tls " +
+			"rta s3 object rm reports/q1.csv --bucket shop --address s3.internal:9000 --tls " +
 				"--ca-file '~/ca.pem' --tls-server-name minio.svc"},
-		{"an agent through a profile", map[string]any{"endpoint": "s3.internal:9000", "tls": true}, "prod",
+		{"an agent through a profile", map[string]any{"address": "s3.internal:9000", "tls": true}, "prod",
 			plugin.TunnelNone, plugin.SurfaceMCP, `s3_object_rm {"key":"reports/q1.csv","profile":"prod"}`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

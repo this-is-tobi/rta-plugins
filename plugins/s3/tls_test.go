@@ -42,7 +42,7 @@ func TestCAFileTrustsATunneledServersOwnCertificate(t *testing.T) {
 	// signed by anything this machine already trusts, so this is a real TLS
 	// failure and has to be classified as one.
 	_, err := runOverview(context.Background(), req(t, "s3.overview", map[string]any{
-		"endpoint": endpoint, "tls": true,
+		"address": endpoint, "tls": true,
 	}))
 	if err == nil {
 		t.Fatal("a self-signed server was trusted with no ca-file")
@@ -59,7 +59,7 @@ func TestCAFileTrustsATunneledServersOwnCertificate(t *testing.T) {
 	// Plain HTTP to it is Go's listener refusing, MinIO's among them, and the
 	// answer names the scheme rather than quoting the refusal as the server's.
 	_, err = runOverview(context.Background(), req(t, "s3.overview", map[string]any{
-		"endpoint": endpoint, "tls": false,
+		"address": endpoint, "tls": false,
 	}))
 	if verr, ok := err.(*view.Error); !ok || verr.Code != "s3.tls.expected" || !strings.Contains(verr.Hint, "--tls") {
 		t.Fatalf("plain HTTP against a TLS server answered %v, want s3.tls.expected naming --tls", err)
@@ -67,7 +67,7 @@ func TestCAFileTrustsATunneledServersOwnCertificate(t *testing.T) {
 	// Through a forward the host turned tls off, and the way out is the
 	// profile's: tunnelTLS on its connection.
 	_, err = runOverview(context.Background(), req(t, "s3.overview", map[string]any{
-		"endpoint": endpoint, "tls": false,
+		"address": endpoint, "tls": false,
 	}).WithProfile("lab", plugin.TunnelKube))
 	if verr, ok := err.(*view.Error); !ok || verr.Code != "s3.tls.expected" ||
 		!strings.Contains(verr.Hint, "tunnelTLS: true on that connection") ||
@@ -79,7 +79,7 @@ func TestCAFileTrustsATunneledServersOwnCertificate(t *testing.T) {
 	// succeeds and the call reaches the server for a real answer — a
 	// refusal from the fake server, never a TLS trust failure.
 	_, err = runOverview(context.Background(), req(t, "s3.overview", map[string]any{
-		"endpoint": endpoint, "ca-file": caPath,
+		"address": endpoint, "ca-file": caPath,
 	}))
 	if err == nil {
 		t.Fatal("the fake server was expected to refuse the (unsigned-for-it) request")
@@ -98,7 +98,7 @@ func TestCAFileRejectsAPathWithNoCertificate(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, verr := connect(req(t, "s3.overview", map[string]any{
-		"endpoint": "127.0.0.1:1", "ca-file": notACert,
+		"address": "127.0.0.1:1", "ca-file": notACert,
 	}))
 	if verr == nil {
 		t.Fatal("a ca-file with no certificate in it was accepted")
@@ -125,7 +125,7 @@ func TestTheCAFileResolvesTheHomeDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err := runOverview(context.Background(), req(t, "s3.overview", map[string]any{
-		"endpoint": strings.TrimPrefix(srv.URL, "https://"), "ca-file": "~/ca.pem",
+		"address": strings.TrimPrefix(srv.URL, "https://"), "ca-file": "~/ca.pem",
 	}))
 	if verr, ok := err.(*view.Error); !ok || strings.HasPrefix(verr.Code, "s3.tls.") {
 		t.Fatalf("a ca-file under ~ did not verify its own server: %v", err)

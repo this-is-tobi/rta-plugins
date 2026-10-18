@@ -363,7 +363,7 @@ func TestDownloadDryRunCreatesNothing(t *testing.T) {
 	c := capabilityByID(t, "s3.bucket.download")
 	dry := plugin.NewRequest(plugin.Resolve(c, plugin.Inputs{Caller: map[string]any{
 		"bucket": "test-bucket", "out": root,
-		"endpoint": endpointOf(t, srv), "access-key": "test", "secret-key": "test",
+		"address": endpointOf(t, srv), "access-key": "test", "secret-key": "test",
 	}}), true, false)
 
 	v, err := runBucketDownload(context.Background(), dry)
