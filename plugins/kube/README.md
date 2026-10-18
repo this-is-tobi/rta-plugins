@@ -42,7 +42,7 @@ Under `plugins: kube:` in rta's configuration, or in a profile's `set:`. An inst
 
 ## kube.cert.list
 
-Reads type: kubernetes.io/tls Secrets only, selected server-side so no other secret's data ever leaves the API server for this process. The TLS Secrets it does select arrive whole, tls.key included — Kubernetes cannot project a subset of a Secret's data, so no way of asking avoids that. Only tls.crt is decoded; the private key is never parsed, rendered, logged or stored, but it does cross the wire into this process. The leaf certificate's own expiry is judged on the same 30-day window `cert.expiry` and `audit.web` use.
+Reads type: kubernetes.io/tls Secrets only, selected server-side so no other secret's data ever leaves the API server for this process. The TLS Secrets it does select arrive whole, tls.key included — Kubernetes cannot project a subset of a Secret's data, so no way of asking avoids that. Only tls.crt is decoded; the private key is never parsed, rendered, logged or stored, but it does cross the wire into this process, and each read is a Secret list in the API server's audit log. So the certificates are read at most every 15 minutes per context and namespace, and kube.overview draws on the same read: an answer can be that old, and says so when it is. As a tile it is re-run at most hourly. The leaf certificate's own expiry is judged on the same 30-day window `cert.expiry` and `audit.web` use.
 
 | Field                | Value                                                                                                                                                                                                       |
 |----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -58,7 +58,7 @@ Reads type: kubernetes.io/tls Secrets only, selected server-side so no other sec
 | input:all-namespaces | bool, widens --namespace (refused while a profile fences it) — every namespace instead of one                                                                                                               |
 | input:context        | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted                                                        |
 | set a key            | rta config set plugins.kube.namespace \<value>                                                                                                                                                              |
-| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.cert.list\`, or + on it in the TUI, puts it there, re-run every 30s                                                   |
+| dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.cert.list\`, or + on it in the TUI, puts it there, re-run every 1h                                                    |
 
 ## kube.context.get
 
@@ -252,7 +252,7 @@ Conditions, not usage — no metrics-server needed, unlike kube.metrics.node. Th
 
 The context, whether the cluster answers, how many namespaces it has, which nodes are not Ready, and every pod that is not serving — Failed, Pending, Unknown, stuck terminating, or Running without every container ready. A finished Job in Succeeded is not one of them, and a cordoned node is reported separately rather than counted as not ready: both are deliberate states, not faults. Pod-slot headroom comes from the schedulable nodes' own max-pods, which is the number that says whether a cluster can still take work when CPU and memory look fine. With `detail`: every node, deployments whose replicas are short, and the pods themselves.
 
-Reads more than it names: every ResourceQuota and every TLS Secret in every namespace, on every run and regardless of any namespace narrowing, to report quota pressure and certificate expiry. See kube.cert.list for what reading a TLS Secret costs — it applies here too, unconditionally. A credential that cannot list nodes still gets the rest: the node read is reported as unavailable and stepped over, not treated as a failure.
+Reads more than it names: every ResourceQuota and every TLS Secret in every namespace, on every run and regardless of any namespace narrowing, to report quota pressure and certificate expiry. The TLS Secrets arrive whole, private keys included (see kube.cert.list), so they are read at most every 15 minutes per context and shared with kube.cert.list, while the rest is read on every run. A credential that cannot list nodes still gets the rest: the node read is reported as unavailable and stepped over, not treated as a failure.
 
 | Field         | Value                                                                                                                                                                                                       |
 |---------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|

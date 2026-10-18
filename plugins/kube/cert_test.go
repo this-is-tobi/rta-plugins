@@ -44,10 +44,17 @@ func selfSignedPEM(t *testing.T, cn string, notAfter time.Time) string {
 	return base64.StdEncoding.EncodeToString(block)
 }
 
+// certRowOf is what a listing prints of a Secret's tls.crt: the subject and the
+// status at the moment of asking.
+func certRowOf(b64PEM string) (subject, status string) {
+	subject, notAfter, problem := parseCert(b64PEM)
+	return subject, tlsCert{NotAfter: notAfter, Problem: problem}.status(time.Now())
+}
+
 func TestCertRow(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		pem := selfSignedPEM(t, "healthy.example.com", time.Now().Add(90*24*time.Hour))
-		subject, _, status := certRow(pem)
+		subject, status := certRowOf(pem)
 		if subject != "healthy.example.com" || status != "ok" {
 			t.Errorf("certRow = %q, %q, want healthy.example.com, ok", subject, status)
 		}
@@ -55,7 +62,7 @@ func TestCertRow(t *testing.T) {
 
 	t.Run("expiring soon", func(t *testing.T) {
 		pem := selfSignedPEM(t, "soon.example.com", time.Now().Add(10*24*time.Hour))
-		_, _, status := certRow(pem)
+		_, status := certRowOf(pem)
 		if status != "expiring soon" {
 			t.Errorf("certRow status = %q, want expiring soon", status)
 		}
@@ -63,14 +70,14 @@ func TestCertRow(t *testing.T) {
 
 	t.Run("expired", func(t *testing.T) {
 		pem := selfSignedPEM(t, "gone.example.com", time.Now().Add(-24*time.Hour))
-		_, _, status := certRow(pem)
+		_, status := certRowOf(pem)
 		if status != "expired" {
 			t.Errorf("certRow status = %q, want expired", status)
 		}
 	})
 
 	t.Run("not base64", func(t *testing.T) {
-		_, _, status := certRow("not valid base64!!!")
+		_, status := certRowOf("not valid base64!!!")
 		if status != "tls.crt is not valid base64" {
 			t.Errorf("certRow status = %q, want the base64 diagnosis", status)
 		}
@@ -78,7 +85,7 @@ func TestCertRow(t *testing.T) {
 
 	t.Run("not a certificate", func(t *testing.T) {
 		garbage := base64.StdEncoding.EncodeToString([]byte("hello"))
-		_, _, status := certRow(garbage)
+		_, status := certRowOf(garbage)
 		if status != "tls.crt has no parseable certificate" {
 			t.Errorf("certRow status = %q, want the no-certificate diagnosis", status)
 		}
@@ -86,28 +93,16 @@ func TestCertRow(t *testing.T) {
 }
 
 func TestCertPressure(t *testing.T) {
-	secrets := list[tlsSecretItem]{Items: []tlsSecretItem{
-		{
-			Metadata: meta{Namespace: "prod", Name: "web-tls"},
-			Data: struct {
-				Cert string `json:"tls.crt"`
-			}{Cert: selfSignedPEM(t, "web", time.Now().Add(-time.Hour))},
-		},
-		{
-			Metadata: meta{Namespace: "prod", Name: "api-tls"},
-			Data: struct {
-				Cert string `json:"tls.crt"`
-			}{Cert: selfSignedPEM(t, "api", time.Now().Add(5*24*time.Hour))},
-		},
-		{
-			Metadata: meta{Namespace: "prod", Name: "fine-tls"},
-			Data: struct {
-				Cert string `json:"tls.crt"`
-			}{Cert: selfSignedPEM(t, "fine", time.Now().Add(365*24*time.Hour))},
-		},
-	}}
+	cert := func(name string, notAfter time.Time) tlsCert {
+		return tlsCert{Namespace: "prod", Name: name, NotAfter: notAfter}
+	}
+	certs := []tlsCert{
+		cert("web-tls", time.Now().Add(-time.Hour)),
+		cert("api-tls", time.Now().Add(5*24*time.Hour)),
+		cert("fine-tls", time.Now().Add(365*24*time.Hour)),
+	}
 
-	expired, soon := certPressure(secrets)
+	expired, soon := certPressure(certs, time.Now())
 	if len(expired) != 1 || expired[0] != "prod/web-tls" {
 		t.Errorf("expired = %v, want [prod/web-tls]", expired)
 	}
