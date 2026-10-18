@@ -262,7 +262,11 @@ func unreadReason(err error) string {
 		case "LOADING":
 			return "the server is still loading its dataset"
 		}
-		return format.Truncate(srv.msg, 60)
+		head, rest := format.Head(srv.msg, 48)
+		if rest > 0 {
+			head += "…"
+		}
+		return head
 	}
 	if errors.Is(err, os.ErrDeadlineExceeded) {
 		return "no answer in time"

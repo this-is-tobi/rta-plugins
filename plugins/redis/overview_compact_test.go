@@ -263,6 +263,19 @@ func TestASlowLogTheCredentialCannotReadIsSaidAndTheRestStands(t *testing.T) {
 	}
 }
 
+// What a server says when it refuses is a sentence, and the row that carries it
+// is one line of a tile: cut at the width a row has, without the line break the
+// text helper that counts the bytes cut would add.
+func TestALongReasonTheSlowLogCouldNotBeReadStaysOneLineOfATile(t *testing.T) {
+	reply := "-ERR " + strings.Repeat("the server has a very long sentence about why ", 6) + "\r\n"
+	kv, _ := compactOf(t, healthyInfo(nil), reply)
+	got := pairValue(kv, "slow log")
+	if !strings.HasPrefix(got, "could not be read — ERR the server has") || !strings.HasSuffix(got, "…") {
+		t.Errorf("slow log = %q, want the reason cut with an ellipsis", got)
+	}
+	assertFitsATile(t, kv)
+}
+
 func TestAReplicaShowsItsLinkAndHowRecentlyItHeardFromThePrimary(t *testing.T) {
 	kv, _ := compactOf(t, healthyInfo(map[string]string{"role": "slave"},
 		"master_host:dbwp-oth-redis-p", "master_port:6379", "master_link_status:up",
