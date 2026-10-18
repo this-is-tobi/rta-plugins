@@ -23,8 +23,18 @@ import (
 // schemaField names the database to describe. It falls back to the connection's
 // own `database` rather than defaulting to a name this plugin invented, so the
 // common case — one database in the config — needs no argument at all.
+//
+// **A flag with a config key, and not a positional, so that a profile can fence
+// it.** A fence is keyed by the config key an input declares, and a positional
+// input cannot carry one (pkg/plugin refuses the pair). This one was positional,
+// so `only: {schema: [app]}` had nothing to hold, and a profile fenced to the
+// `database` the connection selects let a call name any other database the
+// credential could see: mysql_schema {schema: "other_tenant_db"} went through
+// to the server. pg's `database` is the operator's alone (Local), which is the
+// other way to the same safety; this one stays the caller's to choose, inside
+// the fence. The documented rule: the scope is a flag, the record is the argument.
 func schemaField() plugin.Field {
-	return plugin.Field{Name: "schema", Type: plugin.String, Positional: true, Default: "",
+	return plugin.Field{Name: "schema", Type: plugin.String, Config: "schema", Default: "",
 		Help: "database to describe (defaults to the connected one)",
 		Live: true, Suggest: suggestDatabases}
 }
@@ -327,7 +337,7 @@ func schemaTree(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 	if len(order) == 0 {
 		if only := req.String("table"); only != "" {
 			return nil, view.Errorf("mariadb.table.notfound", "no table %q in %q", only, schema).
-				WithHint(nextCall(req, "mariadb.table.list", plugin.Arg{Name: "schema", Value: schema, Positional: true}) +
+				WithHint(nextCall(req, "mariadb.table.list", plugin.Arg{Name: "schema", Value: schema}) +
 					" shows what is there")
 		}
 		return nil, view.Errorf("mariadb.database.empty", "%q has no tables, or none this user may see", schema).
