@@ -422,34 +422,37 @@ func Plugin() plugin.Plugin {
 			Help: "one node instead of every node"}),
 		cap(plugin.Capability{
 			ID:       "kube.overview",
-			Summary:  "One cluster at a glance: where you are pointed and what is not healthy",
+			Summary:  "One cluster at a glance: its verdict, and what is not healthy",
 			Keywords: []string{"summary", "health", "dashboard", "status"},
-			Description: "The context, whether the cluster answers, how many namespaces it " +
-				"has, which nodes are not Ready, and every pod that is not serving — Failed, " +
-				"Pending, Unknown, stuck terminating, or Running without every container ready. A finished Job in " +
-				"Succeeded is not one of them, and a cordoned node is reported separately rather " +
-				"than counted as not ready: both are deliberate states, not faults. Pod-slot " +
-				"headroom comes from the schedulable nodes' own max-pods, which is the number " +
-				"that says whether a cluster can still take work when CPU and memory look fine. " +
-				"With `detail`: every node, deployments whose replicas are short, and the pods " +
-				"themselves.\n\nReads more than it names: every ResourceQuota and every " +
-				"TLS Secret, to report quota pressure and certificate expiry — those of every " +
-				"namespace, or of the one `namespace` names, which is also what a profile that " +
-				"fences the namespace reads. The nodes and the namespace count are the " +
-				"cluster's whatever is named, and with a namespace the pod slots are not counted. " +
-				"The TLS Secrets arrive whole, private keys included (see kube.cert.list), so " +
-				"they are read at most every 15 minutes per context and shared with " +
-				"kube.cert.list, while the rest is read on every run. A credential that cannot " +
-				"list nodes still gets the rest: the node read is reported as unavailable and " +
-				"stepped over, not treated as a failure.",
-			Agent: "The context, whether the cluster answers, the namespace count, nodes that are not Ready, and " +
-				"every pod not serving (Failed, Pending, Unknown, stuck terminating, or Running without every container ready). " +
-				"A finished Job and a cordoned node are not faults and are not counted as such. Pod-slot " +
-				"headroom comes from the schedulable nodes' max-pods. With `detail`: every node, deployments " +
-				"short of replicas, and the pods. Reads the ResourceQuotas and TLS Secrets of every namespace, or " +
-				"of the one `namespace` names (nodes and namespace count stay the cluster's; pod slots are not " +
-				"counted then); the Secrets, private keys included, at most every 15 minutes. A credential that " +
-				"cannot list nodes still gets the rest.",
+			Description: "The first row, `status`, is the verdict: ok, or warn or fail with the worst facts in a " +
+				"few words. Fail is a node not Ready, a pod not serving, a deployment with no replica ready or an " +
+				"expired certificate; warn is any other fact the rows name, and a row the credential could not " +
+				"read. The rows run from state to capacity: the nodes (those not Ready, under pressure or " +
+				"cordoned, by name, and `skew` when the kubelets are on more than one minor version), the pods " +
+				"(every pod not serving — Failed, Pending, Unknown, stuck terminating, or Running without every " +
+				"container ready — grouped by the reason it gives, and serving pods restarted over 10 times), the " +
+				"deployments short of their replicas, the TLS certificates expired or expiring within 30 days, " +
+				"the quotas over 80%, pod-slot headroom from the schedulable nodes' own max-pods (whether a " +
+				"cluster can still take work when CPU and memory look fine) and, last, the context with the " +
+				"kubelet versions. A finished Job in Succeeded is not a pod that is not serving, and a cordoned " +
+				"node is reported rather than counted as not ready: both are deliberate, not faults. With " +
+				"`detail`: the server and the kubeconfig's namespace, and the nodes, pods and deployments " +
+				"themselves.\n\nReads more than it names: every Deployment, ResourceQuota and TLS Secret, " +
+				"those of every namespace or of the one `namespace` names, which is also what a profile that " +
+				"fences the namespace reads. The nodes and the namespace count are the cluster's whatever is " +
+				"named, and with a namespace the pod slots are not counted. The TLS Secrets arrive whole, " +
+				"private keys included (see kube.cert.list), so they are read at most every 15 minutes per " +
+				"context and shared with kube.cert.list, while the rest is read on every run. A credential " +
+				"that cannot list nodes still gets the rest: that read is reported as unavailable and stepped " +
+				"over, not treated as a failure.",
+			Agent: "`status` is the verdict (ok, or warn or fail with the worst facts), then the nodes (not Ready, under " +
+				"pressure, cordoned, kubelet skew), pods not serving by reason and serving pods over 10 restarts, " +
+				"deployments short of replicas, expired or expiring TLS certificates, quotas over 80%, pod-slot " +
+				"headroom from the schedulable nodes' max-pods, and the context. A finished Job and a cordoned node " +
+				"are not faults. `detail` adds the server, the namespace and the pods themselves. Reads the " +
+				"Deployments, ResourceQuotas and TLS Secrets of every namespace or of the `namespace` named (no " +
+				"pod slots then); the Secrets, keys included, at most every 15 minutes. A credential without " +
+				"node access still gets the rest.",
 			// No Scope, unlike the lists that take the same two inputs, and on
 			// purpose. An input a capability names as its Scope is the record a
 			// grant is checked against, which no profile may fill (see

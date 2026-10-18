@@ -41,6 +41,10 @@ case "$1 $2" in
 	fi
 	cat ` + shellQuote(filepath.Join(c.dir, "secrets.json")) + ` ;;
 "get "*)
+	if [ -f ` + shellQuote(c.dir) + `/list-"$2".fail ]; then
+		cat ` + shellQuote(c.dir) + `/list-"$2".fail >&2
+		exit 1
+	fi
 	if [ -f ` + shellQuote(c.dir) + `/list-"$2".json ]; then cat ` + shellQuote(c.dir) + `/list-"$2".json; else echo '{"items":[]}'; fi ;;
 *) echo '{"items":[]}' ;;
 esac

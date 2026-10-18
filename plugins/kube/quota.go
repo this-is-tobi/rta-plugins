@@ -168,18 +168,34 @@ func quotaPercent(used, hard string) string {
 // namespace running out of headroom shows up before it starts refusing pods
 // rather than after.
 func quotaPressure(quotas list[resourceQuotaItem], threshold float64) []string {
-	var out []string
+	hits := quotaHits(quotas, threshold)
+	out := make([]string, 0, len(hits))
+	for _, h := range hits {
+		out = append(out, fmt.Sprintf("%s/%s %s: %s", h.namespace, h.quota, h.resource, percentOf(h.used, 1)))
+	}
+	sort.Strings(out)
+	return out
+}
+
+// quotaHit is one tracked resource at or above the threshold: where it is,
+// which it is, and how much of its limit is used.
+type quotaHit struct {
+	namespace, quota, resource string
+	used                       float64
+}
+
+// quotaHits is the resources quotaPressure names, as the facts and not as a
+// sentence, so that a page which sets the fullest first can.
+func quotaHits(quotas list[resourceQuotaItem], threshold float64) []quotaHit {
+	var out []quotaHit
 	for _, q := range quotas.Items {
 		for r, hard := range q.Status.Hard {
-			used := q.Status.Used[r]
-			v, ok := quotaPercentValue(used, hard)
+			v, ok := quotaPercentValue(q.Status.Used[r], hard)
 			if !ok || v < threshold {
 				continue
 			}
-			out = append(out, fmt.Sprintf("%s/%s %s: %s",
-				q.Metadata.Namespace, q.Metadata.Name, r, percentOf(v, 1)))
+			out = append(out, quotaHit{namespace: q.Metadata.Namespace, quota: q.Metadata.Name, resource: r, used: v})
 		}
 	}
-	sort.Strings(out)
 	return out
 }

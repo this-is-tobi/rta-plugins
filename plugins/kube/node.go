@@ -71,7 +71,11 @@ var pressureConditions = []string{"MemoryPressure", "DiskPressure", "PIDPressure
 // nodeHealth is what a Node's conditions say, reduced to the things an
 // overview has room for.
 type nodeHealth struct {
-	status    string
+	status string
+	// condition is the readiness word alone, which status carries with the
+	// cordon appended to it: the word a compact page names a node that is gone
+	// by, without the second fact it states on its own.
+	condition string
 	ready     bool
 	cordoned  bool
 	pressures []string
@@ -116,6 +120,7 @@ func healthOfNode(n nodeItem) nodeHealth {
 			}
 		}
 	}
+	h.condition = h.status
 	// Matches kubectl's own column, which appends this rather than replacing
 	// the readiness word — an operator reading "Ready,SchedulingDisabled"
 	// knows both facts, and dropping either one loses something they need.

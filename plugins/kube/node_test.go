@@ -229,11 +229,16 @@ func TestOverviewStillAnswersWhenNodesAreForbidden(t *testing.T) {
 		t.Error("the pod count is missing — a forbidden node read stopped the rest of the overview")
 	}
 	// "0 of 0 used" would be a claim about capacity made from a read that
-	// never happened.
+	// never happened, and no row at all would read as a compact report: the row
+	// is there and says why it has no number.
+	var slots string
 	for _, p := range kv.Pairs {
 		if p.Key == "pod slots" {
-			t.Errorf("pod slots = %q, want no headroom claim when nodes could not be read", p.Value)
+			slots = p.Value
 		}
+	}
+	if !strings.HasPrefix(slots, "could not be read") {
+		t.Errorf("pod slots = %q, want it said the slots could not be counted when nodes could not be read", slots)
 	}
 }
 
