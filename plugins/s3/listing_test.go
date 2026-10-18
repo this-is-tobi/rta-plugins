@@ -33,8 +33,19 @@ type bucketFake struct {
 	*httptest.Server
 	bucket string
 
+	// lifecycle is the bucket's lifecycle configuration as the server answers
+	// it: "" for none (S3's NoSuchLifecycleConfiguration), "denied" for a key
+	// that may not read it, "unimplemented" for a service without lifecycle
+	// rules, and otherwise the XML itself. listDenied refuses every listing.
+	lifecycle  string
+	listDenied bool
+	// accountDenied refuses the account's list of buckets, as a key scoped to
+	// one bucket is.
+	accountDenied bool
+
 	mu    sync.Mutex
 	lists []url.Values
+	asked []string
 }
 
 func newBucketFake(t *testing.T, bucket string, keys []fakeKey) *bucketFake {
@@ -62,7 +73,13 @@ func newBucketFake(t *testing.T, bucket string, keys []fakeKey) *bucketFake {
 	f.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/xml")
 		q := r.URL.Query()
+		f.mu.Lock()
+		f.asked = append(f.asked, r.Method+" "+r.URL.RequestURI())
+		f.mu.Unlock()
 		switch {
+		case r.URL.Path == "/" && f.accountDenied:
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`<Error><Code>AccessDenied</Code><Message>Access Denied.</Message></Error>`))
 		case r.URL.Path == "/":
 			_, _ = w.Write([]byte(`<ListAllMyBucketsResult><Buckets><Bucket><Name>` + bucket +
 				`</Name><CreationDate>2025-04-27T10:00:00.000Z</CreationDate></Bucket></Buckets></ListAllMyBucketsResult>`))
@@ -74,10 +91,30 @@ func newBucketFake(t *testing.T, bucket string, keys []fakeKey) *bucketFake {
 			w.WriteHeader(http.StatusNotFound)
 		case q.Has("versioning"):
 			_, _ = w.Write([]byte(`<VersioningConfiguration><Status>Enabled</Status></VersioningConfiguration>`))
+		case q.Has("lifecycle"):
+			switch f.lifecycle {
+			case "":
+				w.WriteHeader(http.StatusNotFound)
+				_, _ = w.Write([]byte(`<Error><Code>NoSuchLifecycleConfiguration</Code>` +
+					`<Message>The lifecycle configuration does not exist</Message></Error>`))
+			case "denied":
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = w.Write([]byte(`<Error><Code>AccessDenied</Code><Message>Access Denied.</Message></Error>`))
+			case "unimplemented":
+				w.WriteHeader(http.StatusNotImplemented)
+				_, _ = w.Write([]byte(`<Error><Code>NotImplemented</Code><Message>A header you provided implies functionality that is not implemented</Message></Error>`))
+			default:
+				_, _ = w.Write([]byte(f.lifecycle))
+			}
 		case q.Get("list-type") == "2":
 			f.mu.Lock()
 			f.lists = append(f.lists, q)
 			f.mu.Unlock()
+			if f.listDenied {
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = w.Write([]byte(`<Error><Code>AccessDenied</Code><Message>Access Denied.</Message></Error>`))
+				return
+			}
 
 			max := 1000
 			if v, err := strconv.Atoi(q.Get("max-keys")); err == nil && v > 0 && v < max {
@@ -111,6 +148,13 @@ func newBucketFake(t *testing.T, bucket string, keys []fakeKey) *bucketFake {
 	}))
 	t.Cleanup(f.Close)
 	return f
+}
+
+// requests is every request so far, as the method and the path with its query.
+func (f *bucketFake) requests() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.asked...)
 }
 
 // listings is the query of every listing request so far, in order.
