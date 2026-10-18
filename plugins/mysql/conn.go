@@ -516,12 +516,12 @@ func classify(err error, req plugin.Request) *view.Error {
 			WithHint(reachHint(req.Surface()))
 	}
 	if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout()) {
-		return view.Errorf("mysql.conn.timeout", "%s did not answer in time", where).
+		return view.Errorf("mysql.timeout", "%s did not answer in time", where).
 			WithHint("a firewall that drops rather than refuses looks exactly like this")
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
-		return view.Errorf("mysql.conn.timeout", "%s did not answer in time", where).
+		return view.Errorf("mysql.timeout", "%s did not answer in time", where).
 			WithHint("a firewall that drops rather than refuses looks exactly like this")
 	}
 	return view.Errorf("mysql.conn.failed", "could not reach %s: %v", where, err).

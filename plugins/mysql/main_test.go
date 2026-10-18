@@ -405,7 +405,7 @@ func TestADialIsReadByItsOwnErrorNotByTheWrapper(t *testing.T) {
 		{"refused", dial(syscall.ECONNREFUSED), "mysql.conn.refused"},
 		{"no route to the host", dial(syscall.EHOSTUNREACH), "mysql.conn.unreachable"},
 		{"no way onto the network", dial(syscall.ENETUNREACH), "mysql.conn.unreachable"},
-		{"the system's connect timeout", dial(syscall.ETIMEDOUT), "mysql.conn.timeout"},
+		{"the system's connect timeout", dial(syscall.ETIMEDOUT), "mysql.timeout"},
 		{"a handshake the server reset", &stdnet.OpError{Op: "read", Net: "tcp",
 			Err: os.NewSyscallError("read", syscall.ECONNRESET)}, "mysql.conn.failed"},
 		{"a refusal flattened to text", errors.New("dial tcp 10.0.0.9:3306: connect: connection refused"),
