@@ -18,7 +18,7 @@ S3-compatible object storage: buckets, objects, presigned URLs and policy
 | s3.object.set      | write       | Upload (or overwrite) an object                                      |
 | s3.object.show     | read        | Show one object's metadata — size, type, etag — never its content    |
 | s3.object.tree     | read        | The shape of a bucket in one call, with objects and bytes per prefix |
-| s3.overview        | read        | Endpoint and bucket count at a glance                                |
+| s3.overview        | read        | Whether an endpoint or a bucket is healthy, at a glance              |
 | s3.policy.get      | read        | Show a bucket's policy document                                      |
 
 ## Configuration
@@ -418,14 +418,16 @@ One request, however deep the result: the folders are built here from the keys, 
 
 ## s3.overview
 
-Whether this endpoint is reachable at all, and how many buckets the configured credentials can see. `detail` adds the bucket list, with age and, where the server reports one, region, to the same page.
+Whether this endpoint is reachable at all, and how many buckets the configured credentials can see, in a few rows: `status` first, then the count, then the address. `detail` adds the bucket list, with age and, where the server reports one, region.
 
-With a `bucket` — named, or the one a profile fences with `only: bucket:` — the page is about that bucket: whether it exists, when it was created and whether it keeps versions, and with `detail` how many objects it holds, how large they are and when the newest was written (counted over the first 2000 keys, and it says when it stopped). With a `prefix`, only the keys under it are counted — a profile that fences `prefix` holds the page to it. A service that has not answered in ten seconds is a timeout.
+With a `bucket` — named, or the one a profile fences with `only: bucket:` — the page is about that bucket, worst first: `status` is `ok`, or `warn` and the rows the credentials could not read. Then how many objects it holds and when the newest was written, from the first page of its keys (`1000+ (first page)` when there are more, the exact count when the page is all of it, and the newest is then the newest of those read), whether it keeps versions, what its lifecycle rules do to an object's age (`none` when it has no rule: a bucket that keeps everything for ever), and its name and when it was created. With a `prefix`, only the keys under it. That is five requests, and a tile of it is re-run every two minutes at most.
+
+`detail` reads further, bounded: how many objects, how large they are and when the newest was written, counted over the first 2000 keys, and it says when it stopped. A service that has not answered in ten seconds is a timeout.
 
 | Field                 | Value                                                                                                                                                                                                                                             |
 |-----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | id                    | s3.overview                                                                                                                                                                                                                                       |
-| summary               | Endpoint and bucket count at a glance                                                                                                                                                                                                             |
+| summary               | Whether an endpoint or a bucket is healthy, at a glance                                                                                                                                                                                           |
 | safety                | read                                                                                                                                                                                                                                              |
 | idempotent            | true                                                                                                                                                                                                                                              |
 | cli                   | rta s3 overview \[--bucket \<string>\] \[--prefix \<string>\] \[--address \<string>\] \[--region \<string>\] \[--tls\] \[--access-key \<string>\] \[--secret-key \<secret>\] \[--ca-file \<string>\] \[--tls-server-name \<string>\] \[--detail\] |
@@ -441,7 +443,7 @@ With a `bucket` — named, or the one a profile fences with `only: bucket:` — 
 | input:ca-file         | string, group tls, local (never offered to MCP callers), from config plugins.s3.ca-file — PEM bundle to verify the server against, beyond the host's own trust store                                                                              |
 | input:tls-server-name | string, group tls, local (never offered to MCP callers), from config plugins.s3.tls-server-name — name to check the server's certificate for, in place of the address's host                                                                      |
 | set a key             | rta config set plugins.s3.bucket \<value>                                                                                                                                                                                                         |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add s3.overview\`, or + on it in the TUI, puts it there, re-run every 30s                                                                                            |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add s3.overview\`, or + on it in the TUI, puts it there, re-run every 2m                                                                                             |
 | input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                                                                                |
 
 ## s3.policy.get

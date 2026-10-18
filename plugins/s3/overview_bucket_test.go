@@ -39,6 +39,9 @@ func accountServer(t *testing.T, versioning string) *httptest.Server {
 			w.WriteHeader(http.StatusNotFound)
 		case q.Has("versioning"):
 			_, _ = w.Write([]byte(`<VersioningConfiguration><Status>` + versioning + `</Status></VersioningConfiguration>`))
+		case q.Has("lifecycle"):
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`<Error><Code>NoSuchLifecycleConfiguration</Code><Message>none</Message></Error>`))
 		case q.Get("list-type") == "2":
 			_, _ = w.Write([]byte(`<ListBucketResult><Name>mirai-ocr-preprod</Name>` +
 				`<Contents><Key>base/a.tar</Key><Size>1048576</Size><ETag>"e"</ETag><LastModified>2026-10-01T10:00:00.000Z</LastModified></Contents>` +
@@ -74,11 +77,8 @@ func TestTheOverviewOfANamedBucketIsAboutThatBucketAndNamesNoOther(t *testing.T)
 		t.Fatal(err)
 	}
 	got := pairsOf(t, v)
-	if got["bucket"] != "mirai-ocr-preprod" || got["versioning"] != "enabled" {
-		t.Errorf("pairs = %v, want the bucket and its versioning", got)
-	}
-	if !strings.HasPrefix(got["created"], "2025-04-27 (") {
-		t.Errorf("created = %q, want the bucket's own date", got["created"])
+	if !strings.HasPrefix(got["bucket"], "mirai-ocr-preprod, created 2025-04-27 (") || got["versioning"] != "enabled" {
+		t.Errorf("pairs = %v, want the bucket with its own creation date, and its versioning", got)
 	}
 	if _, count := got["buckets"]; count {
 		t.Errorf("pairs = %v: a count of the account's buckets is not about this one", got)

@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
-	"github.com/this-is-tobi/rta/pkg/view"
 )
 
 // The endpoint row is what a page kept or pasted into a ticket says about the
@@ -22,9 +21,8 @@ func TestTheOverviewNamesTheProfileNotTheEndOfItsForward(t *testing.T) {
 			WithProfile("prod", plugin.TunnelKube), "profile prod (through its kube: forward)"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			kv, ok := compactOverview(tc.r, nil).(view.KeyValue)
-			if !ok || len(kv.Pairs) == 0 || kv.Pairs[0].Key != "address" || kv.Pairs[0].Value != tc.want {
-				t.Errorf("pairs = %+v, want the endpoint row to read %q", kv.Pairs, tc.want)
+			if got := rowOf(compactOverview(tc.r, nil), "address"); got != tc.want {
+				t.Errorf("address = %q, want the endpoint row to read %q", got, tc.want)
 			}
 		})
 	}
