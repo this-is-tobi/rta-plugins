@@ -57,7 +57,7 @@ Credentials are not read. A Backup's status carries the object-store credential 
 | input:namespace      | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                                                               |
 | input:all-namespaces | bool, widens --namespace (refused while a profile fences it) — every namespace instead of one                                                                                                               |
 | input:limit          | int, default 100, a value from 1 to 10000, from config plugins.cnpg.limit — how many backups to list; a cut list puts the failed ones first                                                                 |
-| input:context        | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                                                        |
+| input:context        | string, group network, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                                         |
 | set a key            | rta config set plugins.cnpg.cluster \<value>                                                                                                                                                                |
 | dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add cnpg.backup.list\`, or + on it in the TUI, puts it there, re-run every 30s                                                 |
 
@@ -86,7 +86,7 @@ Refused when the cluster configures no backup at all. CloudNativePG accepts such
 | input:method         | string, one of: barmanObjectStore\|volumeSnapshot\|plugin, from config plugins.cnpg.backup.method — how to take it — its only configured mechanism when omitted; plugin asks its WAL-archiver plugin        |
 | input:target         | string, one of: primary\|prefer-standby, from config plugins.cnpg.backup.target — which instance performs it — the cluster's own choice when omitted                                                        |
 | input:online         | string, one of: true\|false, from config plugins.cnpg.backup.online — hot or cold — only with a \`method\` of volumeSnapshot, and the cluster's own choice when omitted                                     |
-| input:context        | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                                                        |
+| input:context        | string, group network, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                                         |
 | set a key            | rta config set plugins.cnpg.cluster \<value>                                                                                                                                                                |
 | dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                |
 
@@ -110,7 +110,7 @@ Each read beside the Cluster stands alone: one that is refused, or whose type or
 | example         | rta cnpg backup show --cluster app-db   # how one cluster's backups are set up                                                                                                                              |
 | input:cluster   | string, required, completes, from config plugins.cnpg.cluster — the cluster whose backups to show; empty lifts one a profile or the config pins                                                             |
 | input:namespace | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                                                               |
-| input:context   | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                                                        |
+| input:context   | string, group network, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                                         |
 | set a key       | rta config set plugins.cnpg.cluster \<value>                                                                                                                                                                |
 | dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add cnpg.backup.show\`, or + on it in the TUI, puts it there, re-run every 30s                                                 |
 
@@ -132,7 +132,7 @@ One `kubectl get clusters.postgresql.cnpg.io -o json`, rendered with the columns
 | input:cluster        | string, completes, from config plugins.cnpg.cluster — only this cluster — every cluster of the namespace when omitted; empty lifts one a profile or the config pins                                         |
 | input:namespace      | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                                                               |
 | input:all-namespaces | bool, widens --namespace (refused while a profile fences it) — every namespace instead of one                                                                                                               |
-| input:context        | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                                                        |
+| input:context        | string, group network, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                                         |
 | set a key            | rta config set plugins.cnpg.cluster \<value>                                                                                                                                                                |
 | dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add cnpg.list\`, or + on it in the TUI, puts it there, re-run every 30s                                                        |
 
@@ -152,7 +152,7 @@ Everything the Cluster resource reports about itself, laid out as the questions 
 | example         | rta cnpg status --cluster app-db --namespace production   # one cluster in depth                                                                                                                            |
 | input:cluster   | string, required, completes, from config plugins.cnpg.cluster — the cluster to read; empty lifts one a profile or the config pins                                                                           |
 | input:namespace | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                                                               |
-| input:context   | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                                                        |
+| input:context   | string, group network, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                                         |
 | set a key       | rta config set plugins.cnpg.cluster \<value>                                                                                                                                                                |
 | dashboard       | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add cnpg.status\`, or + on it in the TUI, puts it there, re-run every 30s                                                      |
 
@@ -178,6 +178,6 @@ With no `cluster` it reads the volumes of every CloudNativePG cluster in the nam
 | input:cluster        | string, completes, from config plugins.cnpg.cluster — the cluster whose volumes to read — every cluster's when omitted; empty lifts one a profile or the config pins                                        |
 | input:namespace      | string, completes, from config plugins.cnpg.namespace — namespace to look in — the context's own when omitted                                                                                               |
 | input:all-namespaces | bool, widens --namespace (refused while a profile fences it) — every namespace instead of one                                                                                                               |
-| input:context        | string, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                                                        |
+| input:context        | string, group network, completes, local (never offered to MCP callers), from config plugins.cnpg.context — kubeconfig context to use — the current one when omitted                                         |
 | set a key            | rta config set plugins.cnpg.cluster \<value>                                                                                                                                                                |
 | dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add cnpg.storage\`, or + on it in the TUI, puts it there, re-run every 30s                                                     |
