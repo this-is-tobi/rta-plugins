@@ -22,7 +22,7 @@ func TestTheOverviewNamesTheProfileNotTheEndOfItsForward(t *testing.T) {
 		"a forward": {"prod", plugin.TunnelKube, "profile prod (through its kube: forward)"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			r := reqAt(t, f, "qdrant.overview", map[string]any{})
+			r := reqAt(t, f, "qdrant.overview", map[string]any{"detail": true})
 			if tc.profile != "" {
 				r = r.WithProfile(tc.profile, tc.tunnel)
 			}

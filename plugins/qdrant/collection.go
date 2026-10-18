@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -101,40 +102,37 @@ func overviewCapability() plugin.Capability {
 		Idempotent: true,
 		Detailed:   true,
 		Refresh:    overviewRefresh,
-		Description: "Version, reachability and every collection with its point count and status.\n\n" +
-			"The status column is the one to read. A collection in `yellow` is serving searches " +
-			"from a partly-built index, so its results are quietly incomplete rather than absent.\n\n" +
-			"Against a distributed instance it also lists the peers and adds a replicas column. " +
-			"This peer's row has its raft term, commit index and pending operations and a grade of " +
-			"its consensus thread and its leader. Every other peer's row has the version, role, term " +
-			"and commit it reported to this one over the cluster's own channel, whichever peer is " +
-			"asked, and is red when it does not answer, so a stopped peer is named wherever you ask; " +
-			"a cluster on more than one version says so. A server too old for that leaves those " +
-			"cells blank and grades a peer by whether this one can message it, which only the leader " +
-			"does for every peer: ask the leader, since a follower reports the peers it never talks " +
-			"to as not observed rather than as fine. The replicas column says how many of a " +
-			"collection's replicas are serving and, for those that are not, which shards on which " +
-			"peer: Dead is a replica that missed a write and is red, and Recovery, Partial and " +
-			"the other states of one being brought level are amber.\n\n" +
-			"A replica on another peer is known by the state consensus recorded for it, so it stays " +
-			"active until a write fails on it — except that a peer known not to answer has its " +
-			"replicas counted as not serving and graded amber, or red when it was the shard's only " +
-			"copy. The cluster's own state needs global read access: the read-only API key has it, " +
-			"and a JWT scoped to collections does not, in which case the replicas are still shown " +
-			"and the page says so.\n\n" +
-			"At most 100 collections are read, worst first, and the page says how many there are " +
-			"(qdrant.collection.list reads every one). With a `collection`, or the one a profile fences " +
-			"with `only: collection:`, only that one.\n\n" +
+		Description: "Whether this instance is healthy, in a few rows, worst first. `status` leads and is " +
+			"`ok`, or `warn` or `fail` followed by the worst fact: a collection that is red, a peer that " +
+			"does not answer, a part of the instance this credential cannot read. Then the collections " +
+			"counted by status, worst first, the cluster, and last the version.\n\n" +
+			"A collection's status is only known by reading it, one request each, so at most 100 are " +
+			"read and the row says how many of how many (qdrant.collection.list reads every one). " +
+			"`yellow` means a collection serves searches from a partly-built index, so its results " +
+			"are quietly incomplete rather than absent. With a `collection`, or the one a profile " +
+			"fences with `only: collection:`, only that one.\n\n" +
+			"`detail` adds the address and the table of the collections read: points, indexed " +
+			"vectors, segments, status. Against a distributed instance it also lists the peers and " +
+			"adds a replicas column, a request for each collection. This peer's row has its raft term, " +
+			"commit index and pending operations and a grade of its consensus thread and its leader. " +
+			"Every other peer's row has the version, role, term and commit it reported to this one, " +
+			"whichever peer is asked, and is red when it does not answer; a cluster on more than one " +
+			"version says so. A server too old for that grades a peer by whether this one can message " +
+			"it, which only the leader does for every peer: ask the leader. The replicas column says " +
+			"how many of a collection's replicas serve and which shards on which peer do not: Dead is " +
+			"red, Recovery, Partial and the other states of one being brought level are amber, and a " +
+			"peer known not to answer has its replicas graded amber, or red when it was the shard's " +
+			"only copy. The cluster's own state needs global read access, which the read-only API key " +
+			"has and a JWT scoped to collections does not.\n\n" +
 			"Describes collections and returns no point; reading points is qdrant.points.scroll, a write.",
-		Agent: "Version, reachability and every collection with its point count and status. `yellow` means a " +
-			"collection serves searches from a partly built index, so its results are quietly incomplete. " +
-			"Against a distributed instance it also lists the peers (this peer's raft term, commit index, " +
-			"pending operations and consensus grade; another peer's version, role, term and commit as " +
-			"reported to this one, red when it does not answer) and adds a replicas column: how many of a " +
-			"collection's replicas serve and which shards on which peer do not (Dead is red, Recovery and " +
-			"Partial amber). Ask the leader: a follower reports peers it never talks to as not observed. " +
-			"The cluster's own state needs global read access. Reads 100 collections at most, worst " +
-			"first. Returns no point.",
+		Agent: "Whether the instance is healthy, worst first: `status` is `ok`, or `warn` or `fail` and the " +
+			"worst fact (a red collection, a peer that does not answer, a part this credential cannot " +
+			"read). Then the collections counted by status, the cluster and the version. At most 100 " +
+			"collections are read, a request each; the row says how many of how many. `yellow` means a " +
+			"collection serves searches from a partly built index, so its results are quietly " +
+			"incomplete. `detail` adds the table of collections with points, indexed vectors and " +
+			"segments, and against a distributed instance the peers and each collection's replicas " +
+			"(Dead is red). Ask the leader: a follower cannot see every peer. Returns no point.",
 		Run: runOverview,
 	}, optionalCollectionField("only this collection — every collection the key can see when omitted"))
 }
@@ -155,17 +153,35 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr != nil {
 		return nil, verr
 	}
-	table, verr := collectionTableIn(ctx, req, cs, overviewCollections)
+	detail := req.Bool("detail")
+	table, verr := collectionTableIn(ctx, req, cs, overviewCollections, detail)
+	unlisted := ""
 	if verr != nil {
-		return nil, verr
+		// The credential is valid and may not list the collections: the version
+		// and the cluster were read with it, and a row that says so is the answer,
+		// not an error that discards them. A collection named is the finding when
+		// it cannot be read, and every other failure would fail the next call too.
+		if verr.Code != "qdrant.denied" || strings.TrimSpace(req.String("collection")) != "" {
+			return nil, verr
+		}
+		unlisted = "this credential may not list the collections"
 	}
+	summary := compactOverview(root.Version, cs, table, unlisted, time.Now())
+	if !detail {
+		return summary, nil
+	}
+
 	collections := strconv.Itoa(len(table.Rows))
-	if table.Total > len(table.Rows) {
+	switch {
+	case unlisted != "":
+		collections = unreadText(unlisted)
+	case table.Total > len(table.Rows):
 		collections = collections + " of " + strconv.Itoa(table.Total) + " — the first " +
 			strconv.Itoa(len(table.Rows)) + " by name; " + req.Surface().CapabilityName("qdrant.collection.list") + " reads every one"
 	}
 
 	p := plugin.NewPage(ctx, req)
+	p.Put("summary", summary)
 	p.Put("status", view.KeyValue{Pairs: []view.Pair{
 		{Key: "address", Value: req.Reached(req.String("address"))},
 		{Key: "title", Value: root.Title},
@@ -176,8 +192,225 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 	if cs.mode == modeDistributed {
 		p.Put("peers", peersTable(cs, time.Now()))
 	}
-	p.Put("collections", table)
+	if unlisted == "" {
+		p.Put("collections", table)
+	}
 	return p.View(), nil
+}
+
+// grade is how bad a fact is, in the words the status row leads with and the
+// theme colours: nothing, warn, fail.
+type grade int
+
+const (
+	_ grade = iota
+	gradeWarn
+	gradeFail
+)
+
+// finding is one thing wrong, in a few words, for the status row.
+type finding struct {
+	grade grade
+	text  string
+}
+
+// verdict is the status row: ok, or the worst finding with its grade. Of
+// several equally bad, the first stands, and the findings are collected in the
+// order that puts the cluster before the collections.
+func verdict(found []finding) string {
+	var worst *finding
+	for i := range found {
+		if worst == nil || found[i].grade > worst.grade {
+			worst = &found[i]
+		}
+	}
+	switch {
+	case worst == nil:
+		return "ok"
+	case worst.grade == gradeFail:
+		return "fail — " + worst.text
+	}
+	return "warn — " + worst.text
+}
+
+func unreadText(why string) string { return "could not be read — " + why }
+
+// compactOverview is the answer a tile and an agent read by default: the verdict,
+// the collections counted by status, the cluster, and the version last, which is
+// what a healthy instance and a dying one have in common. A tile is cut from the
+// bottom, and the page this replaces opened with the address and a title that is
+// the same on every Qdrant there is.
+//
+// **It reads no replica.** The replicas column is a request for every collection
+// and is the detail's; the compact form's collection requests are the ones that
+// give each its status, which is what the row counts. unlisted is why the list of
+// collections could not be read, when it could not.
+func compactOverview(version string, cs clusterState, table view.Table, unlisted string, now time.Time) view.KeyValue {
+	cluster, clusterFound := clusterRow(cs, now)
+	collections, collectionFound := collectionsRow(table)
+	if unlisted != "" {
+		collections, collectionFound = unreadText(unlisted), []finding{{gradeWarn, "collections could not be read"}}
+	}
+	return view.KeyValue{Pairs: []view.Pair{
+		{Key: "status", Value: verdict(append(clusterFound, collectionFound...))},
+		{Key: "collections", Value: collections},
+		{Key: "cluster", Value: cluster},
+		{Key: "version", Value: version},
+	}}
+}
+
+// statusOrder is the order a count of collections by status is spelled in: the
+// worst first, so that a row a tile clips at the right still shows what is wrong.
+func statusOrder(status string) int {
+	switch status {
+	case "red":
+		return 0
+	case "yellow":
+		return 1
+	case "grey":
+		return 2
+	case "unreadable":
+		return 3
+	case "green":
+		return 5
+	}
+	return 4
+}
+
+// collectionsRow counts the collections read by status, worst first, and grades
+// them: red is a failure, and anything else that is not green is a warning,
+// because a collection serving from a partly built index, or one the key cannot
+// read, is not a collection that is known to be well.
+//
+// **Past the bound the count is of the ones read, and says so.** The status of a
+// collection is only known by reading it; the verdict is about those and the row
+// beside it says how many they are of how many there are.
+func collectionsRow(table view.Table) (string, []finding) {
+	read := len(table.Rows)
+	if read == 0 {
+		return "none", nil
+	}
+	counts, first := map[string]int{}, map[string]string{}
+	for _, row := range table.Rows {
+		status := row[4]
+		if status == "" {
+			status = "unreported"
+		}
+		if counts[status] == 0 {
+			first[status] = row[0]
+		}
+		counts[status]++
+	}
+	statuses := make([]string, 0, len(counts))
+	for status := range counts {
+		statuses = append(statuses, status)
+	}
+	sort.Slice(statuses, func(a, b int) bool {
+		if oa, ob := statusOrder(statuses[a]), statusOrder(statuses[b]); oa != ob {
+			return oa < ob
+		}
+		return statuses[a] < statuses[b]
+	})
+
+	text := strconv.Itoa(read)
+	if table.Total > read {
+		text += " of " + strconv.Itoa(table.Total) + " read"
+	}
+	var found []finding
+	if len(statuses) == 1 {
+		text += ", all " + statuses[0]
+		if read == 1 {
+			text = strings.Replace(text, ", all ", ", ", 1)
+		}
+	}
+	for _, status := range statuses {
+		if len(statuses) > 1 {
+			text += ", " + strconv.Itoa(counts[status]) + " " + status
+		}
+		switch status {
+		case "green":
+		case "red":
+			found = append(found, finding{gradeFail, collectionFinding(counts[status], status, first[status])})
+		default:
+			found = append(found, finding{gradeWarn, collectionFinding(counts[status], status, first[status])})
+		}
+	}
+	return text, found
+}
+
+func collectionFinding(n int, status, first string) string {
+	if status == "unreadable" {
+		return format.CountOf(n, "collection") + " could not be read"
+	}
+	if n == 1 {
+		return first + " is " + status
+	}
+	return format.CountOf(n, "collection") + " " + status + ", first " + first
+}
+
+// clusterRow is whether the instance stands alone or how its peers are, and what
+// is wrong among them: this peer's consensus thread, and each peer the one asked
+// cannot message, which it names. It reads nothing more than the cluster state
+// the page already holds.
+func clusterRow(cs clusterState, now time.Time) (string, []finding) {
+	switch cs.mode {
+	case modeStandalone:
+		return "standalone", nil
+	case modeDistributed:
+		return distributedRow(cs, now)
+	}
+	if cs.note != "" {
+		return unreadText("this credential reads collections only"), []finding{{gradeWarn, "cluster state could not be read"}}
+	}
+	return "not reported by this server", nil
+}
+
+func distributedRow(cs clusterState, now time.Time) (string, []finding) {
+	role := strings.ToLower(cs.info.RaftInfo.Role)
+	if role == "" {
+		role = "a member"
+	}
+	text := format.CountOf(len(cs.info.Peers), "peer") + ", this one is " + role
+
+	var found []finding
+	if state, why, _ := strings.Cut(cs.selfHealth(), " — "); state == "fail" || state == "warn" {
+		found = append(found, finding{gradeOf(state), "this peer: " + why})
+	}
+	ids := make([]uint64, 0, len(cs.info.Peers))
+	for id := range cs.info.Peers {
+		if n, err := strconv.ParseUint(id, 10, 64); err == nil && n != cs.info.PeerID {
+			ids = append(ids, n)
+		}
+	}
+	sort.Slice(ids, func(i, j int) bool { return cs.label(ids[i]) < cs.label(ids[j]) })
+	var down []string
+	for _, id := range ids {
+		uri := cs.info.Peers[strconv.FormatUint(id, 10)].URI
+		switch state, _, _ := strings.Cut(cs.peerHealth(id, uri, now), " — "); state {
+		case "fail":
+			down = append(down, cs.label(id))
+			found = append(found, finding{gradeFail, "peer " + cs.label(id) + " is not answering"})
+		case "warn":
+			found = append(found, finding{gradeWarn, "peer " + cs.label(id) + " has failed messages"})
+		}
+	}
+	switch {
+	case len(down) == 1:
+		text += ", " + down[0] + " not answering"
+	case len(down) > 1:
+		text += ", " + strconv.Itoa(len(down)) + " peers not answering"
+	}
+	if v := cs.versions(); len(v) > 1 {
+		text += ", on " + strconv.Itoa(len(v)) + " versions"
+	}
+	return text, found
+}
+
+func gradeOf(state string) grade {
+	if state == "fail" {
+		return gradeFail
+	}
+	return gradeWarn
 }
 
 func collectionListCapability() plugin.Capability {
@@ -216,7 +449,7 @@ func collectionTable(ctx context.Context, req plugin.Request) (view.Table, *view
 	if verr != nil {
 		return view.Table{}, verr
 	}
-	return collectionTableIn(ctx, req, cs, 0)
+	return collectionTableIn(ctx, req, cs, 0, true)
 }
 
 // collectionTableIn lists the collections, and in a cluster adds the column
@@ -227,7 +460,10 @@ func collectionTable(ctx context.Context, req plugin.Request) (view.Table, *view
 // whether or not this credential could read the cluster's own state, because
 // the per-collection endpoint answers a token scoped to collections where
 // /cluster does not, and a collection that turns out to be unsharded in a
-// mode nobody could name reads "-" rather than inventing a replica count.
+// mode nobody could name reads "-" rather than inventing a replica count. It is
+// a request for every collection on top of the one that gives its status, so a
+// caller that does not show the column (the overview's compact form) does not
+// ask for it.
 //
 // **With a `collection`, the page is about it and the instance's listing is
 // never asked for.** A fence on `collection` is written to keep the other names
@@ -241,7 +477,7 @@ func collectionTable(ctx context.Context, req plugin.Request) (view.Table, *view
 // known by making it, so the ones to read cannot be chosen by their health: the
 // worst of those read are put first, which is all the order can promise. The cut
 // is Total, which a program reads, and a warning, which a person does.
-func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState, limit int) (view.Table, *view.Error) {
+func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState, limit int, replicas bool) (view.Table, *view.Error) {
 	only := strings.TrimSpace(req.String("collection"))
 	var names []string
 	if only != "" {
@@ -276,7 +512,7 @@ func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState,
 	for _, name := range names {
 		listed := plugin.ListedName(name)
 		replica := "-"
-		if cs.mode != modeStandalone {
+		if replicas && cs.mode != modeStandalone {
 			var cc collectionCluster
 			if verr := get(ctx, req, pathFor("/collections/%s/cluster", name), &cc); verr == nil && (cs.mode == modeDistributed || cc.distributed()) {
 				replica = replicasHealth(cc, cs.label, cs.peersDown(time.Now()))

@@ -34,7 +34,7 @@ func TestACredentialScopedToCollectionsStillShowsItsReplicas(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	v, err := runOverview(t.Context(), req(t, "qdrant.overview",
-		map[string]any{"address": strings.TrimPrefix(srv.URL, "http://")}))
+		map[string]any{"address": strings.TrimPrefix(srv.URL, "http://"), "detail": true}))
 	if err != nil {
 		t.Fatalf("a credential that may not read the cluster failed the view: %v", err)
 	}
