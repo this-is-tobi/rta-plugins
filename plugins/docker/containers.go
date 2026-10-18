@@ -45,13 +45,41 @@ func fetchContainers(ctx context.Context, c connection, all bool) ([]containerRo
 //
 // Docker reports "none" for a container with no healthcheck declared, which
 // is not the same as healthy and must not read as a problem either.
+//
+// **The verdict is not always in HealthStatus.** v27.3.1's `ps --format json`
+// has no such field and v29 adds it, and where it is missing the verdict is
+// only in the Status text the daemon writes — "Up 3 hours (unhealthy)", "Up 5
+// seconds (health: starting)" — so a container failing its healthcheck read as
+// one with none, in an overview whose summary promises what is unhealthy. v29
+// reads the word out of that text when the field is empty, for the API versions
+// that carry it nowhere else, and this does the same: the first parenthesis to
+// the end of the text, and only when what is inside is one of the three words a
+// healthcheck gives. "(Paused)" and "(137)" are in the same place and are not
+// one, which is why the word is checked and not merely taken.
 func health(r containerRow) string {
-	switch strings.ToLower(r.HealthStatus) {
+	verdict := r.HealthStatus
+	if verdict == "" {
+		verdict = healthInStatus(r.Status)
+	}
+	switch strings.ToLower(verdict) {
 	case "", "none":
 		return ""
 	default:
-		return r.HealthStatus
+		return verdict
 	}
+}
+
+func healthInStatus(status string) string {
+	_, inner, ok := strings.Cut(status, "(")
+	if !ok || !strings.HasSuffix(inner, ")") {
+		return ""
+	}
+	word := strings.TrimPrefix(strings.TrimSuffix(inner, ")"), "health: ")
+	switch word {
+	case "healthy", "unhealthy", "starting":
+		return word
+	}
+	return ""
 }
 
 // unhealthy is the overview's definition of "worth looking at": a container
@@ -62,7 +90,7 @@ func unhealthy(r containerRow) bool {
 	if !strings.EqualFold(r.State, "running") {
 		return true
 	}
-	return strings.EqualFold(r.HealthStatus, "unhealthy")
+	return strings.EqualFold(health(r), "unhealthy")
 }
 
 func containerTable(rows []containerRow) view.Table {
