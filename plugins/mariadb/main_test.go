@@ -408,7 +408,7 @@ func TestADialIsReadByItsOwnErrorNotByTheWrapper(t *testing.T) {
 		{"refused", dial(syscall.ECONNREFUSED), "mariadb.conn.refused"},
 		{"no route to the host", dial(syscall.EHOSTUNREACH), "mariadb.conn.unreachable"},
 		{"no way onto the network", dial(syscall.ENETUNREACH), "mariadb.conn.unreachable"},
-		{"the system's connect timeout", dial(syscall.ETIMEDOUT), "mariadb.conn.timeout"},
+		{"the system's connect timeout", dial(syscall.ETIMEDOUT), "mariadb.timeout"},
 		{"a handshake the server reset", &stdnet.OpError{Op: "read", Net: "tcp",
 			Err: os.NewSyscallError("read", syscall.ECONNRESET)}, "mariadb.conn.failed"},
 		{"a refusal flattened to text", errors.New("dial tcp 10.0.0.9:3306: connect: connection refused"),

@@ -159,7 +159,7 @@ func TestClassifyRestoreNamesTheFailure(t *testing.T) {
 		"in progress": {fmt.Sprintf("ERROR 2003 (HY000): Can't connect to server on 'db.internal:3306' (%d)",
 			int(syscall.EINPROGRESS)), "mariadb.conn.refused"},
 		"timed out": {fmt.Sprintf("ERROR 2003 (HY000): Can't connect to server on 'db.internal:3306' (%d)",
-			int(syscall.ETIMEDOUT)), "mariadb.conn.timeout"},
+			int(syscall.ETIMEDOUT)), "mariadb.timeout"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			verr := classifyRestore(boom, tc.stderr, r)
