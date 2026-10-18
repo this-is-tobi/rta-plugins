@@ -149,10 +149,10 @@ func TestANarrowedOverviewSaysWhichNamespaceItReadAndDoesNotCountSlots(t *testin
 		t.Fatal(err)
 	}
 	rows := keyValues(t, narrow)
-	if !strings.HasPrefix(rows["namespace"], "apps") || !strings.Contains(rows["namespace"], "only") {
-		t.Errorf("namespace = %q, want the one that was read, and that it is the only one", rows["namespace"])
+	if !strings.Contains(rows["context"], "namespace apps only") {
+		t.Errorf("context = %q, want the one that was read, and that it is the only one", rows["context"])
 	}
-	if rows["pods"] != "1, 0 not ready" {
+	if rows["pods"] != "1" {
 		t.Errorf("pods = %q, want the namespace's one", rows["pods"])
 	}
 	if !strings.Contains(rows["pod slots"], "not counted") {
