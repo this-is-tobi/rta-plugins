@@ -88,7 +88,7 @@ func TestSuggestMountsFiltersByEngineAndTrimsTheSlash(t *testing.T) {
 			"transit/":{"type":"transit"},
 			"sys/":{"type":"system"}}}`,
 	})
-	r := req(t, "vault.kv.list", map[string]any{"address": srv.URL, "token": "t"})
+	r := req(t, "vault.kv.list", map[string]any{"url": srv.URL, "token": "t"})
 
 	if got := suggestMounts("kv")(context.Background(), r); len(got) != 2 ||
 		got[0] != "kv-apps" || got[1] != "secret" {
@@ -105,7 +105,7 @@ func TestSuggestPathsWalksTheTypedFolder(t *testing.T) {
 		"/v1/secret/metadata/team": `{"data":{"keys":["db-creds","ci/"]}}`,
 	})
 	r := req(t, "vault.kv.get", map[string]any{
-		"address": srv.URL, "token": "t", "path": "team/d",
+		"url": srv.URL, "token": "t", "path": "team/d",
 	})
 
 	got := suggestPaths(context.Background(), r)
@@ -133,12 +133,12 @@ func TestSuggestTransitKeysAndPoliciesListNames(t *testing.T) {
 		"/v1/sys/policies/acl": `{"data":{"keys":["default","read-apps"]}}`,
 		"/v1/sys/policy":       `{"data":{"policies":["default","read-apps"]}}`,
 	})
-	r := req(t, "vault.transit.encrypt", map[string]any{"address": srv.URL, "token": "t"})
+	r := req(t, "vault.transit.encrypt", map[string]any{"url": srv.URL, "token": "t"})
 
 	if got := suggestTransitKeys(context.Background(), r); len(got) != 2 || got[0] != "app-signing" {
 		t.Errorf("transit keys = %v, want the two names", got)
 	}
-	pr := req(t, "vault.policy.get", map[string]any{"address": srv.URL, "token": "t"})
+	pr := req(t, "vault.policy.get", map[string]any{"url": srv.URL, "token": "t"})
 	if got := suggestPolicies(context.Background(), pr); len(got) != 2 || got[0] != "default" {
 		t.Errorf("policies = %v, want the two names", got)
 	}
@@ -163,7 +163,7 @@ func TestSuggestionsAreSilentOnEveryFailure(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := req(t, "vault.kv.get", map[string]any{
-				"address": tc.address, "token": "t", "path": "team/",
+				"url": tc.address, "token": "t", "path": "team/",
 			})
 			if got := suggestMounts("kv")(context.Background(), r); got != nil {
 				t.Errorf("suggestMounts = %v, want silence", got)

@@ -30,14 +30,14 @@ func TestTheListingAPolicyNotFoundOffersReachesTheVaultItCameFrom(t *testing.T) 
 		unwant  string
 	}{
 		{"a terminal, no profile", plugin.TunnelNone, "", plugin.SurfaceCLI,
-			"`rta vault policy list --address " + srv.URL + "` shows what exists", "--profile"},
+			"`rta vault policy list --url " + srv.URL + "` shows what exists", "--profile"},
 		{"a terminal, through a forward", plugin.TunnelKube, "prod", plugin.SurfaceCLI,
-			"`rta vault policy list --profile prod` shows what exists", "--address"},
+			"`rta vault policy list --profile prod` shows what exists", "--url"},
 		{"an agent, through a profile", plugin.TunnelKube, "prod", plugin.SurfaceMCP,
-			"`vault_policy_list {\"profile\":\"prod\"}` shows what exists", "address"},
+			"`vault_policy_list {\"profile\":\"prod\"}` shows what exists", "url"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			r := req(t, "vault.policy.get", map[string]any{"address": srv.URL, "token": "t", "name": "ghost"}).
+			r := req(t, "vault.policy.get", map[string]any{"url": srv.URL, "token": "t", "name": "ghost"}).
 				WithProfile(tc.profile, tc.tunnel).WithSurface(tc.surface)
 			_, err := runPolicyGet(context.Background(), r)
 			var verr *view.Error

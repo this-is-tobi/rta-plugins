@@ -48,7 +48,7 @@ func TestACertificateTheSystemRevokedIsAnsweredInItsWordsWithNoWayRound(t *testi
 	sdktest.VerifierSystem(t, "darwin")
 	err := handshakeRefusal(sdktest.SystemVerdict("vault", sdktest.VerdictRevoked, certValidFor(90)))
 	for _, sf := range verdictSurfaces {
-		got := classify(err, req(t, "vault.seal.status", map[string]any{"address": "https://vault.internal:8200"}).WithSurface(sf))
+		got := classify(err, req(t, "vault.seal.status", map[string]any{"url": "https://vault.internal:8200"}).WithSurface(sf))
 		if got.Code != "vault.tls.rejected" {
 			t.Errorf("%s: classified %s %q, want vault.tls.rejected: a revoked certificate is neither untrusted nor a failure to connect",
 				sf, got.Code, got.Message)
@@ -66,7 +66,7 @@ func TestAnIssuerTheSystemDoesNotTrustIsAnsweredWithTheCAFileSetting(t *testing.
 	sdktest.VerifierSystem(t, "darwin")
 	err := handshakeRefusal(sdktest.SystemVerdict("vault", sdktest.VerdictNotTrusted, certValidFor(90)))
 	for _, sf := range verdictSurfaces {
-		got := classify(err, req(t, "vault.seal.status", map[string]any{"address": "https://vault.internal:8200"}).WithSurface(sf))
+		got := classify(err, req(t, "vault.seal.status", map[string]any{"url": "https://vault.internal:8200"}).WithSurface(sf))
 		if got.Code != "vault.tls.untrusted" {
 			t.Errorf("%s: classified %s %q, want vault.tls.untrusted", sf, got.Code, got.Message)
 		}
@@ -83,7 +83,7 @@ func TestACertificateAppleRefusesForItsLengthSaysSoAndNeverOffersACAFile(t *test
 	sdktest.VerifierSystem(t, "darwin")
 	err := handshakeRefusal(sdktest.SystemVerdict("vault", sdktest.VerdictNotStandardsCompliant, certValidFor(3650)))
 	for _, sf := range verdictSurfaces {
-		got := classify(err, req(t, "vault.seal.status", map[string]any{"address": "https://vault.internal:8200"}).WithSurface(sf))
+		got := classify(err, req(t, "vault.seal.status", map[string]any{"url": "https://vault.internal:8200"}).WithSurface(sf))
 		if got.Code != "vault.tls.rejected" {
 			t.Errorf("%s: classified %s %q, want vault.tls.rejected", sf, got.Code, got.Message)
 		}
@@ -111,7 +111,7 @@ func TestACertificateAppleRefusesForAnotherRuleIsNotToldItIsTooLong(t *testing.T
 		"no certificate sent":                   nil,
 	} {
 		err := handshakeRefusal(sdktest.SystemVerdict("vault", sdktest.VerdictNotStandardsCompliant, sent...))
-		got := classify(err, req(t, "vault.seal.status", map[string]any{"address": "https://vault.internal:8200"}))
+		got := classify(err, req(t, "vault.seal.status", map[string]any{"url": "https://vault.internal:8200"}))
 		if got.Code != "vault.tls.rejected" || !strings.Contains(got.Message, "certificate is not standards compliant") {
 			t.Errorf("%s: classified %s %q, want vault.tls.rejected in the system's words", name, got.Code, got.Message)
 		}

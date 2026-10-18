@@ -22,7 +22,7 @@ var mountFixture = map[string]string{
 
 func treeOf(t *testing.T, srv *httptest.Server, values map[string]any) view.Tree {
 	t.Helper()
-	values["address"] = srv.URL
+	values["url"] = srv.URL
 	values["token"] = "t"
 	v, err := runKVTree(context.Background(), req(t, "vault.kv.tree", values))
 	if err != nil {
@@ -192,7 +192,7 @@ func TestAWalkThatCannotStartIsAnError(t *testing.T) {
 	defer srv.Close()
 
 	_, err := runKVTree(context.Background(), req(t, "vault.kv.tree",
-		map[string]any{"address": srv.URL, "token": "t"}))
+		map[string]any{"url": srv.URL, "token": "t"}))
 	if err == nil {
 		t.Fatal("a mount the token cannot list produced a tree")
 	}

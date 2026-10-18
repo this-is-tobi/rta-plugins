@@ -35,7 +35,7 @@ func TestConformance(t *testing.T) {
 // connection rather than as a write to somebody's Vault.
 func conformanceInputs(dir string) map[string]map[string]any {
 	conn := func(m map[string]any) map[string]any {
-		m["address"] = "http://127.0.0.1:1"
+		m["url"] = "http://127.0.0.1:1"
 		m["token"] = "conformance"
 		return m
 	}
@@ -82,7 +82,7 @@ func req(t *testing.T, capID string, values map[string]any) plugin.Request {
 // Every classified failure has to say what to do next — the same bar
 // plugins/pg's classify holds itself to, against Vault's error shapes.
 func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
-	r := req(t, "vault.seal.status", map[string]any{"address": "https://vault.internal:8200"})
+	r := req(t, "vault.seal.status", map[string]any{"url": "https://vault.internal:8200"})
 	dial := func(errno syscall.Errno) error {
 		return &url.Error{Op: "Get", URL: "https://x",
 			Err: &net.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", errno)}}
@@ -148,7 +148,7 @@ func (timeoutError) Temporary() bool { return true }
 // way around the revocation check. Elsewhere an untyped verdict is never a
 // question of trust, and none is a server that could not be reached.
 func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
-	r := req(t, "vault.seal.status", map[string]any{"address": "https://vault.internal:8200"})
+	r := req(t, "vault.seal.status", map[string]any{"url": "https://vault.internal:8200"})
 	for _, tc := range []struct {
 		name, system string
 		err          error
@@ -197,7 +197,7 @@ func handshakeRefusal(err error) error {
 // verify — never a port nothing listens on or a host no route reaches, as
 // the dial's words, read first, would have had it.
 func TestACertificatesOwnNamesAreNeverReadAsTheDialsFailure(t *testing.T) {
-	r := req(t, "vault.seal.status", map[string]any{"address": "https://vault.internal:8200"})
+	r := req(t, "vault.seal.status", map[string]any{"url": "https://vault.internal:8200"})
 	sdktest.VerifierSystem(t, "darwin")
 	for _, verdict := range []error{
 		x509.HostnameError{Certificate: &x509.Certificate{DNSNames: []string{syscall.ECONNREFUSED.Error()}},
@@ -221,7 +221,7 @@ func TestANameDNSCannotResolveIsNotReadAsNothingListening(t *testing.T) {
 	err := &url.Error{Op: "Get", URL: "http://vault.internal:8200/v1/sys/seal-status",
 		Err: &net.OpError{Op: "dial", Net: "tcp",
 			Err: &net.DNSError{Err: "no such host", Name: "vault.internal", IsNotFound: true}}}
-	verr := classify(err, req(t, "vault.seal.status", map[string]any{"address": "http://vault.internal:8200"}))
+	verr := classify(err, req(t, "vault.seal.status", map[string]any{"url": "http://vault.internal:8200"}))
 	if verr.Code != "vault.host.unknown" {
 		t.Errorf("code = %s, want vault.host.unknown: %s", verr.Code, verr.Message)
 	}
@@ -234,7 +234,7 @@ func TestANameDNSCannotResolveIsNotReadAsNothingListening(t *testing.T) {
 func TestARefusedTokenIsSentToTheTokensStatus(t *testing.T) {
 	verr := classify(&vaultapi.ResponseError{StatusCode: 403, Errors: []string{"permission denied"}},
 		req(t, "vault.kv.get", map[string]any{"path": "app/db"}))
-	if !strings.Contains(verr.Hint, "`rta vault token status --address http://127.0.0.1:8200` shows what the current token can do") {
+	if !strings.Contains(verr.Hint, "`rta vault token status --url http://127.0.0.1:8200` shows what the current token can do") {
 		t.Errorf("hint = %q, want it to name vault.token.status", verr.Hint)
 	}
 }

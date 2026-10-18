@@ -23,6 +23,28 @@ func TestEveryConnectionInputIsLocal(t *testing.T) {
 	}
 }
 
+// Where the service is has one name per shape across the plugins: `address`
+// takes host[:port] and `url` takes a URL, so a profile's `set:` reads the
+// same whichever plugin it fills and nobody needs the card to know which word
+// this one chose. Written against the role the input declares rather than a
+// list of names, so a destination added later is held to it the day it is added.
+func TestTheDestinationInputIsNamedForItsRole(t *testing.T) {
+	found := false
+	for _, f := range connFields() {
+		if f.Endpoint != plugin.EndpointURL {
+			continue
+		}
+		found = true
+		if f.Name != "url" || f.Config != "url" {
+			t.Errorf("the %s input is %q (config %q), want %q: it takes URL, and that is the word the plugins share",
+				f.Endpoint, f.Name, f.Config, "url")
+		}
+	}
+	if !found {
+		t.Error("no connection input declares the url role")
+	}
+}
+
 // The mount is the container a scoped record sits in — kv.get/kv.set scope
 // on "path", transit.decrypt scopes on "key" — but neither ever scopes on
 // "mount" itself, so a caller-settable mount would let a grant on one

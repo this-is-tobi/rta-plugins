@@ -21,7 +21,7 @@ import (
 func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 	refusal := func(verr *view.Error) string { return verr.Message + "\n" + verr.Hint }
 	r := func(sf plugin.Surface) plugin.Request {
-		return req(t, "vault.kv.get", map[string]any{"path": "app/db", "address": "https://vault.internal:8200"}).WithSurface(sf)
+		return req(t, "vault.kv.get", map[string]any{"path": "app/db", "url": "https://vault.internal:8200"}).WithSurface(sf)
 	}
 	for _, tc := range []struct {
 		name, cli, other string
@@ -30,7 +30,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 	}{
 		{
 			name:    "a token its policy refuses",
-			cli:     "`rta vault token status --address https://vault.internal:8200` shows what the current token can do",
+			cli:     "`rta vault token status --url https://vault.internal:8200` shows what the current token can do",
 			other:   "the `vault_token_status` tool shows what the current token can do",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
@@ -44,7 +44,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				_, verr := connect(req(t, "vault.seal.status", map[string]any{
-					"address": "https://vault.internal:8200", "ca-file": filepath.Join(t.TempDir(), "absent.pem"),
+					"url": "https://vault.internal:8200", "ca-file": filepath.Join(t.TempDir(), "absent.pem"),
 				}).WithSurface(sf))
 				if verr == nil {
 					t.Fatal("a ca-file that is not there was accepted")
@@ -100,8 +100,8 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "the restore a snapshot names",
-			cli:     "rta vault restore '/backups/my vault.snap' --address https://vault.internal:8200",
-			other:   `vault.restore file="/backups/my vault.snap" address=https://vault.internal:8200`,
+			cli:     "rta vault restore '/backups/my vault.snap' --url https://vault.internal:8200",
+			other:   `vault.restore file="/backups/my vault.snap" url=https://vault.internal:8200`,
 			surface: plugin.SurfaceTUI,
 			say: func(sf plugin.Surface) string {
 				return restoreCommand(r(sf), "/backups/my vault.snap")

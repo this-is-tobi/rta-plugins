@@ -43,7 +43,7 @@ func TestATLSRefusalTheVaultGaveNamesTheProfileAndNotTheEndOfItsForward(t *testi
 			Cert: &x509.Certificate{}, Reason: x509.Expired}}, "vault.tls.rejected"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			r := req(t, "vault.kv.get", map[string]any{"address": "https://127.0.0.1:41233"}).
+			r := req(t, "vault.kv.get", map[string]any{"url": "https://127.0.0.1:41233"}).
 				WithProfile("prod", plugin.TunnelKube)
 			checkNamesProfile(t, name, classify(tc.err, r), tc.code, "41233")
 		})

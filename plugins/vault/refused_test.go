@@ -20,9 +20,9 @@ func TestARefusedConnectionNamesTheSettingAndThePortVaultServesOn(t *testing.T) 
 	if dialErr == nil {
 		t.Fatal("a port nothing listens on accepted a connection")
 	}
-	verr := classify(dialErr, req(t, "vault.seal.status", map[string]any{"address": "http://" + addr}))
+	verr := classify(dialErr, req(t, "vault.seal.status", map[string]any{"url": "http://" + addr}))
 	if verr.Code != "vault.conn.refused" ||
-		!strings.Contains(verr.Hint, "is the server up, and is --address right? Vault listens on 8200") {
+		!strings.Contains(verr.Hint, "is the server up, and is --url right? Vault listens on 8200") {
 		t.Errorf("%s %q, want vault.conn.refused naming the setting and the port", verr.Code, verr.Hint)
 	}
 }

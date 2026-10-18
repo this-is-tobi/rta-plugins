@@ -20,7 +20,7 @@ const mountsBody = `{"data":{"homelab/":{"type":"kv","options":{"version":"2"}},
 
 func mountReq(t *testing.T, capID, address string, values map[string]any) plugin.Request {
 	t.Helper()
-	values["address"] = address
+	values["url"] = address
 	values["token"] = "test"
 	return req(t, capID, values)
 }

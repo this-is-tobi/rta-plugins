@@ -12,7 +12,7 @@ import (
 // asterisk. It went into the message as it came, so the first thing an agent
 // read of a refusal was a list with newlines in it, in a field that is a line.
 func TestARefusalIsOneLineWhateverShapeVaultAnswersIn(t *testing.T) {
-	r := req(t, "vault.kv.list", map[string]any{"address": "http://vault.internal:8200"})
+	r := req(t, "vault.kv.list", map[string]any{"url": "http://vault.internal:8200"})
 	for name, errs := range map[string][]string{
 		"a multierror":    {"2 errors occurred:\n\t* permission denied\n\t* invalid token\n\n"},
 		"one reason":      {"1 error occurred:\n\t* permission denied\n\n"},

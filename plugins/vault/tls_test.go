@@ -37,7 +37,7 @@ func TestCAFileTrustsATunneledServersOwnCertificate(t *testing.T) {
 	// and has to be classified as one — not a timeout, not a refused
 	// connection.
 	_, err := runSealStatus(context.Background(),
-		req(t, "vault.seal.status", map[string]any{"address": srv.URL}))
+		req(t, "vault.seal.status", map[string]any{"url": srv.URL}))
 	if err == nil {
 		t.Fatal("a self-signed server was trusted with no ca-file")
 	}
@@ -49,7 +49,7 @@ func TestCAFileTrustsATunneledServersOwnCertificate(t *testing.T) {
 	// With ca-file naming the server's own certificate: the handshake
 	// succeeds and the call goes all the way through to a real answer.
 	v, err := runSealStatus(context.Background(),
-		req(t, "vault.seal.status", map[string]any{"address": srv.URL, "ca-file": caPath}))
+		req(t, "vault.seal.status", map[string]any{"url": srv.URL, "ca-file": caPath}))
 	if err != nil {
 		t.Fatalf("ca-file did not establish trust: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestCAFileRejectsAPathWithNoCertificate(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, verr := connect(req(t, "vault.seal.status", map[string]any{
-		"address": "https://127.0.0.1:1", "ca-file": notACert,
+		"url": "https://127.0.0.1:1", "ca-file": notACert,
 	}))
 	if verr == nil {
 		t.Fatal("a ca-file with no certificate in it was accepted")
@@ -94,7 +94,7 @@ func TestCAFileRejectsAPathWithNoCertificate(t *testing.T) {
 func TestCAFileThatCannotBeReadIsNamedAsUnreadable(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "gone.pem")
 	_, verr := connect(req(t, "vault.seal.status", map[string]any{
-		"address": "https://127.0.0.1:1", "ca-file": missing,
+		"url": "https://127.0.0.1:1", "ca-file": missing,
 	}))
 	if verr == nil || verr.Code != "vault.tls.ca.unreadable" {
 		t.Fatalf("connect: %+v, want vault.tls.ca.unreadable", verr)
@@ -125,7 +125,7 @@ func TestTheCAFileResolvesTheHomeDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := runSealStatus(context.Background(),
-		req(t, "vault.seal.status", map[string]any{"address": srv.URL, "ca-file": "~/ca.pem"})); err != nil {
+		req(t, "vault.seal.status", map[string]any{"url": srv.URL, "ca-file": "~/ca.pem"})); err != nil {
 		t.Fatalf("a ca-file under ~ did not verify its own server: %v", err)
 	}
 }
