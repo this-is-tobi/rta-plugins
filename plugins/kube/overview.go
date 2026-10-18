@@ -44,15 +44,15 @@ type overviewFetch struct {
 	certErr    *view.Error
 }
 
-func fetchOverview(ctx context.Context, all, nsSel selection, cfg *kubeconfig) overviewFetch {
+func fetchOverview(ctx context.Context, scope, nsSel selection, cfg *kubeconfig) overviewFetch {
 	var f overviewFetch
 	var wg sync.WaitGroup
 	wg.Add(5)
 	go func() { defer wg.Done(); f.nsErr = getJSON(ctx, nsSel, "namespaces", &f.namespaces) }()
 	go func() { defer wg.Done(); f.nodes, f.nodeErr = fetchNodes(ctx, nsSel) }()
-	go func() { defer wg.Done(); f.pods, f.podErr = fetchPods(ctx, all) }()
-	go func() { defer wg.Done(); f.quotas, f.quotaErr = fetchQuotas(ctx, all) }()
-	go func() { defer wg.Done(); f.certs, f.certErr = tlsCerts(ctx, all, cfg) }()
+	go func() { defer wg.Done(); f.pods, f.podErr = fetchPods(ctx, scope) }()
+	go func() { defer wg.Done(); f.quotas, f.quotaErr = fetchQuotas(ctx, scope) }()
+	go func() { defer wg.Done(); f.certs, f.certErr = tlsCerts(ctx, scope, cfg) }()
 	wg.Wait()
 	return f
 }
@@ -75,6 +75,16 @@ func fetchOverview(ctx context.Context, all, nsSel selection, cfg *kubeconfig) o
 // a person who names one while a rollout runs wants it to move.
 const overviewRefresh = time.Minute
 
+// overviewNSFields are the namespace selection, said for an overview: what
+// naming no namespace reads is every one of them, and not the context's own as
+// it is for a list. The switch is the same one, and widens the same input.
+func overviewNSFields() []plugin.Field {
+	fields := nsFields()
+	fields[0].Help = "read the pods, quotas and certificates of this namespace only — every namespace when omitted"
+	fields[1].Help = "every namespace, which is also what naming none reads"
+	return fields
+}
+
 // quotaPressureThreshold is when a tracked resource is worth naming in an
 // overview meant to be read in passing: 80%, the point a person still has
 // time to act before a namespace starts refusing pods rather than the point
@@ -95,20 +105,35 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 		where = "unknown"
 	}
 	pairs := []view.Pair{{Key: "context", Value: where}}
+	namespace := ""
 	if cfgErr == nil {
 		if cluster, _, ns, ok := cfg.find(where); ok {
 			pairs = append(pairs, view.Pair{Key: "server", Value: cfg.server(cluster)})
 			if ns == "" {
 				ns = "default"
 			}
-			pairs = append(pairs, view.Pair{Key: "namespace", Value: ns})
+			namespace = ns
 		}
 	}
+	if s.Namespace != "" {
+		namespace = s.Namespace + " — the only namespace whose pods, quotas and certificates are read"
+	}
+	if namespace != "" {
+		pairs = append(pairs, view.Pair{Key: "namespace", Value: namespace})
+	}
 
-	// One selection for the whole overview: every namespace, because "what is
-	// unhealthy" is not a question about one of them.
-	all := s
-	all.Namespace, all.AllNS = "", true
+	// The pods, quotas and certificates are those of the namespace named, and
+	// of every namespace when none is: "what is unhealthy" is not a question
+	// about one of them unless somebody asked it about one. A profile that
+	// fences the namespace has asked it for them, and a fence that read past
+	// its namespace here would hand out every pod name, quota and certificate
+	// of the cluster that `pod list` refuses. selectionOf has already refused a
+	// namespace beside every namespace. The nodes and the namespaces are
+	// cluster-scoped and read as such.
+	scope := s
+	if s.Namespace == "" {
+		scope.AllNS = true
+	}
 	nsSel := s
 	nsSel.Namespace, nsSel.AllNS = "", false
 
@@ -116,7 +141,7 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 	if cfgErr == nil {
 		known = &cfg
 	}
-	f := fetchOverview(ctx, all, nsSel, known)
+	f := fetchOverview(ctx, scope, nsSel, known)
 
 	if f.nsErr != nil {
 		// The cluster not answering is the headline, not a failure: this is
@@ -232,11 +257,20 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 	// is either a cluster in real trouble, already reported by the not-ready
 	// count, or a credential that could not read nodes — and "0 of 0" would be
 	// a claim about capacity in a case where nothing was actually learned.
+	//
+	// And not counted when the pods are those of one namespace: they would be
+	// set against the slots of every node, a use of the cluster that other
+	// namespaces' pods make most of.
 	if slots := podSlots(f.nodes.Items); slots > 0 {
-		used := occupiedSlots(f.pods)
-		pairs = append(pairs, view.Pair{Key: "pod slots",
-			Value: fmt.Sprintf("%d of %d used (%s)", used, slots,
-				percentOf(float64(used), float64(slots)))})
+		if s.Namespace != "" {
+			pairs = append(pairs, view.Pair{Key: "pod slots",
+				Value: "not counted — the pods of the other namespaces are not read"})
+		} else {
+			used := occupiedSlots(f.pods)
+			pairs = append(pairs, view.Pair{Key: "pod slots",
+				Value: fmt.Sprintf("%d of %d used (%s)", used, slots,
+					percentOf(float64(used), float64(slots)))})
+		}
 	}
 
 	// The sibling reads above say "could not be read — <why>" when they
@@ -296,7 +330,7 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 		sections = append(sections, view.Section{
 			ID: "pods", Title: "Pods that are not ready", View: podTable(unhealthy, true)})
 	}
-	deps, depErr := fetchDeployments(ctx, all)
+	deps, depErr := fetchDeployments(ctx, scope)
 	if depErr == nil {
 		var short []deploymentItem
 		for _, d := range deps {
