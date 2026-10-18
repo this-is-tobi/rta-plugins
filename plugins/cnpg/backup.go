@@ -664,7 +664,7 @@ func pluginDestination(ctx context.Context, s selection, c cluster) (string, *vi
 			"the cluster names the ObjectStore %s, and this cluster has no ObjectStore resource type", ref).
 			WithHint("the barman-cloud plugin's CRD (" + objectStoreCRD + ") is not registered, so the plugin " +
 				"is not installed and the Backup would be accepted and fail")
-	case verr.Code == "cnpg.denied":
+	case verr.Code == "cnpg.forbidden":
 		return "ObjectStore " + ref + " (not read: " + verr.Message + ")", nil
 	}
 	return "", verr

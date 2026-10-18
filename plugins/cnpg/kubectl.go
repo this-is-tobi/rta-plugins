@@ -326,8 +326,13 @@ func refusesSecrets(args []string) *view.Error {
 // argue with the wrong team.
 func classify(ctx context.Context, err error, stderr string, args []string, by caller) *view.Error {
 	s := strings.TrimSpace(stderr)
+	// A timeout has the code of a refused connection (below), and a refusal by
+	// the cluster (denied) is forbidden: plugins/kube gives the same two
+	// conditions kube.unreachable and kube.forbidden. A hung cluster read
+	// cnpg.timeout here and kube.unreachable beside it, for the same kubectl
+	// waiting on the same API server.
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return view.Errorf("cnpg.timeout", "kubectl did not answer within %s", timeout).
+		return view.Errorf("cnpg.unreachable", "kubectl did not answer within %s", timeout).
 			WithHint("the cluster may be unreachable — `" + by.kubectlLine("cluster-info") + "` is the same " +
 				"question without this plugin in the way")
 	}

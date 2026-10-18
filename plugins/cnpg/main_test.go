@@ -423,7 +423,7 @@ func TestAnExpiredLoginIsNotReportedAsRBAC(t *testing.T) {
 		{`error: You must be logged in to the server (Unauthorized)`, "cnpg.unauthenticated"},
 		{`Unable to connect to the server: getting credentials: exec: executable tsh failed`,
 			"cnpg.unauthenticated"},
-		{`Error from server (Forbidden): clusters.postgresql.cnpg.io is forbidden`, "cnpg.denied"},
+		{`Error from server (Forbidden): clusters.postgresql.cnpg.io is forbidden`, "cnpg.forbidden"},
 	} {
 		fakeKubectl(t, "echo '"+tc.stderr+"' >&2\nexit 1\n")
 		_, err := runList(context.Background(), req(nil))
