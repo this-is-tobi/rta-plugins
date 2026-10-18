@@ -90,7 +90,7 @@ func instanceBehindAForward(t *testing.T) (endpoint, caFile string) {
 func TestThroughAForwardTheCertificateIsCheckedForTheNameGiven(t *testing.T) {
 	endpoint, ca := instanceBehindAForward(t)
 	through := func(values map[string]any, tunnel plugin.Tunnel) plugin.Request {
-		values["endpoint"], values["ca-file"] = endpoint, ca
+		values["address"], values["ca-file"] = endpoint, ca
 		// What the host forces over a forward, and what ca-file and
 		// tls-server-name each turn back on.
 		values["tls"] = false
@@ -122,7 +122,7 @@ func TestThroughAForwardTheCertificateIsCheckedForTheNameGiven(t *testing.T) {
 	}
 
 	_, verr = collectionTable(context.Background(), through(map[string]any{}, plugin.TunnelNone))
-	if verr == nil || verr.Code != "qdrant.tls.rejected" || !strings.Contains(verr.Hint, "the host in --endpoint") {
+	if verr == nil || verr.Code != "qdrant.tls.rejected" || !strings.Contains(verr.Hint, "the host in --address") {
 		t.Errorf("reached directly: %+v, want qdrant.tls.rejected naming the endpoint", verr)
 	}
 }
@@ -151,7 +151,7 @@ func TestAForwardRefusalNamesTheSettingForItsSurface(t *testing.T) {
 // A dump's restore line connects as the dump did, the name the certificate
 // was checked for included.
 func TestTheRestoreLineCarriesTheServerName(t *testing.T) {
-	got := restoreCommand(req(t, "qdrant.dump", map[string]any{"endpoint": "10.0.0.9:6333",
+	got := restoreCommand(req(t, "qdrant.dump", map[string]any{"address": "10.0.0.9:6333",
 		"tls-server-name": "svc.example.internal"}), "docs", "/backups/docs.snapshot")
 	if !strings.Contains(got, "--tls-server-name svc.example.internal") {
 		t.Errorf("restore = %q, want the server name on it", got)

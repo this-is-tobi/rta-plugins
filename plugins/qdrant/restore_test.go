@@ -62,7 +62,7 @@ func TestRestoreDryRunTouchesNothing(t *testing.T) {
 	srv, calls := newSnapshotServer(t, nil)
 	v, err := runRestore(t.Context(), dryReq(t, "qdrant.restore", map[string]any{
 		"collection": "docs", "file": snapshotOnDisk(t, "bytes"),
-		"endpoint": strings.TrimPrefix(srv.URL, "http://"),
+		"address": strings.TrimPrefix(srv.URL, "http://"),
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -85,7 +85,7 @@ func TestRestoreRefusesANonEmptyCollection(t *testing.T) {
 	})
 	_, err := runRestore(t.Context(), req(t, "qdrant.restore", map[string]any{
 		"collection": "docs", "file": snapshotOnDisk(t, "bytes"),
-		"endpoint": strings.TrimPrefix(srv.URL, "http://"),
+		"address": strings.TrimPrefix(srv.URL, "http://"),
 	}))
 	verr, ok := err.(*view.Error)
 	if !ok || verr.Code != "qdrant.restore.notempty" {
@@ -175,7 +175,7 @@ func restoreEndToEnd(t *testing.T, arrange func(map[string]http.HandlerFunc) map
 
 	values := map[string]any{
 		"collection": "docs", "file": snapshotOnDisk(t, content),
-		"endpoint": strings.TrimPrefix(srv.URL, "http://"),
+		"address": strings.TrimPrefix(srv.URL, "http://"),
 	}
 	for k, v := range extra {
 		values[k] = v

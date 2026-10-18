@@ -133,7 +133,7 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	if req.DryRun {
 		return view.Text{Body: fmt.Sprintf(
 			"would ask %s to snapshot %q, stream it to %s, and delete the server-side copy",
-			req.Reached(req.String("endpoint")), collection, path)}, nil
+			req.Reached(req.String("address")), collection, path)}, nil
 	}
 
 	// **Ask the server what it holds before dumping it** — pg.dump's

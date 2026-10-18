@@ -42,8 +42,8 @@ func verdictCalls(t *testing.T) []verdictCall {
 	t.Helper()
 	var calls []verdictCall
 	for _, sf := range []plugin.Surface{plugin.SurfaceCLI, plugin.SurfaceTUI, plugin.SurfaceMCP} {
-		direct := req(t, "qdrant.overview", map[string]any{"endpoint": "qdrant.internal:6333", "tls": true}).WithSurface(sf)
-		forwarded := req(t, "qdrant.overview", map[string]any{"endpoint": "127.0.0.1:41233", "tls": true}).
+		direct := req(t, "qdrant.overview", map[string]any{"address": "qdrant.internal:6333", "tls": true}).WithSurface(sf)
+		forwarded := req(t, "qdrant.overview", map[string]any{"address": "127.0.0.1:41233", "tls": true}).
 			WithProfile("prod", plugin.TunnelKube).WithSurface(sf)
 		calls = append(calls,
 			verdictCall{string(sf) + ", reached directly", direct},

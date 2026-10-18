@@ -22,7 +22,7 @@ func TestATLSRefusalTheServerGaveNamesTheProfileAndNotTheEndOfItsForward(t *test
 			Cert: cert, Reason: x509.Expired}}, "qdrant.tls.rejected"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			got := classify(tc.err, req(t, "qdrant.overview", map[string]any{"endpoint": "https://127.0.0.1:41233"}).
+			got := classify(tc.err, req(t, "qdrant.overview", map[string]any{"address": "https://127.0.0.1:41233"}).
 				WithProfile("prod", plugin.TunnelKube))
 			if got.Code != tc.code {
 				t.Fatalf("code = %s, want %s: %s", got.Code, tc.code, got.Message)

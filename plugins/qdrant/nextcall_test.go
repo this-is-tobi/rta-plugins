@@ -24,16 +24,16 @@ func TestTheListingARefusalOffersReachesTheInstanceItCameFrom(t *testing.T) {
 		want    string
 		unwant  string
 	}{
-		{"a terminal, no profile", map[string]any{"endpoint": "qdrant.internal:6333", "tls": true, "ca-file": "/etc/qdrant/ca.pem"},
+		{"a terminal, no profile", map[string]any{"address": "qdrant.internal:6333", "tls": true, "ca-file": "/etc/qdrant/ca.pem"},
 			plugin.TunnelNone, "", plugin.SurfaceCLI,
-			"`rta qdrant collection list --endpoint qdrant.internal:6333 --tls --ca-file /etc/qdrant/ca.pem` shows what is there",
+			"`rta qdrant collection list --address qdrant.internal:6333 --tls --ca-file /etc/qdrant/ca.pem` shows what is there",
 			"--profile"},
-		{"a terminal, through a forward", map[string]any{"endpoint": "127.0.0.1:54321", "tls-server-name": "qdrant.svc"},
+		{"a terminal, through a forward", map[string]any{"address": "127.0.0.1:54321", "tls-server-name": "qdrant.svc"},
 			plugin.TunnelKube, "prod", plugin.SurfaceCLI,
-			"`rta qdrant collection list --profile prod --tls-server-name qdrant.svc` shows what is there", "--endpoint"},
-		{"an agent, through a profile", map[string]any{"endpoint": "127.0.0.1:54321"},
+			"`rta qdrant collection list --profile prod --tls-server-name qdrant.svc` shows what is there", "--address"},
+		{"an agent, through a profile", map[string]any{"address": "127.0.0.1:54321"},
 			plugin.TunnelKube, "prod", plugin.SurfaceMCP,
-			"`qdrant_collection_list {\"profile\":\"prod\"}` shows what is there", "endpoint"},
+			"`qdrant_collection_list {\"profile\":\"prod\"}` shows what is there", "address"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := req(t, "qdrant.overview", tc.values).WithProfile(tc.profile, tc.tunnel).WithSurface(tc.surface)

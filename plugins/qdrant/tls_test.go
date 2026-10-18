@@ -35,7 +35,7 @@ func TestCAFileTrustsATunneledServersOwnCertificate(t *testing.T) {
 	// signed by anything this machine already trusts, so this is a real TLS
 	// failure and has to be classified as one.
 	_, err := collectionTable(context.Background(), req(t, "qdrant.collection.list", map[string]any{
-		"endpoint": endpoint, "tls": true,
+		"address": endpoint, "tls": true,
 	}))
 	if err == nil {
 		t.Fatal("a self-signed server was trusted with no ca-file")
@@ -49,7 +49,7 @@ func TestCAFileTrustsATunneledServersOwnCertificate(t *testing.T) {
 		t.Errorf("hint = %q, want the CA named in --ca-file and no TLS off", err.Hint)
 	}
 	_, plain := collectionTable(context.Background(), req(t, "qdrant.collection.list", map[string]any{
-		"endpoint": endpoint, "tls": false,
+		"address": endpoint, "tls": false,
 	}))
 	if plain == nil {
 		t.Fatal("plain HTTP reached a TLS server")
@@ -59,7 +59,7 @@ func TestCAFileTrustsATunneledServersOwnCertificate(t *testing.T) {
 	// succeeds and the call goes all the way through to a real answer.
 	// ca-file alone turns TLS on — no --tls needed alongside it.
 	table, err := collectionTable(context.Background(), req(t, "qdrant.collection.list", map[string]any{
-		"endpoint": endpoint, "ca-file": caPath,
+		"address": endpoint, "ca-file": caPath,
 	}))
 	if err != nil {
 		t.Fatalf("ca-file did not establish trust: %v", err)
@@ -84,7 +84,7 @@ func TestTheClientStatesItsTLSFloor(t *testing.T) {
 	}
 
 	client, verr := httpClient(req(t, "qdrant.collection.list", map[string]any{
-		"endpoint": "127.0.0.1:1", "ca-file": caPath,
+		"address": "127.0.0.1:1", "ca-file": caPath,
 	}))
 	if verr != nil {
 		t.Fatalf("httpClient: %v", verr)
@@ -107,7 +107,7 @@ func TestCAFileRejectsAPathWithNoCertificate(t *testing.T) {
 		t.Fatal(err)
 	}
 	verr := call(context.Background(), req(t, "qdrant.collection.list", map[string]any{
-		"endpoint": "127.0.0.1:1", "ca-file": notACert,
+		"address": "127.0.0.1:1", "ca-file": notACert,
 	}), http.MethodGet, "/", nil, nil)
 	if verr == nil {
 		t.Fatal("a ca-file with no certificate in it was accepted")
@@ -135,7 +135,7 @@ func TestTheCAFileResolvesTheHomeDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, verr := collectionTable(context.Background(), req(t, "qdrant.collection.list", map[string]any{
-		"endpoint": strings.TrimPrefix(srv.URL, "https://"), "ca-file": "~/ca.pem",
+		"address": strings.TrimPrefix(srv.URL, "https://"), "ca-file": "~/ca.pem",
 	})); verr != nil {
 		t.Fatalf("a ca-file under ~ did not verify its own server: %s: %s", verr.Code, verr.Message)
 	}

@@ -30,7 +30,7 @@ func TestTheOverviewNamesTheProfileNotTheEndOfItsForward(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := pair(section(t, v, "status").(view.KeyValue), "endpoint"); got != tc.want {
+			if got := pair(section(t, v, "status").(view.KeyValue), "address"); got != tc.want {
 				t.Errorf("endpoint row = %q, want %q", got, tc.want)
 			}
 		})

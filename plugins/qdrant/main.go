@@ -35,7 +35,7 @@
 //
 //	plugins:
 //	  qdrant@<digest>:
-//	    endpoint: qdrant.internal:6333
+//	    address: qdrant.internal:6333
 //	    tls: true
 //
 // and export RTA_QDRANT_API_KEY. Every capability here reaches off the box,

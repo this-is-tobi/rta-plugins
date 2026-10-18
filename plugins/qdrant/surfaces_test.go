@@ -34,7 +34,7 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 	}{
 		{
 			name:    "a collection that is not there",
-			cli:     "`rta qdrant collection list --endpoint 127.0.0.1:6333` shows what is there",
+			cli:     "`rta qdrant collection list --address 127.0.0.1:6333` shows what is there",
 			other:   "the `qdrant_collection_list` tool shows what is there",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
@@ -44,12 +44,12 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "an endpoint written as a URL",
-			cli:     "endpoint is host[:port] with no scheme — set --tls separately",
-			other:   "endpoint is host[:port] with no scheme — set the operator's `tls` setting separately",
+			cli:     "--address is host[:port] with no scheme — set --tls separately",
+			other:   "the operator's `address` setting is host[:port] with no scheme — set the operator's `tls` setting separately",
 			surface: plugin.SurfaceMCP,
 			say: func(sf plugin.Surface) string {
 				_, verr := newRequest(t.Context(), req(t, "qdrant.overview", map[string]any{
-					"endpoint": "http://qdrant.internal:6333" + string(rune(0x7f)),
+					"address": "http://qdrant.internal:6333" + string(rune(0x7f)),
 				}).WithSurface(sf), http.MethodGet, "/", nil)
 				if verr == nil {
 					t.Fatal("an endpoint holding a control character was accepted")
@@ -129,11 +129,11 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 		},
 		{
 			name:    "the restore a dump names",
-			cli:     "rta qdrant restore '/backups/my docs.snapshot' --collection docs --endpoint qdrant.internal:6333",
-			other:   `qdrant.restore file="/backups/my docs.snapshot" collection=docs endpoint=qdrant.internal:6333`,
+			cli:     "rta qdrant restore '/backups/my docs.snapshot' --collection docs --address qdrant.internal:6333",
+			other:   `qdrant.restore file="/backups/my docs.snapshot" collection=docs address=qdrant.internal:6333`,
 			surface: plugin.SurfaceTUI,
 			say: func(sf plugin.Surface) string {
-				return restoreCommand(req(t, "qdrant.dump", map[string]any{"endpoint": "qdrant.internal:6333"}).WithSurface(sf),
+				return restoreCommand(req(t, "qdrant.dump", map[string]any{"address": "qdrant.internal:6333"}).WithSurface(sf),
 					"docs", "/backups/my docs.snapshot")
 			},
 		},

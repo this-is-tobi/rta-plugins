@@ -27,11 +27,11 @@ func refusedDial(t *testing.T) (addr string, err error) {
 // address.
 func TestARefusedConnectionNamesTheSettingAndThePortsQdrantServesOn(t *testing.T) {
 	addr, dialErr := refusedDial(t)
-	verr := classify(dialErr, req(t, "qdrant.overview", map[string]any{"endpoint": addr}))
+	verr := classify(dialErr, req(t, "qdrant.overview", map[string]any{"address": addr}))
 	if verr.Code != "qdrant.conn.refused" {
 		t.Fatalf("code = %q, want qdrant.conn.refused", verr.Code)
 	}
-	for _, want := range []string{"is the server up, and is --endpoint right?", "REST on 6333", "gRPC on 6334"} {
+	for _, want := range []string{"is the server up, and is --address right?", "REST on 6333", "gRPC on 6334"} {
 		if !strings.Contains(verr.Hint, want) {
 			t.Errorf("hint %q does not say %q", verr.Hint, want)
 		}
