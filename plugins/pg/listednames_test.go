@@ -239,7 +239,7 @@ func TestTheStatusShowsAnOddDatabaseAndRoleWrittenOut(t *testing.T) {
 
 func TestTheOverviewGlanceShowsAnOddDatabaseWrittenOut(t *testing.T) {
 	glance := func(db string) string {
-		q := script{{match: "pg_size_pretty(pg_database_size(current_database()))", rows: [][]any{{db, "8 MB"}}}}
+		q := script{{match: "pg_size_pretty(pg_database_size(current_database()))", rows: [][]any{{db, "8 MB", int64(1)}}}}
 		v, err := compactOverview(context.Background(), q, reqFor(t, "pg.overview", nil))
 		if err != nil {
 			t.Fatal(err)
@@ -252,10 +252,10 @@ func TestTheOverviewGlanceShowsAnOddDatabaseWrittenOut(t *testing.T) {
 		t.Fatal("no database line")
 		return ""
 	}
-	if got, want := glance(oddName), oddShown+" · 8 MB"; got != want {
+	if got, want := glance(oddName), oddShown+" · 8 MB, 1 database"; got != want {
 		t.Errorf("database = %q, want %q", got, want)
 	}
-	if got, want := glance(plainName), plainName+" · 8 MB"; got != want {
+	if got, want := glance(plainName), plainName+" · 8 MB, 1 database"; got != want {
 		t.Errorf("database = %q, want %q", got, want)
 	}
 }

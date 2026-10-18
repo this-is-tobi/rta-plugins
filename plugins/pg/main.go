@@ -817,16 +817,32 @@ func Plugin() plugin.Plugin {
 				Safety:     plugin.Read,
 				Idempotent: true,
 				Detailed:   true,
-				Description: "The compact form is a few figures worth a glance: role, size, WAL " +
-					"position (a primary's write position, a standby's received and replayed " +
-					"positions), active queries (other sessions', or a line saying this role cannot see them), " +
-					"cache hit ratio and one line of replication. " +
-					"The full page (`detail`) adds the whole replication page (`pg.replication.status`: " +
-					"positions, standbys with their " +
-					"lag, slots, what needs attention), the largest tables and current activity — " +
-					"everything pg.status, pg.replication.status, pg.table.list and pg.activity would otherwise " +
-					"take four calls to assemble, through the one connection this call already opened. With a " +
-					"`schema`, or the one a profile fences with `only: schema:`, only its tables are listed.",
+				Description: "The compact form is what a dashboard tile shows and what an agent reads by default, " +
+					"ordered for five seconds: `status` first (ok, or warn or fail and the worst fact in a few " +
+					"words), then `sessions` (of max_connections, with how many are active, idle in a " +
+					"transaction and waiting on a lock), `oldest xact` (its age and what it is doing), " +
+					"`replication` (the role, how far behind the standbys are in bytes and, where they report " +
+					"it, in time), `up since`, `database` (its size and how many the server holds), `archiver` " +
+					"(the last WAL archived, or that archiving is failing) and `cache` (the hit ratio since " +
+					"the counters were reset). A row the role cannot read says so and the status names it: " +
+					"without pg_read_all_stats the sessions and the oldest transaction are not countable, and " +
+					"a standby it cannot see is said to be hidden.\n\n" +
+					"The full page (`detail`) is everything the compact form holds and what it leaves out: the " +
+					"server banner, the whole replication page (`pg.replication.status`: positions, " +
+					"standbys with their lag, slots, what needs attention), the sessions and the archiver, " +
+					"the largest tables and current activity — everything pg.status, " +
+					"pg.replication.status, pg.table.list and pg.activity would otherwise take four calls to " +
+					"assemble, through the one connection this call already opened. With a `schema`, or the " +
+					"one a profile fences with `only: schema:`, only its tables are listed.",
+				Agent: "A status row first (ok, or warn or fail and the worst fact), then sessions of " +
+					"max_connections (active, idle in transaction, waiting on a lock), the oldest open " +
+					"transaction, replication (role, standbys, lag in bytes and seconds), up since, database " +
+					"count and size, the last WAL archived or that archiving fails, and the cache hit ratio " +
+					"since its counters were reset. A row the role cannot read says so and the status names " +
+					"it; the sessions need pg_read_all_stats. `detail` adds the server banner, the whole " +
+					"replication page, the largest tables (`schema` narrows them) and current activity " +
+					"without query text. States and counts only, never stored values; replication needs " +
+					"PostgreSQL 14 or newer.",
 				Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 					return withConn(ctx, req, func(ctx context.Context, conn *pgx.Conn) (view.View, error) {
 						if req.Bool("detail") {

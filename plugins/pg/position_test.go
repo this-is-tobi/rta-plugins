@@ -244,48 +244,22 @@ func TestTheStatusKeepsAnsweringWhereThePositionCannotBeRead(t *testing.T) {
 	}
 }
 
-func TestTheGlanceCarriesThePositionBeforeTheReplicationLine(t *testing.T) {
-	size := answer{match: "pg_size_pretty(pg_database_size(current_database()))", rows: [][]any{{"app", "8 MB"}}}
+// The position only grows and wraps to four lines on a tile, so the glance
+// leaves it to the detailed page and says what a reader of a tile acts on: the
+// role and how far behind the standbys are.
+func TestTheGlanceLeavesThePositionToTheDetailedPage(t *testing.T) {
+	size := answer{match: "pg_size_pretty(pg_database_size(current_database()))", rows: [][]any{{"app", "8 MB", int64(1)}}}
 	q := askingScript(size, serverAnswer("170006", false), primaryAnswer("0/3000148", "000000010000000000000003"),
 		answer{match: "s.sync_state"}, answer{match: "r.slot_type"})
 	v, err := compactOverview(context.Background(), q, reqFor(t, "pg.overview", nil))
 	if err != nil {
 		t.Fatal(err)
 	}
-	var keys []string
-	pairs := map[string]string{}
 	for _, p := range v.(view.KeyValue).Pairs {
-		keys = append(keys, p.Key)
-		pairs[p.Key] = p.Value
-	}
-	if got, want := pairs["WAL position"], "0/3000148, timeline 1, file 000000010000000000000003"; got != want {
-		t.Errorf("WAL position = %q, want %q", got, want)
-	}
-	if strings.Join(keys, ",") != "database,WAL position,replication" {
-		t.Errorf("lines = %v, want the position just before the replication line", keys)
-	}
-}
-
-func TestTheGlanceOfAStandbyCarriesWhatItReceivedAndReplayed(t *testing.T) {
-	size := answer{match: "pg_size_pretty(pg_database_size(current_database()))", rows: [][]any{{"app", "8 MB"}}}
-	receiver := answer{match: "from pg_stat_wal_receiver", rows: [][]any{
-		{"streaming", int32(1), "primary", int32(5432), "slot_a", "0/3000148", started, int64(0)},
-	}}
-	q := askingScript(size, serverAnswer("170006", true), standbyAnswer("0/3000148", "0/3000060"), receiver,
-		answer{match: "s.sync_state"}, answer{match: "r.slot_type"})
-	v, err := compactOverview(context.Background(), q, reqFor(t, "pg.overview", nil))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, p := range v.(view.KeyValue).Pairs {
-		if p.Key == "WAL position" {
-			if want := "received 0/3000148, replayed 0/3000060"; p.Value != want {
-				t.Errorf("WAL position = %q, want %q", p.Value, want)
-			}
-			return
+		if p.Key == "WAL position" || strings.Contains(p.Value, "0/3000148") || strings.Contains(p.Value, "0000000100000000") {
+			t.Errorf("the glance carries the position: %s = %q", p.Key, p.Value)
 		}
 	}
-	t.Error("no WAL position line on a standby's glance")
 }
 
 // The detailed page's replication section opens with the same position, with
