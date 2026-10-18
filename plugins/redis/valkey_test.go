@@ -18,8 +18,8 @@ func TestValkeyIsNamedForWhatItIsAndShowsItsMode(t *testing.T) {
 	if valkey == sampleInfo {
 		t.Fatal("the fixture was not changed")
 	}
-	srv := newFakeServer(t, map[string]string{"INFO all": bulk(valkey)})
-	v, err := run(t, "redis.overview", srv, nil)
+	srv := newFakeServer(t, map[string]string{"INFO all": bulk(valkey), "SLOWLOG LEN": ":0\r\n"})
+	v, err := run(t, "redis.overview", srv, map[string]any{"detail": true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,8 +31,8 @@ func TestValkeyIsNamedForWhatItIsAndShowsItsMode(t *testing.T) {
 		t.Errorf("mode = %q", got)
 	}
 
-	srv = newFakeServer(t, map[string]string{"INFO all": bulk(sampleInfo)})
-	v, err = run(t, "redis.overview", srv, nil)
+	srv = newFakeServer(t, map[string]string{"INFO all": bulk(sampleInfo), "SLOWLOG LEN": ":0\r\n"})
+	v, err = run(t, "redis.overview", srv, map[string]any{"detail": true})
 	if err != nil {
 		t.Fatal(err)
 	}

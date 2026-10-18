@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
+	stdnet "net"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -22,33 +25,35 @@ func overviewCapability() plugin.Capability {
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Detailed:   true,
-		Description: "INFO, read once and graded: memory against maxmemory and what happens at " +
-			"the ceiling, when the last RDB was written and how many writes it does not " +
-			"cover, whether AOF is on and whether its last rewrite succeeded, the " +
-			"replication role with every link it has, and each database's key count.\n\n" +
-			"The memory row is the one to watch. A server at maxmemory with `noeviction` " +
-			"refuses every write while answering reads, which looks like a working cache " +
-			"from anywhere except here; one with an eviction policy quietly loses keys " +
-			"instead, and the evicted count is where that shows.\n\n" +
-			"Against a primary, the replication table has a row per replica: its acknowledged " +
-			"offset, how many bytes of the stream it has not acknowledged, and whether a " +
-			"reconnect now could still resume. A replica that has fallen behind the replication " +
-			"backlog is graded, because its next dropped connection costs a full copy of the " +
-			"dataset; one that has not answered for 10 seconds is graded at the lag a primary " +
-			"configured with min-replicas-to-write refuses writes at. Against a replica it shows " +
-			"the link and, for a replica rebuilding itself, the progress of the full sync — the " +
-			"distance behind the primary is the primary's to say, and is read there. The stream " +
-			"section holds the replication id, which every member of one history shares and a " +
-			"promotion changes, and what the backlog holds. Reading it needs only INFO.\n\n" +
-			"`detail` adds the raw INFO sections, for the field this page does not show.",
-		Agent: "INFO read once and graded: memory against maxmemory and what happens at the ceiling, the last " +
-			"RDB and how many writes it does not cover, AOF and whether its last rewrite succeeded, the " +
-			"replication role with every link, and each database's key count. Memory is the row to watch: " +
-			"at maxmemory with `noeviction` every write is refused while reads answer; with an eviction " +
-			"policy keys are lost quietly and the evicted count shows it. On a primary, a row per replica " +
-			"with its acknowledged offset, bytes unacknowledged and whether it could still resume; one " +
-			"behind the backlog, or silent for 10 seconds, is graded. On a replica, the link and any full " +
-			"sync progress; its distance behind is read on the primary. `detail` adds the raw INFO sections.",
+		Description: "The state of this server in a few rows, worst first. `status` leads and is `ok`, or " +
+			"`warn` or `fail` followed by the worst fact: memory against maxmemory and what happens at " +
+			"the ceiling, clients against maxclients, whether the last RDB save and the last AOF " +
+			"rewrite succeeded, and the replication link. Then each of those in a line, the " +
+			"evictions and the slow log's length when either is not zero, and last the role, the " +
+			"version and the uptime. It is the default sections of INFO and the length of the slow " +
+			"log: a user without `+slowlog|len` gets that row saying so, and the rest.\n\n" +
+			"Memory is the row to watch. A server at maxmemory with `noeviction` refuses every " +
+			"write while answering reads, which looks like a working cache from anywhere except " +
+			"here; one with an eviction policy quietly loses keys instead, and the evicted count is " +
+			"where that shows. A server with no maxmemory has no ceiling to be near, and the row " +
+			"says what it uses.\n\n" +
+			"`detail` adds INFO in full, graded: the server's figures, memory with its policy and " +
+			"fragmentation, persistence, each database's key count and the raw sections. Against a " +
+			"primary the replication table has a row per replica: its acknowledged offset, the bytes " +
+			"of the stream it has not acknowledged, and whether a reconnect now could still resume. " +
+			"A replica behind the replication backlog is graded, because its next dropped " +
+			"connection costs a full copy of the dataset, and so is one silent for 10 seconds, the " +
+			"lag at which a primary with min-replicas-to-write refuses writes. A replica shows its " +
+			"link and the progress of a full sync; how far behind it is, only its primary can say. " +
+			"The stream section holds the replication id, which a promotion changes, and the " +
+			"backlog. The hit ratio counts since the server started, or its counters were reset.",
+		Agent: "A few rows, worst first: `status` is `ok`, or `warn` or `fail` and the worst fact. Then " +
+			"memory against maxmemory, clients against maxclients, the last RDB save and AOF rewrite, the " +
+			"replication link, evictions and the slow log's length when not zero, and the role, version " +
+			"and uptime. Memory is the row to watch: at maxmemory with `noeviction` every write is " +
+			"refused while reads answer; with an eviction policy keys are lost quietly. `detail` adds " +
+			"INFO in full, graded: a row per replica (offset, bytes unacknowledged, whether it could " +
+			"resume), the hit ratio since the server started, key counts and the raw sections.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withClient(ctx, req, func(ctx context.Context, c *client) (view.View, error) {
 				return overviewView(ctx, c, req)
@@ -110,8 +115,16 @@ func parseInfo(raw string) info {
 	return out
 }
 
-func fetchInfo(ctx context.Context, c *client) (info, *view.Error) {
-	r, err := c.do(ctx, "INFO", "all")
+// fetchInfo is INFO, in its default sections for the compact answer and in all
+// of them for the detail. The default sections hold every figure the compact
+// rows read and weigh a tenth of what INFO all does on a busy server, where the
+// per-command statistics and the latency histograms are most of the text.
+func fetchInfo(ctx context.Context, c *client, all bool) (info, *view.Error) {
+	args := []string{"INFO"}
+	if all {
+		args = append(args, "all")
+	}
+	r, err := c.do(ctx, args...)
 	if err != nil {
 		return info{}, classify(err, c.addr, c.req)
 	}
@@ -137,22 +150,32 @@ func modeText(in info) string {
 	return in.get("server_mode")
 }
 
+// overviewView is the compact rows, or with detail the page that opens with
+// them: a tile is the first eight lines of the compact answer, and a tile
+// cannot ask for the detail, so what has to be seen at a glance is in the rows
+// and everything else is a request for it.
 func overviewView(ctx context.Context, c *client, req plugin.Request) (view.View, error) {
-	in, verr := fetchInfo(ctx, c)
+	detail := req.Bool("detail")
+	in, verr := fetchInfo(ctx, c, detail)
 	if verr != nil {
 		return nil, verr
 	}
 	now := time.Now()
+	summary := compactOverview(in, now, readSlowLog(ctx, c))
+	if !detail {
+		return summary, nil
+	}
 
 	p := plugin.NewPage(ctx, req)
+	p.Put("summary", summary)
 	p.Put("server", view.KeyValue{Pairs: []view.Pair{
 		{Key: "address", Value: req.Reached(c.addr)},
 		{Key: "version", Value: versionText(in)},
 		{Key: "mode", Value: modeText(in)},
-		{Key: "uptime", Value: span(time.Duration(in.int("uptime_in_seconds")) * time.Second)},
+		{Key: "uptime", Value: uptime(serverUptime(in))},
 		{Key: "clients", Value: in.get("connected_clients") + " connected, " + in.get("blocked_clients") + " blocked"},
 		{Key: "ops/s", Value: in.get("instantaneous_ops_per_sec")},
-		{Key: "hit ratio", Value: hitRatio(in.int("keyspace_hits"), in.int("keyspace_misses"))},
+		{Key: "hit ratio", Value: hitRatio(in.int("keyspace_hits"), in.int("keyspace_misses")) + countingSince(in, now)},
 	}})
 	p.Put("memory", memoryTable(in))
 	p.Put("persistence", persistenceTable(in, now))
@@ -161,12 +184,316 @@ func overviewView(ctx context.Context, c *client, req plugin.Request) (view.View
 		p.Put("replication stream", stream)
 	}
 	p.Put("keyspace", keyspaceTable(in))
-	if req.Bool("detail") {
-		for _, name := range in.order {
-			p.Put("info "+strings.ToLower(name), sectionPairs(in.sections[name]))
-		}
+	for _, name := range in.order {
+		p.Put("info "+strings.ToLower(name), sectionPairs(in.sections[name]))
 	}
 	return p.View(), nil
+}
+
+// grade is how bad a fact is, in the words the status row leads with and the
+// theme colours: nothing, warn, fail.
+type grade int
+
+const (
+	_ grade = iota
+	gradeWarn
+	gradeFail
+)
+
+func (g grade) word() string {
+	switch g {
+	case gradeWarn:
+		return "warn"
+	case gradeFail:
+		return "fail"
+	}
+	return "ok"
+}
+
+// finding is one thing wrong, in a few words, for the status row.
+type finding struct {
+	grade grade
+	text  string
+}
+
+// verdict is the status row: ok, or the worst finding with its grade. Of
+// several equally bad, the first stands, and the rows are built in the order
+// that puts loading, then capacity, then durability, then replication first.
+func verdict(found []finding) string {
+	var worst *finding
+	for i := range found {
+		if worst == nil || found[i].grade > worst.grade {
+			worst = &found[i]
+		}
+	}
+	if worst == nil {
+		return "ok"
+	}
+	return worst.grade.word() + " — " + worst.text
+}
+
+// slowLog is the length of the slow log, or why it could not be read.
+type slowLog struct {
+	entries int64
+	unread  string
+}
+
+// readSlowLog asks for the slow log's length, which is a count and none of the
+// command lines the entries hold (redis.slowlog is a write for those). It is
+// the one request the compact answer makes beyond INFO, and a user without
+// +slowlog|len is told so in a row of its own rather than given a page that
+// reads as though the log were empty.
+func readSlowLog(ctx context.Context, c *client) slowLog {
+	r, err := c.do(ctx, "SLOWLOG", "LEN")
+	if err != nil {
+		return slowLog{unread: unreadReason(err)}
+	}
+	return slowLog{entries: r.num}
+}
+
+// unreadReason is why a read failed, short enough for a row: the answer a
+// server gives for a refusal is a sentence naming the user and the command.
+func unreadReason(err error) string {
+	var srv *serverError
+	if asServerError(err, &srv) {
+		switch code, _, _ := strings.Cut(srv.msg, " "); code {
+		case "NOPERM":
+			return "the ACL user may not run SLOWLOG LEN"
+		case "LOADING":
+			return "the server is still loading its dataset"
+		}
+		return format.Truncate(srv.msg, 60)
+	}
+	if errors.Is(err, os.ErrDeadlineExceeded) {
+		return "no answer in time"
+	}
+	return "the connection failed"
+}
+
+// compactOverview is the answer a tile and an agent read by default, built from
+// INFO and the slow log's length alone.
+//
+// **The order is the order of a glance.** The verdict, then what is the case
+// of the server's capacity and durability, then what changed, and what the
+// server is last — a tile cuts from the bottom, and the version of a server
+// that is out of memory is the last thing its reader needs.
+//
+// **A capacity is graded only where it has a wall.** A server at maxmemory with
+// noeviction refuses every write and is a failure; one with an eviction policy
+// is a cache working as configured at any fullness, and its evictions are in
+// the row below for whoever wants to know. A server with no maxmemory has no
+// ceiling to be near and is not graded on its size.
+func compactOverview(in info, now time.Time, slow slowLog) view.KeyValue {
+	var found []finding
+	var rows []view.Pair
+	add := func(key, value string, fs ...finding) {
+		if value == "" {
+			return
+		}
+		rows = append(rows, view.Pair{Key: key, Value: value})
+		found = append(found, fs...)
+	}
+
+	if in.get("loading") == "1" {
+		found = append(found, finding{gradeWarn, "loading its dataset"})
+	}
+	memory, fs := memoryRow(in)
+	add("memory", memory, fs...)
+	clients, fs := clientsRow(in)
+	add("clients", clients, fs...)
+	persistence, fs := persistenceRow(in, now)
+	add("persistence", persistence, fs...)
+	replication, fs := replicationRow(in)
+	add("replication", replication, fs...)
+	pressure, unread := pressureRows(in, slow)
+	add("pressure", pressure)
+	if unread != "" {
+		add("slow log", "could not be read — "+unread, finding{gradeWarn, "slow log could not be read"})
+	}
+	add("state", stateRow(in))
+
+	return view.KeyValue{Pairs: append([]view.Pair{{Key: "status", Value: verdict(found)}}, rows...)}
+}
+
+func memoryRow(in info) (string, []finding) {
+	used, max := in.int("used_memory"), in.int("maxmemory")
+	share, ok := usageShare(used, max)
+	if !ok {
+		return format.Bytes(used) + " used, no maxmemory set", nil
+	}
+	policy := in.get("maxmemory_policy")
+	text := strconv.FormatFloat(share, 'f', 1, 64) + "% of " + format.Bytes(max) + ", " + policy
+	if policy != "noeviction" {
+		return text, nil
+	}
+	switch {
+	case share >= 100:
+		return text, []finding{{gradeFail, "memory is full and noeviction refuses writes"}}
+	case share >= view.UsageWarn:
+		return text, []finding{{gradeWarn, "memory at " + strconv.FormatFloat(share, 'f', 1, 64) + "% of maxmemory, noeviction"}}
+	}
+	return text, nil
+}
+
+// clientsRow is the connections against the limit. maxclients is in INFO from
+// redis 7.0; before it the row says what is connected and does not ask the
+// server a second question to find the limit.
+func clientsRow(in info) (string, []finding) {
+	connected := in.int("connected_clients")
+	text := strconv.FormatInt(connected, 10) + " connected"
+	var found []finding
+	if limit := in.int("maxclients"); limit > 0 {
+		text = strconv.FormatInt(connected, 10) + " of " + strconv.FormatInt(limit, 10)
+		if share, _ := usageShare(connected, limit); share >= view.UsageWarn {
+			found = append(found, finding{gradeWarn, strconv.FormatFloat(share, 'f', 1, 64) + "% of maxclients"})
+		}
+	}
+	if rejected := in.int("rejected_connections"); rejected > 0 {
+		text += ", " + strconv.FormatInt(rejected, 10) + " rejected since start"
+	}
+	return text, found
+}
+
+// persistenceRow is how old the last RDB save is and whether it, and the last
+// AOF rewrite, succeeded. The writes an RDB does not cover are said only when
+// the save is failing: while it works they are the next save's.
+func persistenceRow(in info, now time.Time) (string, []finding) {
+	status := in.get("rdb_last_bgsave_status")
+	text := "RDB " + status
+	var found []finding
+	if saved := in.int("rdb_last_save_time"); saved > 0 {
+		text += " " + span(now.Sub(time.Unix(saved, 0)).Truncate(time.Second)) + " ago"
+	} else {
+		text += ", never saved"
+	}
+	if status == "err" {
+		text += ", " + in.get("rdb_changes_since_last_save") + " writes since"
+		found = append(found, finding{gradeFail, "the last RDB save failed"})
+	}
+	if in.get("rdb_bgsave_in_progress") == "1" {
+		text += ", saving now"
+	}
+	if in.get("aof_enabled") == "1" {
+		aof := in.get("aof_last_bgrewrite_status")
+		text += ", AOF " + aof
+		if aof == "err" {
+			found = append(found, finding{gradeFail, "the last AOF rewrite failed"})
+		}
+	}
+	return text, found
+}
+
+// replicationRow is the role, the link and how far the other end is, in the
+// words the replication table grades with. Against a replica the lag is how
+// long ago its primary last spoke; against a primary it is the worst of its
+// replicas' acknowledgements, and the row counts the ones that need attention
+// because the table that says which is in the detail.
+func replicationRow(in info) (string, []finding) {
+	if role := in.get("role"); role == "slave" || role == "replica" {
+		return replicaRow(in)
+	}
+	n := int(in.int("connected_slaves"))
+	if n == 0 {
+		return "primary, no replicas", nil
+	}
+	var found []finding
+	attention, worstLag := 0, int64(0)
+	for i, row := range downstreamRows(in) {
+		if lag, ok := parseInt(fieldsOf(in.get("slave" + strconv.Itoa(i)))["lag"]); ok {
+			worstLag = max(worstLag, lag)
+		}
+		if row[2] == "ok" {
+			continue
+		}
+		attention++
+		_, why, _ := strings.Cut(row[2], " — ")
+		found = append(found, finding{gradeWarn, "a replica: " + why})
+	}
+	text := "primary, " + format.CountOf(n, "replica")
+	if attention > 0 {
+		text += ", " + strconv.Itoa(attention) + " " + format.Plural(attention, "needs", "need") + " attention"
+	}
+	return text + ", worst lag " + span(secondsOf(worstLag)), found
+}
+
+func replicaRow(in info) (string, []finding) {
+	of := "replica of " + stdnet.JoinHostPort(in.get("master_host"), in.get("master_port"))
+	link := upstreamLink(in)
+	state, why, _ := strings.Cut(link, " — ")
+	switch state {
+	case "ok":
+		return of + ", link up, last heard " + span(secondsOf(in.int("master_last_io_seconds_ago"))) + " ago", nil
+	case "pending":
+		return of + ", " + why, []finding{{gradeWarn, "link to its primary: " + why}}
+	case "warn":
+		return of + ", link up, " + why, []finding{{gradeWarn, "link to its primary: " + why}}
+	}
+	down := of + ", link down"
+	if since, ok := parseInt(in.get("master_link_down_since_seconds")); ok && since >= 0 {
+		down += " for " + span(secondsOf(since))
+	}
+	return down, []finding{{gradeFail, "the link to its primary is down"}}
+}
+
+// pressureRows are the evictions and the slow log's length as one row, only
+// when either is not zero, and the reason the slow log could not be read as the
+// second return. Both evictions and a long slow log are counted from the
+// server's start or its last CONFIG RESETSTAT, which the row says.
+func pressureRows(in info, slow slowLog) (row, unread string) {
+	var parts []string
+	if evicted := in.int("evicted_keys"); evicted > 0 {
+		parts = append(parts, format.CountOf(int(evicted), "key")+" evicted since start")
+	}
+	if slow.entries > 0 {
+		parts = append(parts, format.CountOf(int(slow.entries), "slow log entry"))
+	}
+	return strings.Join(parts, " · "), slow.unread
+}
+
+// stateRow is what the server is: its role, its version and how long it has
+// been up. Last, because it is the one row that is the same on a healthy server
+// and a dying one.
+func stateRow(in info) string {
+	role := "primary"
+	if r := in.get("role"); r == "slave" || r == "replica" {
+		role = "replica"
+	}
+	version := in.get("redis_version")
+	if v := in.get("valkey_version"); v != "" {
+		version = "valkey " + v
+	}
+	return role + " · " + version + " · up " + uptime(serverUptime(in))
+}
+
+func serverUptime(in info) time.Duration {
+	return time.Duration(in.int("uptime_in_seconds")) * time.Second
+}
+
+// countingSince says since when the server's counters have run, which the
+// hit ratio is a ratio of. INFO does not carry the moment CONFIG RESETSTAT last
+// ran, so the date is the start of the server, which is when they began unless
+// somebody reset them — and the text says which it knows.
+func countingSince(in info, now time.Time) string {
+	if in.int("keyspace_hits")+in.int("keyspace_misses") == 0 || in.int("uptime_in_seconds") == 0 {
+		return ""
+	}
+	return " since " + now.Add(-serverUptime(in)).Format("2006-01-02") + " (server start; CONFIG RESETSTAT restarts the count)"
+}
+
+// uptime renders how long a server has been up as days and hours, then hours
+// and minutes, then minutes: "14d 2h", "5h 30m", "14m". The same spelling in
+// every plugin that shows one, so that a tile of one reads like a tile of the
+// next.
+func uptime(d time.Duration) string {
+	switch {
+	case d >= 24*time.Hour:
+		return fmt.Sprintf("%dd %dh", int(d/(24*time.Hour)), int(d%(24*time.Hour)/time.Hour))
+	case d >= time.Hour:
+		return fmt.Sprintf("%dh %dm", int(d/time.Hour), int(d%time.Hour/time.Minute))
+	case d >= time.Minute:
+		return fmt.Sprintf("%dm", int(d/time.Minute))
+	}
+	return fmt.Sprintf("%ds", int(d/time.Second))
 }
 
 // memoryTable grades used memory against maxmemory, and says what the server

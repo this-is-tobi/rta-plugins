@@ -280,8 +280,8 @@ const sampleInfo = "# Server\r\nredis_version:7.2.4\r\nredis_mode:standalone\r\n
 	"# Keyspace\r\ndb0:keys=1500,expires=200,avg_ttl=3600000\r\n"
 
 func TestOverviewGradesMemoryAgainstMaxmemory(t *testing.T) {
-	srv := newFakeServer(t, map[string]string{"INFO all": bulk(sampleInfo)})
-	v, err := run(t, "redis.overview", srv, nil)
+	srv := newFakeServer(t, map[string]string{"INFO all": bulk(sampleInfo), "SLOWLOG LEN": ":0\r\n"})
+	v, err := run(t, "redis.overview", srv, map[string]any{"detail": true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -323,8 +323,8 @@ func TestAReplicationPeerAtAnIPv6AddressIsNamedBracketed(t *testing.T) {
 // maxmemory 0 is no ceiling, and the share must be blank rather than 0%.
 func TestOverviewBlanksTheShareWithoutACeiling(t *testing.T) {
 	info := strings.Replace(sampleInfo, "maxmemory:1000000000", "maxmemory:0", 1)
-	srv := newFakeServer(t, map[string]string{"INFO all": bulk(info)})
-	v, err := run(t, "redis.overview", srv, nil)
+	srv := newFakeServer(t, map[string]string{"INFO all": bulk(info), "SLOWLOG LEN": ":0\r\n"})
+	v, err := run(t, "redis.overview", srv, map[string]any{"detail": true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -544,7 +544,7 @@ func TestARefusalTheServerGaveNamesTheProfileAndNotTheEndOfItsForward(t *testing
 // reaches it, and its refusal comes back named rather than as a bare ERR.
 func TestADatabasePastSixteenIsTheServersToRefuse(t *testing.T) {
 	srv := newFakeServer(t, map[string]string{
-		"SELECT 20": "+OK\r\n", "INFO all": bulk(sampleInfo),
+		"SELECT 20": "+OK\r\n", "INFO": bulk(sampleInfo), "SLOWLOG LEN": ":0\r\n",
 	})
 	if _, err := run(t, "redis.overview", srv, map[string]any{"db": 20}); err != nil {
 		t.Fatalf("db 20 on a server that has it: %v", err)
@@ -562,7 +562,7 @@ func TestADatabasePastSixteenIsTheServersToRefuse(t *testing.T) {
 
 func TestAuthIsSentAsTheServerExpects(t *testing.T) {
 	srv := newFakeServer(t, map[string]string{
-		"AUTH alice s3cret": "+OK\r\n", "SELECT 3": "+OK\r\n", "INFO all": bulk(sampleInfo),
+		"AUTH alice s3cret": "+OK\r\n", "SELECT 3": "+OK\r\n", "INFO": bulk(sampleInfo), "SLOWLOG LEN": ":0\r\n",
 	})
 	if _, err := run(t, "redis.overview", srv, map[string]any{"username": "alice", "password": "s3cret", "db": 3}); err != nil {
 		t.Fatal(err)
