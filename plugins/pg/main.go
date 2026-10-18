@@ -239,6 +239,10 @@ func tableListView(ctx context.Context, conn querier, req plugin.Request, say bo
 		{Name: "Rows", Kind: view.KindNumber},
 		{Name: "Size", Kind: view.KindBytes},
 	}
+	t.Empty = "no tables"
+	if schema := strings.TrimSpace(req.String("schema")); schema != "" {
+		t.Empty += " in " + plugin.ListedName(schema)
+	}
 	return t, nil
 }
 
@@ -261,6 +265,7 @@ func databaseListView(ctx context.Context, conn querier, req plugin.Request) (vi
 	}
 	listNames(&t, 0, 2)
 	t.Columns = []view.Column{{Name: "Database"}, {Name: "Size"}, {Name: "Owner"}}
+	t.Empty = "no databases"
 	return t, nil
 }
 
@@ -337,6 +342,7 @@ func activityView(ctx context.Context, conn querier, req plugin.Request, withQue
 		{Name: "Application"}, {Name: "State", Kind: view.KindStatus},
 		{Name: "Seconds", Kind: view.KindNumber}, tail,
 	}
+	t.Empty = "no other sessions"
 	return t, nil
 }
 
