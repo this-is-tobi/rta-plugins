@@ -145,6 +145,7 @@ func tableTable(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 	}
 	t = cutAtLimit(t, req.Int("limit"), "table", true, req.Surface())
 	t.Total = len(t.Rows)
+	t.Empty = "no tables in " + listed(schema)
 	if t.Total > 0 && !schemaFullyVisible(ctx, db, schema) {
 		t.Warnings = append(t.Warnings, partialListing("mariadb.table.partial", schema, "this list"))
 	}

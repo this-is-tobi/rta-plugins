@@ -241,5 +241,6 @@ func databaseTable(ctx context.Context, db *sql.DB, req plugin.Request, limit in
 	}
 	t = cutAtLimit(t, limit, "database", say, req.Surface())
 	t.Total = len(t.Rows)
+	t.Empty = "no databases"
 	return t, nil
 }
