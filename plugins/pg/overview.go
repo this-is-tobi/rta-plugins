@@ -37,6 +37,10 @@ const (
 // what to check rather than declaring the number wrong.
 const cacheHitFloor = 90.0
 
+// sessionsHidden is what the active count says instead of a number to a role
+// that cannot see other sessions' state (compactOverview says why).
+const sessionsHidden = "sessions: this role sees only its own"
+
 // compactOverview is the few figures worth a glance, in the same "add what
 // answered" style as builtin/sys's runOverview: one query failing costs the
 // reader that one line, not the page.
@@ -65,11 +69,30 @@ func compactOverview(ctx context.Context, conn querier, req plugin.Request) (vie
 		add("WAL position", positionText(f))
 		add("replication", replicationLine(f, req.Surface()))
 	}
+	// **Not this session, and not a number a role cannot make.** The overview
+	// is itself an active session while it counts, so an idle server said 1 and
+	// the activity table, which leaves its own backend out, was empty. And
+	// pg_stat_activity shows a role every session's row but fills state in only
+	// for its own unless it holds pg_read_all_stats: the sessions of others were
+	// never counted, and the number read as a quiet server when it was a blind
+	// one. Such a role is told so instead of being given a figure.
+	//
+	// Asked as USAGE, the privileges the role has, which is how pg_stat_activity
+	// decides what to show; MEMBER is true of a role that belongs to
+	// pg_read_all_stats without inheriting its rights, and is shown the same
+	// blanks. A superuser has every privilege, so the one question covers it.
 	var active int
-	if err := conn.QueryRow(ctx,
-		`select count(*) from pg_stat_activity where datname = current_database() and state = 'active'`).
-		Scan(&active); err == nil {
-		add("active queries", fmt.Sprint(active))
+	var seesAll bool
+	if err := conn.QueryRow(ctx, `
+		select count(*) filter (where state = 'active' and pid <> pg_backend_pid()),
+		       pg_has_role(current_user, 'pg_read_all_stats', 'USAGE')
+		from pg_stat_activity where datname = current_database()`).
+		Scan(&active, &seesAll); err == nil {
+		if seesAll {
+			add("active queries", fmt.Sprint(active))
+		} else {
+			add("active queries", sessionsHidden)
+		}
 	}
 	if v, err := cacheView(ctx, conn, req); err == nil {
 		if kvv, ok := v.(view.KeyValue); ok && len(kvv.Pairs) > 0 {

@@ -819,14 +819,14 @@ func Plugin() plugin.Plugin {
 				Detailed:   true,
 				Description: "The compact form is a few figures worth a glance: role, size, WAL " +
 					"position (a primary's write position, a standby's received and replayed " +
-					"positions), active queries, cache hit ratio and one line of replication. " +
+					"positions), active queries (other sessions', or a line saying this role cannot see them), " +
+					"cache hit ratio and one line of replication. " +
 					"The full page (`detail`) adds the whole replication page (`pg.replication.status`: " +
 					"positions, standbys with their " +
 					"lag, slots, what needs attention), the largest tables and current activity — " +
 					"everything pg.status, pg.replication.status, pg.table.list and pg.activity would otherwise " +
 					"take four calls to assemble, through the one connection this call already opened. With a " +
-					"`schema` — named, or the one a profile fences with `only: schema:` — the largest tables " +
-					"are those of that schema alone.",
+					"`schema`, or the one a profile fences with `only: schema:`, only its tables are listed.",
 				Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 					return withConn(ctx, req, func(ctx context.Context, conn *pgx.Conn) (view.View, error) {
 						if req.Bool("detail") {
