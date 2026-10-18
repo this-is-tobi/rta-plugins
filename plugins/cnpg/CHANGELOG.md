@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.8.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.7.0...plugins/cnpg/v0.8.0) (2026-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cnpg:** give a hung cluster and a refusal the codes kube gives them
+
+### Bug Fixes
+
+* **cnpg:** give a hung cluster and a refusal the codes kube gives them ([91dd250](https://github.com/this-is-tobi/rta-plugins/commit/91dd2500d0626450c15486a799598694beb37b4a))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.46.0 ([0d5cf69](https://github.com/this-is-tobi/rta-plugins/commit/0d5cf691585edbeb566d4b5f2f3f7597e677ed7d))
+
 ## [0.7.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.6.5...plugins/cnpg/v0.7.0) (2026-10-18)
 
 

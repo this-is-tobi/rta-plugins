@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.11.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.10.0...plugins/pg/v0.11.0) (2026-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **pg:** the code of a timeout is pg.timeout, as the other plugins spell it
+
+### Bug Fixes
+
+* **pg:** a schema fence narrows the largest tables of the overview detail ([ba9dd24](https://github.com/this-is-tobi/rta-plugins/commit/ba9dd2470c8fe80d18010ae08330703ca768bd2a))
+* **pg:** the active queries of the overview leave out its own session ([3da9bb0](https://github.com/this-is-tobi/rta-plugins/commit/3da9bb007c4fc7dc732eaa5622cbd20e3f9692b9))
+* **pg:** the code of a timeout is pg.timeout, as the other plugins spell it ([4c6d734](https://github.com/this-is-tobi/rta-plugins/commit/4c6d734f2c4024a62ddc8aef1f13f608e46d5fb5))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.46.0 ([0d5cf69](https://github.com/this-is-tobi/rta-plugins/commit/0d5cf691585edbeb566d4b5f2f3f7597e677ed7d))
+
 ## [0.10.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.9.3...plugins/pg/v0.10.0) (2026-10-18)
 
 

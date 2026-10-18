@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.10.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.9.0...plugins/mariadb/v0.10.0) (2026-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **mariadb:** the code of a timeout is mariadb.timeout, as the other plugins spell it
+
+### Bug Fixes
+
+* **mariadb:** the code of a timeout is mariadb.timeout, as the other plugins spell it ([157d28b](https://github.com/this-is-tobi/rta-plugins/commit/157d28b18536d427788a9298d549ba9c1543a626))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.46.0 ([0d5cf69](https://github.com/this-is-tobi/rta-plugins/commit/0d5cf691585edbeb566d4b5f2f3f7597e677ed7d))
+
 ## [0.9.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.8.3...plugins/mariadb/v0.9.0) (2026-10-18)
 
 
