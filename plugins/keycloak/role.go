@@ -48,7 +48,7 @@ func runRoleList(ctx context.Context, req plugin.Request) (view.View, error) {
 		for _, r := range roles {
 			t.Rows = append(t.Rows, []string{listed(r.Name), yesNo(r.Composite), description(r.Description)})
 		}
-		return finish(t), nil
+		return finish(withEmpty(t, "no roles")), nil
 	})
 }
 

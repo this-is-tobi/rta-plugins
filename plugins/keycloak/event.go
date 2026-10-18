@@ -76,7 +76,7 @@ func runEventList(ctx context.Context, req plugin.Request) (view.View, error) {
 			t = stoppedAt(t, limit, "event", sf, ", or narrow it with "+sf.InputName("type")+", "+
 				sf.InputName("user")+" or "+sf.InputName("client"))
 		}
-		return finish(t), nil
+		return finish(withEmpty(t, "no events")), nil
 	})
 }
 
@@ -126,6 +126,6 @@ func runEventAdmin(ctx context.Context, req plugin.Request) (view.View, error) {
 		if more {
 			t = stoppedAt(t, limit, "event", req.Surface(), "")
 		}
-		return finish(t), nil
+		return finish(withEmpty(t, "no admin events")), nil
 	})
 }

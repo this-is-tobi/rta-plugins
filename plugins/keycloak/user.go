@@ -77,7 +77,7 @@ func runUserList(ctx context.Context, req plugin.Request) (view.View, error) {
 		if more {
 			t = stoppedAt(t, limit, "user", req.Surface(), ", or narrow it with "+req.Surface().ArgumentName("search"))
 		}
-		return finish(t), nil
+		return finish(withEmpty(t, "no users")), nil
 	})
 }
 

@@ -172,6 +172,16 @@ func finish(t view.Table) view.Table {
 	return t
 }
 
+// withEmpty says what a table with no rows is, for the person reading it: the
+// table is the answer to a program and to an agent, and a bare grid of headings
+// reads on a terminal like a listing that failed.
+func withEmpty(t view.Table, sentence string) view.Table {
+	if len(t.Rows) == 0 {
+		t.Empty = sentence
+	}
+	return t
+}
+
 // columns is the shorthand for a table with plain text columns and a few
 // kinded ones — the kinds are what let a renderer align and grade.
 func columns(cols ...view.Column) view.Table { return view.Table{Columns: cols} }

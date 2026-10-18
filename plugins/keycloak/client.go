@@ -54,7 +54,7 @@ func (s *session) clientTable(ctx context.Context) (view.View, *view.Error) {
 		t.Rows = append(t.Rows, []string{listed(c.ClientID), c.kind(), flows(c), firstOf(listed(c.pkce()), "none"),
 			yesNo(c.FullScopeAllowed), yesNo(c.Enabled)})
 	}
-	return finish(t), nil
+	return finish(withEmpty(t, "no clients")), nil
 }
 
 // flows is the grants a client may use, in the words the console uses.
