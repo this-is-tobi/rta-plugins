@@ -221,12 +221,12 @@ func TestEveryClassifiedFailureNamesTheNextStep(t *testing.T) {
 		{"reset", &url.Error{Op: "Get", URL: "http://x", Err: &net.OpError{Op: "read", Net: "tcp",
 			Err: os.NewSyscallError("read", syscall.ECONNRESET)}}, "s3.conn.failed"},
 		{"a dial that timed out", &url.Error{Op: "Get", URL: "http://x",
-			Err: &net.OpError{Op: "dial", Net: "tcp", Err: timeoutError{}}}, "s3.conn.timeout"},
+			Err: &net.OpError{Op: "dial", Net: "tcp", Err: timeoutError{}}}, "s3.timeout"},
 		{"unknown host", &net.DNSError{Err: "no such host", Name: "s3.internal"}, "s3.host.unknown"},
-		{"timed out", &url.Error{Op: "Get", URL: "http://x", Err: timeoutError{}}, "s3.conn.timeout"},
+		{"timed out", &url.Error{Op: "Get", URL: "http://x", Err: timeoutError{}}, "s3.timeout"},
 		// The listing iterator hands a bare context error back, unwrapped by
 		// any transport, so both have to be recognised on their own.
-		{"deadline passed", context.DeadlineExceeded, "s3.conn.timeout"},
+		{"deadline passed", context.DeadlineExceeded, "s3.timeout"},
 		{"caller went away", context.Canceled, "s3.cancelled"},
 		{"anything else", errors.New("something unexpected"), "s3.conn.failed"},
 	}

@@ -220,7 +220,7 @@ func classify(err error, req plugin.Request) *view.Error {
 			WithHint("whoever made this call stopped waiting for it — nothing here to fix")
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		return view.Errorf("s3.conn.timeout", "%s did not answer in time", where).
+		return view.Errorf("s3.timeout", "%s did not answer in time", where).
 			WithHint("a firewall that drops rather than refuses looks exactly like this")
 	}
 
@@ -281,6 +281,13 @@ func classify(err error, req plugin.Request) *view.Error {
 		// the operator could change.
 		if errResp.StatusCode == http.StatusBadRequest && plugin.TLSExpected(errResp) {
 			return tlsExpected(req)
+		}
+		// A 5xx is the service failing, which no setting here changes: the hint that
+		// sent its reader to the page of every input sent them to look for a fault
+		// of their own in a SlowDown.
+		if errResp.StatusCode >= http.StatusInternalServerError {
+			return view.Errorf("s3.request.failed", "%s: %s", errResp.Code, errResp.Message).
+				WithHint("the service is overloaded or restarting; retry")
 		}
 		return view.Errorf("s3.request.failed", "%s: %s", errResp.Code, errResp.Message).
 			WithHint(sf.SettingsHint("s3.overview"))
@@ -388,7 +395,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
-		return view.Errorf("s3.conn.timeout", "%s did not answer in time", where).
+		return view.Errorf("s3.timeout", "%s did not answer in time", where).
 			WithHint("a firewall that drops rather than refuses looks exactly like this")
 	}
 	return view.Errorf("s3.conn.failed", "could not reach %s: %v", where, err).
