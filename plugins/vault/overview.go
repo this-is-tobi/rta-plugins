@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 
 	vaultapi "github.com/hashicorp/vault/api"
 
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -31,7 +33,8 @@ func overviewCapability() plugin.Capability {
 		Description: "Whether this Vault is worth talking to at all, and what the configured " +
 			"token can do — never a secret value. `detail` adds the full policy list to the same " +
 			"page. A sealed or uninitialized Vault is its state alone: nothing else it could be " +
-			"asked would answer.",
+			"asked would answer. Reading the token spends one of its uses, which a token with a " +
+			"use limit is told.",
 		Run: runOverview,
 	})
 }
@@ -121,6 +124,7 @@ func overviewStatus(ctx context.Context, client *vaultapi.Client, req plugin.Req
 		if ttl, ok := secret.Data["ttl"]; ok {
 			add("token ttl (seconds)", tokenTTL(ttl))
 		}
+		add("token", tokenUses(secret.Data["num_uses"]))
 	} else {
 		refusal := classify(err, req)
 		if cause == nil {
@@ -133,6 +137,37 @@ func overviewStatus(ctx context.Context, client *vaultapi.Client, req plugin.Req
 		return view.KeyValue{}, true, nothingRead(cause)
 	}
 	return kv, true, nil
+}
+
+// tokenUses says what this page costs a token that can be used only so many
+// times, and nothing for one that can be used without limit.
+//
+// **Reading a token spends one of its uses**, and the overview reads it every
+// time: a token made with -use-limit=3 answered three runs and the fourth said
+// "token unreadable — permission denied", on a tile that re-ran every thirty
+// seconds. Vault reports num_uses once the lookup has been counted: 0 for a
+// token with no limit, the uses left otherwise, and -1 on the lookup that spent
+// the last, after which the token is gone. The last is said because it is the
+// run after which the tile goes red, and the number alone is not there to say it.
+func tokenUses(v any) string {
+	var n int64
+	switch t := v.(type) {
+	case json.Number:
+		n, _ = t.Int64()
+	case float64:
+		n = int64(t)
+	case int:
+		n = int64(t)
+	case int64:
+		n = t
+	}
+	switch {
+	case n > 0:
+		return "has " + format.CountOf(int(n), "use") + " left; this page spends one"
+	case n < 0:
+		return "has no uses left; this page spent the last one"
+	}
+	return ""
 }
 
 // nothingRead is the refusal for an overview that read nothing, and it says why
