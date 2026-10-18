@@ -27,6 +27,10 @@ func newScriptedCluster(t *testing.T) *scriptedCluster {
 	c := &scriptedCluster{dir: t.TempDir()}
 	script := `#!/bin/sh
 echo "$*" >> ` + shellQuote(filepath.Join(c.dir, "calls")) + `
+if [ "$1" = get ] && [ -f ` + shellQuote(filepath.Join(c.dir, "get.fail")) + ` ]; then
+	cat ` + shellQuote(filepath.Join(c.dir, "get.fail")) + ` >&2
+	exit 1
+fi
 case "$1 $2" in
 "config view") cat ` + shellQuote(filepath.Join(c.dir, "config.json")) + ` ;;
 "get secrets")

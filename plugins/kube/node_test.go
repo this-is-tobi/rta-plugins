@@ -173,6 +173,10 @@ func withKubectlRefusingNodes(t *testing.T, stdout string) {
 	t.Helper()
 	script := filepath.Join(t.TempDir(), "kubectl")
 	body := "#!/bin/sh\n" +
+		"if [ \"$1\" = \"config\" ]; then\n" +
+		"  echo '{\"current-context\":\"lab\",\"contexts\":[{\"name\":\"lab\",\"context\":{\"cluster\":\"lab\"}}]}'\n" +
+		"  exit 0\n" +
+		"fi\n" +
 		"for a in \"$@\"; do\n" +
 		"  if [ \"$a\" = \"nodes\" ]; then\n" +
 		"    echo 'Error from server (Forbidden): nodes is forbidden: User \"sa\" cannot list resource \"nodes\" at the cluster scope' >&2\n" +
