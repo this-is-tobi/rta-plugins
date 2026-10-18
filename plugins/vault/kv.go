@@ -182,6 +182,7 @@ func runKVList(ctx context.Context, req plugin.Request) (view.View, error) {
 			if verr := unknownMount(ctx, client, req); verr != nil {
 				return nil, verr
 			}
+			t.Empty = "nothing under " + listedPath(req.String("mount"), req.String("path"))
 		}
 		return t, nil
 	})
