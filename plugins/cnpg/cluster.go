@@ -13,11 +13,7 @@ import (
 // The slice of the CloudNativePG Cluster resource this reads.
 //
 // Every field below was taken from the published CRD schema
-// (postgresql.cnpg.io_clusters.yaml, v1) rather than from memory, and the
-// list view's columns are the ones the CRD itself declares as printer
-// columns — so `rta cnpg list` and `kubectl get clusters.postgresql.cnpg.io`
-// answer the same question the same way, which is what makes one a fast path
-// for the other rather than a second opinion.
+// (postgresql.cnpg.io_clusters.yaml, v1) rather than from memory.
 //
 // Deliberately partial. A Cluster's status has fifty fields, most of them
 // operator bookkeeping — configmap resource versions, the operator's own
@@ -422,6 +418,23 @@ func (c cluster) notTrue() []condition {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Type < out[j].Type })
 	return out
+}
+
+// continuousArchiving is the condition the operator keeps for whether WAL is
+// reaching the place it is archived to.
+const continuousArchiving = "ContinuousArchiving"
+
+// archivingFailing is the operator saying that WAL is not reaching its
+// destination, which is the failure that fills the volume a database writes its
+// WAL to and stops it. Only a condition that says False: one that is Unknown is
+// not yet known, and a cluster that archives nowhere carries none.
+func (c cluster) archivingFailing() bool {
+	for _, cond := range c.Status.Conditions {
+		if cond.Type == continuousArchiving && cond.Status == "False" {
+			return true
+		}
+	}
+	return false
 }
 
 // instances lists the pods with what is known about each, primary first and

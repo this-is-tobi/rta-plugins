@@ -364,7 +364,7 @@ func TestTheListReadsWhatKubectlActuallyPrints(t *testing.T) {
 		t.Fatalf("view = %#v", v)
 	}
 	row := tbl.Rows[0]
-	for i, want := range []string{"databases", "app-db", "3/3", "ok", "app-db-1"} {
+	for i, want := range []string{"databases/app-db", "ok", "4h ago", "3/3", "app-db-1", "healthy"} {
 		if row[i] != want {
 			t.Errorf("column %d = %q, want %q", i, row[i], want)
 		}
