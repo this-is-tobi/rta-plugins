@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.7.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.6.8...plugins/etcd/v0.7.0) (2026-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **etcd:** the cluster's host:port is `address`, as in redis, not `endpoint`
+
+### Bug Fixes
+
+* **etcd:** an empty key or lease listing says what it is ([8c53cf3](https://github.com/this-is-tobi/rta-plugins/commit/8c53cf3eecc5711164949bbe6e3ccd6e80bb567b))
+* **etcd:** the cluster's host:port is `address`, as in redis, not `endpoint` ([3420544](https://github.com/this-is-tobi/rta-plugins/commit/3420544914a6d0cf07d247b99f992fa799578899))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.45.0 ([22447f5](https://github.com/this-is-tobi/rta-plugins/commit/22447f5591e8209bb00f10c405d91167f44fc213))
+
 ## [0.6.8](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.6.7...plugins/etcd/v0.6.8) (2026-10-17)
 
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.10.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.9.3...plugins/pg/v0.10.0) (2026-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **pg:** only the backup is called dump; schema, rows and replication are renamed
+
+### Bug Fixes
+
+* **pg:** an empty database, table or session listing says what it is ([8354b26](https://github.com/this-is-tobi/rta-plugins/commit/8354b26d65412614334f02ede8ba9e8f700ac19d))
+* **pg:** only the backup is called dump; schema, rows and replication are renamed ([bc0512e](https://github.com/this-is-tobi/rta-plugins/commit/bc0512e30d135cbb63e26b60c8707f2e643fe5ef))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.45.0 ([22447f5](https://github.com/this-is-tobi/rta-plugins/commit/22447f5591e8209bb00f10c405d91167f44fc213))
+
 ## [0.9.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.9.2...plugins/pg/v0.9.3) (2026-10-17)
 
 

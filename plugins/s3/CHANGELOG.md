@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.8.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.7.1...plugins/s3/v0.8.0) (2026-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **s3:** the service's host:port is `address`, as in redis, not `endpoint`
+
+### Bug Fixes
+
+* **s3:** an empty object or bucket listing says what it is ([1bd572f](https://github.com/this-is-tobi/rta-plugins/commit/1bd572f4608f97ee793fcfaf964a31f7d08d1203))
+* **s3:** the service's host:port is `address`, as in redis, not `endpoint` ([1ded7fe](https://github.com/this-is-tobi/rta-plugins/commit/1ded7fee5c841e8bb6510d1f23a53c3d2fbb83f8))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.45.0 ([22447f5](https://github.com/this-is-tobi/rta-plugins/commit/22447f5591e8209bb00f10c405d91167f44fc213))
+
 ## [0.7.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.7.0...plugins/s3/v0.7.1) (2026-10-17)
 
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.7.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.6.8...plugins/qdrant/v0.7.0) (2026-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **qdrant:** the instance's host:port is `address`, as in redis, not `endpoint`
+
+### Bug Fixes
+
+* **qdrant:** an empty collection or point listing says what it is ([7e058c9](https://github.com/this-is-tobi/rta-plugins/commit/7e058c9cf887169c4f422b5f6a7aa2efd8642986))
+* **qdrant:** the instance's host:port is `address`, as in redis, not `endpoint` ([bf89f94](https://github.com/this-is-tobi/rta-plugins/commit/bf89f9453b2c82ee730c930b2041bab8ade1e064))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.45.0 ([22447f5](https://github.com/this-is-tobi/rta-plugins/commit/22447f5591e8209bb00f10c405d91167f44fc213))
+
 ## [0.6.8](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.6.7...plugins/qdrant/v0.6.8) (2026-10-17)
 
 

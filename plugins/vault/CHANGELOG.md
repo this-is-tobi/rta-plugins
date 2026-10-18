@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.7.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.6.8...plugins/vault/v0.7.0) (2026-10-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **vault:** the server's URL is `url`, not `address`, which redis uses for host:port
+
+### Bug Fixes
+
+* **vault:** an empty secret listing says what it is ([72b6449](https://github.com/this-is-tobi/rta-plugins/commit/72b6449abef1759f4e12626228eb511ef5ccf98a))
+* **vault:** the server's URL is `url`, not `address`, which redis uses for host:port ([c9fa463](https://github.com/this-is-tobi/rta-plugins/commit/c9fa463b86380570335fc893cdb77d535d32fba4))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.45.0 ([22447f5](https://github.com/this-is-tobi/rta-plugins/commit/22447f5591e8209bb00f10c405d91167f44fc213))
+
 ## [0.6.8](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.6.7...plugins/vault/v0.6.8) (2026-10-17)
 
 
