@@ -273,7 +273,7 @@ When a leased secret (a database credential, an issued certificate) expires and 
 
 ## vault.overview
 
-Whether this Vault is worth talking to at all, and what the configured token can do — never a secret value. `detail` adds the full policy list to the same page. A sealed or uninitialized Vault is its state alone: nothing else it could be asked would answer.
+Whether this Vault is worth talking to at all, and what the configured token can do — never a secret value. `detail` adds the full policy list to the same page. A sealed or uninitialized Vault is its state alone: nothing else it could be asked would answer. Reading the token spends one of its uses, which a token with a use limit is told.
 
 | Field                 | Value                                                                                                                                                                                                        |
 |-----------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
