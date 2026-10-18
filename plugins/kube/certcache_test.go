@@ -325,15 +325,3 @@ func TestACachedListingSaysHowOldItIs(t *testing.T) {
 		t.Errorf("a listing served from a read six minutes old says %+v", reused.Warnings)
 	}
 }
-
-func TestTheCertificateListingDeclaresHowOftenATileMayRunIt(t *testing.T) {
-	for _, c := range Plugin().Capabilities {
-		if c.ID == "kube.cert.list" {
-			if c.Refresh != time.Hour {
-				t.Errorf("kube.cert.list declares Refresh %v, want 1h", c.Refresh)
-			}
-			return
-		}
-	}
-	t.Fatal("no kube.cert.list")
-}

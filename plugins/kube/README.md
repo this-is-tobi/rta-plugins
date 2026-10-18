@@ -334,7 +334,7 @@ A node that cannot be read is named, because a missing node means missing claims
 | input:node    | string — one node instead of every node                                                                                                                                                                     |
 | input:context | string, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted                                                        |
 | set a key     | rta config set plugins.kube.context \<value>                                                                                                                                                                |
-| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.pvc.usage\`, or + on it in the TUI, puts it there, re-run every 30s                                                   |
+| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.pvc.usage\`, or + on it in the TUI, puts it there, re-run every 5m                                                    |
 
 ## kube.quota.list
 

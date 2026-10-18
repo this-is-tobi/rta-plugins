@@ -412,7 +412,12 @@ func Plugin() plugin.Plugin {
 				"to one node.",
 			Safety:     plugin.Read,
 			Idempotent: true,
-			Run:        runPVCUsage,
+			// A call to the kubelet of every node, through the API server's
+			// nodes/proxy, which is the permission that reaches exec on every
+			// pod there: a tile at the host's thirty seconds is that on every
+			// node twice a minute, for volumes that fill by the hour.
+			Refresh: 5 * time.Minute,
+			Run:     runPVCUsage,
 		}, plugin.Field{Name: "node", Type: plugin.String,
 			Help: "one node instead of every node"}),
 		cap(plugin.Capability{
