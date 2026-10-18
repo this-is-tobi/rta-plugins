@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-// pg.replication answers one question — is replication healthy, where is every
+// pg.replication.status answers one question — is replication healthy, where is every
 // member, and how far behind is each one — from the three places PostgreSQL
 // keeps the answer: the server's own position (pg_current_wal_lsn on a
 // primary, the receive and replay positions on a standby), pg_stat_replication

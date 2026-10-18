@@ -39,7 +39,7 @@ func (s schemasSeen) Query(context.Context, string, ...any) (pgx.Rows, error) {
 func (schemasSeen) QueryRow(context.Context, string, ...any) pgx.Row { return nil }
 
 // A schema that is not there is answered as itself wherever its name is typed.
-// pg.schema.dump did; pg.table.list answered an empty table, which reads as a
+// pg.schema did; pg.table.list answered an empty table, which reads as a
 // schema with nothing in it and sends somebody looking for a permissions
 // problem that is not there. Both go through one function now, so a wrong name
 // cannot read differently in the two.

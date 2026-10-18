@@ -55,7 +55,7 @@ func conformanceInputs(dir string) map[string]map[string]any {
 	_ = os.WriteFile(fixture, []byte("select 1;\n"), 0o600)
 	return map[string]map[string]any{
 		"pg.query":      conn(map[string]any{"sql": "select 1"}),
-		"pg.table.dump": conn(map[string]any{"table": "public.conformance"}),
+		"pg.table.rows": conn(map[string]any{"table": "public.conformance"}),
 		"pg.dump":       conn(map[string]any{"out": filepath.Join(dir, "pg.dump")}),
 		"pg.restore":    conn(map[string]any{"file": fixture}),
 	}
@@ -224,7 +224,7 @@ func TestAnIPv6HostIsNamedBracketed(t *testing.T) {
 	said := map[string]string{
 		"a refused connection": classify(&net.OpError{Op: "dial", Net: "tcp",
 			Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)}, req(t, values)).Message,
-		"a schema dump's header": renderDDL(reqFor(t, "pg.schema.dump", values), "public", nil, dropped{}),
+		"a schema description's header": renderDDL(reqFor(t, "pg.schema", values), "public", nil, dropped{}),
 	}
 	for what, text := range said {
 		if !strings.Contains(text, "[::1]:5432") || strings.Contains(text, "::1:5432") {

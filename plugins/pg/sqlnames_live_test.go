@@ -23,7 +23,7 @@ func TestTheSchemaDescriptionOfOddNamesReplaysAsTheSameObjects(t *testing.T) {
 	t.Cleanup(func() { admin(t, "postgres", "drop database if exists "+replay) })
 
 	for _, schema := range []string{oddSchema, "public"} {
-		body := runLive(t, "pg.schema.dump", map[string]any{"database": src, "schema": schema}).(view.Text).Body
+		body := runLive(t, "pg.schema", map[string]any{"database": src, "schema": schema}).(view.Text).Body
 		if strings.Contains(body, "\x1b") {
 			t.Errorf("an escape sequence reaches the description of %q:\n%s", schema, body)
 		}
@@ -97,7 +97,7 @@ func TestTheSchemaDescriptionOfAnOddTypeReplaysAsTheSameColumns(t *testing.T) {
 	}
 	admin(t, src, "create table kinds (id int primary key, kind "+typeSQL+", tags "+typeSQL+"[], price numeric(10, 2))")
 
-	body := runLive(t, "pg.schema.dump", map[string]any{"database": src, "schema": "public"}).(view.Text).Body
+	body := runLive(t, "pg.schema", map[string]any{"database": src, "schema": "public"}).(view.Text).Body
 	if strings.ContainsAny(body, "\x1b") {
 		t.Errorf("an escape sequence reaches the description:\n%s", body)
 	}

@@ -13,7 +13,7 @@ import (
 )
 
 // addReplication puts the replication sections on a page: the server's own
-// position, what needs attention, the standbys, and the slots. pg.replication
+// position, what needs attention, the standbys, and the slots. pg.replication.status
 // is that page alone and pg.overview carries the same sections inside its
 // own, so a person reading either sees one answer rather than two that could
 // disagree.
@@ -333,7 +333,7 @@ func replicationLine(f replicationFacts, sf plugin.Surface) string {
 		line += fmt.Sprintf(", %d things need attention", attention)
 	}
 	if f.server.recovering || len(f.standbys) > 0 || len(f.slots) > 0 || attention > 0 {
-		line += " — " + sf.CapabilityName("pg.replication") + " has the positions"
+		line += " — " + sf.CapabilityName("pg.replication.status") + " has the positions"
 	}
 	return line
 }

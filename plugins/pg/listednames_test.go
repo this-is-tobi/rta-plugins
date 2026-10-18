@@ -266,7 +266,7 @@ func TestTheOverviewGlanceShowsAnOddDatabaseWrittenOut(t *testing.T) {
 func TestTheSchemasARefusalListsAreWrittenOut(t *testing.T) {
 	q := script{{match: "pg_namespace", cols: []string{"nspname"},
 		rows: [][]any{{"public"}, {oddName}, {"my schema é"}}}}
-	verr := unknownSchema(context.Background(), q, reqFor(t, "pg.schema.dump", nil), "absent")
+	verr := unknownSchema(context.Background(), q, reqFor(t, "pg.schema", nil), "absent")
 	if verr == nil || verr.Code != "pg.schema.missing" {
 		t.Fatalf("got %v, want pg.schema.missing", verr)
 	}
@@ -279,7 +279,7 @@ func TestTheSchemasARefusalListsAreWrittenOut(t *testing.T) {
 func TestTwoTablesOfOneNameAreListedWrittenOut(t *testing.T) {
 	q := script{{match: "from pg_class c join pg_namespace n", cols: []string{"oid", "nspname", "relname"},
 		rows: [][]any{{uint32(1), oddName, "orders"}, {uint32(2), "public", "orders"}, {uint32(3), "my schema é", "orders"}}}}
-	_, verr := resolveRelation(context.Background(), q, reqFor(t, "pg.table.dump", map[string]any{"table": "orders"}))
+	_, verr := resolveRelation(context.Background(), q, reqFor(t, "pg.table.rows", map[string]any{"table": "orders"}))
 	if verr == nil || verr.Code != "pg.table.ambiguous" {
 		t.Fatalf("got %v, want pg.table.ambiguous", verr)
 	}
@@ -290,14 +290,14 @@ func TestTwoTablesOfOneNameAreListedWrittenOut(t *testing.T) {
 
 // What a refusal about a table says of it, and of its columns, is written the
 // way a list shows them. The column asked for is what the caller typed.
-func TestADumpRefusalNamesTheTableAndItsColumnsWrittenOut(t *testing.T) {
+func TestARowsRefusalNamesTheTableAndItsColumnsWrittenOut(t *testing.T) {
 	rel := relation{oid: 42, schema: oddName, name: plainName}
 	columns := script{
 		{match: "pg_index"},
 		{match: "pg_attribute", cols: []string{"attname"}, rows: [][]any{{oddName}, {"my col é"}}},
 	}
-	_, verr := dumpRows(context.Background(), columns,
-		reqFor(t, "pg.table.dump", map[string]any{"table": "x", "columns": "absent"}), rel)
+	_, verr := readRows(context.Background(), columns,
+		reqFor(t, "pg.table.rows", map[string]any{"table": "x", "columns": "absent"}), rel)
 	if verr == nil || verr.Code != "pg.column.missing" {
 		t.Fatalf("got %v, want pg.column.missing", verr)
 	}
@@ -308,8 +308,8 @@ func TestADumpRefusalNamesTheTableAndItsColumnsWrittenOut(t *testing.T) {
 		t.Errorf("hint = %q, want %q", verr.Hint, want)
 	}
 
-	_, verr = dumpRows(context.Background(), script{{match: "pg_attribute"}, {match: "pg_index"}},
-		reqFor(t, "pg.table.dump", map[string]any{"table": "x"}), rel)
+	_, verr = readRows(context.Background(), script{{match: "pg_attribute"}, {match: "pg_index"}},
+		reqFor(t, "pg.table.rows", map[string]any{"table": "x"}), rel)
 	if verr == nil || verr.Code != "pg.table.nocolumns" ||
 		verr.Message != oddShown+"."+plainName+" has no readable columns" {
 		t.Errorf("got %v, want pg.table.nocolumns naming the table written out", verr)
@@ -320,11 +320,11 @@ func TestADumpRefusalNamesTheTableAndItsColumnsWrittenOut(t *testing.T) {
 		{match: "pg_attribute", cols: []string{"attname"}, rows: [][]any{{"id"}}},
 		{match: "limit $1", cols: []string{"id"}, rows: [][]any{{1}, {2}}},
 	}
-	_, verr = dumpRows(context.Background(), over,
-		reqFor(t, "pg.table.dump", map[string]any{"table": "x", "limit": 1}), rel)
-	if verr == nil || verr.Code != "pg.dump.toomany" ||
+	_, verr = readRows(context.Background(), over,
+		reqFor(t, "pg.table.rows", map[string]any{"table": "x", "limit": 1}), rel)
+	if verr == nil || verr.Code != "pg.table.rows.toomany" ||
 		verr.Message != oddShown+"."+plainName+" has more than 1 row" {
-		t.Errorf("got %v, want pg.dump.toomany naming the table written out", verr)
+		t.Errorf("got %v, want pg.table.rows.toomany naming the table written out", verr)
 	}
 }
 
@@ -366,19 +366,19 @@ func TestASlotsDatabaseIsWrittenOut(t *testing.T) {
 	}
 }
 
-// The refusals that name the table a dump read — a result too big to return and
+// The refusals that name the table a read asked for — a result too big to return and
 // an empty one that row-level security may have emptied — write it as a list
 // does, and a table that reads as itself is named as it was.
-func TestTheSizeAndPolicyRefusalsOfADumpNameTheTableWrittenOut(t *testing.T) {
+func TestTheSizeAndPolicyRefusalsOfAReadNameTheTableWrittenOut(t *testing.T) {
 	dump := func(rel relation, rows [][]any, extra ...answer) *view.Error {
 		q := append(script{
 			{match: "pg_index"},
 			{match: "pg_attribute", cols: []string{"attname"}, rows: [][]any{{"body"}}},
 			{match: "limit $1", cols: []string{"body"}, rows: rows},
 		}, extra...)
-		_, verr := dumpRows(context.Background(), q, reqFor(t, "pg.table.dump", map[string]any{"table": "x"}), rel)
+		_, verr := readRows(context.Background(), q, reqFor(t, "pg.table.rows", map[string]any{"table": "x"}), rel)
 		if verr == nil {
-			t.Fatal("the dump was not refused")
+			t.Fatal("the read was not refused")
 		}
 		return verr
 	}
@@ -391,14 +391,14 @@ func TestTheSizeAndPolicyRefusalsOfADumpNameTheTableWrittenOut(t *testing.T) {
 		{oid: 3, schema: "my schema é", name: "orders"}: "my schema é.orders",
 	} {
 		toolarge := dump(rel, huge)
-		if toolarge.Code != "pg.dump.toolarge" || !strings.HasPrefix(toolarge.Message, "the rows of "+name+" are over") {
-			t.Errorf("got %s %q, want pg.dump.toolarge naming %s", toolarge.Code, toolarge.Message, name)
+		if toolarge.Code != "pg.table.rows.toolarge" || !strings.HasPrefix(toolarge.Message, "the rows of "+name+" are over") {
+			t.Errorf("got %s %q, want pg.table.rows.toolarge naming %s", toolarge.Code, toolarge.Message, name)
 		}
 		bare(t, "the refusal", toolarge.Message+toolarge.Hint)
 
 		rls := dump(rel, nil, policy)
-		if rls.Code != "pg.dump.rls" || !strings.HasPrefix(rls.Message, name+" returned no rows") {
-			t.Errorf("got %s %q, want pg.dump.rls naming %s", rls.Code, rls.Message, name)
+		if rls.Code != "pg.table.rows.rls" || !strings.HasPrefix(rls.Message, name+" returned no rows") {
+			t.Errorf("got %s %q, want pg.table.rows.rls naming %s", rls.Code, rls.Message, name)
 		}
 		bare(t, "the refusal", rls.Message+rls.Hint)
 	}
@@ -424,7 +424,7 @@ func TestTheSchemaADescriptionIsTooBigToReturnIsNamedWrittenOut(t *testing.T) {
 			{match: "from pg_proc p", rows: [][]any{{int64(0), int64(0), int64(0), int64(0)}}},
 		}
 		_, verr := schemaDDL(context.Background(), q,
-			reqFor(t, "pg.schema.dump", map[string]any{"schema": schema}))
+			reqFor(t, "pg.schema", map[string]any{"schema": schema}))
 		if verr == nil {
 			t.Fatal("the description was not refused")
 		}

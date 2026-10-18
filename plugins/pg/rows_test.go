@@ -62,7 +62,7 @@ func dryRunReqFor(t *testing.T, id string, values map[string]any) plugin.Request
 func TestAnUnqualifiedNameIsRefusedOverMCP(t *testing.T) {
 	q := &recordingQuerier{}
 	_, verr := resolveRelation(context.Background(), q,
-		mcpReqFor(t, "pg.table.dump", map[string]any{"table": "users"}))
+		mcpReqFor(t, "pg.table.rows", map[string]any{"table": "users"}))
 	if verr == nil {
 		t.Fatal("an unqualified table name was accepted from an MCP caller")
 	}
@@ -91,7 +91,7 @@ func TestAnUnqualifiedNameIsRefusedOverMCP(t *testing.T) {
 func TestABareNameIsNotRefusedForAPerson(t *testing.T) {
 	q := &recordingQuerier{}
 	_, verr := resolveRelation(context.Background(), q,
-		reqFor(t, "pg.table.dump", map[string]any{"table": "users"}))
+		reqFor(t, "pg.table.rows", map[string]any{"table": "users"}))
 	if verr != nil && verr.Code == "pg.table.unqualified" {
 		t.Fatal("a person at a terminal was made to qualify a table name")
 	}
@@ -128,7 +128,7 @@ func TestTheFullDumpRefusesMCP(t *testing.T) {
 	}
 	// The refusal names the way through, or it is a dead end that teaches an
 	// agent nothing except to try again.
-	if !strings.Contains(verr.Hint, "the `pg_table_dump` tool") {
+	if !strings.Contains(verr.Hint, "the `pg_table_rows` tool") {
 		t.Errorf("hint = %q, want it to name the capability that does take a grant, as the agent calls it", verr.Hint)
 	}
 }
@@ -224,7 +224,7 @@ func TestADriverErrorIsStillClassified(t *testing.T) {
 // A policy that matches nothing for this role returns zero rows and no
 // error — the same shape an empty table returns — on the one capability
 // whose entire job is to show what is in a table. An operator who granted
-// pg.table.dump to look at `public.orders` and got back a well-formed table
+// pg.table.rows to look at `public.orders` and got back a well-formed table
 // with the right column headers and no rows has been told the table is
 // empty, when what happened is that a tenant-isolation policy keyed off a
 // session setting rta never sets filtered every row away.
@@ -249,7 +249,7 @@ func TestThePolicyQueryNamesAnOddTableInSQLsOwnEscape(t *testing.T) {
 	bare(t, "the hint", verr.Hint)
 }
 
-func TestAnEmptyDumpOfARowLevelSecurityTableSaysSo(t *testing.T) {
+func TestAnEmptyReadOfARowLevelSecurityTableSaysSo(t *testing.T) {
 	rel := relation{oid: 42, schema: "public", name: "orders"}
 
 	verr := rlsRefusal(rel, false, false)
@@ -259,10 +259,10 @@ func TestAnEmptyDumpOfARowLevelSecurityTableSaysSo(t *testing.T) {
 
 	verr = rlsRefusal(rel, true, false)
 	if verr == nil {
-		t.Fatal("an empty dump of a table with row-level security enabled said nothing about it")
+		t.Fatal("an empty read of a table with row-level security enabled said nothing about it")
 	}
-	if verr.Code != "pg.dump.rls" {
-		t.Errorf("code = %q, want pg.dump.rls", verr.Code)
+	if verr.Code != "pg.table.rows.rls" {
+		t.Errorf("code = %q, want pg.table.rows.rls", verr.Code)
 	}
 	if !strings.Contains(verr.Message, "public.orders") {
 		t.Errorf("message does not name the table: %q", verr.Message)

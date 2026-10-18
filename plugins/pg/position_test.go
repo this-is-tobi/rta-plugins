@@ -14,7 +14,7 @@ import (
 
 // The position line is one more reading on calls whose job is something else
 // — whether the server answers, a glance at it — so what these hold is that it
-// is the same reading pg.replication makes, that it is complete when it
+// is the same reading pg.replication.status makes, that it is complete when it
 // appears, and that its absence is quiet.
 
 // asking is a script that records what was asked of it, and can be made to
@@ -201,7 +201,7 @@ func TestAStandbyThatNeverStreamedSaysOnlyWhatItReplayed(t *testing.T) {
 
 // **The position never costs the status its answer.** Each way the line can
 // be unavailable leaves the four lines that were always there, no error and no
-// warning — and a server too old for pg.replication is not asked for a
+// warning — and a server too old for pg.replication.status is not asked for a
 // position at all.
 func TestTheStatusKeepsAnsweringWhereThePositionCannotBeRead(t *testing.T) {
 	refused := &pgconn.PgError{Code: "42501", Message: "permission denied for function pg_current_wal_lsn"}

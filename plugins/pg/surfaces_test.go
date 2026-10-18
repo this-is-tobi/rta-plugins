@@ -127,12 +127,12 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 // an agent, and names the listing as the tool the agent calls.
 func TestAnUnqualifiedTableAsksTheOperatorForTheGrant(t *testing.T) {
 	_, verr := resolveRelation(context.Background(), &recordingQuerier{},
-		mcpReqFor(t, "pg.table.dump", map[string]any{"table": "users"}))
+		mcpReqFor(t, "pg.table.rows", map[string]any{"table": "users"}))
 	if verr == nil {
 		t.Fatal("an unqualified table name was accepted from an MCP caller")
 	}
 	for _, want := range []string{
-		plugin.AskOperator("grant allow pg.table.dump <schema>.users"),
+		plugin.AskOperator("grant allow pg.table.rows <schema>.users"),
 		"the `pg_table_list` tool shows the schema of each table",
 	} {
 		if !strings.Contains(verr.Hint, want) {

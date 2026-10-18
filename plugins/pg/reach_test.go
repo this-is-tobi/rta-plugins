@@ -42,7 +42,7 @@ func TestWhatIsWrittenAboutAServerNamesItAsTheReaderReachesItAgain(t *testing.T)
 				t.Errorf("restore dry run = %q, want %q in it", body, tc.want)
 			}
 
-			header := renderDDL(reqFor(t, "pg.schema.dump", map[string]any{
+			header := renderDDL(reqFor(t, "pg.schema", map[string]any{
 				"database": "prod", "host": tc.host, "port": tc.port,
 			}).WithProfile(tc.profile, tc.tunnel), "public", nil, dropped{})
 			if want := `schema "public" of ` + tc.want; !strings.Contains(header, want) {

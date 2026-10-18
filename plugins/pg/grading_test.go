@@ -16,7 +16,7 @@ import (
 // It is a completeness guard first and a set of assertions second — a
 // capability added without an entry here fails the test rather than
 // inheriting whatever grading its neighbour happened to have. That is the
-// failure this file exists for: pg.table.dump and pg.dump differ by one
+// failure this file exists for: pg.table.rows and pg.dump differ by one
 // property that is invisible at the call site and decides whether a
 // database leaves the building, and the way that gets broken is not by
 // arguing about it, it is by copying the declaration above.
@@ -71,7 +71,7 @@ var expected = map[string]grading{
 	// and a state word says what a link is doing, and neither is a value
 	// anybody stored. Read is only honest while every column is one of those,
 	// which replication_view_test.go holds the SQL to.
-	"pg.replication": {mcp: "read"},
+	"pg.replication.status": {mcp: "read"},
 
 	// Rows, of whatever the caller asked for. It was Read on the reasoning
 	// that a READ ONLY transaction mutates nothing — true, and the wrong
@@ -95,12 +95,12 @@ var expected = map[string]grading{
 	// theatre: anyone holding pg.query can already select from
 	// information_schema.columns. It carries no values by construction —
 	// schema_test.go is what holds that claim up.
-	"pg.schema.dump": {mcp: "read"},
+	"pg.schema": {mcp: "read"},
 
 	// The one that hands over rows in bulk. Write so it needs
 	// --allow-write pg, NeedsGrant so a person allows the call, and scoped
 	// on the table so the grant names one relation rather than the database.
-	"pg.table.dump": {mcp: "write", consent: "grant", scope: "table", bound: "caller"},
+	"pg.table.rows": {mcp: "write", consent: "grant", scope: "table", bound: "caller"},
 
 	// No blast radius a grant could name, so it does not reach the surface
 	// at all. NeedsGrant deliberately unset: a grant that can never be
@@ -208,8 +208,26 @@ func TestNothingHandsOverBulkRowsWithoutAPersonSayingSo(t *testing.T) {
 		if g.mcp == "never" || g.consent == "grant" {
 			continue
 		}
-		if strings.Contains(c.ID, ".dump") && c.ID != "pg.schema.dump" {
+		if strings.HasSuffix(c.ID, ".dump") || strings.HasSuffix(c.ID, ".rows") {
 			t.Errorf("%s reads in bulk, reaches MCP, and needs no grant", c.ID)
+		}
+	}
+}
+
+// `dump` names the backup and nothing else here. It was also the word for
+// reading the rows of one table and for describing a schema, so a reader who
+// met it could not tell a capability that writes a file the size of the
+// database from one that answers a question, and one of the three is the only
+// capability that refuses MCP outright. Rows and structure have their own
+// words; a capability added later with `dump` in its name has to be the
+// backup, which is the one HumanOnly capability that carries it.
+func TestDumpNamesTheBackupAndNothingElse(t *testing.T) {
+	for _, c := range Plugin().Capabilities {
+		if !slices.Contains(strings.Split(c.ID, "."), "dump") {
+			continue
+		}
+		if c.ID != "pg.dump" || !c.HumanOnly {
+			t.Errorf("%s: `dump` is the word for the backup (pg.dump, which refuses MCP), and this is neither", c.ID)
 		}
 	}
 }
@@ -278,7 +296,7 @@ func TestTheOverviewFormNeverSelectsTheQueryText(t *testing.T) {
 // that tier is a deliberate edit here and not a default.
 func TestOnlyDescribingCapabilitiesAreInTheReadTier(t *testing.T) {
 	describes := []string{"pg.status", "pg.database.list", "pg.table.list",
-		"pg.schema.dump", "pg.overview", "pg.replication"}
+		"pg.schema", "pg.overview", "pg.replication.status"}
 	for _, c := range Plugin().Capabilities {
 		if c.Safety != plugin.Read {
 			continue
