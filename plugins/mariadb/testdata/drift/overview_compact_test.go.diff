@@ -1,0 +1,30 @@
+- func TestAGaleraNodeHasARowOfItsOwnAndOnlyWhereWsrepIsOn(t *testing.T) {
+- 	rows := newOverviewFake(t, "mysql-11.4-galera-synced").compact(t)
+- 	if got, want := valueOf(rows, "cluster"), "ok — in the primary component and synced with 3 members"; got != want {
++ func TestAGroupReplicationMemberHasARowOfItsOwnAndStandaloneIsNotItsReplicationRow(t *testing.T) {
++ 	rows := newOverviewFake(t, captured("group-primary")).compact(t)
++ 	if got, want := valueOf(rows, "cluster"), "ok — online, and all 2 members are online"; got != want {
+- 		t.Errorf("replication = %q, want %q: a node of a cluster is not a standalone server", got, want)
++ 		t.Errorf("replication = %q, want %q", got, want)
+- 	rows = newOverviewFake(t, "mysql-11.4-standalone").compact(t)
+- 	if got := valueOf(rows, "cluster"); got != "<no such row>" {
+- 		t.Errorf("cluster = %q on a server without wsrep, want no row", got)
+- 	}
+- 
+- 	rows = newOverviewFake(t, "mysql-11.4-galera-split").compact(t)
+- 	if got := valueOf(rows, "cluster"); !strings.HasPrefix(got, "fail — not in the primary component") {
+- 		t.Errorf("cluster = %q, want the split first", got)
++ 	rows = newOverviewFake(t, captured("group-minority")).compact(t)
++ 	if got := valueOf(rows, "cluster"); !strings.HasPrefix(got, "fail — sees 1 member of 2") {
++ 		t.Errorf("cluster = %q, want the lost majority first", got)
+- 	if got, want := valueOf(rows, "status"), "fail — cluster: not in the primary component"; got != want {
+- 		t.Errorf("status = %q, want the split as the verdict: %q", got, want)
++ 	if got, want := valueOf(rows, "status"), "fail — cluster: sees 1 member of 2"; got != want {
++ 		t.Errorf("status = %q, want the lost majority as the verdict: %q", got, want)
+- 	rows = newOverviewFake(t, "mysql-11.4-galera-desynced").compact(t)
+- 	if got, want := valueOf(rows, "status"), "warn — cluster: state Donor/Desynced"; got != want {
++ 	rows = newOverviewFake(t, captured("group-nogrant")).compact(t)
++ 	if got, want := valueOf(rows, "cluster"), "could not be read — needs SELECT"; got != want {
++ 		t.Errorf("cluster = %q, want %q", got, want)
++ 	}
++ 	if got, want := valueOf(rows, "status"), "warn — cluster could not be read"; got != want {
