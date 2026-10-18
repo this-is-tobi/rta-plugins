@@ -36,6 +36,8 @@ case "$1 $2" in
 		exit 1
 	fi
 	cat ` + shellQuote(filepath.Join(c.dir, "secrets.json")) + ` ;;
+"get "*)
+	if [ -f ` + shellQuote(c.dir) + `/list-"$2".json ]; then cat ` + shellQuote(c.dir) + `/list-"$2".json; else echo '{"items":[]}'; fi ;;
 *) echo '{"items":[]}' ;;
 esac
 `
@@ -79,6 +81,13 @@ func (c *scriptedCluster) secrets(items []string) {
 func secretItem(namespace, name, crt, key string) string {
 	return `{"metadata":{"name":"` + name + `","namespace":"` + namespace + `"},"data":{"tls.crt":"` + crt +
 		`","tls.key":"` + base64.StdEncoding.EncodeToString([]byte(key)) + `"}}`
+}
+
+// list sets what the cluster answers to `get <resource>`: the items of the
+// list, as JSON objects.
+func (c *scriptedCluster) list(t *testing.T, resource string, items ...string) {
+	t.Helper()
+	c.write(t, "list-"+resource+".json", `{"items":[`+strings.Join(items, ",")+`]}`)
 }
 
 func (c *scriptedCluster) calls(t *testing.T) []string {

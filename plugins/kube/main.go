@@ -428,27 +428,37 @@ func Plugin() plugin.Plugin {
 				"that says whether a cluster can still take work when CPU and memory look fine. " +
 				"With `detail`: every node, deployments whose replicas are short, and the pods " +
 				"themselves.\n\nReads more than it names: every ResourceQuota and every " +
-				"TLS Secret in every namespace, on every run and regardless of any namespace " +
-				"narrowing, to report quota pressure and certificate expiry. The TLS Secrets " +
-				"arrive whole, private keys included (see kube.cert.list), so they are read at " +
-				"most every 15 minutes per context and shared with kube.cert.list, while the rest " +
-				"is read on every run. A credential that cannot list nodes still gets the rest: " +
-				"the node read is reported as unavailable and stepped over, not treated as a " +
-				"failure.",
+				"TLS Secret, to report quota pressure and certificate expiry — those of every " +
+				"namespace, or of the one `namespace` names, which is also what a profile that " +
+				"fences the namespace reads. The nodes and the namespace count are the " +
+				"cluster's whatever is named, and with a namespace the pod slots are not counted. " +
+				"The TLS Secrets arrive whole, private keys included (see kube.cert.list), so " +
+				"they are read at most every 15 minutes per context and shared with " +
+				"kube.cert.list, while the rest is read on every run. A credential that cannot " +
+				"list nodes still gets the rest: the node read is reported as unavailable and " +
+				"stepped over, not treated as a failure.",
 			Agent: "The context, whether the cluster answers, the namespace count, nodes that are not Ready, and " +
 				"every pod not serving (Failed, Pending, Unknown, stuck terminating, or Running without every container ready). " +
 				"A finished Job and a cordoned node are not faults and are not counted as such. Pod-slot " +
 				"headroom comes from the schedulable nodes' max-pods. With `detail`: every node, deployments " +
-				"short of replicas, and the pods. Reads every ResourceQuota and every TLS Secret in every " +
-				"namespace, whatever the namespace narrowing, to report quota pressure and certificate " +
-				"expiry; the Secrets, private keys included, at most every 15 minutes. A credential that " +
+				"short of replicas, and the pods. Reads the ResourceQuotas and TLS Secrets of every namespace, or " +
+				"of the one `namespace` names (nodes and namespace count stay the cluster's; pod slots are not " +
+				"counted then); the Secrets, private keys included, at most every 15 minutes. A credential that " +
 				"cannot list nodes still gets the rest.",
+			// No Scope, unlike the lists that take the same two inputs, and on
+			// purpose. An input a capability names as its Scope is the record a
+			// grant is checked against, which no profile may fill (see
+			// plugin.ProfileFillable), so a connection fenced to one namespace
+			// would refuse a call that does not name it. The overview names no
+			// record: its answer is the cluster's, narrowed when somebody asks,
+			// and a fence that holds one namespace is that ask, made once by the
+			// operator for every call through the connection.
 			Safety:     plugin.Read,
 			Idempotent: true,
 			Detailed:   true,
 			Refresh:    overviewRefresh,
 			Run:        runOverview,
-		}),
+		}, overviewNSFields()...),
 		{
 			// Not through cap(): every other capability takes a
 			// `--context` saying which cluster to read, and this one's
