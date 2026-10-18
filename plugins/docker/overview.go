@@ -26,7 +26,7 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 		// The daemon not answering is the headline rather than a failure:
 		// this is the capability somebody runs *because* something is wrong.
 		return view.KeyValue{Pairs: []view.Pair{
-			{Key: "daemon", Value: "did not answer — " + verr.Message},
+			{Key: "daemon", Value: daemonAnswer(verr.Code) + " — " + verr.Message},
 			{Key: "what to check", Value: hintOf(verr, c)},
 		}}, nil
 	}
@@ -111,6 +111,28 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 		page.Warnings = append(page.Warnings, *imgErr)
 	}
 	return page, nil
+}
+
+// daemonAnswer is what the headline row says happened, in the four ways
+// kube.overview says the same four: the daemon was asked and said nothing, was
+// asked and said no, was never asked, or something else, which claims nothing.
+//
+// "did not answer" was said of every one of them, and it sends somebody to
+// start a daemon or check a network. For a docker that is not on the PATH, a
+// context that does not exist or a socket that refused this account, the daemon
+// is fine and the reader is sent the wrong way. The default is the vaguest of
+// the four for the reason kube's is: a code nobody mapped, docker.failed
+// above all, is as likely a daemon that answered as one that did not.
+func daemonAnswer(code string) string {
+	switch code {
+	case "docker.unreachable":
+		return "did not answer"
+	case "docker.denied":
+		return "answered, and refused"
+	case "docker.cli.missing", "docker.context.unknown", "docker.cancelled":
+		return "was never contacted"
+	}
+	return "could not be read"
 }
 
 // whatIsWrong is the word beside a container the overview lists as worth
