@@ -327,9 +327,9 @@ func TestAnEmptyWideBackupListOffersTheListingOfClusters(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	body := v.(view.Text).Body
-	if !strings.Contains(body, "No backups of shop in every namespace.") ||
-		!strings.Contains(body, "`rta cnpg list --all-namespaces` shows where a cluster of that name is.") {
+	body := v.(view.Table).Empty
+	if !strings.Contains(body, "no backups of shop in every namespace") ||
+		!strings.Contains(body, "`rta cnpg list --all-namespaces` shows where a cluster of that name is") {
 		t.Errorf("body = %q", body)
 	}
 }
@@ -424,14 +424,14 @@ func TestAnEmptyVolumeReadSaysWhatItLookedFor(t *testing.T) {
 		values map[string]any
 		want   string
 	}{
-		"named":   {map[string]any{"cluster": "shop", "namespace": "prod"}, "No volumes labelled cnpg.io/cluster=shop in namespace prod."},
-		"unnamed": {map[string]any{"all-namespaces": true}, "No volumes labelled cnpg.io/cluster in every namespace."},
+		"named":   {map[string]any{"cluster": "shop", "namespace": "prod"}, "no volumes labelled cnpg.io/cluster=shop in namespace prod"},
+		"unnamed": {map[string]any{"all-namespaces": true}, "no volumes labelled cnpg.io/cluster in every namespace"},
 	} {
 		v, err := runStorage(context.Background(), req(tc.values))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if body := v.(view.Text).Body; !strings.Contains(body, tc.want) {
+		if body := v.(view.Table).Empty; !strings.Contains(body, tc.want) {
 			t.Errorf("%s: body = %q, want %q", name, body, tc.want)
 		}
 	}
@@ -452,22 +452,22 @@ func TestAnEmptyClusterListSaysWhichNamespaceItReadAndHowToReadTheRest(t *testin
 		not    string
 	}{
 		{"no namespace", map[string]any{}, plugin.SurfaceCLI,
-			[]string{"No CloudNativePG clusters in the context's own namespace.", "`rta cnpg list --all-namespaces` reads every namespace."}, ""},
+			[]string{"no CloudNativePG clusters in the context's own namespace", "`rta cnpg list --all-namespaces` reads every namespace"}, ""},
 		{"a context and no namespace", map[string]any{"context": "kind"}, plugin.SurfaceCLI,
-			[]string{"in context kind, the context's own namespace.", "`rta cnpg list --all-namespaces --context kind` reads every namespace."}, ""},
+			[]string{"in context kind, the context's own namespace", "`rta cnpg list --all-namespaces --context kind` reads every namespace"}, ""},
 		{"a namespace", map[string]any{"namespace": "prod"}, plugin.SurfaceCLI,
-			[]string{"No CloudNativePG clusters in namespace prod.", "reads every namespace."}, ""},
+			[]string{"no CloudNativePG clusters in namespace prod", "reads every namespace"}, ""},
 		{"an agent", map[string]any{}, plugin.SurfaceMCP,
-			[]string{"the `cnpg_list` tool with the \"all-namespaces\" argument reads every namespace."}, "rta cnpg"},
+			[]string{"the `cnpg_list` tool with the \"all-namespaces\" argument reads every namespace"}, "rta cnpg"},
 		{"every namespace", map[string]any{"all-namespaces": true}, plugin.SurfaceCLI,
-			[]string{"No CloudNativePG clusters in every namespace."}, "reads every namespace"},
+			[]string{"no CloudNativePG clusters in every namespace"}, "reads every namespace"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			v, err := runList(context.Background(), req(tc.values).WithSurface(tc.sf))
 			if err != nil {
 				t.Fatal(err)
 			}
-			body := v.(view.Text).Body
+			body := v.(view.Table).Empty
 			for _, want := range tc.want {
 				if !strings.Contains(body, want) {
 					t.Errorf("body = %q, want %q in it", body, want)

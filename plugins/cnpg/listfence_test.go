@@ -63,8 +63,8 @@ func TestAnEmptyListForANamedClusterSaysWhichOneItLookedFor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	body := v.(view.Text).Body
-	if !strings.Contains(body, `No CloudNativePG cluster called "abrege-pg-cluster" in namespace prod.`) {
+	body := v.(view.Table).Empty
+	if !strings.Contains(body, `no CloudNativePG cluster called "abrege-pg-cluster" in namespace prod`) {
 		t.Errorf("body = %q", body)
 	}
 }

@@ -371,17 +371,18 @@ func TestTheListReadsWhatKubectlActuallyPrints(t *testing.T) {
 	}
 }
 
-// An empty answer is a sentence, not an empty table: "no clusters here" and
-// "a table with no rows" read differently to somebody who is checking.
+// "No clusters here" and "a table with no rows" read differently to somebody
+// who is checking, so the empty table carries the sentence a person is told in
+// its place (view.Table.Empty), and a program still reads the table.
 func TestNoClustersIsSaidInWords(t *testing.T) {
 	serves(t, clusterList{})
 	v, err := runList(context.Background(), req(map[string]any{"namespace": "empty"}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	text, ok := v.(view.Text)
-	if !ok || !strings.Contains(text.Body, "namespace empty") {
-		t.Errorf("view = %#v, want a sentence naming where it looked", v)
+	tbl, ok := v.(view.Table)
+	if !ok || !strings.Contains(tbl.Empty, "namespace empty") {
+		t.Errorf("view = %#v, want a table whose sentence names where it looked", v)
 	}
 }
 

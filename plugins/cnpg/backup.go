@@ -275,9 +275,6 @@ func runBackupList(ctx context.Context, req plugin.Request) (view.View, error) {
 		return nil, verr
 	}
 	all := backupsFor(list.Items, name)
-	if len(all) == 0 {
-		return view.Text{Body: emptyBackupBody(name, s)}, nil
-	}
 	rows, cut := cutBackups(all, req.Int("limit"))
 
 	t := view.Table{Columns: s.leading(
@@ -294,6 +291,9 @@ func runBackupList(ctx context.Context, req plugin.Request) (view.View, error) {
 	// The total is every backup there is, not the rows on hand, so a cut list
 	// says how much of the whole it is.
 	t.Total = len(all)
+	if len(all) == 0 {
+		t.Empty = emptyBackups(name, s)
+	}
 	if cut {
 		t.Warnings = append(t.Warnings, partialBackups(s, len(rows), len(all)))
 	}
@@ -374,24 +374,25 @@ func backupErrors(s selection, rows []backupObject) view.Table {
 	return t
 }
 
-// emptyBackupBody tells the two empties apart, because they send somebody to
-// different places: a cluster nothing has ever backed up is a configuration
-// question, and a namespace with no Backup objects at all may simply be one
-// where the schedule has not fired yet.
+// emptyBackups is the sentence an empty listing carries (view.Table.Empty). It
+// tells the two empties apart, because they send somebody to different places:
+// a cluster nothing has ever backed up is a configuration question, and a
+// namespace with no Backup objects at all may simply be one where the schedule
+// has not fired yet.
 //
 // Read across every namespace there is no one place to ask whether a cluster
 // is configured, so the pointer is the listing of the clusters instead.
-func emptyBackupBody(cluster string, s selection) string {
+func emptyBackups(cluster string, s selection) string {
 	switch {
 	case cluster != "" && s.allNamespace:
-		return "No backups of " + cluster + " in " + s.where() + ".\n\n" +
-			s.caller().listEverywhere() + " shows where a cluster of that name is."
+		return "no backups of " + cluster + " in " + s.where() + " — " +
+			s.caller().listEverywhere() + " shows where a cluster of that name is"
 	case cluster != "":
 		status := append([]plugin.Arg{{Name: "cluster", Value: cluster}}, s.callArgs(s.namespace)...)
-		return "No backups of " + cluster + " in " + s.where() + ".\n\n" +
-			"`" + s.sf.Call("cnpg.status", status...) + "` says whether anything is configured to take one."
+		return "no backups of " + cluster + " in " + s.where() + " — " +
+			"`" + s.sf.Call("cnpg.status", status...) + "` says whether anything is configured to take one"
 	}
-	return "No CloudNativePG backups in " + s.where() + "."
+	return "no CloudNativePG backups in " + s.where()
 }
 
 func backupRequestCapability() plugin.Capability {

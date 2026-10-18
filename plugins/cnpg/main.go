@@ -328,10 +328,6 @@ func runList(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr := getResource(ctx, s, clusterCRD, "", &list, extra...); verr != nil {
 		return nil, verr
 	}
-	if len(list.Items) == 0 {
-		return view.Text{Body: emptyClusterBody(name, s)}, nil
-	}
-
 	t := view.Table{Columns: []view.Column{
 		{Name: "Namespace"}, {Name: "Name"},
 		{Name: "Ready"}, {Name: "Status", Kind: view.KindStatus},
@@ -352,21 +348,25 @@ func runList(ctx context.Context, req plugin.Request) (view.View, error) {
 		})
 	}
 	t.Total = len(t.Rows)
+	if len(t.Rows) == 0 {
+		t.Empty = emptyClusters(name, s)
+	}
 	return t, nil
 }
 
-// emptyClusterBody says where it looked, and what that was: a call that names
-// no namespace reads the context's own and not the whole cluster, and an empty
-// answer that did not say so read as "there are none" to somebody whose
-// clusters live in another namespace. Unless the read already covered them
-// all, it names the call that does.
-func emptyClusterBody(name string, s selection) string {
-	body := "No CloudNativePG clusters in " + s.where() + "."
+// emptyClusters is the sentence an empty listing carries (view.Table.Empty). It
+// says where it looked, and what that was: a call that names no namespace reads
+// the context's own and not the whole cluster, and an empty answer that did not
+// say so read as "there are none" to somebody whose clusters live in another
+// namespace. Unless the read already covered them all, it names the call that
+// does.
+func emptyClusters(name string, s selection) string {
+	body := "no CloudNativePG clusters in " + s.where()
 	if name != "" {
-		body = "No CloudNativePG cluster called " + strconv.Quote(name) + " in " + s.where() + "."
+		body = "no CloudNativePG cluster called " + strconv.Quote(name) + " in " + s.where()
 	}
 	if !s.allNamespace {
-		body += "\n\n" + s.caller().listEverywhere() + " reads every namespace."
+		body += " — " + s.caller().listEverywhere() + " reads every namespace"
 	}
 	return body
 }

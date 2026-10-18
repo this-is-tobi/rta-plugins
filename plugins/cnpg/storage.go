@@ -198,10 +198,6 @@ func runStorage(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr := getResource(ctx, s, "persistentvolumeclaims", "", &list, "-l", selector); verr != nil {
 		return nil, verr
 	}
-	if len(list.Items) == 0 {
-		return view.Text{Body: emptyStorageBody(name, s)}, nil
-	}
-
 	// The Cluster column is for the read that does not name one: with a name
 	// it would say the same thing on every row.
 	cols := []view.Column{{Name: "Volume"}, {Name: "Instance"}, {Name: "Holds"},
@@ -222,6 +218,9 @@ func runStorage(ctx context.Context, req plugin.Request) (view.View, error) {
 		t.Rows = append(t.Rows, s.lead(p.Metadata.Namespace, cells...))
 	}
 	t.Total = len(t.Rows)
+	if len(t.Rows) == 0 {
+		t.Empty = emptyVolumes(name, s)
+	}
 
 	if problems := storageProblems(s, list.Items); len(problems.Rows) > 0 {
 		return view.Sections{Items: []view.Section{
@@ -232,15 +231,15 @@ func runStorage(ctx context.Context, req plugin.Request) (view.View, error) {
 	return t, nil
 }
 
-// emptyStorageBody says what was looked for and where, and which call shows
-// where the clusters are.
-func emptyStorageBody(name string, s selection) string {
-	what := "No volumes labelled " + pvcSelector
+// emptyVolumes is the sentence an empty read carries (view.Table.Empty). It says
+// what was looked for and where, and which call shows where the clusters are.
+func emptyVolumes(name string, s selection) string {
+	what := "no volumes labelled " + pvcSelector
 	if name != "" {
 		what += "=" + name
 	}
-	return what + " in " + s.where() + ".\n\n" +
-		s.caller().listEverywhere() + " shows which clusters exist, and in which namespace."
+	return what + " in " + s.where() + " — " +
+		s.caller().listEverywhere() + " shows which clusters exist, and in which namespace"
 }
 
 func storageProblems(s selection, items []pvc) view.Table {
