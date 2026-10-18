@@ -100,7 +100,7 @@ func (s *session) sessionStats(ctx context.Context) (view.View, *view.Error) {
 	for _, st := range stats {
 		t.Rows = append(t.Rows, []string{listed(st.ClientID), st.Active, st.Offline})
 	}
-	return finish(t), nil
+	return finish(withEmpty(t, "no active sessions")), nil
 }
 
 func sessionTable(sessions []userSessionRep) view.Table {
@@ -115,5 +115,5 @@ func sessionTable(sessions []userSessionRep) view.Table {
 		t.Rows = append(t.Rows, []string{listed(se.Username), listed(se.IPAddress), stamp(se.Start), stamp(se.LastAccess),
 			listedAll(clients)})
 	}
-	return finish(t)
+	return finish(withEmpty(t, "no sessions"))
 }

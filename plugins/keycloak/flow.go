@@ -70,7 +70,7 @@ func (s *session) flowTable(ctx context.Context) (view.View, *view.Error) {
 		}
 		t.Rows = append(t.Rows, []string{listed(f.Alias), strings.Join(bindings[f.Alias], ", "), yesNo(f.BuiltIn), f.Description})
 	}
-	return finish(t), nil
+	return finish(withEmpty(t, "no flows")), nil
 }
 
 func flowShowCapability() plugin.Capability {
