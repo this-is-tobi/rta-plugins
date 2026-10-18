@@ -20,6 +20,18 @@ import (
 // seconds is the pace kv.overview keeps for the same reason.
 const overviewRefresh = 30 * time.Second
 
+// overviewTimeout is how long the overview waits for a service in all, for the
+// few requests of a page together. minio-go waits a minute for the headers of
+// each response, so an endpoint that took the connection and never answered held
+// the page for that long, and a tile for as long again at every refresh. A
+// variable so a test need not wait ten seconds to see it given up on.
+//
+// The overview's alone: a download or an upload moves the data and is the
+// caller's to wait for. Bounding the page and not each request is deliberate
+// here, since a page is one request, or three for a bucket, or the three or four
+// listings of a bucket's first two thousand keys, and none of them is long.
+var overviewTimeout = 10 * time.Second
+
 // walkKeys bounds how much of a bucket the detailed page reads to say what it
 // holds: one request per thousand keys, the same bound s3.object.tree reads
 // before it says where it stopped.
@@ -65,7 +77,8 @@ func overviewCapability() plugin.Capability {
 			"it keeps versions, and with `detail` how many objects it holds, how large they are " +
 			"and when the newest was written (counted over the first " + strconv.Itoa(walkKeys) +
 			" keys, and it says when it stopped). With a `prefix`, only the keys under it are " +
-			"counted — a profile that fences `prefix` holds the page to it.",
+			"counted — a profile that fences `prefix` holds the page to it. A service that has not " +
+			"answered in ten seconds is a timeout.",
 		Run: runOverview,
 	}, optionalBucketField("only this bucket — every bucket the credentials can see when omitted"),
 		plugin.Field{Name: "prefix", Short: "p", Type: plugin.String, Config: "prefix",
@@ -74,6 +87,8 @@ func overviewCapability() plugin.Capability {
 }
 
 func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
+	ctx, cancel := context.WithTimeout(ctx, overviewTimeout)
+	defer cancel()
 	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
 		if bucket := strings.TrimSpace(req.String("bucket")); bucket != "" {
 			return targetOverview(ctx, req, client, bucket)
