@@ -4,3 +4,9 @@
 + // because the answer decides whether plugins/mariadb has anything to add.
 - 	for _, marker := range []string{"MySQL", "Percona"} {
 + 	for _, marker := range []string{"MariaDB", "Percona"} {
+- 			"(a Galera node's state, only where wsrep is on) and `server` (the " +
++ 			"(a Group Replication member's state, only where one is configured) and `server` (the " +
+- 			"running and the slow queries since start when there are any, the Galera node's state " +
+- 			"where wsrep is on, and the address and version. A row the account " +
++ 			"running and the slow queries since start when there are any, the Group Replication " +
++ 			"member's state where one is configured, and the address and version. A row the account " +

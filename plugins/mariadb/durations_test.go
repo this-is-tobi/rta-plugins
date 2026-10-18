@@ -42,9 +42,11 @@ func TestDurationsReadTheWayAPersonTypesThem(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// An uptime is the one duration that has a spelling of its own, the same in
+	// every plugin that says one: days and hours, hours and minutes under a day.
 	for _, p := range status.(view.KeyValue).Pairs {
-		if p.Key == "uptime" && p.Value != "1h30m" {
-			t.Errorf("an uptime of an hour and a half reads %q, want 1h30m", p.Value)
+		if p.Key == "uptime" && p.Value != "1h 30m" {
+			t.Errorf("an uptime of an hour and a half reads %q, want 1h 30m", p.Value)
 		}
 	}
 }
