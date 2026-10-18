@@ -824,7 +824,9 @@ func Plugin() plugin.Plugin {
 					"positions, standbys with their " +
 					"lag, slots, what needs attention), the largest tables and current activity — " +
 					"everything pg.status, pg.replication.status, pg.table.list and pg.activity would otherwise " +
-					"take four calls to assemble, through the one connection this call already opened.",
+					"take four calls to assemble, through the one connection this call already opened. With a " +
+					"`schema` — named, or the one a profile fences with `only: schema:` — the largest tables " +
+					"are those of that schema alone.",
 				Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 					return withConn(ctx, req, func(ctx context.Context, conn *pgx.Conn) (view.View, error) {
 						if req.Bool("detail") {
@@ -833,7 +835,15 @@ func Plugin() plugin.Plugin {
 						return compactOverview(ctx, conn, req)
 					})
 				},
-			}),
+			},
+				// Declared so that a profile's `only: schema:` has something to hold
+				// the largest tables to, the one thing here that names a schema: a
+				// fence binds the inputs a capability declares, and without this the
+				// detail listed the tables of every schema beside a fence written to
+				// keep them out. The same input, with the Config key, pg.table.list
+				// declares; the listing reads it from the request.
+				plugin.Field{Name: "schema", Short: "s", Type: plugin.String, Config: "schema", Default: "",
+					Help: "only this schema's tables in the detail; empty means all"}),
 		},
 	}
 }
