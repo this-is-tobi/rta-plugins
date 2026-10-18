@@ -213,6 +213,7 @@ func runPointsScroll(ctx context.Context, req plugin.Request) (view.View, error)
 		t.Rows = append(t.Rows, row)
 	}
 	t.Total = len(t.Rows)
+	t.Empty = "no points in " + plugin.ListedName(name)
 	if out.NextPageOffset != nil {
 		next := fmt.Sprint(out.NextPageOffset)
 		t.Page = &view.Cursor{Next: next}

@@ -244,6 +244,7 @@ func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState)
 		}
 	}
 	t.Total = len(t.Rows)
+	t.Empty = "no collections"
 	return t, nil
 }
 
