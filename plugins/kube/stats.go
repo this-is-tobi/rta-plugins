@@ -322,7 +322,7 @@ func runMetricsPressure(ctx context.Context, req plugin.Request) (view.View, err
 		}
 		out = append(out, append([]string{r.node}, r.cells...))
 	}
-	table := view.Table{Columns: cols, Rows: out, Total: len(out)}
+	table := withEmpty(view.Table{Columns: cols, Rows: out, Total: len(out)}, "no nodes")
 	if len(unsupported) == 0 {
 		return table, nil
 	}
@@ -463,7 +463,7 @@ func runPVCUsage(ctx context.Context, req plugin.Request) (view.View, error) {
 		out = append(out, []string{u.ns, u.name, format.Bytes(u.used), format.Bytes(u.capacity),
 			percentOf(float64(u.used), float64(u.capacity))})
 	}
-	table := view.Table{Columns: cols, Rows: out, Total: len(out)}
+	table := withEmpty(view.Table{Columns: cols, Rows: out, Total: len(out)}, "no volume claims are mounted")
 	if len(failed) == 0 {
 		return table, nil
 	}

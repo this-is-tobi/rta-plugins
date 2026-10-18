@@ -234,7 +234,8 @@ func runMetricsPod(ctx context.Context, req plugin.Request) (view.View, error) {
 		}
 		out = append(out, append(line, r.name, cpuCores(r.cpu), r.cpuPct, format.Bytes(r.mem), r.memPct))
 	}
-	return view.Table{Columns: cols, Rows: out, Total: len(out)}, nil
+	return withEmpty(view.Table{Columns: cols, Rows: out, Total: len(out)},
+		"no pod metrics in "+s.scopeWords()), nil
 }
 
 // podBudget is one pod's summed container requests/limits — the ceiling
@@ -310,5 +311,5 @@ func runMetricsNode(ctx context.Context, req plugin.Request) (view.View, error) 
 		}
 		rows = append(rows, []string{m.Metadata.Name, cpuCores(cpu), cpuPct, format.Bytes(mem), memPct})
 	}
-	return view.Table{Columns: cols, Rows: rows, Total: len(rows)}, nil
+	return withEmpty(view.Table{Columns: cols, Rows: rows, Total: len(rows)}, "no node metrics"), nil
 }
