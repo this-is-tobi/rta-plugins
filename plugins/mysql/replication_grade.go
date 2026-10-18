@@ -29,8 +29,14 @@ const (
 	lagFail = 10 * time.Minute
 )
 
+// facet is one finding about what a server is in a replication topology. The
+// overview's compact form reads two more words of it than the summary table
+// does: brief is what a healthy one is doing, in a few words, and short is why
+// one that is not is not, without the parts of the detail that explain or
+// qualify it.
 type facet struct {
 	role, status, detail string
+	brief, short         string
 }
 
 // channelRow is one replication source as the table shows it.

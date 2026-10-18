@@ -101,6 +101,10 @@ type state struct {
 	// is a partial answer, and everything built from it must say so.
 	unread  map[section]*view.Error
 	cluster clusterPart
+	// clusterElsewhere is set on a state whose clustering layer another row
+	// reads: what is left is not "standalone" for the replication row, since a
+	// member of a group is not a server that is in none.
+	clusterElsewhere bool
 }
 
 // clusterPart is what a clustering layer the dialect knows adds: nothing for
