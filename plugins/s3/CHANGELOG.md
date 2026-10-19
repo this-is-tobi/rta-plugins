@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.12.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.11.1...plugins/s3/v0.12.0) (2026-10-19)
+
+
+### Features
+
+* **s3:** complete the buckets of a list as they are typed ([50f8c76](https://github.com/this-is-tobi/rta-plugins/commit/50f8c760ee6150809883621265139a8321108028))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.49.0 ([8f09b93](https://github.com/this-is-tobi/rta-plugins/commit/8f09b93fffb6458cec01f634d78c839ca0971d9f))
+
 ## [0.11.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.11.0...plugins/s3/v0.11.1) (2026-10-19)
 
 

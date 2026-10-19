@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.9.0...plugins/kube/v0.10.0) (2026-10-19)
+
+
+### Features
+
+* **kube:** complete the namespaces of a list as they are typed ([e5feeee](https://github.com/this-is-tobi/rta-plugins/commit/e5feeee9afe9605af96c5cb7e7e26425de18a777))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.49.0 ([8f09b93](https://github.com/this-is-tobi/rta-plugins/commit/8f09b93fffb6458cec01f634d78c839ca0971d9f))
+
 ## [0.9.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.8.0...plugins/kube/v0.9.0) (2026-10-19)
 
 
