@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.8.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.7.0...plugins/keycloak/v0.8.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **keycloak:** a script or an agent that matches the code of a keycloak failure changes `keycloak.token.rejected` to `keycloak.token.auth.failed` and `keycloak.auth.grant` to `keycloak.grant.denied`, and matches `keycloak.request.failed` where the token endpoint answered with a server error, a rate limit or something that is no OAuth refusal: that was `keycloak.auth.failed`. A keycloak.overview or keycloak.audit whose token the Admin API refused on a read after the first is an error and no longer a page. The messages of the codes that were renamed are the same. No README changes, since no declaration names these codes.
+
+### Bug Fixes
+
+* **keycloak:** a refused token is auth.failed, a refused grant denied, an outage neither ([dccac0c](https://github.com/this-is-tobi/rta-plugins/commit/dccac0c101d8789d98b73ed95d00cea86a68f482))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.48.0 ([3c51c18](https://github.com/this-is-tobi/rta-plugins/commit/3c51c1848c10bcffaa8571f5f8009b9d08de8572))
+
 ## [0.7.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.6.0...plugins/keycloak/v0.7.0) (2026-10-19)
 
 

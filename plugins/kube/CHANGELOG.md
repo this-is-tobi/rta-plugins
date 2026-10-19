@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.9.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.8.0...plugins/kube/v0.9.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **kube:** on a connection whose profile fences the namespace, kube.namespace.list and kube.pvc.usage show the namespaces of the fence and no others, and refuse a namespace outside it, where they showed every namespace of the cluster. An operator whose config sets plugins.kube.namespace for the lists of objects now narrows these two to it as well: the key is read by every capability that declares the input, and a call that names `--namespace ''` (an empty array over MCP) shows everything again where no fence forbids it. Both tools gain a `namespace` array in the schema an agent is shown.
+* **kube:** `namespace` of the eight is an array over MCP. An agent that sent a string should send ["name"]; a bare string is still read as one name by the host, but a client that validates against the published schema rejects it. The command line is compatible (`--namespace x` works, and repeats or takes commas), and a grant that names a namespace still covers a call that names that namespace. The live suggestion of the cluster's namespaces on the input is gone until the host accepts live completion on a list, since it does so on text only; under a fence it completes from the fence. A name that is not a DNS label (`a.b`, `a/b`, a capital) is kube.name.invalid, where the looser rule for a context let it through. Pods that tie exactly on memory and cpu pressure in the table of kube.metrics.pod are ordered by namespace and name, where the order between them was not defined. A list under plugins.kube.namespace is read by the eight and the overview, and kube.serviceaccount.provision and .revoke, which declare the key as one text, refuse every call while it is a list: write a single name there.
+* **kube:** kube.metrics.pod with no namespace and no all-namespaces answered with the usage of every pod of the cluster, and answers with that of the pods of the context's own namespace, each beside its limit. A script or an agent that relied on the cluster-wide default passes all-namespaces (--all-namespaces, or all-namespaces: true over MCP) to have it back, which a profile that fences the namespace refuses.
+* **kube:** a script or an agent that matches the code of a kube failure changes `kube.unauthorized` to `kube.auth.failed` and `kube.forbidden` to `kube.denied`, and matches `kube.login` or `kube.credential.missing` where a credential plugin failed in words that were `kube.unauthorized` before. kube.overview on a cluster that answers 401 is an error coded `kube.auth.failed` and no longer a page whose status reads "fail": a reader of that page reads the error. The other messages and hints are the same. No README changes, since no declaration names these codes. The comment on CredentialRefused and the pages of rta's documentation that list the codes a tile keeps refreshing name the old ones, and change in rta with the release that carries this.
+
+### Features
+
+* **kube:** the lists of objects read a list of namespaces, one call per namespace ([e38f02e](https://github.com/this-is-tobi/rta-plugins/commit/e38f02e377d1af8e897a27445cb28e62b9a6b291))
+
+
+### Bug Fixes
+
+* **kube:** name a refused credential kube.auth.failed or kube.denied ([1bd171d](https://github.com/this-is-tobi/rta-plugins/commit/1bd171d6edd06c6fd0a7dfc8c3f6bff5bc1b4258))
+* **kube:** the namespace list and the volume usage hold to a fence on the namespace ([0c56da8](https://github.com/this-is-tobi/rta-plugins/commit/0c56da87d0880f708d691d9a5611a4d3294a3256))
+* **kube:** the pod usage of no namespace is the context's own, not the cluster's ([377e248](https://github.com/this-is-tobi/rta-plugins/commit/377e248681f3b71407b6886d5125864c47932402))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.48.0 ([3c51c18](https://github.com/this-is-tobi/rta-plugins/commit/3c51c1848c10bcffaa8571f5f8009b9d08de8572))
+
 ## [0.8.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.7.0...plugins/kube/v0.8.0) (2026-10-19)
 
 
