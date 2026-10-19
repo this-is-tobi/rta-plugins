@@ -213,7 +213,7 @@ func (o outcome[T]) reason() string { return "could not be read — " + firstLin
 // way, so asking again is only waiting for the same answer.
 func clusterWide(verr *view.Error) bool {
 	switch verr.Code {
-	case "cnpg.unreachable", "cnpg.unauthenticated", "cnpg.context.none", "cnpg.kubectl.missing",
+	case "cnpg.unreachable", "cnpg.auth.failed", "cnpg.login", "cnpg.context.none", "cnpg.kubectl.missing",
 		"cnpg.crd.missing", "cnpg.resource.unserved":
 		return true
 	}
@@ -300,6 +300,17 @@ func settle[T any](s selection, outs []outcome[T]) (reading[T], *view.Error) {
 	}
 	if len(outs) == 1 {
 		return r, outs[0].err
+	}
+	// **A credential the API server did not accept is the page's error, whichever
+	// namespaces answered.** A dashboard stops asking a tile whose credential was
+	// refused twice, and reads that off the error a call returns
+	// (view.Error.CredentialRefused): a refusal set down as a row, with warnings
+	// beside it, is one it never sees. Only the 401, which is the credential's and
+	// the same in every namespace; a 403 is the namespace's, and the row it was.
+	for _, o := range r.unread {
+		if o.err.Code == "cnpg.auth.failed" {
+			return r, o.err
+		}
 	}
 	if len(r.unread) == len(outs) {
 		for _, o := range r.unread {

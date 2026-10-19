@@ -92,8 +92,8 @@ func TestARefusalNamesTheResourceAndTheVerbThatWasActuallyRefused(t *testing.T) 
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := classifyAs(t, tc.stderr, tc.args...)
-			if got.Code != "cnpg.forbidden" {
-				t.Fatalf("code = %q, want cnpg.forbidden", got.Code)
+			if got.Code != "cnpg.denied" {
+				t.Fatalf("code = %q, want cnpg.denied", got.Code)
 			}
 			if got.Message != tc.message {
 				t.Errorf("message = %q, want %q", got.Message, tc.message)
@@ -196,7 +196,7 @@ exit 1
 `)
 	_, err := runStorage(context.Background(), req(map[string]any{"cluster": "shop", "namespace": "prod"}))
 	verr := asViewError(t, err)
-	if verr.Code != "cnpg.forbidden" || !strings.Contains(verr.Message, "list persistentvolumeclaims in namespace prod") {
+	if verr.Code != "cnpg.denied" || !strings.Contains(verr.Message, "list persistentvolumeclaims in namespace prod") {
 		t.Errorf("got %q %q, want the refusal of the volume read", verr.Code, verr.Message)
 	}
 }

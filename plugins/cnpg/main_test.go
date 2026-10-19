@@ -418,12 +418,24 @@ exit 1
 // anywhere: this plugin exists to be usable behind a proxy handing out
 // short-lived credentials, so an expired one is the ordinary failure and
 // reporting it as RBAC sends people to argue with the wrong team.
+//
+// The same table holds the other line a dashboard draws: it stops asking a tile
+// whose credential was refused twice (view.Error.CredentialRefused), and only
+// the API server answering 401 or 403 is that. A credential plugin that failed
+// before any request was made, a cluster that does not answer and a kubeconfig
+// with no context are not, and a tile that stopped asking after them would be
+// hiding a lapsed session or an outage. Each is a whole call refused, so the
+// code is the one the caller reads.
 func TestAnExpiredLoginIsNotReportedAsRBAC(t *testing.T) {
-	for _, tc := range []struct{ stderr, code string }{
-		{`error: You must be logged in to the server (Unauthorized)`, "cnpg.unauthenticated"},
-		{`Unable to connect to the server: getting credentials: exec: executable tsh failed`,
-			"cnpg.unauthenticated"},
-		{`Error from server (Forbidden): clusters.postgresql.cnpg.io is forbidden`, "cnpg.forbidden"},
+	for _, tc := range []struct {
+		stderr, code string
+		refused      bool
+	}{
+		{`error: You must be logged in to the server (Unauthorized)`, "cnpg.auth.failed", true},
+		{`Unable to connect to the server: getting credentials: exec: executable tsh failed`, "cnpg.login", false},
+		{`Error from server (Forbidden): clusters.postgresql.cnpg.io is forbidden`, "cnpg.denied", true},
+		{`Unable to connect to the server: dial tcp 10.0.0.1:6443: connect: no route to host`, "cnpg.unreachable", false},
+		{`error: current-context is not set`, "cnpg.context.none", false},
 	} {
 		fakeKubectl(t, "echo '"+tc.stderr+"' >&2\nexit 1\n")
 		_, err := runList(context.Background(), req(nil))
@@ -434,6 +446,23 @@ func TestAnExpiredLoginIsNotReportedAsRBAC(t *testing.T) {
 		if verr.Code != tc.code {
 			t.Errorf("%q → %q, want %q", tc.stderr, verr.Code, tc.code)
 		}
+		if got := verr.CredentialRefused(); got != tc.refused {
+			t.Errorf("%s.CredentialRefused() = %v, want %v", verr.Code, got, tc.refused)
+		}
+	}
+}
+
+// A credential plugin that failed and an API server that answered 401 are one
+// failure to a person and two to the cluster-wide check: neither is the one
+// namespace's, so the others in a list are not asked again.
+func TestAFailedCredentialEndsAListOfNamespacesLikeAnUnreachableCluster(t *testing.T) {
+	for _, code := range []string{"cnpg.auth.failed", "cnpg.login"} {
+		if !clusterWide(view.Errorf(code, "x")) {
+			t.Errorf("%s is read as one namespace's trouble, and asked again for each of the others", code)
+		}
+	}
+	if clusterWide(view.Errorf("cnpg.denied", "x")) {
+		t.Error("cnpg.denied ends the queue, though another namespace may be one the credential can read")
 	}
 }
 

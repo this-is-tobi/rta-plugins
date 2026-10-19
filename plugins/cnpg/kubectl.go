@@ -361,8 +361,8 @@ func refusesSecrets(args []string) *view.Error {
 func classify(ctx context.Context, err error, stderr string, args []string, by caller) *view.Error {
 	s := strings.TrimSpace(stderr)
 	// A timeout has the code of a refused connection (below), and a refusal by
-	// the cluster (denied) is forbidden: plugins/kube gives the same two
-	// conditions kube.unreachable and kube.forbidden. A hung cluster read
+	// the cluster is cnpg.denied: plugins/kube gives the same two
+	// conditions kube.unreachable and kube.denied. A hung cluster read
 	// cnpg.timeout here and kube.unreachable beside it, for the same kubectl
 	// waiting on the same API server.
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
@@ -379,12 +379,24 @@ func classify(ctx context.Context, err error, stderr string, args []string, by c
 		}
 		return view.Errorf("cnpg.kubectl.failed", "running kubectl: %v", err)
 	}
+	// The codes below that a refused credential gets end `.auth.failed` and `.denied`
+	// on purpose: a dashboard stops asking a tile whose credential was refused twice
+	// and reads that off those endings (view.Error.CredentialRefused). cnpg.login has
+	// neither — the credential plugin failed before there was a request to refuse, so
+	// a lapsed session or a plugin that cannot reach its own service is not a
+	// credential the cluster turned down, and a tile that stopped asking after it
+	// would be hiding an outage. plugins/kube draws the same line with kube.login.
 	switch {
-	case notAuthenticated(s):
-		return view.Errorf("cnpg.unauthenticated", "this cluster does not know who you are").
+	case credentialUnavailable(s):
+		return view.Errorf("cnpg.login", "kubectl could not get a credential for this context").
 			WithHint("nothing was refused — the request never got that far. Whatever " +
 				"issues your cluster credentials (`tsh kube login`, `aws eks get-token`, " +
 				"`gcloud`, an OIDC refresh) needs running again")
+	case credentialNotAccepted(s):
+		return view.Errorf("cnpg.auth.failed", "this cluster does not know who you are").
+			WithHint("the API server answered 401: the credential this context sends is missing, " +
+				"expired or revoked. Whatever issues your cluster credentials (`tsh kube login`, " +
+				"`aws eks get-token`, `gcloud`, an OIDC refresh) needs running again")
 	case strings.Contains(s, "forbidden"):
 		return denied(by, askedOf(s, args), args)
 	case strings.Contains(s, "server doesn't have a resource type"):
@@ -440,19 +452,30 @@ func unreachable(stderr string) bool {
 	return false
 }
 
-// notAuthenticated reports whether stderr is about identity rather than
-// permission — the API server's 401, or the credential plugin failing before
-// there was a request to make at all.
-func notAuthenticated(stderr string) bool {
-	for _, s := range []string{
-		"Unauthorized",
-		"You must be logged in to the server",
+// credentialUnavailable reports whether stderr is the credential plugin failing
+// before there was a request to make at all. It is asked first: a plugin's
+// failure arrives inside client-go's retry noise, which can carry the API
+// server's own words as well.
+func credentialUnavailable(stderr string) bool {
+	return containsAny(stderr,
 		"getting credentials",
 		"exec plugin",
 		"credential plugin",
-		"no Auth Provider found",
-	} {
-		if strings.Contains(stderr, s) {
+		"no Auth Provider found")
+}
+
+// credentialNotAccepted reports whether stderr is the API server's 401: about
+// identity rather than permission.
+func credentialNotAccepted(stderr string) bool {
+	return containsAny(stderr,
+		"Unauthorized",
+		"You must be logged in to the server",
+		"the server has asked for the client to provide credentials")
+}
+
+func containsAny(s string, words ...string) bool {
+	for _, w := range words {
+		if strings.Contains(s, w) {
 			return true
 		}
 	}
