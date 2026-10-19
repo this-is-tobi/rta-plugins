@@ -26,6 +26,15 @@
 //	dashboard:
 //	  tiles:
 //	    - id: s3.overview
+//
+// s3.overview takes a list of buckets, each read with a request of its own, which
+// is how a tile on a connection fenced to several of them names those:
+//
+//	dashboard:
+//	  tiles:
+//	    - id: s3.overview
+//	      profile: staging
+//	      with: {bucket: [shop-web, shop-billing]}
 package main
 
 import (

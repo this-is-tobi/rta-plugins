@@ -48,10 +48,13 @@ func suggestBuckets(ctx context.Context, req plugin.Request) []string {
 // the kube coordinate's segments use).
 func suggestKeys(field string) func(context.Context, plugin.Request) []string {
 	return func(ctx context.Context, req plugin.Request) []string {
-		bucket := req.String("bucket")
-		if bucket == "" {
-			return nil // nothing to walk until the sibling names it
+		// Read as a list because the overview's bucket is one: a name is a list
+		// of one, and the keys of several buckets are no list to complete under.
+		buckets := req.StringSlice("bucket")
+		if len(buckets) != 1 || buckets[0] == "" {
+			return nil // nothing to walk until the sibling names one
 		}
+		bucket := buckets[0]
 		client, verr := connect(req)
 		if verr != nil {
 			return nil

@@ -205,17 +205,13 @@ func TestABucketNameThatDoesNotDrawAsItselfIsListedQuoted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var found bool
-	for _, section := range v.(view.Sections).Items {
-		if tbl, ok := section.View.(view.Table); ok {
-			found = true
-			if got := names(tbl); !slices.Equal(got, want) {
-				t.Errorf("s3.overview names = %q, want %q", got, want)
-			}
-		}
+	// A section a bucket, titled by its name, after the status block.
+	var titles []string
+	for _, section := range v.(view.Sections).Items[1:] {
+		titles = append(titles, section.Title)
 	}
-	if !found {
-		t.Error("s3.overview detail carries no table of buckets")
+	if !slices.Equal(titles, want) {
+		t.Errorf("s3.overview names = %q, want %q", titles, want)
 	}
 
 	rows := bucketTable([]minio.BucketInfo{{Name: escKey}}).Rows
