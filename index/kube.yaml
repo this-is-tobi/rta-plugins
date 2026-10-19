@@ -7,29 +7,29 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: kube
-version: 0.8.0
+version: 0.9.0
 summary: "Read-first Kubernetes: contexts, namespaces, pods, deployments"
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/kube
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.8.0/rta-plugin-kube_0.8.0_darwin_amd64.tar.gz
-  sha256: e14c647f9c54139feb919ada18f5b7a1e8cf82506be03fdbe6243c69a5adbafa
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.9.0/rta-plugin-kube_0.9.0_darwin_amd64.tar.gz
+  sha256: cf90af101db0c10ef3775a287475dafb4862bc5784dd709c3528faf86595a83b
   bin: rta-plugin-kube
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.8.0/rta-plugin-kube_0.8.0_darwin_arm64.tar.gz
-  sha256: acea2d589df8bced7db39ade97631a5e1136c5d84766dfb9ae09e550af34e314
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.9.0/rta-plugin-kube_0.9.0_darwin_arm64.tar.gz
+  sha256: d8a0b630b1a9f18d354a4aa2e814f4d3f3cd9b910f968f1166340ba158d1fcb2
   bin: rta-plugin-kube
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.8.0/rta-plugin-kube_0.8.0_linux_amd64.tar.gz
-  sha256: 0e40ce76f8ad9bcc6d3b75927597520bcd7812c327c0e3ece02589532f033058
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.9.0/rta-plugin-kube_0.9.0_linux_amd64.tar.gz
+  sha256: cc7636bb18851001f05e6eb5ea2360375f91288bff6667b04387ca3486cff8b9
   bin: rta-plugin-kube
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.8.0/rta-plugin-kube_0.8.0_linux_arm64.tar.gz
-  sha256: d64d1bf40bd794337c4043ae4c39251d453444a0c227137d15a82b8eac222abe
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.9.0/rta-plugin-kube_0.9.0_linux_arm64.tar.gz
+  sha256: 8ae72b3e747e3527c39667181af22ba44c6f37635001d5b2df0d910c1c382be0
   bin: rta-plugin-kube
 capabilities:
 - id: kube.context.list
@@ -46,10 +46,10 @@ capabilities:
   summary: Nodes, with readiness, cordon state and the pressures a kubelet reports
   safety: read
 - id: kube.pod.list
-  summary: Pods in a namespace, with readiness, restarts and age
+  summary: Pods in one namespace or several, with readiness, restarts and age
   safety: read
 - id: kube.deployment.list
-  summary: Deployments in a namespace, with how many replicas are actually ready
+  summary: Deployments in one namespace or several, with how many replicas are actually ready
   safety: read
 - id: kube.event.list
   summary: What the cluster is complaining about, oldest-running problems still visible
