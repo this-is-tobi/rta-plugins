@@ -86,9 +86,11 @@ func TestEveryListOfObjectsTakesItsNamespacesAsAListThatIsItsScope(t *testing.T)
 
 // The capabilities that act on one namespace keep one, and are the only ones that
 // do: a list added to one of them without being read as a list would be read as
-// nothing (Request.String of a list is blank), which is the context's own.
-func TestOnlyTheListsOfObjectsAndTheOverviewTakeAListOfNamespaces(t *testing.T) {
-	want := []string{"kube.overview"}
+// nothing (Request.String of a list is blank), which is the context's own. The two
+// reads that show rows of every namespace take the list too, to keep the rows of
+// those named (namespacefilter_test.go).
+func TestOnlyTheListsOfObjectsTheOverviewAndTheTwoFilteredReadsTakeAListOfNamespaces(t *testing.T) {
+	want := []string{"kube.overview", "kube.namespace.list", "kube.pvc.usage"}
 	for _, lc := range listCases {
 		want = append(want, lc.id)
 	}

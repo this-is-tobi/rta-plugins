@@ -76,30 +76,73 @@ type deploymentItem struct {
 	} `json:"status"`
 }
 
+// runNamespaceList lists the namespaces, or those of them a call names.
+//
+// **`namespace` keeps rows here; it is not a place to read.** Namespaces are
+// cluster-scoped, so kubectl has no namespace to be asked in and the answer is the
+// cluster's list whichever are wanted; what is not wanted is dropped here, before
+// anything is returned. That is the honest minimum, and it is what a fence needs:
+// this capability declared no namespace, so a profile that fenced the namespace
+// did not bind it, and it printed every namespace of the cluster, those outside
+// the fence among them.
 func runNamespaceList(ctx context.Context, req plugin.Request) (view.View, error) {
-	s, verr := selectionOf(req)
+	names, verr := namespaceNames(req)
 	if verr != nil {
 		return nil, verr
 	}
-	// Namespaces are cluster-scoped, so a namespace selection would be
-	// meaningless here and kubectl would ignore it. Cleared rather than
-	// passed, so the request rta makes is the request this describes.
-	s.Namespace, s.AllNS = "", false
+	s, verr := selectionFor(req, nil)
+	if verr != nil {
+		return nil, verr
+	}
 	var out list[namespaceItem]
 	if verr := getJSON(ctx, s, "namespaces", &out); verr != nil {
 		return nil, verr
 	}
+	named := make(map[string]bool, len(names))
+	for _, name := range names {
+		named[name] = true
+	}
+	exists := make(map[string]bool, len(out.Items))
 	rows := make([][]string, 0, len(out.Items))
 	for _, n := range out.Items {
+		exists[n.Metadata.Name] = true
+		if len(names) > 0 && !named[n.Metadata.Name] {
+			continue
+		}
 		rows = append(rows, []string{n.Metadata.Name, n.Status.Phase, age(n.Metadata.CreationTimestamp)})
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i][0] < rows[j][0] })
-	return withEmpty(view.Table{
+	t := view.Table{
 		Columns: []view.Column{
 			{Name: "namespace"}, {Name: "status", Kind: view.KindStatus}, {Name: "age", Kind: view.KindDuration},
 		},
 		Rows: rows, Total: len(rows),
-	}, "no namespaces"), nil
+	}
+	empty := "no namespaces"
+	if len(names) > 0 {
+		empty = "no namespace called " + truncate(names, 4)
+	}
+	t = withEmpty(t, empty)
+
+	// A name the cluster has no namespace of is said, because an empty table that
+	// is the answer to a misspelling reads as a cluster with nothing in it, and
+	// Table.Empty never reaches an agent. Not a gap in the page: nothing is missing
+	// from it that exists.
+	var missing []string
+	for _, name := range names {
+		if !exists[name] {
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) > 0 {
+		t.Warnings = append(t.Warnings, view.Error{
+			Code:     "kube.namespace.missing",
+			Message:  s.where() + " has no namespace called " + truncate(missing, 4),
+			Hint:     "check the name against the cluster's namespaces",
+			Advisory: true,
+		})
+	}
+	return t, nil
 }
 
 // podHealth is what a pod's row says about it, and whether it is serving.

@@ -36,15 +36,13 @@ const maxNamespaces = 30
 // readsAtOnce is how many kubectl calls one answer has running (see gate).
 const readsAtOnce = 6
 
-// namespacesOf is the namespaces a call names, once each and in order: a blank
-// is no name, a name given twice is read once, a name that is not a DNS label is
+// namespaceNames is the namespaces a call names, once each and in order: a blank
+// is no name, a name given twice is one, and a name that is not a DNS label is
 // refused (checkNamespaceLabel, not the looser checkName that fits a context or a
-// resource: each name here is a call, up to thirty at a time, to a cluster that
-// has no such namespace), and a list longer than maxNamespaces is refused before
-// anything is asked. Sorted, so that what is
-// merged from them is sorted by namespace without sorting it again, and the
-// same page is the same whichever way the list was written.
-func namespacesOf(req plugin.Request) ([]string, *view.Error) {
+// resource: each name here may be a call to a cluster that has no such namespace).
+// Sorted, so that what is merged from them is sorted by namespace without sorting
+// it again, and the same page is the same whichever way the list was written.
+func namespaceNames(req plugin.Request) ([]string, *view.Error) {
 	var names []string
 	for _, name := range req.StringSlice("namespace") {
 		name = strings.TrimSpace(name)
@@ -57,7 +55,17 @@ func namespacesOf(req plugin.Request) ([]string, *view.Error) {
 		names = append(names, name)
 	}
 	slices.Sort(names)
-	names = slices.Compact(names)
+	return slices.Compact(names), nil
+}
+
+// namespacesOf is namespaceNames for a call that reads each of them with a call of
+// its own, up to thirty at a time: a list longer than maxNamespaces is refused
+// before anything is asked.
+func namespacesOf(req plugin.Request) ([]string, *view.Error) {
+	names, verr := namespaceNames(req)
+	if verr != nil {
+		return nil, verr
+	}
 	if len(names) > maxNamespaces {
 		sf := req.Surface()
 		return nil, view.Errorf("kube.namespaces.toomany",
