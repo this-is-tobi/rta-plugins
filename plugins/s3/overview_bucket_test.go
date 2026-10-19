@@ -102,8 +102,8 @@ func TestAFencedBucketFillsTheOverviewAndAnotherIsRefused(t *testing.T) {
 		t.Fatalf("a call naming nothing was refused under a one-entry fence: %+v", breach)
 	}
 	filled := plugin.ResolveRequest(c, plugin.Inputs{Fence: fence, Caller: map[string]any{}}, false, false)
-	if got := filled.String("bucket"); got != "mirai-ocr-preprod" {
-		t.Errorf("the fence filled bucket = %q", got)
+	if got := filled.StringSlice("bucket"); len(got) != 1 || got[0] != "mirai-ocr-preprod" {
+		t.Errorf("the fence filled bucket = %v", got)
 	}
 	if plugin.CheckFence(c, plugin.Inputs{Fence: fence, Caller: map[string]any{"bucket": "mirai-mcr-prod"}}) == nil {
 		t.Error("a bucket outside the fence was let through")

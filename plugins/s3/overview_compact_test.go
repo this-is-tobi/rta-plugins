@@ -328,7 +328,7 @@ func TestADetailListingTheKeyMayNotReadIsARowAndNotAnError(t *testing.T) {
 }
 
 // The endpoint's own tile follows the same order: the verdict, what is counted,
-// and where it is last.
+// then a row a bucket, and where it is last.
 func TestTheEndpointTileLeadsWithAVerdictAndEndsWithTheAddress(t *testing.T) {
 	srv := accountServer(t, "Enabled")
 	v, err := runOverview(context.Background(), reqFor(t, "s3.overview", endpointOf(t, srv), map[string]any{}))
@@ -336,7 +336,7 @@ func TestTheEndpointTileLeadsWithAVerdictAndEndsWithTheAddress(t *testing.T) {
 		t.Fatal(err)
 	}
 	kv := v.(view.KeyValue)
-	if got, want := keysOf(kv), "status,buckets,address"; got != want {
+	if got, want := keysOf(kv), "status,buckets,mirai-drive-prod,mirai-mcr-prod,mirai-ocr-preprod,address"; got != want {
 		t.Fatalf("rows = %s, want %s", got, want)
 	}
 	if got := rowOf(kv, "status"); got != "ok" {

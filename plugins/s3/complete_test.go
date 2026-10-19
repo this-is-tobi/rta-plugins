@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/this-is-tobi/rta/pkg/plugin"
 )
 
 // The recipes behind live completion, proven against a server that records
@@ -160,6 +162,14 @@ func TestServerSideInputsDeclareLive(t *testing.T) {
 		for _, f := range c.Inputs {
 			if wantLive[f.Name] {
 				seen[f.Name] = true
+				// The bucket of the two listings is a list, typed a name at a time:
+				// Live completion is for a String box, and Validate refuses it on a list.
+				if f.Type == plugin.StringSlice {
+					if f.Live {
+						t.Errorf("%s: input %q is a list and declares Live", c.ID, f.Name)
+					}
+					continue
+				}
 				if !f.Live || f.Suggest == nil {
 					t.Errorf("%s: input %q is not Live with a Suggest", c.ID, f.Name)
 				}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"slices"
 	"sort"
-	"strings"
 
 	"github.com/minio/minio-go/v7"
 
@@ -17,18 +16,47 @@ func bucketField(help string) plugin.Field {
 		Live: true, Suggest: suggestBuckets}
 }
 
-// optionalBucketField is bucketField for a listing that is about one bucket
-// when it is given one and about every bucket the key sees when it is not.
+// optionalBucketField is the bucket of a listing: a list of the buckets it is
+// about, and every bucket the key sees when it names none.
 //
 // It exists so that a profile's `only: bucket:` has something to hold the
 // listing to: a connection fenced to its application's bucket answered
 // s3.overview and s3.bucket.list with every bucket of the account, names the
 // fence was written to keep out. Declared with the fence's own Config key, a
-// one-entry list fills it, and a call that names another bucket is refused.
+// one-entry fence fills it, and a call that names another bucket is refused.
+//
+// **A list, because it filters the set of buckets the connection holds.** It
+// was one name, so a profile fenced to the several buckets of an application
+// could not be handed to either listing: the host refused a call that named
+// none, and one that named a list read as text that is in no fence entry. A
+// bucket the other capabilities act on (bucketField) stays one name, since
+// what they do is to one bucket and its keys, and a grant's scope is a key in
+// that bucket.
+//
+// No Live completion, which is for a String box only: a list is typed a name
+// at a time, and a completion that read the account on every keystroke of it is
+// the channel Live exists to keep a keystroke off.
 func optionalBucketField(help string) plugin.Field {
-	f := bucketField(help)
-	f.Required = false
-	return f
+	return plugin.Field{Name: "bucket", Short: "b", Type: plugin.StringSlice, Config: "bucket", Help: help}
+}
+
+// bucketNames is the buckets a listing was asked about, once each and in
+// order: an empty string is no name and a name given twice is one. Sorted, so
+// that the same list is the same page whichever way it was written.
+//
+// A name is used exactly as the host held it to the profile's fence, which
+// compares the raw element: a name trimmed here would be one the fence never
+// saw, and the only thing a trim could then do is read a bucket the fence did
+// not allow.
+func bucketNames(req plugin.Request) []string {
+	var names []string
+	for _, name := range req.StringSlice("bucket") {
+		if name != "" {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	return slices.Compact(names)
 }
 
 // boundBucketField is bucketField's Local sibling, for every capability
@@ -67,9 +95,12 @@ func bucketListCapability() plugin.Capability {
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Run:        runBucketList,
-		Description: "Every bucket the credentials can see, with age, and region where the server reports one. With a `bucket` — named, " +
-			"or the one a profile fences with `only: bucket:` — only that one.",
-	}, optionalBucketField("only this bucket — every bucket the credentials can see when omitted"))
+		Description: "Every bucket the credentials can see, with age, and region where the server reports one. " +
+			"`bucket` is a list: the buckets named, or the ones a profile fences with `only: bucket:`, and no others. " +
+			"A name the credentials do not see is a row that says it was not found. A list goes in the call, " +
+			"a tile's `with:` or that fence: the config's `bucket` and a profile's `set:` take one name, " +
+			"shared with the capabilities that act on one bucket.",
+	}, optionalBucketField("only these buckets — every bucket the credentials can see when omitted"))
 }
 
 func runBucketList(ctx context.Context, req plugin.Request) (view.View, error) {
@@ -78,16 +109,36 @@ func runBucketList(ctx context.Context, req plugin.Request) (view.View, error) {
 		if err != nil {
 			return nil, classify(err, req)
 		}
-		name := strings.TrimSpace(req.String("bucket"))
-		if name != "" {
-			buckets = slices.DeleteFunc(buckets, func(b minio.BucketInfo) bool { return b.Name != name })
+		named := bucketNames(req)
+		if len(named) == 0 {
+			return bucketTable(buckets), nil
 		}
+		buckets = slices.DeleteFunc(buckets, func(b minio.BucketInfo) bool { return !slices.Contains(named, b.Name) })
 		t := bucketTable(buckets)
-		if name != "" {
-			t.Empty = "no bucket named " + quoted(name)
+		// One name is the listing it always was: no row, and a sentence for the
+		// table that has none.
+		if len(named) == 1 {
+			t.Empty = "no bucket named " + quoted(named[0])
+			return t, nil
 		}
+		for _, name := range named {
+			if !slices.ContainsFunc(buckets, func(b minio.BucketInfo) bool { return b.Name == name }) {
+				t.Rows = append(t.Rows, notFoundRow(t.Columns, name))
+			}
+		}
+		t.Total = len(t.Rows)
 		return t, nil
 	})
+}
+
+// notFoundRow is the row of a bucket that was named and is not among the ones
+// the credentials see: its name, and in the last column, which is the date the
+// others have, that it was not found. A listing that quietly left it out reads
+// as a smaller account, and not as a name that matched nothing.
+func notFoundRow(columns []view.Column, name string) []string {
+	row := make([]string, len(columns))
+	row[0], row[len(row)-1] = plugin.ListedName(name), "not found"
+	return row
 }
 
 // bucketTable is the listing s3.bucket.list answers with and s3.overview's

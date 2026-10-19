@@ -21,7 +21,7 @@ func TestTheOverviewNamesTheProfileNotTheEndOfItsForward(t *testing.T) {
 			WithProfile("prod", plugin.TunnelKube), "profile prod (through its kube: forward)"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			if got := rowOf(compactOverview(tc.r, nil), "address"); got != tc.want {
+			if got := rowOf(compactBuckets(tc.r, readScope{}, nil, ""), "address"); got != tc.want {
 				t.Errorf("address = %q, want the endpoint row to read %q", got, tc.want)
 			}
 		})
