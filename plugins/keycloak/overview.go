@@ -46,9 +46,9 @@ func overviewCapability() plugin.Capability {
 		Detailed:   true,
 		Refresh:    2 * time.Minute,
 		Description: "The first row, `status`, is the verdict: ok, or fail or warn with the worst facts " +
-			"in a few words. Fail is what `keycloak.audit` also fails and the page shows: a disabled " +
-			"realm, brute-force detection off, TLS required nowhere, login or admin events not " +
-			"recorded; warn is a row the client's roles cannot read. Then the user count, how many " +
+			"in a few words. Fail is a disabled realm, which refuses every login; warn is a protection " +
+			"that is off and `keycloak.audit` grades (brute-force detection, TLS required nowhere, login " +
+			"or admin events not recorded) or a row the client's roles cannot read. Then the user count, how many " +
 			"sessions the clients hold, brute-force detection, SSL requirement, self-registration, " +
 			"whether login and admin events are recorded and, last, the realm. Nothing here reads " +
 			"the client list, which carries every confidential client's secret to its reader. " +
@@ -56,8 +56,8 @@ func overviewCapability() plugin.Capability {
 			"when the client is allowed to see it — only a master-realm client is — the client " +
 			"list, the flows and the active sessions per client. " +
 			"For the grade, `keycloak.audit`.",
-		Agent: "`status` is the verdict (ok, or fail or warn with the worst facts: a disabled realm, brute force " +
-			"off, TLS required nowhere, events not recorded, a row the role cannot read), then the user " +
+		Agent: "`status` is the verdict (ok; fail for a disabled realm; warn for brute force off, TLS required " +
+			"nowhere, events not recorded or a row the role cannot read, with the facts), then the user " +
 			"count, client sessions, brute force, SSL requirement, self-registration, events and the " +
 			"realm. The client list, which carries secrets, is not read. `detail` adds the client tally, " +
 			"browser flow, server version (a master-realm client only), clients, flows and sessions per " +
@@ -101,8 +101,9 @@ const valueRoom = 61
 //
 // The verdict grades the facts the page shows, as keycloak.audit grades the same
 // facts, so that a tile never says ok over a row the audit fails: a realm that is
-// disabled, brute-force detection off, TLS required nowhere and no login or admin
-// events recorded are failures in both. "external", Keycloak's default, is the
+// disabled fails the tile, and brute-force detection off, TLS required nowhere
+// and no login or admin events recorded are its warnings (the audit fails them;
+// a tile that is red on every realm left at its defaults is not read). "external", Keycloak's default, is the
 // audit's warning and not this page's: it is a setting chosen on purpose behind a
 // proxy, and a tile that is amber on every realm left at its default is not read.
 func (s *session) glance(ctx context.Context, detail bool) (view.KeyValue, glanceReads, *view.Error) {
@@ -117,7 +118,7 @@ func (s *session) glance(ctx context.Context, detail bool) (view.KeyValue, glanc
 			rows = append(rows, view.Pair{Key: key, Value: value})
 		}
 	}
-	var fails, unread []string
+	var fails, warns, unread []string
 	unreadRow := func(key, why string) {
 		const lead = "could not be read — "
 		add(key, lead+clip(why, valueRoom-utf8.RuneCountInString(lead)))
@@ -157,18 +158,18 @@ func (s *session) glance(ctx context.Context, detail bool) (view.KeyValue, glanc
 		fails = append(fails, "realm disabled")
 	}
 	if !realm.BruteForceProtected {
-		fails = append(fails, "brute force off")
+		warns = append(warns, "brute force off")
 	}
 	if realm.SSLRequired == "none" {
-		fails = append(fails, "ssl not required")
+		warns = append(warns, "ssl not required")
 	}
 	switch {
 	case !realm.EventsEnabled && !realm.AdminEventsEnabled:
-		fails = append(fails, "events off")
+		warns = append(warns, "events off")
 	case !realm.EventsEnabled:
-		fails = append(fails, "login events off")
+		warns = append(warns, "login events off")
 	case !realm.AdminEventsEnabled:
-		fails = append(fails, "admin events off")
+		warns = append(warns, "admin events off")
 	}
 
 	// The realm is who this is, the one row of identity, and it comes last: it
@@ -188,14 +189,18 @@ func (s *session) glance(ctx context.Context, detail bool) (view.KeyValue, glanc
 			add("version", v)
 		}
 	}
-	return view.KeyValue{Pairs: append([]view.Pair{{Key: "status", Value: glanceVerdict(fails, unread)}}, rows...)}, reads, nil
+	return view.KeyValue{Pairs: append([]view.Pair{{Key: "status", Value: glanceVerdict(fails, warns, unread)}}, rows...)}, reads, nil
 }
 
 // glanceVerdict is ok, or the worst grade and the facts that earn it: the
-// failures, then the rows that could not be read, as many as fit and the rest
-// counted.
-func glanceVerdict(fails, unread []string) string {
+// failures, then the protections that are off, then the rows that could not be
+// read, as many as fit and the rest counted. Only a fact that stops the realm
+// from working fails the tile; a protection left off is a posture, amber and not
+// red, because a tile that is red on every realm left at its defaults is a tile
+// nobody reads (keycloak.audit is where each of them is graded in full).
+func glanceVerdict(fails, warns, unread []string) string {
 	texts := slices.Clone(fails)
+	texts = append(texts, warns...)
 	if len(unread) > 0 {
 		texts = append(texts, strings.Join(unread, ", ")+" could not be read")
 	}
