@@ -255,7 +255,15 @@ func TestNodesThatWereNotAskedAreStillReported(t *testing.T) {
 			"status":{"conditions":[{"type":"Ready","status":"False"}]}}`),
 	}
 
+	// The Ready node is asked for real, so it is asked of the stub and not of
+	// whatever kubectl, and whatever cluster, this machine has.
+	cluster := newScriptedCluster(t)
 	summaries := fetchSummaries(t.Context(), selection{}, nodes)
+	for _, line := range cluster.calls(t) {
+		if strings.Contains(line, "worker-2") {
+			t.Errorf("the node that was not Ready was asked after all: %q", line)
+		}
+	}
 	var said bool
 	for _, s := range summaries {
 		if s.node == "worker-2" {
