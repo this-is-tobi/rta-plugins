@@ -45,6 +45,20 @@
 //	dashboard:
 //	  tiles:
 //	    - id: qdrant.overview
+//
+// qdrant.overview and qdrant.collection.list take a list of collections, each
+// read with a request of its own, which is how a tile on a connection fenced to
+// several of them names those:
+//
+//	dashboard:
+//	  tiles:
+//	    - id: qdrant.overview
+//	      profile: staging
+//	      with: {collection: [docs, faq]}
+//
+// A list belongs in a tile's with:, in the call, or in a profile's only: fence.
+// Under `collection:` in the config or a profile's set: it stays one name,
+// because the other capabilities that share the key take text.
 package main
 
 import (

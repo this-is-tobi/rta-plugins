@@ -51,7 +51,7 @@ func TestAFencedCollectionFillsTheListingsAndAnotherIsRefused(t *testing.T) {
 				t.Fatalf("a call naming nothing was refused under a one-entry fence: %+v", breach)
 			}
 			filled := plugin.ResolveRequest(c, plugin.Inputs{Fence: fence, Caller: map[string]any{}}, false, false)
-			if got := filled.String("collection"); got != "docs" {
+			if got := filled.StringSlice("collection"); len(got) != 1 || got[0] != "docs" {
 				t.Errorf("the fence filled collection = %q, want docs", got)
 			}
 			if plugin.CheckFence(c, plugin.Inputs{Fence: fence, Caller: map[string]any{"collection": "images"}}) == nil {

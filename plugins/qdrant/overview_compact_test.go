@@ -135,10 +135,10 @@ func TestACollectionTheCredentialCannotReadIsCountedAndWarns(t *testing.T) {
 	routes := manyRoutes(3, nil)
 	delete(routes, "/collections/c001")
 	kv := compactOf(t, newFakeQdrant(t, routes), map[string]any{})
-	if got, want := pair(kv, "collections"), "3, 1 unreadable, 2 green"; got != want {
+	if got, want := pair(kv, "collections"), "3, 1 unreadable (not found), 2 green"; got != want {
 		t.Errorf("collections = %q, want %q", got, want)
 	}
-	if got, want := pair(kv, "status"), "warn — 1 collection could not be read"; got != want {
+	if got, want := pair(kv, "status"), "warn — c001 could not be read"; got != want {
 		t.Errorf("status = %q, want %q", got, want)
 	}
 }
@@ -162,7 +162,7 @@ func answering(t *testing.T, routes map[string]string, refused map[string]int) *
 	t.Helper()
 	f := &fakeQdrant{}
 	f.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		f.bodies = append(f.bodies, recorded{path: r.URL.EscapedPath()})
+		f.record(recorded{path: r.URL.EscapedPath()})
 		if code, ok := refused[r.URL.Path]; ok {
 			w.WriteHeader(code)
 			_, _ = w.Write([]byte(`{"status":{"error":"Forbidden: Global access is required"}}`))
