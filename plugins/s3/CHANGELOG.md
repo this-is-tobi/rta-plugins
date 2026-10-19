@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.11.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.10.0...plugins/s3/v0.11.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **s3:** the overview and the bucket list read a list of buckets, a row each
+
+### Features
+
+* **s3:** the overview and the bucket list read a list of buckets, a row each ([122dd35](https://github.com/this-is-tobi/rta-plugins/commit/122dd35a0745dc1cc9682d09b1e18711355937e6))
+
 ## [0.10.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.9.0...plugins/s3/v0.10.0) (2026-10-19)
 
 

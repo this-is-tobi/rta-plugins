@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.10.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.9.0...plugins/cnpg/v0.10.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cnpg:** `namespace` and `cluster` of cnpg.list, cnpg.backup.list and cnpg.storage are arrays over MCP. An agent that sent a string should send ["name"]; a bare string is still read as one name by the host, but a client that validates against the published schema will reject it. The command line is compatible (`--namespace x` works, and repeats or takes commas). A name with surrounding blanks, which these reads used to trim, is refused as cnpg.name.invalid. The live completion of the cluster and namespace names on those inputs is gone, since the host offers it on text inputs only; under a fence the host completes the fenced names. A list written under `plugins.cnpg.namespace` or `plugins.cnpg.cluster` in the config, or in a profile's `set:`, is read by these three reads and refused (core.input.type) by cnpg.status, cnpg.backup.show and cnpg.backup.request, which declare the same keys as text, and `rta config check` reports nothing wrong with it: write a list in the tile's `with:`, in the call or in a profile's `only:` fence, and a single name in the config.
+
+### Bug Fixes
+
+* **cnpg:** the listings read a list of namespaces and clusters, one call per namespace ([b5f36e0](https://github.com/this-is-tobi/rta-plugins/commit/b5f36e0d3f618f4658d56c234c23b886b4368bb7))
+
 ## [0.9.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.8.0...plugins/cnpg/v0.9.0) (2026-10-19)
 
 
