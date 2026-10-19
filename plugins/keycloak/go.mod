@@ -2,7 +2,7 @@ module github.com/this-is-tobi/rta-plugins/plugins/keycloak
 
 go 1.26.9
 
-require github.com/this-is-tobi/rta v0.46.0
+require github.com/this-is-tobi/rta v0.47.0
 
 require (
 	charm.land/bubbles/v2 v2.1.1 // indirect
