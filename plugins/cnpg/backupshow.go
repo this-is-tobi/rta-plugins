@@ -477,8 +477,7 @@ func (p *showPage) objectStore(ctx context.Context, s selection, c cluster, ref 
 // cluster that names it.
 func readObjectStore(ctx context.Context, s selection, c cluster, ref string) (objectStore, *view.Error) {
 	s.namespace, s.allNamespace = c.Metadata.Namespace, false
-	var o objectStore
-	return o, getResource(ctx, s, objectStoreCRD, ref, &o)
+	return fetch[objectStore](ctx, s, objectStoreCRD, ref)
 }
 
 // recovery is the span a restore can reach and when a backup last worked: from

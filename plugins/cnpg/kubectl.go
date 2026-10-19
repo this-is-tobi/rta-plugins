@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -87,8 +88,14 @@ func checkName(kind, v string) *view.Error {
 
 // selection is which cluster and which namespace a call reads.
 type selection struct {
-	context      string
-	namespace    string
+	context   string
+	namespace string
+	// namespaces is the several a listing reads when it is given two or more, each
+	// with a call of its own (scopes), sorted and once each. Only listingOf sets
+	// it, and a listing given one namespace holds it in namespace and leaves this
+	// empty, so a list of one reads, and words everything it says, as the single
+	// name always did.
+	namespaces   []string
 	allNamespace bool
 	// sf is the surface the call came through, so a failure reading the
 	// cluster names what to call next the way its reader calls it.
@@ -103,13 +110,13 @@ type selection struct {
 	reach []plugin.Arg
 }
 
-func selectionOf(req plugin.Request) (selection, *view.Error) {
+// connectionOf is the half of a selection every capability has alike: the
+// context, and who is asking.
+func connectionOf(req plugin.Request) (selection, *view.Error) {
 	s := selection{
-		context:      strings.TrimSpace(req.String("context")),
-		namespace:    strings.TrimSpace(req.String("namespace")),
-		allNamespace: req.Bool("all-namespaces"),
-		sf:           req.Surface(),
-		profile:      req.Profile(),
+		context: strings.TrimSpace(req.String("context")),
+		sf:      req.Surface(),
+		profile: req.Profile(),
 	}
 	switch {
 	case s.sf == plugin.SurfaceMCP || s.context == "":
@@ -120,37 +127,56 @@ func selectionOf(req plugin.Request) (selection, *view.Error) {
 	if verr := checkName("context", s.context); verr != nil {
 		return selection{}, verr
 	}
+	return s, nil
+}
+
+func selectionOf(req plugin.Request) (selection, *view.Error) {
+	s, verr := connectionOf(req)
+	if verr != nil {
+		return selection{}, verr
+	}
+	s.namespace = strings.TrimSpace(req.String("namespace"))
+	s.allNamespace = req.Bool("all-namespaces")
 	if verr := checkName("namespace", s.namespace); verr != nil {
 		return selection{}, verr
 	}
-	// **Refused here rather than resolved in args(), which prefers
-	// --all-namespaces when both are set.** That preference is safe only for
-	// as long as these capabilities declare no Scope: rta derives the scope a
-	// call is checked against from the value of the `namespace` field, and
-	// knows nothing about `all-namespaces`. Give either capability below
-	// `Scope: "namespace"` — the natural thing to do, since both already take
-	// a namespace — and a caller granted one namespace could send it together
-	// with --all-namespaces, pass the scope check on the first, and be
-	// answered from every namespace in the cluster.
-	//
-	// So this is not fixing a live bug here; it is refusing to leave a trap
-	// that springs on whoever adds the scope later and has no reason to look
-	// at this function. plugins/kube carries the same refusal for the same
-	// reason, where the scope *is* declared and the bypass was real.
-	if s.allNamespace && s.namespace != "" {
-		// A caller that sent only the switch did not send the namespace: a
-		// profile or the config filled it in, and "pass one or the other"
-		// asked them for what they had already done. The hint says where the
-		// other half may have come from and the way to lift it, which a fence
-		// (`only:`) refuses on its own as a blank.
-		return selection{}, view.Errorf("cnpg.namespace.ambiguous",
-			"%s and %s ask for different things", s.sf.InputName("namespace"), s.sf.InputName("all-namespaces")).
-			WithHint("pass one or the other — a namespace to read that namespace, " +
-				s.sf.InputName("all-namespaces") + " to read every one. A namespace you did not give came from a " +
-				"profile or the config, and " + s.sf.InputName("namespace") + " given empty lifts it, unless the profile " +
-				"fences it (`only:`), when widening it is the operator's")
+	if verr := s.refuseBoth(); verr != nil {
+		return selection{}, verr
 	}
 	return s, nil
+}
+
+// refuseBoth is the refusal of a namespace given beside every namespace.
+//
+// **Refused here rather than resolved in args(), which prefers
+// --all-namespaces when both are set.** That preference is safe only for
+// as long as these capabilities declare no Scope: rta derives the scope a
+// call is checked against from the value of the `namespace` field, and
+// knows nothing about `all-namespaces`. Give either capability below
+// `Scope: "namespace"` — the natural thing to do, since both already take
+// a namespace — and a caller granted one namespace could send it together
+// with --all-namespaces, pass the scope check on the first, and be
+// answered from every namespace in the cluster.
+//
+// So this is not fixing a live bug here; it is refusing to leave a trap
+// that springs on whoever adds the scope later and has no reason to look
+// at this function. plugins/kube carries the same refusal for the same
+// reason, where the scope *is* declared and the bypass was real.
+func (s selection) refuseBoth() *view.Error {
+	if !s.allNamespace || (s.namespace == "" && len(s.namespaces) == 0) {
+		return nil
+	}
+	// A caller that sent only the switch did not send the namespace: a
+	// profile or the config filled it in, and "pass one or the other"
+	// asked them for what they had already done. The hint says where the
+	// other half may have come from and the way to lift it, which a fence
+	// (`only:`) refuses on its own as a blank.
+	return view.Errorf("cnpg.namespace.ambiguous",
+		"%s and %s ask for different things", s.sf.InputName("namespace"), s.sf.InputName("all-namespaces")).
+		WithHint("pass one or the other — a namespace to read that namespace, " +
+			s.sf.InputName("all-namespaces") + " to read every one. A namespace you did not give came from a " +
+			"profile or the config, and " + s.sf.InputName("namespace") + " given empty lifts it, unless the profile " +
+			"fences it (`only:`), when widening it is the operator's")
 }
 
 // args puts the subcommand first and the selection flags after it.
@@ -252,11 +278,19 @@ func (c caller) listEverywhere() string {
 // which part of it. A call that names no namespace read the context's own,
 // which is not the cluster, and a sentence that said "in the current context"
 // of it told somebody with clusters in another namespace that there were none.
+//
+// Several namespaces are named while that is short and counted when it is not
+// (maxNamed): the names are in the call and in the warning for the ones that
+// could not be read, and a sentence that carried thirty of them would be the page.
 func (s selection) where() string {
 	var scope string
 	switch {
 	case s.allNamespace:
 		scope = "every namespace"
+	case len(s.namespaces) > maxNamed:
+		scope = "the " + strconv.Itoa(len(s.namespaces)) + " namespaces read"
+	case len(s.namespaces) > 1:
+		scope = "namespaces " + strings.Join(s.namespaces, ", ")
 	case s.namespace != "":
 		scope = "namespace " + s.namespace
 	default:

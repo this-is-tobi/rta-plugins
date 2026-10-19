@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -183,17 +184,19 @@ func (b backupObject) resolvedMethod() string {
 	return strings.TrimSpace(b.Spec.Method)
 }
 
-// backupsFor filters a listing to one cluster, newest first.
+// backupsFor filters a listing to the clusters named, newest first; none named
+// keeps every cluster's, and a blank is no name.
 //
 // Filtered on `spec.cluster.name` rather than a label selector. CNPG does
 // label its Backup objects, but the label is the operator's own bookkeeping
 // and the field is the one the CRD declares as a printer column — so this
 // filters on the thing the resource is documented to mean rather than on an
 // implementation detail that has no compatibility promise.
-func backupsFor(items []backupObject, cluster string) []backupObject {
+func backupsFor(items []backupObject, clusters ...string) []backupObject {
+	clusters = slices.DeleteFunc(slices.Clone(clusters), func(name string) bool { return name == "" })
 	out := make([]backupObject, 0, len(items))
 	for _, b := range items {
-		if cluster == "" || b.Spec.Cluster.Name == cluster {
+		if len(clusters) == 0 || slices.Contains(clusters, b.Spec.Cluster.Name) {
 			out = append(out, b)
 		}
 	}
@@ -225,6 +228,8 @@ func backupListCapability() plugin.Capability {
 		Examples: []plugin.Example{
 			{Title: "the backups of one cluster", Inputs: map[string]any{"cluster": "app-db", "namespace": "production"}},
 			{Title: "every backup in every namespace", Inputs: map[string]any{"all-namespaces": true}},
+			{Title: "the backups of two clusters in two namespaces", Inputs: map[string]any{
+				"cluster": []string{"app-db", "billing-db"}, "namespace": []string{"production", "staging"}}},
 		},
 		Safety:     plugin.Read,
 		Idempotent: true,
@@ -238,8 +243,14 @@ func backupListCapability() plugin.Capability {
 			"and what the operator said when one failed. The WAL a backup spans is not " +
 			"in this table, which stays the same table whatever the backups record: " +
 			"`cnpg.backup.show` gives the range of the newest completed one.\n\n" +
-			"One namespace by default, or every one with `all-namespaces`, which adds a " +
-			"leading Namespace column. Bounded by `limit`: the list is cut at that many " +
+			"The context's own namespace by default; `namespace` is a list of at most 30, " +
+			"each read with one call of its own (so a Role per namespace is enough), and " +
+			"`all-namespaces` reads every one in one call. Over several namespaces a leading Namespace " +
+			"column says which, and a namespace that cannot be read is a row of what " +
+			"failed, and a warning, while the others answer. `cluster` is a list of at " +
+			"most 30 and keeps the backups of the clusters it names, from the backups of " +
+			"each namespace, which are listed whole. " + listsBelongInTheCall + " Bounded by " +
+			"`limit`: the list is cut, across all of them, at that many " +
 			"rows, `total` stays the exact count there is, and a cut list says so in a " +
 			"warning and puts the failed backups first, so the rows that matter are not " +
 			"the ones the cut drops.\n\n" +
@@ -249,32 +260,36 @@ func backupListCapability() plugin.Capability {
 			"question a backup listing answers.",
 		Agent: "One row per Backup object, newest first: the cluster, status, phase, method, how long it " +
 			"took, its age and where it went, with a failed backup's error in its own section. This is the " +
-			"record for a cluster that backs up through a plugin, which cnpg.status cannot see. Without " +
-			"`cluster` it lists every cluster's in the namespace, and `all-namespaces` reads every namespace " +
-			"and leads with a Namespace column. Bounded by `limit`: `total` is the exact count, and a cut " +
-			"list warns that it is partial and puts the failed backups first. Credentials are not read.",
+			"record for a cluster that backs up through a plugin, which cnpg.status cannot see. `namespace` and " +
+			"`cluster` are arrays of at most 30, none meaning the context's own namespace and every cluster; " +
+			"each namespace is one call, `all-namespaces` reads every one, and over several a Namespace column " +
+			"leads and one that could not be read is a row of What failed. Bounded by `limit`: `total` is the " +
+			"exact count, and a cut list warns it is partial and puts the failed first. No credentials are read.",
 		Run: runBackupList,
 	},
-		clusterField("only this cluster's backups — every cluster's when omitted", false),
+		clustersField("only these clusters' backups — every cluster's when omitted"),
+		namespacesField(),
 		allNamespacesField(),
 		plugin.Field{Name: "limit", Type: plugin.Int, Config: "limit", Default: backupListLimit, Min: 1, Max: 10000,
 			Help: "how many backups to list; a cut list puts the failed ones first"})
 }
 
 func runBackupList(ctx context.Context, req plugin.Request) (view.View, error) {
-	s, verr := selectionOf(req)
+	s, names, verr := listingOf(req)
 	if verr != nil {
 		return nil, verr
 	}
-	name := strings.TrimSpace(req.String("cluster"))
-	if verr := checkName("cluster", name); verr != nil {
+	r, verr := settle(s, readEach(ctx, s.scopes(), func(ctx context.Context, scope selection) (backupList, *view.Error) {
+		return fetch[backupList](ctx, scope, backupCRD, "")
+	}))
+	if verr != nil {
 		return nil, verr
 	}
-	var list backupList
-	if verr := getResource(ctx, s, backupCRD, "", &list); verr != nil {
-		return nil, verr
+	var items []backupObject
+	for _, o := range r.outcomes {
+		items = append(items, o.got.Items...)
 	}
-	all := backupsFor(list.Items, name)
+	all := backupsFor(items, names...)
 	rows, cut := cutBackups(all, req.Int("limit"))
 
 	t := view.Table{Columns: s.leading(
@@ -291,12 +306,13 @@ func runBackupList(ctx context.Context, req plugin.Request) (view.View, error) {
 	// The total is every backup there is, not the rows on hand, so a cut list
 	// says how much of the whole it is.
 	t.Total = len(all)
-	if len(all) == 0 {
-		t.Empty = emptyBackups(name, s)
+	if len(all) == 0 && r.answered() {
+		t.Empty = emptyBackups(names, r.read)
 	}
 	if cut {
 		t.Warnings = append(t.Warnings, partialBackups(s, len(rows), len(all)))
 	}
+	t.Warnings = append(t.Warnings, r.warnings()...)
 	// The error is its own section rather than a ninth column: a barman
 	// failure is a paragraph of somebody else's stderr, and a table that has
 	// to hold one is a table with eight unreadable columns.
@@ -309,7 +325,7 @@ func runBackupList(ctx context.Context, req plugin.Request) (view.View, error) {
 	// for every healthy cluster. It is the reference for the one backup somebody
 	// restores from, and cnpg.backup.show gives it for the newest completed one.
 	sections := []view.Section{{Title: "Backups", View: t}}
-	if problems := backupErrors(s, rows); len(problems.Rows) > 0 {
+	if problems := backupErrors(s, rows, r.unread); len(problems.Rows) > 0 {
 		sections = append(sections, view.Section{Title: "What failed", View: problems})
 	}
 	if len(sections) == 1 {
@@ -361,10 +377,16 @@ func partialBackups(s selection, shown, total int) view.Error {
 	}
 }
 
-func backupErrors(s selection, rows []backupObject) view.Table {
+// backupErrors is the section of what failed: the namespaces that could not be
+// read first, because a namespace missing from the listing is a larger failure
+// than any backup in it, and then each failed backup's error.
+func backupErrors(s selection, rows []backupObject, unread []outcome[backupList]) view.Table {
 	t := view.Table{Columns: s.leading(
 		view.Column{Name: "Backup"}, view.Column{Name: "Status", Kind: view.KindStatus}, view.Column{Name: "Error"},
 	)}
+	for _, o := range unread {
+		t.Rows = append(t.Rows, s.lead(o.scope.namespace, "—", "fail", o.reason()))
+	}
 	for _, b := range rows {
 		if msg := strings.TrimSpace(b.Status.Error); msg != "" {
 			t.Rows = append(t.Rows, s.lead(b.Metadata.Namespace, b.Metadata.Name, "fail", firstLine(msg)))
@@ -382,17 +404,39 @@ func backupErrors(s selection, rows []backupObject) view.Table {
 //
 // Read across every namespace there is no one place to ask whether a cluster
 // is configured, so the pointer is the listing of the clusters instead.
-func emptyBackups(cluster string, s selection) string {
-	switch {
-	case cluster != "" && s.allNamespace:
-		return "no backups of " + cluster + " in " + s.where() + " — " +
-			s.caller().listEverywhere() + " shows where a cluster of that name is"
-	case cluster != "":
-		status := append([]plugin.Arg{{Name: "cluster", Value: cluster}}, s.callArgs(s.namespace)...)
-		return "no backups of " + cluster + " in " + s.where() + " — " +
-			"`" + s.sf.Call("cnpg.status", status...) + "` says whether anything is configured to take one"
+//
+// **The pointer carries the namespaces that were read, and never the context's
+// own.** cnpg.status takes one cluster in one namespace, so it is the pointer for
+// exactly that read; for several clusters or several namespaces it is the
+// listing of those clusters in those namespaces, which says where each is and
+// what its Backup column makes of it, in one call. A pointer without the
+// namespace reads the context's own, where the cluster may not be.
+func emptyBackups(clusters []string, s selection) string {
+	if len(clusters) == 0 {
+		return "no CloudNativePG backups in " + s.where()
 	}
-	return "no CloudNativePG backups in " + s.where()
+	of := "no backups of " + strings.Join(clusters, ", ") + " in " + s.where() + " — "
+	switch {
+	case s.allNamespace:
+		return of + s.caller().listEverywhere() + " shows where a cluster of " + thatName(clusters) + " is"
+	case len(clusters) == 1 && len(s.namespaces) == 0:
+		status := append([]plugin.Arg{{Name: "cluster", Value: clusters[0]}}, s.callArgs(s.namespace)...)
+		return of + "`" + s.sf.Call("cnpg.status", status...) + "` says whether anything is configured to take one"
+	}
+	where := "it is"
+	if len(clusters) > 1 {
+		where = "they are"
+	}
+	return of + "`" + s.sf.Call("cnpg.list", s.listingArgs(clusters)...) + "` shows where " + where +
+		" and whether anything is configured to take a backup"
+}
+
+// thatName is "that name" for one cluster and "those names" for several.
+func thatName(clusters []string) string {
+	if len(clusters) == 1 {
+		return "that name"
+	}
+	return "those names"
 }
 
 func backupRequestCapability() plugin.Capability {

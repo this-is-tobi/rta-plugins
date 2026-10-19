@@ -385,7 +385,7 @@ func TestACallAHintNamesReadsTheClusterWhereItWasFound(t *testing.T) {
 			"`cnpg_status {\"cluster\":\"shop\",\"namespace\":\"prod\"}`",
 			"`cnpg_backup_list {\"cluster\":\"shop\",\"namespace\":\"prod\"}`"},
 	} {
-		body := emptyBackups("shop", selected(t, map[string]any{"context": "kind", "namespace": "prod"}, tc.sf))
+		body := emptyBackups([]string{"shop"}, selected(t, map[string]any{"context": "kind", "namespace": "prod"}, tc.sf))
 		if !strings.Contains(body, tc.empty) {
 			t.Errorf("%s: an empty listing reads %q, want %q in it", tc.sf, body, tc.empty)
 		}

@@ -148,6 +148,8 @@ func storageCapability() plugin.Capability {
 		Examples: []plugin.Example{
 			{Title: "the volumes of one cluster", Inputs: map[string]any{"cluster": "app-db", "namespace": "production"}},
 			{Title: "every cluster's volumes, in every namespace", Inputs: map[string]any{"all-namespaces": true}},
+			{Title: "the volumes of two clusters in two namespaces", Inputs: map[string]any{
+				"cluster": []string{"app-db", "billing-db"}, "namespace": []string{"production", "staging"}}},
 		},
 		Safety:     plugin.Read,
 		Idempotent: true,
@@ -157,9 +159,15 @@ func storageCapability() plugin.Capability {
 			"requested, and an expansion that never finished all look identical in the " +
 			"spec, and each is a database about to stop writing.\n\n" +
 			"With no `cluster` it reads the volumes of every CloudNativePG cluster in the " +
-			"namespace and adds a Cluster column; `all-namespaces` reads every namespace " +
-			"and adds a leading Namespace column. Only volumes CloudNativePG labelled " +
-			"are read, never the rest of a namespace's storage.\n\n" +
+			"namespace and adds a Cluster column. `namespace` is a list of at most 30, each " +
+			"read with one call of its own (never the whole cluster with the rest filtered " +
+			"out, so a Role in each namespace is enough), and `all-namespaces` reads every " +
+			"one in one call; over several a leading Namespace column says which, and one " +
+			"that cannot be read is a row under Needs attention while the others answer. " +
+			"`cluster` is a list of at most 30 that keeps those clusters' volumes, selected " +
+			"by label in the request. " + listsBelongInTheCall + " Only " +
+			"volumes CloudNativePG labelled are read, never the rest of a namespace's " +
+			"storage.\n\n" +
 			"**It does not report how full a volume is.** That comes from the kubelet's " +
 			"own stats endpoint through the node proxy — a different mechanism and a " +
 			"different permission, and one that does not survive every proxy people put " +
@@ -169,60 +177,64 @@ func storageCapability() plugin.Capability {
 			"holds nodes/proxy.",
 		Agent: "Reports what the cluster got, not what its spec asks for: a claim still Pending, one " +
 			"smaller than requested and an expansion that never finished show here and nowhere in the " +
-			"spec. One row per volume, data and WAL; without `cluster`, every cluster's, and " +
-			"`all-namespaces` reads every namespace. It does not report how full a volume is.",
+			"spec. One row per volume, data and WAL; without `cluster`, every cluster's. `namespace` is " +
+			"an array of at most 30, each read with one call of its own, and `all-namespaces` reads every " +
+			"namespace; one that could not be read is a row under Needs attention. `cluster` is an array of " +
+			"at most 30 that keeps those clusters' volumes. It does not report how full a volume is.",
 		Run: runStorage,
-	}, clusterField("the cluster whose volumes to read — every cluster's when omitted", false), allNamespacesField())
+	}, clustersField("only these clusters' volumes — every cluster's when omitted"), namespacesField(), allNamespacesField())
 }
 
 func runStorage(ctx context.Context, req plugin.Request) (view.View, error) {
-	s, verr := selectionOf(req)
+	s, names, verr := listingOf(req)
 	if verr != nil {
 		return nil, verr
 	}
-	name := strings.TrimSpace(req.String("cluster"))
-	if verr := checkName("cluster", name); verr != nil {
-		return nil, verr
-	}
-	var list pvcList
 	// The label selector goes to the API server rather than being filtered
 	// here, because a namespace's other volumes are not this call's business
 	// and reading them would be reading somebody else's storage layout to
-	// throw it away. Named, it is the one cluster's label value; unnamed it is
-	// the label's existence, which is every volume CloudNativePG made and none
-	// it did not — the same line, drawn at the label rather than at a value.
-	selector := pvcSelector
-	if name != "" {
-		selector += "=" + name
-	}
-	if verr := getResource(ctx, s, "persistentvolumeclaims", "", &list, "-l", selector); verr != nil {
+	// throw it away. Named, it is the one cluster's label value, or the set of
+	// them for several; unnamed it is the label's existence, which is every
+	// volume CloudNativePG made and none it did not — the same line, drawn at
+	// the label rather than at a value.
+	selector := volumeSelector(names)
+	r, verr := settle(s, readEach(ctx, s.scopes(), func(ctx context.Context, scope selection) (pvcList, *view.Error) {
+		return fetch[pvcList](ctx, scope, "persistentvolumeclaims", "", "-l", selector)
+	}))
+	if verr != nil {
 		return nil, verr
 	}
-	// The Cluster column is for the read that does not name one: with a name
-	// it would say the same thing on every row.
+	var items []pvc
+	for _, o := range r.outcomes {
+		items = append(items, o.got.Items...)
+	}
+	// The Cluster column is for the read that does not name exactly one: with a
+	// name it would say the same thing on every row.
 	cols := []view.Column{{Name: "Volume"}, {Name: "Instance"}, {Name: "Holds"},
 		{Name: "Status", Kind: view.KindStatus},
 		{Name: "Requested"}, {Name: "Capacity"}, {Name: "Class"}, {Name: "Phase"}}
-	if name == "" {
+	showCluster := len(names) != 1
+	if showCluster {
 		cols = append([]view.Column{{Name: "Cluster"}}, cols...)
 	}
 	t := view.Table{Columns: s.leading(cols...)}
-	for _, p := range pvcsFor(list.Items) {
+	for _, p := range pvcsFor(items) {
 		cells := []string{
 			p.Metadata.Name, p.instance(), p.holds(), p.status(),
 			p.requested(), p.actual(), orDash(p.Spec.StorageClassName), orDash(p.Status.Phase),
 		}
-		if name == "" {
+		if showCluster {
 			cells = append([]string{p.owner()}, cells...)
 		}
 		t.Rows = append(t.Rows, s.lead(p.Metadata.Namespace, cells...))
 	}
 	t.Total = len(t.Rows)
-	if len(t.Rows) == 0 {
-		t.Empty = emptyVolumes(name, s)
+	if len(t.Rows) == 0 && r.answered() {
+		t.Empty = emptyVolumes(names, r.read)
 	}
+	t.Warnings = r.warnings()
 
-	if problems := storageProblems(s, list.Items); len(problems.Rows) > 0 {
+	if problems := storageProblems(s, items, r.unread); len(problems.Rows) > 0 {
 		return view.Sections{Items: []view.Section{
 			{Title: "Volumes", View: t},
 			{Title: "Needs attention", View: problems},
@@ -233,19 +245,33 @@ func runStorage(ctx context.Context, req plugin.Request) (view.View, error) {
 
 // emptyVolumes is the sentence an empty read carries (view.Table.Empty). It says
 // what was looked for and where, and which call shows where the clusters are.
-func emptyVolumes(name string, s selection) string {
-	what := "no volumes labelled " + pvcSelector
-	if name != "" {
-		what += "=" + name
-	}
-	return what + " in " + s.where() + " — " +
+func emptyVolumes(names []string, s selection) string {
+	return "no volumes labelled " + volumeSelector(names) + " in " + s.where() + " — " +
 		s.caller().listEverywhere() + " shows which clusters exist, and in which namespace"
 }
 
-func storageProblems(s selection, items []pvc) view.Table {
+// volumeSelector is the label selector for the clusters named: the label's
+// existence for none, its value for one, and a set for several.
+func volumeSelector(names []string) string {
+	switch len(names) {
+	case 0:
+		return pvcSelector
+	case 1:
+		return pvcSelector + "=" + names[0]
+	}
+	return pvcSelector + " in (" + strings.Join(names, ",") + ")"
+}
+
+// storageProblems is what needs attention: the namespaces that could not be read
+// first, because a namespace missing from the read is a larger problem than any
+// volume in it, and then each volume that is not as it was asked for.
+func storageProblems(s selection, items []pvc, unread []outcome[pvcList]) view.Table {
 	t := view.Table{Columns: s.leading(
 		view.Column{Name: "Volume"}, view.Column{Name: "Status", Kind: view.KindStatus}, view.Column{Name: "Detail"},
 	)}
+	for _, o := range unread {
+		t.Rows = append(t.Rows, s.lead(o.scope.namespace, "—", "fail", o.reason()))
+	}
 	for _, p := range pvcsFor(items) {
 		switch {
 		case !p.bound():
