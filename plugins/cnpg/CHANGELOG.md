@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.12.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.11.0...plugins/cnpg/v0.12.0) (2026-10-19)
+
+
+### Features
+
+* **cnpg:** complete the namespaces and clusters of a list as they are typed ([11c080c](https://github.com/this-is-tobi/rta-plugins/commit/11c080c4679c31782265dee4be065dd4fcb6f1d3))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.49.0 ([8f09b93](https://github.com/this-is-tobi/rta-plugins/commit/8f09b93fffb6458cec01f634d78c839ca0971d9f))
+
 ## [0.11.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.10.0...plugins/cnpg/v0.11.0) (2026-10-19)
 
 
