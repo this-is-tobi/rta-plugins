@@ -311,7 +311,7 @@ func runStdin(ctx context.Context, sf plugin.Surface, stdin []byte, args ...stri
 // call to come, and each of those waits for kubectl's own fifteen seconds: at six
 // at a time, thirty calls would keep a tile waiting for over a minute to be told
 // what the first six already said. The calls still waiting for a place are given
-// that answer instead. A refusal of one list (kube.forbidden) says nothing of the
+// that answer instead. A refusal of one list (kube.denied) says nothing of the
 // others, and is not that.
 //
 // It travels in the context and is nil outside the one caller that makes it, so
@@ -379,11 +379,31 @@ func (g *gate) note(e *view.Error) {
 // there was nothing to ask with.
 func clusterWide(code string) bool {
 	switch code {
-	case "kube.unreachable", "kube.unauthorized", "kube.login", "kube.credential.missing",
+	case "kube.unreachable", "kube.auth.failed", "kube.login", "kube.credential.missing",
 		"kube.noconfig", "kube.context.unknown", "kube.context.none", "kube.kubectl.missing":
 		return true
 	}
 	return false
+}
+
+// rejected is the first of errs that is the API server answering 401, which a
+// call that sets a read's failure aside (a row, a warning, a page) still ends
+// on: a dashboard stops asking a tile whose credential was refused twice, and
+// reads that off the error a call returns (view.Error.CredentialRefused), so a
+// refusal folded into a page is one it never sees and the token goes out again
+// at every refresh.
+//
+// Only kube.auth.failed. A 403 (kube.denied) is one read's answer and says
+// nothing of the next, which is why a restricted identity gets the page of what
+// it may read; and the credential plugin that gave nothing (kube.login,
+// kube.credential.missing) reached no API server, so nothing was refused.
+func rejected(errs ...*view.Error) *view.Error {
+	for _, e := range errs {
+		if e != nil && e.Code == "kube.auth.failed" {
+			return e
+		}
+	}
+	return nil
 }
 
 // classify turns a kubectl failure into something an operator can act on.
@@ -436,6 +456,27 @@ func classify(ctx context.Context, err error, stderr string, args []string, sf p
 			"%s, the context's credential plugin, is not installed", exe).
 			WithHint("the kubeconfig's exec block for this context names it — install it, or put it on PATH")
 	}
+	// The rest of what a credential helper's failure says, which the two
+	// patterns above do not read: a plugin that could not be run, one that is
+	// configured wrongly or that answered with nothing, and a kubeconfig that
+	// names an auth provider this kubectl no longer has. Each is a failure before
+	// there was a request, so none is the API server refusing a credential and
+	// none ends the way kube.auth.failed does; they are read ahead of the 401
+	// below because client-go's retry noise around a plugin's failure can carry
+	// the API server's words as well.
+	whole := strings.ToLower(stderr)
+	if strings.Contains(whole, "no auth provider found") {
+		return view.Errorf("kube.credential.missing", "%s", firstLine(stderr)).
+			WithHint("the kubeconfig names an auth provider this kubectl does not have — kubectl dropped " +
+				"the built-in gcp and azure providers, and the context needs an exec credential plugin in their place")
+	}
+	if strings.Contains(whole, "getting credentials") || strings.Contains(whole, "exec plugin") ||
+		strings.Contains(whole, "credential plugin") {
+		return view.Errorf("kube.login", "this context's credential plugin gave no credential: %s", firstLine(stderr)).
+			WithHint("nothing was refused — the request never reached the API server. Whatever issues this " +
+				"context's credential (a login, an SSO session, an exec credential plugin) has to run again, " +
+				"and the kubeconfig's exec block is where a plugin that cannot run is set up")
+	}
 	msg := firstLine(stderr)
 	low := strings.ToLower(msg)
 	switch {
@@ -459,13 +500,24 @@ func classify(ctx context.Context, err error, stderr string, args []string, sf p
 		// Left as the API server phrased it. An RBAC refusal names the verb,
 		// the resource and the identity, and every one of those is what the
 		// operator needs to fix it.
-		return view.Errorf("kube.forbidden", "%s", msg).
+		//
+		// This code and the next end the way they do on purpose: a dashboard
+		// stops asking a tile whose credential was refused twice, and it reads
+		// that off the code's `.denied` and `.auth.failed` endings
+		// (view.Error.CredentialRefused). kube.login and kube.credential.missing
+		// are not that — nothing reached the API server to be refused — and
+		// have neither ending.
+		return view.Errorf("kube.denied", "%s", msg).
 			WithHint("the credential this context uses does not have that permission")
-	case strings.Contains(low, "unauthorized"), strings.Contains(low, "invalid bearer token"),
-		strings.Contains(low, "credentials"), strings.Contains(low, "exec plugin"):
-		return view.Errorf("kube.unauthorized", "%s", msg).
-			WithHint("the context's credential is missing or expired — whatever refreshes it " +
-				"(a login, an SSO session, an exec credential plugin) has to run first")
+	case strings.Contains(low, "unauthorized"), strings.Contains(low, "you must be logged in to the server"),
+		strings.Contains(low, "the server has asked for the client to provide credentials"):
+		// Only the API server's own 401 words. The words a credential helper's
+		// failure comes in ("credentials", "exec plugin") used to be here, and
+		// a plugin that never ran ended in a code a tile reads as the cluster
+		// turning the credential down; they are kube.login above.
+		return view.Errorf("kube.auth.failed", "%s", msg).
+			WithHint("the API server answered 401: the credential this context sends is expired, revoked or " +
+				"not valid — whatever refreshes it (a login, an SSO session, an exec credential plugin) has to run first")
 	case strings.Contains(low, "connection refused"), strings.Contains(low, "no route to host"),
 		strings.Contains(low, "i/o timeout"), strings.Contains(low, "dial tcp"),
 		strings.Contains(low, "server could not find"), strings.Contains(low, "connect:"),

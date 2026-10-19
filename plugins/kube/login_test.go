@@ -74,8 +74,8 @@ func TestACredentialPluginIsNamedByItsBaseNameAndItsExitCodeWhenSilent(t *testin
 func TestAServerUnauthorizedIsNotMistakenForAPluginRefusing(t *testing.T) {
 	verr := classify(context.Background(), errors.New("exit status 1"),
 		"error: You must be logged in to the server (Unauthorized)\n", nil, plugin.SurfaceCLI)
-	if verr.Code != "kube.unauthorized" {
-		t.Errorf("code = %s, want kube.unauthorized", verr.Code)
+	if verr.Code != "kube.auth.failed" {
+		t.Errorf("code = %s, want kube.auth.failed", verr.Code)
 	}
 }
 

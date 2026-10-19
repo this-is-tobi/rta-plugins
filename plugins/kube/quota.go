@@ -69,6 +69,9 @@ func runQuotaList(ctx context.Context, req plugin.Request) (view.View, error) {
 	}
 	var limits list[limitRangeItem]
 	limitErr := getJSON(ctx, s, "limitranges", &limits)
+	if refusal := rejected(limitErr); refusal != nil {
+		return nil, refusal
+	}
 
 	cols := quotaColumns(s.AllNS)
 
