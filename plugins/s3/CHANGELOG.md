@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.10.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.9.0...plugins/s3/v0.10.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **s3:** the overview of a bucket shows what it holds and keeps, and leads with a verdict
+
+### Features
+
+* **s3:** the overview of a bucket shows what it holds and keeps, and leads with a verdict ([ab81de6](https://github.com/this-is-tobi/rta-plugins/commit/ab81de646cb1bb276e368631bf3e822133973838))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.47.0 ([9da2871](https://github.com/this-is-tobi/rta-plugins/commit/9da2871b3111e8cdb6a0dc7df834465d7b27d746))
+
 ## [0.9.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.8.0...plugins/s3/v0.9.0) (2026-10-18)
 
 

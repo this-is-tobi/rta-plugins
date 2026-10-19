@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.6.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.5.1...plugins/redis/v0.6.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **redis:** the overview leads with a verdict and fits a tile, the full page is --detail
+
+### Features
+
+* **redis:** the overview leads with a verdict and fits a tile, the full page is --detail ([691dccb](https://github.com/this-is-tobi/rta-plugins/commit/691dccbef7cceeb0316485c9ceab10af8bd2c8f7))
+
+
+### Bug Fixes
+
+* **redis:** a reason the slow log could not be read stays one line of a tile ([50f9b0a](https://github.com/this-is-tobi/rta-plugins/commit/50f9b0a802efe77a163b2cc4a847724f7ed910c7))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.47.0 ([9da2871](https://github.com/this-is-tobi/rta-plugins/commit/9da2871b3111e8cdb6a0dc7df834465d7b27d746))
+
 ## [0.5.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.5.0...plugins/redis/v0.5.1) (2026-10-18)
 
 

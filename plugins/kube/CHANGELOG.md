@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.8.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.7.0...plugins/kube/v0.8.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **kube:** kube.overview's `namespace` input is an array over MCP. An agent that sent a string should send ["name"]; a bare string is still read as one name by the host, but a client that validates against the published schema will reject it. The command line is compatible (`--namespace x` works, and repeats or takes commas). The live suggestion of the cluster's namespaces on that one input is gone, since the host accepts live completion on text inputs only; under a fence the host completes the fenced names. A list written under `plugins.kube.namespace` in the config is read by the overview but `rta doctor` flags it, since the other capabilities declare the same key as text: write a list in the tile's `with:` or in the call, and a single name in the config.
+* **kube:** lead the overview with its verdict and show deployments, restarts and skew
+
+### Features
+
+* **kube:** lead the overview with its verdict and show deployments, restarts and skew ([53514d9](https://github.com/this-is-tobi/rta-plugins/commit/53514d9135557d6ac3c694806bad6705f7c64c89))
+
+
+### Bug Fixes
+
+* **kube:** the overview reads a list of namespaces, one call per namespace ([a5cb298](https://github.com/this-is-tobi/rta-plugins/commit/a5cb29803e2184678d3b500932f948b68c9a6885))
+* **kube:** the stats test asks the stub and not the kubectl of the machine running it ([176b167](https://github.com/this-is-tobi/rta-plugins/commit/176b16762eb02fee9987cbc4675a68a2ab1eb577))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.47.0 ([9da2871](https://github.com/this-is-tobi/rta-plugins/commit/9da2871b3111e8cdb6a0dc7df834465d7b27d746))
+
 ## [0.7.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.6.1...plugins/kube/v0.7.0) (2026-10-18)
 
 

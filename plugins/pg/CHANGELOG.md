@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.12.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.11.0...plugins/pg/v0.12.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **pg:** the overview's compact form leads with a verdict and the state of the server
+
+### Features
+
+* **pg:** the overview's compact form leads with a verdict and the state of the server ([c156585](https://github.com/this-is-tobi/rta-plugins/commit/c15658529df259b4eeab65f28bfcac17f442e11d))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.47.0 ([9da2871](https://github.com/this-is-tobi/rta-plugins/commit/9da2871b3111e8cdb6a0dc7df834465d7b27d746))
+
 ## [0.11.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.10.0...plugins/pg/v0.11.0) (2026-10-18)
 
 

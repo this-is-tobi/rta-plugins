@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.9.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.8.0...plugins/cnpg/v0.9.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cnpg:** grade each cluster by its worst finding and show its backup in the list
+
+### Features
+
+* **cnpg:** grade each cluster by its worst finding and show its backup in the list ([49a4f52](https://github.com/this-is-tobi/rta-plugins/commit/49a4f52655b43e0353487605f64e68ec37210c1b))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.47.0 ([9da2871](https://github.com/this-is-tobi/rta-plugins/commit/9da2871b3111e8cdb6a0dc7df834465d7b27d746))
+
 ## [0.8.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.7.0...plugins/cnpg/v0.8.0) (2026-10-18)
 
 

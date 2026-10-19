@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.8.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.7.1...plugins/etcd/v0.8.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **etcd:** the overview leads with a verdict and fits a tile, the full page is --detail
+
+### Features
+
+* **etcd:** the overview leads with a verdict and fits a tile, the full page is --detail ([fffba6f](https://github.com/this-is-tobi/rta-plugins/commit/fffba6f521146cf130258fbd5815cc340e821103))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.47.0 ([9da2871](https://github.com/this-is-tobi/rta-plugins/commit/9da2871b3111e8cdb6a0dc7df834465d7b27d746))
+
 ## [0.7.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.7.0...plugins/etcd/v0.7.1) (2026-10-18)
 
 
