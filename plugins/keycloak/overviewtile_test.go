@@ -68,7 +68,7 @@ func TestTheGlanceLeadsWithTheVerdictAndKeepsTheRealmLast(t *testing.T) {
 		}
 	}
 	rows := pairs(t, view.KeyValue{Pairs: got})
-	if want := "fail — brute force off"; rows["status"] != want {
+	if want := "warn — brute force off"; rows["status"] != want {
 		t.Errorf("status = %q, want %q", rows["status"], want)
 	}
 	if rows["realm"] != "demo · enabled" {
@@ -94,10 +94,10 @@ func TestTheVerdictNamesTheWorstFactsInTheAuditsGrades(t *testing.T) {
 		want   string
 	}{
 		{"a realm that refuses every login", obj{"bruteForceProtected": true, "enabled": false}, "fail — realm disabled"},
-		{"no TLS required anywhere", obj{"bruteForceProtected": true, "sslRequired": "none"}, "fail — ssl not required"},
-		{"login events not recorded", obj{"bruteForceProtected": true, "eventsEnabled": false}, "fail — login events off"},
-		{"admin events not recorded", obj{"bruteForceProtected": true, "adminEventsEnabled": false}, "fail — admin events off"},
-		{"neither recorded", obj{"bruteForceProtected": true, "eventsEnabled": false, "adminEventsEnabled": false}, "fail — events off"},
+		{"no TLS required anywhere", obj{"bruteForceProtected": true, "sslRequired": "none"}, "warn — ssl not required"},
+		{"login events not recorded", obj{"bruteForceProtected": true, "eventsEnabled": false}, "warn — login events off"},
+		{"admin events not recorded", obj{"bruteForceProtected": true, "adminEventsEnabled": false}, "warn — admin events off"},
+		{"neither recorded", obj{"bruteForceProtected": true, "eventsEnabled": false, "adminEventsEnabled": false}, "warn — events off"},
 		{"several at once", obj{"enabled": false, "sslRequired": "none", "eventsEnabled": false},
 			"fail — realm disabled, brute force off, ssl not required +1"},
 		{"ssl from outside only, which is Keycloak's default and a choice behind a proxy",
@@ -131,10 +131,18 @@ func TestAnUnreadRowIsAWarningInTheVerdict(t *testing.T) {
 		t.Errorf("status = %q, want %q", got, want)
 	}
 
-	// And a failure comes before the warning, whatever the order of the rows.
+	// A protection that is off comes before a row that could not be read, whatever the order of the rows.
 	f = newFakeKeycloak(t)
 	f.deny = []string{"/users/count"}
-	if got, want := statusOf(t, f), "fail — brute force off, users could not be read"; got != want {
+	if got, want := statusOf(t, f), "warn — brute force off, users could not be read"; got != want {
+		t.Errorf("status = %q, want %q", got, want)
+	}
+
+	// And a failure comes before both: a disabled realm refuses every login.
+	f = newFakeKeycloak(t)
+	aRealm(t, f, obj{"enabled": false})
+	f.deny = []string{"/users/count"}
+	if got, want := statusOf(t, f), "fail — realm disabled, brute force off +1"; got != want {
 		t.Errorf("status = %q, want %q", got, want)
 	}
 }
@@ -155,7 +163,7 @@ func TestTheDetailedGlanceKeepsWhatTheCompactOneMovedAndLeadsWithTheVerdict(t *t
 		t.Fatalf("rows = %v, want %v", keys, want)
 	}
 	rows := pairs(t, view.KeyValue{Pairs: got})
-	if rows["browser flow"] != "browser" || rows["version"] != "26.7.3" || !strings.HasPrefix(rows["status"], "fail — ") {
+	if rows["browser flow"] != "browser" || rows["version"] != "26.7.3" || !strings.HasPrefix(rows["status"], "warn — ") {
 		t.Errorf("rows = %v", rows)
 	}
 }
