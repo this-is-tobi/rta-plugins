@@ -504,19 +504,57 @@ func TestConfigGetMasksCredentials(t *testing.T) {
 }
 
 func TestServerErrorsAreClassified(t *testing.T) {
-	cases := map[string]string{
-		"-NOAUTH Authentication required.\r\n":          "redis.auth.required",
-		"-WRONGPASS invalid username-password pair\r\n": "redis.auth.failed",
-		"-LOADING Redis is loading the dataset\r\n":     "redis.loading",
-		"-MOVED 3999 127.0.0.1:6381\r\n":                "redis.cluster.redirect",
-		"-NOPERM this user has no permissions\r\n":      "redis.denied",
+	// refused is whether a dashboard stops asking a tile that meets it twice
+	// (view.Error.CredentialRefused): the server turning the account down, and
+	// nothing else. A server nobody gave a password to has refused nothing.
+	cases := map[string]struct {
+		code    string
+		refused bool
+	}{
+		"-NOAUTH Authentication required.\r\n":          {"redis.auth.required", false},
+		"-WRONGPASS invalid username-password pair\r\n": {"redis.auth.failed", true},
+		"-LOADING Redis is loading the dataset\r\n":     {"redis.loading", false},
+		"-MOVED 3999 127.0.0.1:6381\r\n":                {"redis.cluster.redirect", false},
+		"-NOPERM this user has no permissions\r\n":      {"redis.denied", true},
 	}
-	for answer, code := range cases {
+	for answer, want := range cases {
 		srv := newFakeServer(t, map[string]string{"PING": answer})
 		_, err := run(t, "redis.overview", srv, nil)
-		if ve := view.AsError(err, "x"); ve.Code != code {
-			t.Errorf("%q → %s, want %s", strings.TrimSpace(answer), ve.Code, code)
+		ve := view.AsError(err, "x")
+		if ve.Code != want.code {
+			t.Errorf("%q → %s, want %s", strings.TrimSpace(answer), ve.Code, want.code)
 		}
+		if got := ve.CredentialRefused(); got != want.refused {
+			t.Errorf("%s.CredentialRefused() = %v, want %v", ve.Code, got, want.refused)
+		}
+	}
+}
+
+// The line between the two, end to end: a password that is sent and not accepted
+// is the server's refusal of it, and a server that asks for one nobody set is a
+// credential that is missing. NOAUTH can only be the second because AUTH goes
+// first whenever there is a password, so the code a dashboard reads as a refusal
+// is never put on a call that presented nothing.
+func TestAServerThatAsksForAPasswordRefusesOnlyOneItWasGiven(t *testing.T) {
+	answers := map[string]string{
+		"AUTH wrong": "-WRONGPASS invalid username-password pair\r\n",
+		"PING":       "-NOAUTH Authentication required.\r\n",
+	}
+	for name, tc := range map[string]struct {
+		values  map[string]any
+		code    string
+		refused bool
+	}{
+		"a wrong password":  {map[string]any{"password": "wrong"}, "redis.auth.failed", true},
+		"no password given": {nil, "redis.auth.required", false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := run(t, "redis.overview", newFakeServer(t, answers), tc.values)
+			ve := view.AsError(err, "x")
+			if ve.Code != tc.code || ve.CredentialRefused() != tc.refused {
+				t.Errorf("%s (credential refused: %v), want %s (%v)", ve.Code, ve.CredentialRefused(), tc.code, tc.refused)
+			}
+		})
 	}
 }
 
@@ -577,8 +615,8 @@ func TestNothingListeningIsCoded(t *testing.T) {
 	addr := ln.Addr().String()
 	_ = ln.Close()
 	_, err := run(t, "redis.overview", &fakeServer{ln: closedListener{addr}}, nil)
-	if ve := view.AsError(err, "x"); ve.Code != "redis.conn.refused" {
-		t.Errorf("closed port = %+v", ve)
+	if ve := view.AsError(err, "x"); ve.Code != "redis.conn.refused" || ve.CredentialRefused() {
+		t.Errorf("closed port = %+v, want redis.conn.refused, which is not a refused credential", ve)
 	}
 }
 
