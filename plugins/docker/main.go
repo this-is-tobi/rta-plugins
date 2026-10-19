@@ -121,14 +121,35 @@ func Plugin() plugin.Plugin {
 			}),
 			cap(plugin.Capability{
 				ID:       "docker.overview",
-				Summary:  "One daemon at a glance: what is running, what is unhealthy, what disk is used",
+				Summary:  "One daemon at a glance: its verdict, what is unhealthy, where the disk went",
 				Keywords: []string{"summary", "status", "dashboard", "df"},
-				Description: "Whether the daemon answers, how many containers are up against how " +
-					"many exist, anything unhealthy or recently exited, and how much disk images " +
-					"are taking. With `detail`: the containers and the largest images themselves.",
+				Description: "The first row, `status`, is the verdict: ok, or warn or fail with the worst " +
+					"facts in a few words. Fail is a container failing its healthcheck, restarting or " +
+					"dead; warn is one that exited with a code other than 0, one that is paused or was " +
+					"never started, and a disk the daemon would not report. Then how many containers " +
+					"are running of those that exist, with the one-shots that exited cleanly (code 0) " +
+					"counted and not named; the problems, the unhealthy and the restarting first, then " +
+					"those that exited non-zero with the exit code read from their status text, then the " +
+					"rest, six at most; and where the disk went, from one `docker system df`: images, " +
+					"volumes and build cache, the largest first, and how much of them is reclaimable. " +
+					"Adding up the size of every volume takes the daemon seconds on a host with many, " +
+					"so a tile of it is re-run every 2 minutes at most, a floor a configuration can " +
+					"lengthen and not shorten. A daemon that does not answer is the verdict, with why " +
+					"and what to check. With `detail`: the images (a count and the leftovers of a " +
+					"rebuild, from an `image ls` the compact answer does not run), every container not " +
+					"running or not healthy, the one-shots included, the disk usage by kind, and the " +
+					"largest images.",
+				Agent: "`status` is the verdict (ok, or warn or fail with the worst facts), then the containers " +
+					"(running of all, the one-shots that exited 0 counted), the problems (unhealthy and " +
+					"restarting first, then exited non-zero with the exit code, then paused or never " +
+					"started; six at most) and the disk (images, volumes and build cache by size, and what " +
+					"is reclaimable, from docker system df, re-run every 2 minutes at most). A daemon " +
+					"that does not answer is the verdict, with why. `detail` adds the unwell containers, " +
+					"the disk usage by kind and the largest images.",
 				Safety:     plugin.Read,
 				Idempotent: true,
 				Detailed:   true,
+				Refresh:    overviewRefresh,
 				Run:        runOverview,
 			}),
 			cap(plugin.Capability{
