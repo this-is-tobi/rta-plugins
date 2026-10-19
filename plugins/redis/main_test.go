@@ -511,11 +511,14 @@ func TestServerErrorsAreClassified(t *testing.T) {
 		code    string
 		refused bool
 	}{
-		"-NOAUTH Authentication required.\r\n":          {"redis.auth.required", false},
-		"-WRONGPASS invalid username-password pair\r\n": {"redis.auth.failed", true},
-		"-LOADING Redis is loading the dataset\r\n":     {"redis.loading", false},
-		"-MOVED 3999 127.0.0.1:6381\r\n":                {"redis.cluster.redirect", false},
-		"-NOPERM this user has no permissions\r\n":      {"redis.denied", true},
+		"-NOAUTH Authentication required.\r\n":              {"redis.auth.required", false},
+		"-WRONGPASS invalid username-password pair\r\n":     {"redis.auth.failed", true},
+		"-ERR invalid password\r\n":                         {"redis.auth.failed", true},
+		"-ERR unknown command 'PING'\r\n":                   {"redis.unsupported", false},
+		"-ERR Client sent AUTH, but no password is set\r\n": {"redis.auth.unneeded", false},
+		"-LOADING Redis is loading the dataset\r\n":         {"redis.loading", false},
+		"-MOVED 3999 127.0.0.1:6381\r\n":                    {"redis.cluster.redirect", false},
+		"-NOPERM this user has no permissions\r\n":          {"redis.denied", true},
 	}
 	for answer, want := range cases {
 		srv := newFakeServer(t, map[string]string{"PING": answer})
@@ -534,22 +537,31 @@ func TestServerErrorsAreClassified(t *testing.T) {
 // is the server's refusal of it, and a server that asks for one nobody set is a
 // credential that is missing. NOAUTH can only be the second because AUTH goes
 // first whenever there is a password, so the code a dashboard reads as a refusal
-// is never put on a call that presented nothing.
+// is never put on a call that presented nothing. The refusal is worded two ways: a
+// Redis of 6 and newer answers the AUTH with WRONGPASS, and one of 5 and older with
+// ERR invalid password, which is the same server turning the same account down.
 func TestAServerThatAsksForAPasswordRefusesOnlyOneItWasGiven(t *testing.T) {
 	answers := map[string]string{
 		"AUTH wrong": "-WRONGPASS invalid username-password pair\r\n",
 		"PING":       "-NOAUTH Authentication required.\r\n",
 	}
+	older := map[string]string{
+		"AUTH wrong": "-ERR invalid password\r\n",
+		"PING":       "-NOAUTH Authentication required.\r\n",
+	}
 	for name, tc := range map[string]struct {
+		server  map[string]string
 		values  map[string]any
 		code    string
 		refused bool
 	}{
-		"a wrong password":  {map[string]any{"password": "wrong"}, "redis.auth.failed", true},
-		"no password given": {nil, "redis.auth.required", false},
+		"a wrong password":                     {answers, map[string]any{"password": "wrong"}, "redis.auth.failed", true},
+		"a wrong password, Redis 5 and older":  {older, map[string]any{"password": "wrong"}, "redis.auth.failed", true},
+		"no password given":                    {answers, nil, "redis.auth.required", false},
+		"no password given, Redis 5 and older": {older, nil, "redis.auth.required", false},
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, err := run(t, "redis.overview", newFakeServer(t, answers), tc.values)
+			_, err := run(t, "redis.overview", newFakeServer(t, tc.server), tc.values)
 			ve := view.AsError(err, "x")
 			if ve.Code != tc.code || ve.CredentialRefused() != tc.refused {
 				t.Errorf("%s (credential refused: %v), want %s (%v)", ve.Code, ve.CredentialRefused(), tc.code, tc.refused)
