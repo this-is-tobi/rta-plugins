@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 
@@ -28,8 +29,17 @@ import (
 // much part of its behaviour as what it prints.
 type fakeQdrant struct {
 	*httptest.Server
-	// bodies records each request's path and decoded body, in order.
+	// bodies records each request's path and decoded body, in the order they
+	// arrived. A read of several collections makes its requests at once, so the
+	// handlers append through record and a test reads bodies once the call is over.
 	bodies []recorded
+	mu     sync.Mutex
+}
+
+func (f *fakeQdrant) record(rec recorded) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.bodies = append(f.bodies, rec)
 }
 
 type recorded struct {
@@ -48,7 +58,7 @@ func newFakeQdrant(t *testing.T, routes map[string]string) *fakeQdrant {
 		if r.Body != nil {
 			_ = json.NewDecoder(r.Body).Decode(&rec.body)
 		}
-		f.bodies = append(f.bodies, rec)
+		f.record(rec)
 
 		body, ok := routes[r.URL.Path]
 		if !ok {

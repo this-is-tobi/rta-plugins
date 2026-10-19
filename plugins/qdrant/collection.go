@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/this-is-tobi/rta/pkg/format"
@@ -48,20 +50,79 @@ func collectionField(help string) plugin.Field {
 		Help: help, Live: true, Suggest: suggestCollections}
 }
 
-// optionalCollectionField is collectionField for a listing that is about one
-// collection when it is given one and about every collection the key sees when
-// it is not.
+// collectionsField is `collection` for a listing: the collections it is about, a
+// list, and every collection the key can see, inside the profile's fence when it
+// has one, when none is named.
 //
-// It exists so that a profile's `only: collection:` has something to hold the
-// listing to: a connection fenced to its application's collection answered the
-// overview and the collection list with every collection of the instance, names
-// and point counts the fence was written to keep out. Declared with the fence's
-// own Config key, a one-entry list fills it, and a call that names another
-// collection is refused. The same shape as plugins/s3's optionalBucketField.
-func optionalCollectionField(help string) plugin.Field {
-	f := collectionField(help)
-	f.Required = false
-	return f
+// It is a list so that a profile's `only: collection:` has something to hold the
+// listing to, whatever the fence holds. A connection fenced to its application's
+// collection answered the overview and the collection list with every collection
+// of the instance, names and point counts the fence was written to keep out, and
+// declared with the fence's own Config key a one-entry list fills it and a call
+// that names another is refused. A fence of several is the connection of a tile
+// that names several, which a single name could not be handed: the list read as
+// text that is in no entry, and a call naming none was refused as blank. The host
+// holds each element to the fence. The same shape as plugins/kube's namespace.
+//
+// **No Live, no Suggest.** Completion of a name is what collectionField has, and
+// Live is a String's: a list that suggested without it would ask the instance on
+// every keystroke. The collections that act on one stay a String and keep it.
+//
+// **The help says how a name with a comma is written, because the flag splits on
+// it.** Qdrant allows a comma in a collection's name, and a value of the flag is
+// cut at each one: --collection a,b is two collections, the same as the flag
+// given twice, and a name that has a comma is written in double quotes,
+// --collection '"a,b"' (the shell's quotes are the outer pair; a backslash or
+// single quotes do not keep it whole). A list that is not a flag (a tile's with:,
+// a profile, an array over MCP) is not cut.
+func collectionsField() plugin.Field {
+	return plugin.Field{Name: "collection", Short: "c", Type: plugin.StringSlice, Config: "collection",
+		Help: "only these; none reads all the key can see, inside the profile's fence when it has one. " +
+			"As a flag, repeat it and double-quote a name with a comma"}
+}
+
+// maxNamedCollections is the most collections a call that names some reads. Each
+// is a request, and a list longer than this is a typo or a connection that should
+// be two tiles, not a refresh to start quietly at the instance somebody's search
+// depends on. It is what the overview reads of an instance's own, so naming a
+// hundred is no more than naming none.
+const maxNamedCollections = overviewCollections
+
+// readsAtOnce is how many named collections are in flight at once: enough that a
+// hundred are not a hundred round trips in a line, few enough that a tile is not
+// a burst against an instance that is somebody's search.
+const readsAtOnce = 6
+
+// namedCollections is the collections a call names, once each and in name order:
+// an empty name is no name and a name given twice is read once, so the same page
+// is the same whichever way the list was written and a list of one is the name it
+// holds. A name is used as it was given, with no trimming: it is the name the
+// host held to the profile's fence, and one cleaned up afterwards could be a
+// collection outside it.
+//
+// A list longer than maxNamedCollections is refused here, before the instance is
+// asked anything, and the refusal never says how many the call reaches nor that
+// somebody named them. The list may be the profile's fence filled in by the host,
+// and the host withholds a fence's contents from an agent: what the refusal says
+// is the cap, and that this call is over it. who is the listing that refuses.
+func namedCollections(req plugin.Request, who string) ([]string, *view.Error) {
+	var names []string
+	for _, name := range req.StringSlice("collection") {
+		if name != "" {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	names = slices.Compact(names)
+	if len(names) > maxNamedCollections {
+		hint := "name fewer collections, or ask the operator to fence fewer"
+		if sf := req.Surface(); sf != plugin.SurfaceMCP {
+			hint = "name fewer with " + sf.InputName("collection") + ", or fence fewer in the profile or the tile that names them"
+		}
+		return nil, view.Errorf("qdrant.collection.toomany", "%s reads at most %d collections, and this call reaches more",
+			who, maxNamedCollections).WithHint(hint)
+	}
+	return names, nil
 }
 
 func suggestCollections(ctx context.Context, req plugin.Request) []string {
@@ -104,13 +165,15 @@ func overviewCapability() plugin.Capability {
 		Refresh:    overviewRefresh,
 		Description: "Whether this instance is healthy, in a few rows, worst first. `status` leads and is " +
 			"`ok`, or `warn` or `fail` followed by the worst fact: a collection that is red, a peer that " +
-			"does not answer, a part of the instance this credential cannot read. Then the collections " +
+			"does not answer, a part of the instance this key cannot read. Then the collections " +
 			"counted by status, worst first, the cluster, and last the version.\n\n" +
-			"A collection's status is only known by reading it, one request each, so at most 100 are " +
-			"read and the row says how many of how many (qdrant.collection.list reads every one). " +
-			"`yellow` means a collection serves searches from a partly-built index, so its results " +
-			"are quietly incomplete rather than absent. With a `collection`, or the one a profile " +
-			"fences with `only: collection:`, only that one.\n\n" +
+			"A collection's status is only known by reading it, a request each, so a call reads at " +
+			"most 100 and the row says how many of how many (qdrant.collection.list reads every one). " +
+			"`yellow` is a collection serving searches from a partly-built index: its results are " +
+			"quietly incomplete, not absent.\n\n" +
+			"`collection` is a list: a single name reads that collection alone, none reads every " +
+			"collection the key can see, inside the profile's fence when it has one, and several " +
+			"read exactly those.\n\n" +
 			"`detail` adds the address and the table of the collections read: points, indexed " +
 			"vectors, segments, status. Against a distributed instance it also lists the peers and " +
 			"adds a replicas column, a request for each collection. This peer's row has its raft term, " +
@@ -126,18 +189,23 @@ func overviewCapability() plugin.Capability {
 			"has and a JWT scoped to collections does not.\n\n" +
 			"Describes collections and returns no point; reading points is qdrant.points.scroll, a write.",
 		Agent: "Whether the instance is healthy, worst first: `status` is `ok`, or `warn` or `fail` and the " +
-			"worst fact (a red collection, a peer that does not answer, a part this credential cannot " +
-			"read). Then the collections counted by status, the cluster and the version. At most 100 " +
-			"collections are read, a request each; the row says how many of how many. `yellow` means a " +
-			"collection serves searches from a partly built index, so its results are quietly " +
-			"incomplete. `detail` adds the table of collections with points, indexed vectors and " +
-			"segments, and against a distributed instance the peers and each collection's replicas " +
-			"(Dead is red). Ask the leader: a follower cannot see every peer. Returns no point.",
+			"worst fact (a red collection, a peer that does not answer, a part this key cannot read). " +
+			"Then the collections by status, the cluster and the version. `collection` is an array: " +
+			"none reads every collection the key can see, inside the profile's fence when it has one, " +
+			"some read exactly those, at most 100 in all. One not there is a `not found` row, one " +
+			"it cannot read is named in the verdict. `yellow` is a partly built index, so results are " +
+			"quietly incomplete. `detail` adds the collections' points, indexed vectors and segments, " +
+			"and on a distributed instance the peers and each collection's replicas. Ask the leader: a " +
+			"follower cannot see every peer. Returns no point.",
 		Run: runOverview,
-	}, optionalCollectionField("only this collection — every collection the key can see when omitted"))
+	}, collectionsField())
 }
 
 func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
+	named, verr := namedCollections(req, "an overview")
+	if verr != nil {
+		return nil, verr
+	}
 	ctx = boundedTo(ctx, overviewTimeout)
 	var root struct {
 		Title   string `json:"title"`
@@ -154,19 +222,19 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 		return nil, verr
 	}
 	detail := req.Bool("detail")
-	table, verr := collectionTableIn(ctx, req, cs, overviewCollections, detail)
+	table, unread, verr := collectionTableIn(ctx, req, cs, named, overviewCollections, detail)
 	unlisted := ""
 	if verr != nil {
 		// The credential is valid and may not list the collections: the version
 		// and the cluster were read with it, and a row that says so is the answer,
 		// not an error that discards them. A collection named is the finding when
 		// it cannot be read, and every other failure would fail the next call too.
-		if verr.Code != "qdrant.denied" || strings.TrimSpace(req.String("collection")) != "" {
+		if verr.Code != "qdrant.denied" || len(named) != 0 {
 			return nil, verr
 		}
 		unlisted = "this credential may not list the collections"
 	}
-	summary := compactOverview(root.Version, cs, table, unlisted, time.Now())
+	summary := compactOverview(root.Version, cs, table, unread, unlisted, time.Now())
 	if !detail {
 		return summary, nil
 	}
@@ -243,11 +311,12 @@ func unreadText(why string) string { return "could not be read — " + why }
 //
 // **It reads no replica.** The replicas column is a request for every collection
 // and is the detail's; the compact form's collection requests are the ones that
-// give each its status, which is what the row counts. unlisted is why the list of
-// collections could not be read, when it could not.
-func compactOverview(version string, cs clusterState, table view.Table, unlisted string, now time.Time) view.KeyValue {
+// give each its status, which is what the row counts. unread are the collections
+// among them that could not be read, which the verdict names, and unlisted is why
+// the list of collections could not be read, when it could not.
+func compactOverview(version string, cs clusterState, table view.Table, unread []unreadCollection, unlisted string, now time.Time) view.KeyValue {
 	cluster, clusterFound := clusterRow(cs, now)
-	collections, collectionFound := collectionsRow(table)
+	collections, collectionFound := collectionsRow(table, unread)
 	if unlisted != "" {
 		collections, collectionFound = unreadText(unlisted), []finding{{gradeWarn, "collections could not be read"}}
 	}
@@ -269,7 +338,7 @@ func statusOrder(status string) int {
 		return 1
 	case "grey":
 		return 2
-	case "unreadable":
+	case statusUnreadable:
 		return 3
 	case "green":
 		return 5
@@ -285,7 +354,12 @@ func statusOrder(status string) int {
 // **Past the bound the count is of the ones read, and says so.** The status of a
 // collection is only known by reading it; the verdict is about those and the row
 // beside it says how many they are of how many there are.
-func collectionsRow(table view.Table) (string, []finding) {
+//
+// **A collection that could not be read is named, and the row says why.** A tile
+// shows the compact form alone, and "1 collection could not be read" left its
+// reader to run the detail to find out which: the verdict names up to two and
+// then how many more, and the count in the row carries the reasons in a few words.
+func collectionsRow(table view.Table, unread []unreadCollection) (string, []finding) {
 	read := len(table.Rows)
 	if read == 0 {
 		return "none", nil
@@ -311,6 +385,12 @@ func collectionsRow(table view.Table) (string, []finding) {
 		}
 		return statuses[a] < statuses[b]
 	})
+	label := func(status string) string {
+		if status == statusUnreadable {
+			return status + " (" + reasonsOf(unread) + ")"
+		}
+		return status
+	}
 
 	text := strconv.Itoa(read)
 	if table.Total > read {
@@ -318,19 +398,21 @@ func collectionsRow(table view.Table) (string, []finding) {
 	}
 	var found []finding
 	if len(statuses) == 1 {
-		text += ", all " + statuses[0]
+		text += ", all " + label(statuses[0])
 		if read == 1 {
 			text = strings.Replace(text, ", all ", ", ", 1)
 		}
 	}
 	for _, status := range statuses {
 		if len(statuses) > 1 {
-			text += ", " + strconv.Itoa(counts[status]) + " " + status
+			text += ", " + strconv.Itoa(counts[status]) + " " + label(status)
 		}
 		switch status {
 		case "green":
 		case "red":
 			found = append(found, finding{gradeFail, collectionFinding(counts[status], status, first[status])})
+		case statusUnreadable:
+			found = append(found, finding{gradeWarn, unreadFinding(unread)})
 		default:
 			found = append(found, finding{gradeWarn, collectionFinding(counts[status], status, first[status])})
 		}
@@ -339,13 +421,76 @@ func collectionsRow(table view.Table) (string, []finding) {
 }
 
 func collectionFinding(n int, status, first string) string {
-	if status == "unreadable" {
-		return format.CountOf(n, "collection") + " could not be read"
-	}
 	if n == 1 {
 		return first + " is " + status
 	}
 	return format.CountOf(n, "collection") + " " + status + ", first " + first
+}
+
+// statusUnreadable is the status of a row for a collection that was asked for and
+// could not be read: not one Qdrant reports, and the one a tile counts.
+const statusUnreadable = "unreadable"
+
+// unreadCollection is a collection that was asked for and could not be read: its
+// name as it is shown, and why in a few words, which is what a tile has room for.
+type unreadCollection struct{ name, why string }
+
+// whyUnread is a failed read said in a few words. The whole of it, the
+// instance's address and what it answered, is the detail's warning.
+func whyUnread(verr *view.Error) string {
+	switch verr.Code {
+	case "qdrant.denied":
+		return "denied"
+	case "qdrant.auth.failed":
+		return "key rejected"
+	case "qdrant.notfound":
+		return "not found"
+	case "qdrant.timeout":
+		return "timed out"
+	case "qdrant.unavailable":
+		return "not serving"
+	case "qdrant.ratelimited":
+		return "rate limited"
+	case "qdrant.peer.unreachable":
+		return "peer not answering"
+	case "qdrant.request.failed":
+		return "request failed"
+	}
+	if strings.HasPrefix(verr.Code, "qdrant.conn.") {
+		return "connection failed"
+	}
+	return "failed"
+}
+
+// unreadFinding is the verdict's fact for collections that could not be read:
+// the first two by name and how many more, so that a tile says which.
+func unreadFinding(unread []unreadCollection) string {
+	shown := min(len(unread), 2)
+	names := make([]string, shown)
+	for i := range shown {
+		names[i] = unread[i].name
+	}
+	text := strings.Join(names, ", ")
+	if more := len(unread) - shown; more > 0 {
+		text += " +" + strconv.Itoa(more)
+	}
+	return text + " could not be read"
+}
+
+// reasonsOf is why the collections could not be read, each reason once, in the
+// order the collections are in: two at most and how many more, because a row of a
+// tile has the room for no more.
+func reasonsOf(unread []unreadCollection) string {
+	var why []string
+	for _, u := range unread {
+		if !slices.Contains(why, u.why) {
+			why = append(why, u.why)
+		}
+	}
+	if len(why) > 2 {
+		return strings.Join(why[:2], ", ") + " +" + strconv.Itoa(len(why)-2)
+	}
+	return strings.Join(why, ", ")
 }
 
 // clusterRow is whether the instance stands alone or how its peers are, and what
@@ -427,9 +572,19 @@ func collectionListCapability() plugin.Capability {
 			"how incomplete the answers currently are.\n\n" +
 			"In a cluster a replicas column says whether every replica of the collection is " +
 			"serving, as the overview does.\n\n" +
-			"With a `collection` — named, or the one a profile fences with `only: collection:` — " +
-			"only that one.\n\n" +
+			"`collection` is a list: a single name reads that collection alone, none reads every " +
+			"collection the key can see, inside the profile's fence when it has one, and several read " +
+			"exactly those, at most 100, a request each and without listing the instance. One that is " +
+			"not there is a `not found` row, and one the key may not read is a row with the reason in " +
+			"a warning. A list goes in a tile's `with:`, in the call or in a profile's `only:` fence; " +
+			"in the config or a profile's `set:` it stays one name, because the other capabilities " +
+			"that share the key take text.\n\n" +
 			"Names and counts only, never a point.",
+		Agent: "Each collection's points, indexed vectors and status, and in a cluster whether its replicas " +
+			"serve. `collection` is an array: none reads every collection the key can see, inside the " +
+			"profile's fence when it has one, some read exactly those, at most 100, and one not there is " +
+			"a `not found` row. Indexed below points is a collection still building its index, which " +
+			"answers from what it has. Returns no point.",
 		// Not `return collectionTable(ctx, req)`, which reads the same and
 		// is not: the *view.Error comes back inside Run's error interface,
 		// where a nil pointer is a non-nil error, and every listing that
@@ -441,19 +596,26 @@ func collectionListCapability() plugin.Capability {
 			}
 			return table, nil
 		},
-	}, optionalCollectionField("only this collection — every collection the key can see when omitted"))
+	}, collectionsField())
 }
 
 func collectionTable(ctx context.Context, req plugin.Request) (view.Table, *view.Error) {
+	named, verr := namedCollections(req, "a collection list given a list")
+	if verr != nil {
+		return view.Table{}, verr
+	}
 	cs, verr := fetchCluster(ctx, req)
 	if verr != nil {
 		return view.Table{}, verr
 	}
-	return collectionTableIn(ctx, req, cs, 0, true)
+	table, _, verr := collectionTableIn(ctx, req, cs, named, 0, true)
+	return table, verr
 }
 
 // collectionTableIn lists the collections, and in a cluster adds the column
-// that says whether every replica of each is serving.
+// that says whether every replica of each is serving. The collections among them
+// that could not be read come back by name beside the table, for a verdict that
+// names them.
 //
 // **The column is there when it can mean something.** A standalone instance
 // has one copy of everything and nothing to say; a distributed one gets it
@@ -465,27 +627,41 @@ func collectionTable(ctx context.Context, req plugin.Request) (view.Table, *view
 // caller that does not show the column (the overview's compact form) does not
 // ask for it.
 //
-// **With a `collection`, the page is about it and the instance's listing is
+// **With collections named, the page is about them and the instance's listing is
 // never asked for.** A fence on `collection` is written to keep the other names
 // out of a connection's answers, and the listing is where they are; a key
-// scoped to one collection may not be allowed it either. The collection that
-// is not there is then the finding, as the bucket is in plugins/s3's overview,
-// and not a row of "unreadable" that reads as one the key may not see.
+// scoped to some collections may not be allowed it either. Of one name, the
+// collection that is not there is the finding, as the bucket is in plugins/s3's
+// overview, and not a row of "unreadable" that reads as one the key may not see.
+// Of several, a page about the rest is still the answer: a name that is not
+// there is a row that says "not found", which the verdict counts as a warning,
+// and one that could not be read, for whatever reason, is an "unreadable" row
+// with a warning that names it and says why. The warning is the named ones'
+// only: the collections of a blank call are the instance's to name, and the
+// rows say which they are.
+//
+// **Several named are read six at a time, each held to the overview's bound and
+// all of them to one deadline.** A request each, and a list of a hundred read one
+// after another is a hundred round trips in a line. The bound of a request is the
+// overview's, whichever listing asks: a collection's description is not a count
+// over a large one, which is what the longer bound of the other calls is for. The
+// deadline is twice that bound for all of them together, so that a request that
+// fails slowly is a row and the page goes on, and an instance that answers none
+// is given up on once and not once for each round. What is not read by then is a
+// row that says it did not answer in time. The collections of a call that names
+// none, or one, are read as they were: in name order, one after another.
 //
 // **With a limit, only that many are read, the first by name, and the table says
 // how many there are.** Each collection is a request, and its status is only
 // known by making it, so the ones to read cannot be chosen by their health: the
 // worst of those read are put first, which is all the order can promise. The cut
 // is Total, which a program reads, and a warning, which a person does.
-func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState, limit int, replicas bool) (view.Table, *view.Error) {
-	only := strings.TrimSpace(req.String("collection"))
-	var names []string
-	if only != "" {
-		names = []string{only}
-	} else {
+func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState, named []string, limit int, replicas bool) (view.Table, []unreadCollection, *view.Error) {
+	names := named
+	if len(named) == 0 {
 		var list collectionsResponse
 		if verr := get(ctx, req, "/collections", &list); verr != nil {
-			return view.Table{}, verr
+			return view.Table{}, nil, verr
 		}
 		names = make([]string, 0, len(list.Collections))
 		for _, c := range list.Collections {
@@ -507,37 +683,56 @@ func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState,
 		{Name: "Segments", Kind: view.KindNumber},
 		{Name: "Status", Kind: view.KindStatus},
 	}}
-	read := make([]collectionRow, 0, len(names))
-	anyDistributed := false
-	for _, name := range names {
-		listed := plugin.ListedName(name)
-		replica := "-"
-		if replicas && cs.mode != modeStandalone {
-			var cc collectionCluster
-			if verr := get(ctx, req, pathFor("/collections/%s/cluster", name), &cc); verr == nil && (cs.mode == modeDistributed || cc.distributed()) {
-				replica = replicasHealth(cc, cs.label, cs.peersDown(time.Now()))
-				anyDistributed = true
-			}
-		}
+	atOnce := 1
+	if len(named) > 1 {
+		atOnce = readsAtOnce
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(boundedTo(ctx, overviewTimeout), 2*overviewTimeout)
+		defer cancel()
+	}
+	reads := make([]collectionRead, len(names))
+	eachAtOnce(len(names), atOnce, func(i int) { reads[i] = readCollection(ctx, req, cs, names[i], replicas) })
 
-		var info collectionInfo
-		if verr := get(ctx, req, pathFor("/collections/%s", name), &info); verr != nil {
-			if only != "" {
-				return view.Table{}, verr
+	read := make([]collectionRow, 0, len(names))
+	var unread []unreadCollection
+	var warnings []view.Error
+	anyDistributed := false
+	for i, name := range names {
+		r := reads[i]
+		listed := plugin.ListedName(name)
+		anyDistributed = anyDistributed || r.distributed
+		if r.err != nil {
+			if len(named) == 1 {
+				return view.Table{}, nil, r.err
 			}
 			// Reported, not fatal. A collection this key may not see is the
 			// normal case on a shared instance, and ending the listing at the
 			// first one would turn "here is what you can see" into nothing.
-			read = append(read, collectionRow{[]string{listed, "-", "-", "-", "unreadable"}, replica})
+			status := statusUnreadable
+			switch {
+			case len(named) > 1 && r.err.Code == "qdrant.notfound":
+				status = "not found"
+			default:
+				unread = append(unread, unreadCollection{listed, whyUnread(r.err)})
+				if len(named) > 1 {
+					// Without the error's hint: it is written for the call that failed
+					// whole, and sends a reader to the cluster's access.
+					warnings = append(warnings, view.Error{
+						Code:    "qdrant.collection.unreadable",
+						Message: listed + " could not be read — " + r.err.Message,
+					})
+				}
+			}
+			read = append(read, collectionRow{[]string{listed, "-", "-", "-", status}, r.replica})
 			continue
 		}
 		read = append(read, collectionRow{[]string{
 			listed,
-			countText(info.PointsCount),
-			countText(info.IndexedVectorsCount),
-			strconv.FormatInt(info.SegmentsCount, 10),
-			info.Status,
-		}, replica})
+			countText(r.info.PointsCount),
+			countText(r.info.IndexedVectorsCount),
+			strconv.FormatInt(r.info.SegmentsCount, 10),
+			r.info.Status,
+		}, r.replica})
 	}
 	if limit > 0 {
 		sort.SliceStable(read, func(a, b int) bool { return statusRank(read[a].cells[4]) < statusRank(read[b].cells[4]) })
@@ -552,6 +747,7 @@ func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState,
 		t.Rows = append(t.Rows, r.cells)
 	}
 	t.Total = total
+	t.Warnings = append(t.Warnings, warnings...)
 	if total > len(t.Rows) {
 		t.Warnings = append(t.Warnings, view.Error{
 			Code:    "qdrant.collections.partial",
@@ -560,7 +756,50 @@ func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState,
 		})
 	}
 	t.Empty = "no collections"
-	return t, nil
+	return t, unread, nil
+}
+
+// collectionRead is what one collection came to: its description, or why there is
+// none, and the replicas cell that goes with it.
+type collectionRead struct {
+	info        collectionInfo
+	err         *view.Error
+	replica     string
+	distributed bool
+}
+
+// readCollection asks for a collection's replicas, in a cluster and when they are
+// wanted, and then for the collection. Each result is its own: nothing here
+// writes anywhere another read could see.
+func readCollection(ctx context.Context, req plugin.Request, cs clusterState, name string, replicas bool) collectionRead {
+	r := collectionRead{replica: "-"}
+	if replicas && cs.mode != modeStandalone {
+		var cc collectionCluster
+		if verr := get(ctx, req, pathFor("/collections/%s/cluster", name), &cc); verr == nil && (cs.mode == modeDistributed || cc.distributed()) {
+			r.replica = replicasHealth(cc, cs.label, cs.peersDown(time.Now()))
+			r.distributed = true
+		}
+	}
+	r.err = get(ctx, req, pathFor("/collections/%s", name), &r.info)
+	return r
+}
+
+// eachAtOnce runs read for each of n, at most atOnce at a time, and returns when
+// all have. The gate is taken before the goroutine is started and not inside it,
+// so that a hundred collections are never a hundred goroutines waiting, and with
+// one at a time they run in order.
+func eachAtOnce(n, atOnce int, read func(i int)) {
+	gate := make(chan struct{}, atOnce)
+	var wg sync.WaitGroup
+	for i := range n {
+		gate <- struct{}{}
+		wg.Add(1)
+		go func() {
+			defer func() { <-gate; wg.Done() }()
+			read(i)
+		}()
+	}
+	wg.Wait()
 }
 
 // collectionRow is a row of the table and the replicas cell that follows it
