@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.11.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.10.0...plugins/mariadb/v0.11.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **mariadb:** the overview's compact form leads with a verdict, and replication is in the tile
+
+### Features
+
+* **mariadb:** the overview's compact form leads with a verdict, and replication is in the tile ([24981af](https://github.com/this-is-tobi/rta-plugins/commit/24981afa7839ba213b7b5d8caab883f228e4674c))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.47.0 ([9da2871](https://github.com/this-is-tobi/rta-plugins/commit/9da2871b3111e8cdb6a0dc7df834465d7b27d746))
+
 ## [0.10.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.9.0...plugins/mariadb/v0.10.0) (2026-10-18)
 
 

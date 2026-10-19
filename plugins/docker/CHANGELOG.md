@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.5.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.4.1...plugins/docker/v0.5.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **docker:** lead the overview with its verdict, rank what is wrong and report the real disk
+
+### Features
+
+* **docker:** lead the overview with its verdict, rank what is wrong and report the real disk ([f0f1091](https://github.com/this-is-tobi/rta-plugins/commit/f0f10916a2c85828614a926126747897e9cec0ba))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.47.0 ([9da2871](https://github.com/this-is-tobi/rta-plugins/commit/9da2871b3111e8cdb6a0dc7df834465d7b27d746))
+
 ## [0.4.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.4.0...plugins/docker/v0.4.1) (2026-10-18)
 
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.11.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.10.0...plugins/mysql/v0.11.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **mysql:** the overview's compact form leads with a verdict, and replication is in the tile
+
+### Features
+
+* **mysql:** the overview's compact form leads with a verdict, and replication is in the tile ([b3993d4](https://github.com/this-is-tobi/rta-plugins/commit/b3993d47ae5ef67da369007ca4c94fce3cf24656))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.47.0 ([9da2871](https://github.com/this-is-tobi/rta-plugins/commit/9da2871b3111e8cdb6a0dc7df834465d7b27d746))
+
 ## [0.10.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.9.0...plugins/mysql/v0.10.0) (2026-10-18)
 
 

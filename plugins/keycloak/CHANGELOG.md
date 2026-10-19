@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.7.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.6.0...plugins/keycloak/v0.7.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **keycloak:** lead the glance with a verdict and end it with the realm
+
+### Features
+
+* **keycloak:** lead the glance with a verdict and end it with the realm ([cc0f43d](https://github.com/this-is-tobi/rta-plugins/commit/cc0f43d1894b86a953a532cb579b8584004bc88f))
+
+
+### Bug Fixes
+
+* **keycloak:** a protection that is off is a warning on the tile, a disabled realm the only failure ([dfefc27](https://github.com/this-is-tobi/rta-plugins/commit/dfefc2794dc12898b203ffaef45e7d5337ed36e7))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.47.0 ([9da2871](https://github.com/this-is-tobi/rta-plugins/commit/9da2871b3111e8cdb6a0dc7df834465d7b27d746))
+
 ## [0.6.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.5.4...plugins/keycloak/v0.6.0) (2026-10-18)
 
 

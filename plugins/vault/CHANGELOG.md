@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.9.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.8.0...plugins/vault/v0.9.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **vault:** the overview leads with a verdict, says which node serves and how the cluster is
+
+### Features
+
+* **vault:** the overview leads with a verdict, says which node serves and how the cluster is ([d16c469](https://github.com/this-is-tobi/rta-plugins/commit/d16c469a6de569dade925a9a9486b3725c6020a7))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.47.0 ([9da2871](https://github.com/this-is-tobi/rta-plugins/commit/9da2871b3111e8cdb6a0dc7df834465d7b27d746))
+
 ## [0.8.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.7.0...plugins/vault/v0.8.0) (2026-10-18)
 
 
