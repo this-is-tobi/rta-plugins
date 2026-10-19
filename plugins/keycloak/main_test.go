@@ -452,6 +452,9 @@ func TestARefusedSecretIsNamedAsSuch(t *testing.T) {
 	if verr == nil || verr.Code != "keycloak.auth.failed" {
 		t.Fatalf("error = %v, want keycloak.auth.failed", err)
 	}
+	if !verr.CredentialRefused() {
+		t.Error("a secret the token endpoint refused does not reach the caller as a refused credential")
+	}
 	if !strings.Contains(verr.Hint, "RTA_KEYCLOAK_CLIENT_SECRET") {
 		t.Errorf("the hint does not name the environment variable: %q", verr.Hint)
 	}
@@ -489,6 +492,9 @@ func TestARefusedSecretNamesTheVariableTheCallRead(t *testing.T) {
 		!strings.Contains(verr.Hint, "the secret is read from $RTA_PROFILE_LAB_CLIENT_SECRET") {
 		t.Errorf("no secret through a profile: %v, want the profile's variable named", verr)
 	}
+	if verr != nil && verr.CredentialRefused() {
+		t.Error("no secret at all is a credential that is missing, and nothing was refused")
+	}
 }
 
 func TestAMissingRealmAtTheTokenEndpointIsNamed(t *testing.T) {
@@ -518,6 +524,9 @@ func TestADeniedReadNamesTheRolesToGrant(t *testing.T) {
 	verr := view.AsError(err, "")
 	if verr == nil || verr.Code != "keycloak.denied" {
 		t.Fatalf("error = %v, want keycloak.denied", err)
+	}
+	if !verr.CredentialRefused() {
+		t.Error("a read the service account may not make does not reach the caller as a refused credential")
 	}
 	if !strings.Contains(verr.Hint, "view-users") {
 		t.Errorf("the hint does not name the roles: %q", verr.Hint)
