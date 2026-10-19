@@ -162,7 +162,7 @@ func denied(by caller, a asked, args []string) *view.Error {
 			"carries, does not give it. Name one namespace with " + by.sf.InputName("namespace") +
 			" instead of using " + by.sf.InputName("all-namespaces")
 	}
-	return view.Errorf("cnpg.forbidden", "%s", msg).WithHint(hint)
+	return view.Errorf("cnpg.denied", "%s", msg).WithHint(hint)
 }
 
 // crdMissing is a resource type nothing registered: the CRD is not there.

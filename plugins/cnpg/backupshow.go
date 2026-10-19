@@ -331,6 +331,9 @@ func runBackupShow(ctx context.Context, req plugin.Request) (view.View, error) {
 	page.latest(ctx, beside, c, s)
 	page.schedules(ctx, beside, c)
 	page.conditions(c)
+	if page.rejected != nil {
+		return nil, page.rejected
+	}
 	return view.Sections{Items: page.sections, Warnings: page.gaps}, nil
 }
 
@@ -339,6 +342,12 @@ func runBackupShow(ctx context.Context, req plugin.Request) (view.View, error) {
 type showPage struct {
 	sections []view.Section
 	gaps     []view.Error
+	// rejected is the first read beside the Cluster that the API server answered
+	// 401, which ends the call and is not a note: a dashboard stops asking a tile
+	// whose credential was refused twice, reading that off the error a call
+	// returns (view.Error.CredentialRefused), and a page cannot be one. A 403 is
+	// still a note and a partial warning.
+	rejected *view.Error
 }
 
 func (p *showPage) add(id, title string, v view.View) {
@@ -373,6 +382,9 @@ func (p *showPage) failed(id, title, what string, verr *view.Error, absentType, 
 	case "cnpg.resource.missing":
 		p.note(id, title, absentObject)
 	default:
+		if verr.Code == "cnpg.auth.failed" && p.rejected == nil {
+			p.rejected = verr
+		}
 		p.note(id, title, "Not read: "+verr.Message+". "+verr.Hint)
 		p.gap(what, verr)
 	}

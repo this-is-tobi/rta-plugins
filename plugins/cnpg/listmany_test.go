@@ -432,8 +432,12 @@ func TestEveryNamespaceRefusedIsStillRowsBecauseEachNamesItsOwn(t *testing.T) {
 func TestOneNamespaceRefusedIsTheErrorItAlwaysWas(t *testing.T) {
 	servesPerNamespace(t, nil, map[string]string{"beta": forbiddenClusters("beta")}, "")
 	_, err := runList(context.Background(), req(map[string]any{"namespace": []string{"beta"}}))
-	if got := asViewError(t, err).Code; got != "cnpg.forbidden" {
-		t.Errorf("code = %q, want cnpg.forbidden", got)
+	verr := asViewError(t, err)
+	if verr.Code != "cnpg.denied" {
+		t.Errorf("code = %q, want cnpg.denied", verr.Code)
+	}
+	if !verr.CredentialRefused() {
+		t.Error("a namespace the credential may not read does not reach the caller as a refused credential")
 	}
 }
 
@@ -452,6 +456,37 @@ func TestAClusterThatDoesNotAnswerIsAskedSixTimesAndNotThirty(t *testing.T) {
 	}
 	if n := len(stub.calls()); n > 6 {
 		t.Errorf("%d calls were made, want no more than the six that run at once", n)
+	}
+}
+
+// A credential the API server does not accept is the same answer from every
+// namespace, and it reaches the caller as the refusal a dashboard stops asking
+// after; a credential plugin that failed is the same for the queue, and is not.
+func TestACredentialThatIsNotAcceptedIsOneFailureAndReachesTheCallerAsARefusal(t *testing.T) {
+	for _, tc := range []struct {
+		name, stderr, code string
+		refused            bool
+	}{
+		{"a 401", "error: You must be logged in to the server (Unauthorized)", "cnpg.auth.failed", true},
+		{"a credential plugin", "Unable to connect to the server: getting credentials: exec: executable tsh failed",
+			"cnpg.login", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			failures := map[string]string{}
+			named := namespacesNamed(maxNamespaces)
+			for _, ns := range named {
+				failures[ns] = tc.stderr
+			}
+			stub := servesPerNamespace(t, nil, failures, "sleep 0.2")
+			_, err := runList(context.Background(), req(map[string]any{"namespace": named}))
+			verr := asViewError(t, err)
+			if verr.Code != tc.code || verr.CredentialRefused() != tc.refused {
+				t.Errorf("code = %q (credential refused: %v), want %s (%v)", verr.Code, verr.CredentialRefused(), tc.code, tc.refused)
+			}
+			if n := len(stub.calls()); n > 6 {
+				t.Errorf("%d calls were made, want no more than the six that run at once", n)
+			}
+		})
 	}
 }
 

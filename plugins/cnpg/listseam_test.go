@@ -203,8 +203,8 @@ func TestFetchReturnsWhatTheReadFilledAndTheErrorOfTheRead(t *testing.T) {
 	if verr != nil || len(got.Items) != 1 || got.Items[0].Metadata.Name != "app-db" {
 		t.Errorf("fetch = %+v, %v, want the one cluster read", got, verr)
 	}
-	if _, verr := fetch[clusterList](context.Background(), selection{namespace: "beta"}, clusterCRD, ""); verr == nil || verr.Code != "cnpg.forbidden" {
-		t.Errorf("error = %v, want cnpg.forbidden", verr)
+	if _, verr := fetch[clusterList](context.Background(), selection{namespace: "beta"}, clusterCRD, ""); verr == nil || verr.Code != "cnpg.denied" {
+		t.Errorf("error = %v, want cnpg.denied", verr)
 	}
 }
 
