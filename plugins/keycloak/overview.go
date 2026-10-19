@@ -3,18 +3,27 @@ package main
 import (
 	"context"
 	"net/url"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
-// keycloak.overview is one realm at a glance: how big it is, which of the
-// settings that matter most are on, and — with --detail — the clients,
-// flows and sessions behind those numbers, composed through the one token
-// its own Run minted rather than through plugin.Page.AddAs, which would
-// mint one per section for what is supposed to be a single glance.
+// keycloak.overview is one realm at a glance: its verdict, how many users and
+// sessions it holds, which of the settings that matter most are on, and — with
+// --detail — the clients, flows and sessions behind those numbers, composed
+// through the one token its own Run minted rather than through
+// plugin.Page.AddAs, which would mint one per section for what is supposed to be
+// a single glance.
+//
+// A tile shows the first eight lines of the glance, so it opens with the verdict
+// and ends with the realm's name: the name never changes between two refreshes,
+// and the browser flow and the version are as constant, so they are the
+// detailed page's.
 //
 // **The glance is what a tile polls, so it reads what it prints and no more.**
 // A run mints a token, which Keycloak writes down as a CLIENT_LOGIN event in
@@ -30,20 +39,29 @@ import (
 func overviewCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "keycloak.overview",
-		Summary:    "One realm at a glance: size, protections, event logging, the flows in force",
+		Summary:    "One realm at a glance: its verdict, users and sessions, protections, event logging",
 		Keywords:   []string{"summary", "status", "dashboard", "sso"},
 		Safety:     plugin.Read,
 		Idempotent: true,
 		Detailed:   true,
 		Refresh:    2 * time.Minute,
-		Description: "Whether this realm is worth talking to and what state it is in: the user " +
-			"count, how many sessions the clients hold, brute-force detection, SSL requirement, " +
-			"self-registration, whether login and admin events are recorded, and the flow each " +
-			"login goes through. Nothing here reads the client list, which carries every " +
-			"confidential client's secret to its reader. `detail` adds the client tally, the server " +
-			"version when the client is allowed to see it — only a master-realm client is — the " +
-			"client list, the flows and the active sessions per client. " +
+		Description: "The first row, `status`, is the verdict: ok, or fail or warn with the worst facts " +
+			"in a few words. Fail is what `keycloak.audit` also fails and the page shows: a disabled " +
+			"realm, brute-force detection off, TLS required nowhere, login or admin events not " +
+			"recorded; warn is a row the client's roles cannot read. Then the user count, how many " +
+			"sessions the clients hold, brute-force detection, SSL requirement, self-registration, " +
+			"whether login and admin events are recorded and, last, the realm. Nothing here reads " +
+			"the client list, which carries every confidential client's secret to its reader. " +
+			"`detail` adds the client tally, the flow each login goes through, the server version " +
+			"when the client is allowed to see it — only a master-realm client is — the client " +
+			"list, the flows and the active sessions per client. " +
 			"For the grade, `keycloak.audit`.",
+		Agent: "`status` is the verdict (ok, or fail or warn with the worst facts: a disabled realm, brute force " +
+			"off, TLS required nowhere, events not recorded, a row the role cannot read), then the user " +
+			"count, client sessions, brute force, SSL requirement, self-registration, events and the " +
+			"realm. The client list, which carries secrets, is not read. `detail` adds the client tally, " +
+			"browser flow, server version (a master-realm client only), clients, flows and sessions per " +
+			"client. The grade is keycloak.audit.",
 		Run: runOverview,
 	})
 }
@@ -71,29 +89,93 @@ type glanceReads struct {
 	sessionsErr *view.Error
 }
 
-// glance reads the realm and the rows it is the glance of. A row its role
-// cannot read says so: one that left the page read as a realm with nothing to
-// count, and the half-provisioned service account is the ordinary setup.
+// valueRoom is the width a value of the glance may take on one line of 80
+// columns: less the widest key of the page, `self-registration`, and the two
+// cells a renderer sets after it.
+const valueRoom = 61
+
+// glance reads the realm and the rows it is the glance of, the verdict first and
+// the realm last. A row its role cannot read says so: one that left the page
+// read as a realm with nothing to count, and the half-provisioned service
+// account is the ordinary setup. The verdict says so too, as a warning.
+//
+// The verdict grades the facts the page shows, as keycloak.audit grades the same
+// facts, so that a tile never says ok over a row the audit fails: a realm that is
+// disabled, brute-force detection off, TLS required nowhere and no login or admin
+// events recorded are failures in both. "external", Keycloak's default, is the
+// audit's warning and not this page's: it is a setting chosen on purpose behind a
+// proxy, and a tile that is amber on every realm left at its default is not read.
 func (s *session) glance(ctx context.Context, detail bool) (view.KeyValue, glanceReads, *view.Error) {
 	var realm realmRep
 	var reads glanceReads
 	if verr := s.get(ctx, "", nil, &realm); verr != nil {
 		return view.KeyValue{}, reads, verr
 	}
-	kv := view.KeyValue{}
+	var rows []view.Pair
 	add := func(key, value string) {
 		if value != "" {
-			kv.Pairs = append(kv.Pairs, view.Pair{Key: key, Value: value})
+			rows = append(rows, view.Pair{Key: key, Value: value})
 		}
 	}
-	unread := func(key, why string) { add(key, "could not be read — "+why) }
+	var fails, unread []string
+	unreadRow := func(key, why string) {
+		const lead = "could not be read — "
+		add(key, lead+clip(why, valueRoom-utf8.RuneCountInString(lead)))
+		unread = append(unread, key)
+	}
+
+	if n, verr := s.userCount(ctx); verr != nil {
+		unreadRow("users", verr.Message)
+	} else {
+		add("users", strconv.Itoa(n))
+	}
+	if detail {
+		reads.clients, reads.clientsErr = s.clients(ctx)
+		if reads.clientsErr != nil {
+			unreadRow("clients", reads.clientsErr.Message)
+		} else {
+			add("clients", clientTally(reads.clients))
+		}
+	}
+	reads.sessions, reads.sessionsErr = s.clientSessionStats(ctx)
+	if reads.sessionsErr != nil {
+		unreadRow("client sessions", reads.sessionsErr.Message)
+	} else if line, ok := sessionTally(reads.sessions); ok {
+		add("client sessions", line)
+	} else {
+		unreadRow("client sessions", "a session count that is not a number")
+	}
+
+	add("brute force", onOff(realm.BruteForceProtected))
+	add("ssl required", realm.SSLRequired)
+	add("self-registration", yesNo(realm.RegistrationAllowed)+" · verify email: "+yesNo(realm.VerifyEmail))
+	add("events", "login "+onOff(realm.EventsEnabled)+" · admin "+onOff(realm.AdminEventsEnabled))
 
 	state := "enabled"
 	if !realm.Enabled {
 		state = "disabled"
+		fails = append(fails, "realm disabled")
 	}
+	if !realm.BruteForceProtected {
+		fails = append(fails, "brute force off")
+	}
+	if realm.SSLRequired == "none" {
+		fails = append(fails, "ssl not required")
+	}
+	switch {
+	case !realm.EventsEnabled && !realm.AdminEventsEnabled:
+		fails = append(fails, "events off")
+	case !realm.EventsEnabled:
+		fails = append(fails, "login events off")
+	case !realm.AdminEventsEnabled:
+		fails = append(fails, "admin events off")
+	}
+
+	// The realm is who this is, the one row of identity, and it comes last: it
+	// is the part of the page that never changes between two refreshes.
 	add("realm", listed(realm.Realm)+" · "+state)
 	if detail {
+		add("browser flow", listed(realm.BrowserFlow))
 		// The version is on /admin/serverinfo, which Keycloak answers in full
 		// to a master-realm admin and as a stripped-down document — themes,
 		// providers, no systemInfo — to anyone else. Silent rather than an
@@ -101,38 +183,48 @@ func (s *session) glance(ctx context.Context, detail bool) (view.KeyValue, glanc
 		// the one thing about it the operator's own choice of client scope
 		// withholds. A server that does not answer at all is not that.
 		if v, verr := s.serverVersion(ctx); verr != nil {
-			unread("version", verr.Message)
+			unreadRow("version", verr.Message)
 		} else if v != "" {
 			add("version", v)
 		}
 	}
-	if n, verr := s.userCount(ctx); verr != nil {
-		unread("users", verr.Message)
-	} else {
-		add("users", strconv.Itoa(n))
+	return view.KeyValue{Pairs: append([]view.Pair{{Key: "status", Value: glanceVerdict(fails, unread)}}, rows...)}, reads, nil
+}
+
+// glanceVerdict is ok, or the worst grade and the facts that earn it: the
+// failures, then the rows that could not be read, as many as fit and the rest
+// counted.
+func glanceVerdict(fails, unread []string) string {
+	texts := slices.Clone(fails)
+	if len(unread) > 0 {
+		texts = append(texts, strings.Join(unread, ", ")+" could not be read")
 	}
-	if detail {
-		reads.clients, reads.clientsErr = s.clients(ctx)
-		if reads.clientsErr != nil {
-			unread("clients", reads.clientsErr.Message)
-		} else {
-			add("clients", clientTally(reads.clients))
+	if len(texts) == 0 {
+		return "ok"
+	}
+	lead := "warn — "
+	if len(fails) > 0 {
+		lead = "fail — "
+	}
+	room := valueRoom - utf8.RuneCountInString(lead)
+	for k := len(texts); k >= 1; k-- {
+		s := strings.Join(texts[:k], ", ")
+		if k < len(texts) {
+			s += " +" + strconv.Itoa(len(texts)-k)
+		}
+		if utf8.RuneCountInString(s) <= room {
+			return lead + s
 		}
 	}
-	reads.sessions, reads.sessionsErr = s.clientSessionStats(ctx)
-	if reads.sessionsErr != nil {
-		unread("client sessions", reads.sessionsErr.Message)
-	} else if line, ok := sessionTally(reads.sessions); ok {
-		add("client sessions", line)
-	} else {
-		unread("client sessions", "a session count that is not a number")
+	return lead + texts[0] + " +" + strconv.Itoa(len(texts)-1)
+}
+
+// clip cuts text to max columns, with an ellipsis where it was cut.
+func clip(s string, max int) string {
+	if utf8.RuneCountInString(s) <= max {
+		return s
 	}
-	add("brute force", onOff(realm.BruteForceProtected))
-	add("ssl required", realm.SSLRequired)
-	add("self-registration", yesNo(realm.RegistrationAllowed)+" · verify email: "+yesNo(realm.VerifyEmail))
-	add("events", "login "+onOff(realm.EventsEnabled)+" · admin "+onOff(realm.AdminEventsEnabled))
-	add("browser flow", listed(realm.BrowserFlow))
-	return kv, reads, nil
+	return string([]rune(s)[:max-1]) + "…"
 }
 
 func detailedOverview(ctx context.Context, req plugin.Request, s *session, glance view.KeyValue, reads glanceReads) (view.View, error) {

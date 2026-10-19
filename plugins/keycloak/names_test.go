@@ -379,9 +379,12 @@ func TestTheOverviewNamesTheRealmAndItsBrowserFlowAsAReaderCanTellApart(t *testi
 		}
 		realm["realm"], realm["browserFlow"] = n.name("realm"), n.name("bflow")
 		f.answer("", realm)
+		// The realm is a row of the glance and the browser flow is a row of the
+		// detailed one, which is where the page that names its flows is.
 		got := pairs(t, run(t, f, "keycloak.overview", map[string]any{}))
-		if got["realm"] != n.seen("realm")+" · enabled" || got["browser flow"] != n.seen("bflow") {
-			t.Errorf("realm and browser flow = %q, %q, want %s and %s", got["realm"], got["browser flow"],
+		detailed := pairs(t, sections(t, run(t, f, "keycloak.overview", map[string]any{"detail": true}))["summary"])
+		if got["realm"] != n.seen("realm")+" · enabled" || detailed["browser flow"] != n.seen("bflow") {
+			t.Errorf("realm and browser flow = %q, %q, want %s and %s", got["realm"], detailed["browser flow"],
 				n.seen("realm")+" · enabled", n.seen("bflow"))
 		}
 	})
