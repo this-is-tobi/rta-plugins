@@ -493,13 +493,26 @@ func deploymentTable(deps []deploymentItem, withNS bool) view.Table {
 	return view.Table{Columns: cols, Rows: rows, Total: len(rows)}
 }
 
-// suggestNamespaces completes a namespace name.
+// suggestNamespaces completes a namespace name, or the one element of a list of
+// them that is being typed.
 //
 // This one *does* contact the cluster, unlike suggestContexts, and that is
 // the reason it is offered on the CLI's deliberate completion and nowhere
 // speculative: the whole rule turns on a completion not being an
 // action. A namespace list is a read the caller could have made anyway, and
 // it is bounded by the same timeout as every other call here.
+//
+// A list box hands it the element being typed under `namespace`, as a string
+// that is empty while the element is, and this does not read it, as it never read
+// the box of a single name: the answer is every namespace the context sees, the
+// box matches it against the text typed, and the host leaves out the namespaces
+// the box already lists and those a profile's fence does not allow. So nothing
+// here tracks what was chosen or what a fence holds, and nothing in the answer
+// is anything but a name.
+//
+// The answer is not capped. The text typed is never sent to the cluster: the host
+// narrows what the box offers by it after this has answered, so a cap here would cut
+// the names by their place in the list, and no typing could bring a cut one back.
 func suggestNamespaces(ctx context.Context, req plugin.Request) []string {
 	// Only the context is read, and deliberately not through selectionOf.
 	//

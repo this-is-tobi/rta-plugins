@@ -114,8 +114,8 @@ func TestTheTwoReadsThatShowEveryNamespaceTakeTheNamespaceAsAListAFenceFills(t *
 			if c.Scope != "" || !plugin.ProfileFillable(c, f) {
 				t.Errorf("scope = %q: a fence could not fill a call that names no namespace", c.Scope)
 			}
-			if f.Live || f.Suggest != nil {
-				t.Error("namespace is completed from the cluster, which the host accepts on text only")
+			if !f.Live || f.Suggest == nil {
+				t.Error("namespace is not completed from the cluster on a press, which a list takes since rta v0.48.0")
 			}
 			if all := inputOf(c, "all-namespaces"); all.Name != "" {
 				t.Errorf("all-namespaces is declared (%+v): there is nothing to widen, since the input keeps rows", all)
