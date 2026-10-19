@@ -126,18 +126,19 @@ func connFields() []plugin.Field {
 // is no default. namespacelist.go says what that buys and costs, and why the
 // overview, which names no record, is the other trade.
 //
-// The list has no completion of the cluster's namespaces. The old one was Live,
-// which is how a suggestion that contacts the cluster stays something a press of
-// the key asked for and never something typing caused, and the host accepts Live
-// on a text input only; the same Suggest without it would be re-run, and kubectl
-// with it, on every edit of a sibling box. Under a profile that fences the
-// namespace the host completes from the fence, which is the list a person naming
-// several is choosing from.
+// The list completes the cluster's namespaces on a press of the key, an element
+// at a time (suggestNamespaces says what the host hands it and what it takes
+// back). Live, because that Suggest contacts the cluster: a read of it must be
+// something a press asked for and never something typing caused, and a plain
+// Suggest would be re-run, with kubectl behind it, on every edit of a sibling
+// box. Under a profile that fences the namespace the keystroke channel and a
+// shell complete from the fence, and a press holds the cluster's answer to it.
 func nsFields() []plugin.Field {
 	return []plugin.Field{
 		{Name: "namespace", Short: "n", Type: plugin.StringSlice, Config: "namespace",
 			Help: "namespaces to read, one call each, at most " + strconv.Itoa(maxNamespaces) +
-				" — the context's own when omitted"},
+				" — the context's own when omitted",
+			Live: true, Suggest: suggestNamespaces},
 		// Widens: the switch reads past `namespace`, and a profile that fences the
 		// namespace to the one or two an operator named holds every value of it,
 		// which the host can only extend to this switch if it is told it is one.
@@ -155,11 +156,12 @@ func nsFields() []plugin.Field {
 // fills a call that names none with everything the fence allows, and holds a name
 // outside it to the fence. Without the input a fence had nothing to hold them
 // to, and these two printed every namespace of the cluster to a connection
-// fenced to a few.
+// fenced to a few. It completes the cluster's namespaces as nsFields' does.
 func filterFields() []plugin.Field {
 	return []plugin.Field{
 		{Name: "namespace", Short: "n", Type: plugin.StringSlice, Config: "namespace",
-			Help: "only the rows of these namespaces — every namespace when omitted"},
+			Help: "only the rows of these namespaces — every namespace when omitted",
+			Live: true, Suggest: suggestNamespaces},
 	}
 }
 

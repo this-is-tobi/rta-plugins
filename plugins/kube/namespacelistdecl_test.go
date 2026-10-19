@@ -46,8 +46,8 @@ func TestEveryListOfObjectsTakesItsNamespacesAsAListThatIsItsScope(t *testing.T)
 			if f.Type != plugin.StringSlice || f.Short != "n" || f.Config != "namespace" {
 				t.Errorf("namespace is %+v, want a list with the short n bound to the config key namespace", f)
 			}
-			if f.Live || f.Suggest != nil {
-				t.Errorf("namespace is completed from the cluster (live: %v), which the host accepts on text only", f.Live)
+			if !f.Live || f.Suggest == nil {
+				t.Errorf("namespace is not completed from the cluster on a press (live: %v), which a list takes since rta v0.48.0", f.Live)
 			}
 			if c.Scope != "namespace" || !plugin.IsScope(c, f) {
 				t.Errorf("scope = %q: a grant on this capability can no longer be narrowed to the namespaces it was issued for", c.Scope)
