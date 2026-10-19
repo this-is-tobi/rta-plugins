@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.9.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.8.0...plugins/qdrant/v0.9.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **qdrant:** the overview and the collection list read a list of collections
+
+### Bug Fixes
+
+* **qdrant:** the overview and the collection list read a list of collections ([9439d9d](https://github.com/this-is-tobi/rta-plugins/commit/9439d9d90f78608ffc3379cb8956a710655cfdf7))
+
 ## [0.8.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.7.1...plugins/qdrant/v0.8.0) (2026-10-19)
 
 
