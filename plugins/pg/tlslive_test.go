@@ -165,13 +165,17 @@ func TestTLSClientCertificateIsPresentedByTheDriverAndTheChildren(t *testing.T) 
 		}
 	}
 
-	for name, extra := range map[string]map[string]any{
-		"none":     {"sslcert": "", "sslkey": ""},
-		"other CA": {"sslcert": filepath.Join(dir, "other-client.crt"), "sslkey": filepath.Join(dir, "other-client.key")},
+	for name, tc := range map[string]struct {
+		extra map[string]any
+		code  string
+	}{
+		"none": {map[string]any{"sslcert": "", "sslkey": ""}, "pg.tls.client.required"},
+		"other CA": {map[string]any{"sslcert": filepath.Join(dir, "other-client.crt"),
+			"sslkey": filepath.Join(dir, "other-client.key")}, "pg.tls.client.auth.failed"},
 	} {
-		_, verr := connect(ctx, reqFor(t, "pg.status", clientCertValues(t, extra)))
-		if verr == nil || verr.Code != "pg.tls.client.required" || strings.Contains(verr.Hint, "password") {
-			t.Errorf("%s: %v, want pg.tls.client.required naming the certificate", name, verr)
+		_, verr := connect(ctx, reqFor(t, "pg.status", clientCertValues(t, tc.extra)))
+		if verr == nil || verr.Code != tc.code || strings.Contains(verr.Hint, "password") {
+			t.Errorf("%s: %v, want %s naming the certificate", name, verr, tc.code)
 		}
 	}
 	_, verr = connect(ctx, reqFor(t, "pg.status", clientCertValues(t,

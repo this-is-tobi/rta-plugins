@@ -19,9 +19,17 @@ import (
 // at. A certificate that was accepted but names another role fails the cert
 // method with "certificate authentication failed for user", which is a
 // different fix. Each is named, with the setting that changes it.
+//
+// **Which of them is a refused credential is told by the code's ending**, as for
+// every plugin: a dashboard stops asking a tile whose credential was refused
+// twice, reading that off `.auth.failed` and `.denied` (view.Error.CredentialRefused).
+// A certificate the server turned down is the first and one that is accepted but
+// not for this role is the second. No certificate presented is neither: nothing
+// was refused, and the code ends in `.required`.
 
-// clientCertRequired is pg.tls.client.required: the server at where wants a
-// client certificate and the call did not present one it accepts.
+// clientCertRequired is the server at where wanting a client certificate and
+// the call not presenting one it accepts: pg.tls.client.required when none was
+// presented, pg.tls.client.auth.failed when the one that was is refused.
 func clientCertRequired(where string, req plugin.Request) *view.Error {
 	t, sf := transportOf(req), req.Surface()
 	if t.clientCert == "" {
@@ -30,16 +38,16 @@ func clientCertRequired(where string, req plugin.Request) *view.Error {
 				"server trusts for clients (its ssl_ca_file), and " + sf.SettingName("ssl-home") +
 				" reads the pair libpq looks for under ~/.postgresql")
 	}
-	return view.Errorf("pg.tls.client.required", "%s refused the client certificate %s", where, t.clientCert).
+	return view.Errorf("pg.tls.client.auth.failed", "%s refused the client certificate %s", where, t.clientCert).
 		WithHint("it requires one issued by a CA in its ssl_ca_file, still valid, and named for the role it " +
 			"logs in — " + t.clientSetting(sf, "sslcert") + " names this one")
 }
 
-// clientCertRole is pg.tls.client.role: the certificate was accepted, and it
-// is not for the role the call connects as.
+// clientCertRole is pg.tls.client.role.denied: the certificate was accepted, and
+// it is not for the role the call connects as.
 func clientCertRole(where string, req plugin.Request) *view.Error {
 	sf := req.Surface()
-	return view.Errorf("pg.tls.client.role", "%s accepted the client certificate and not as role %q", where, req.String("user")).
+	return view.Errorf("pg.tls.client.role.denied", "%s accepted the client certificate and not as role %q", where, req.String("user")).
 		WithHint("with the cert method the certificate's common name is the role it logs in as, unless a " +
 			"pg_ident.conf map says otherwise — " + sf.SettingName("user") + " is the role the call asks for")
 }
