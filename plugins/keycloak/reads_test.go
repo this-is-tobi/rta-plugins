@@ -51,7 +51,6 @@ func TestOverviewSaysWhatTheRealmIs(t *testing.T) {
 		"client sessions": "none",
 		"brute force":     "off",
 		"events":          "login on · admin on",
-		"browser flow":    "browser",
 	} {
 		if got[key] != want {
 			t.Errorf("%s = %q, want %q", key, got[key], want)
@@ -59,6 +58,9 @@ func TestOverviewSaysWhatTheRealmIs(t *testing.T) {
 	}
 	detail := func() map[string]string {
 		return pairs(t, sections(t, run(t, f, "keycloak.overview", map[string]any{"detail": true}))["summary"])
+	}
+	if got := detail(); got["browser flow"] != "browser" {
+		t.Errorf("browser flow = %q, want the flow the detailed page names", got["browser flow"])
 	}
 	if got := detail(); got["clients"] != "8 · 1 confidential, 5 public, 2 bearer-only" {
 		t.Errorf("clients = %q, want the tally of the fixture's eight", got["clients"])
