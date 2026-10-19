@@ -38,11 +38,7 @@ type pvcItem struct {
 	} `json:"status"`
 }
 
-func runPVCList(ctx context.Context, req plugin.Request) (view.View, error) {
-	s, verr := selectionOf(req)
-	if verr != nil {
-		return nil, verr
-	}
+func fetchPVCs(ctx context.Context, s selection) ([]pvcItem, *view.Error) {
 	var pvcs list[pvcItem]
 	if verr := getJSON(ctx, s, "persistentvolumeclaims", &pvcs); verr != nil {
 		return nil, verr
@@ -54,9 +50,21 @@ func runPVCList(ctx context.Context, req plugin.Request) (view.View, error) {
 		}
 		return a.Name < b.Name
 	})
+	return pvcs.Items, nil
+}
+
+func runPVCList(ctx context.Context, req plugin.Request) (view.View, error) {
+	l, verr := listingOf(req)
+	if verr != nil {
+		return nil, verr
+	}
+	pvcs, unread, verr := readListing(ctx, l, fetchPVCs)
+	if verr != nil {
+		return nil, verr
+	}
 
 	cols := []view.Column{}
-	if s.AllNS {
+	if l.wide() {
 		cols = append(cols, view.Column{Name: "namespace"})
 	}
 	cols = append(cols,
@@ -67,10 +75,10 @@ func runPVCList(ctx context.Context, req plugin.Request) (view.View, error) {
 		view.Column{Name: "storage class"},
 		view.Column{Name: "age", Kind: view.KindDuration},
 	)
-	rows := make([][]string, 0, len(pvcs.Items))
-	for _, p := range pvcs.Items {
+	rows := make([][]string, 0, len(pvcs))
+	for _, p := range pvcs {
 		row := []string{}
-		if s.AllNS {
+		if l.wide() {
 			row = append(row, p.Metadata.Namespace)
 		}
 		rows = append(rows, append(row,
@@ -79,8 +87,9 @@ func runPVCList(ctx context.Context, req plugin.Request) (view.View, error) {
 			quantityBytes(p.Spec.Resources.Requests.Storage),
 			p.Spec.StorageClassName, age(p.Metadata.CreationTimestamp)))
 	}
-	return withEmpty(view.Table{Columns: cols, Rows: rows, Total: len(rows)},
-		"no persistent volume claims in "+s.scopeWords()), nil
+	t := withEmpty(view.Table{Columns: cols, Rows: rows, Total: len(rows)},
+		"no persistent volume claims in "+l.scopeWords())
+	return withUnread(t, unread, 1), nil
 }
 
 // quantityBytes renders a Kubernetes byte quantity through this codebase's

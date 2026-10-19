@@ -330,11 +330,11 @@ func fetchPods(ctx context.Context, s selection) ([]podItem, *view.Error) {
 }
 
 func runPodList(ctx context.Context, req plugin.Request) (view.View, error) {
-	s, verr := selectionOf(req)
+	l, verr := listingOf(req)
 	if verr != nil {
 		return nil, verr
 	}
-	pods, verr := fetchPods(ctx, s)
+	pods, unread, verr := readListing(ctx, l, fetchPods)
 	if verr != nil {
 		return nil, verr
 	}
@@ -351,11 +351,11 @@ func runPodList(ctx context.Context, req plugin.Request) (view.View, error) {
 	// "Every pod is serving" is the answer to a question, and a bare header is
 	// not; but it is only true of pods that exist, so a namespace with none
 	// says that instead.
-	empty := "no pods in " + s.scopeWords()
+	empty := "no pods in " + l.scopeWords()
 	if checked > 0 {
-		empty = fmt.Sprintf("every pod in %s is serving (%d checked)", s.scopeWords(), checked)
+		empty = fmt.Sprintf("every pod in %s is serving (%d checked)", l.scopeWords(), checked)
 	}
-	return withEmpty(podTable(pods, s.AllNS), empty), nil
+	return withUnread(withEmpty(podTable(pods, l.wide()), empty), unread, 1), nil
 }
 
 func podTable(pods []podItem, withNS bool) view.Table {
@@ -410,15 +410,16 @@ func desired(d deploymentItem) int {
 }
 
 func runDeploymentList(ctx context.Context, req plugin.Request) (view.View, error) {
-	s, verr := selectionOf(req)
+	l, verr := listingOf(req)
 	if verr != nil {
 		return nil, verr
 	}
-	deps, verr := fetchDeployments(ctx, s)
+	deps, unread, verr := readListing(ctx, l, fetchDeployments)
 	if verr != nil {
 		return nil, verr
 	}
-	return withEmpty(deploymentTable(deps, s.AllNS), "no deployments in "+s.scopeWords()), nil
+	t := withEmpty(deploymentTable(deps, l.wide()), "no deployments in "+l.scopeWords())
+	return withUnread(t, unread, 1), nil
 }
 
 func deploymentTable(deps []deploymentItem, withNS bool) view.Table {

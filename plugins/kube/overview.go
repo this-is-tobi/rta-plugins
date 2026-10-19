@@ -151,21 +151,12 @@ func fetchOverview(ctx context.Context, scopes []selection, nsSel selection, cfg
 // (maxNamespaces) is what bounds it.
 const overviewRefresh = time.Minute
 
-// overviewNSFields are the namespace selection, said for an overview: a list,
-// and what naming none reads is every namespace and not the context's own as it
-// is for a list of pods. The switch is the same one, and widens the same input.
-//
-// A list has no completion of the cluster's namespaces. nsFields' is Live, which
-// is how a suggestion that contacts the cluster stays something a press of the
-// key asked for and never something typing caused, and the host accepts Live on a
-// String input only; the same Suggest without it would be re-run, and kubectl
-// with it, on every edit of a sibling box. Under a profile that fences the
-// namespace the host completes from the fence, which is the list a person
-// naming several is choosing from.
+// overviewNSFields are the namespace selection, said for an overview: the list
+// every list of objects has (nsFields), and what naming none reads is every
+// namespace and not the context's own as it is for a list of pods. The switch is
+// the same one, and widens the same input.
 func overviewNSFields() []plugin.Field {
 	fields := nsFields()
-	fields[0].Type = plugin.StringSlice
-	fields[0].Live, fields[0].Suggest = false, nil
 	fields[0].Help = "namespaces to read, one call each, at most " + strconv.Itoa(maxNamespaces) +
 		" — every namespace when omitted"
 	fields[1].Help = "every namespace, which is also what naming none reads"

@@ -130,24 +130,23 @@ func oneLine(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-func fetchEvents(ctx context.Context, s selection) (list[eventItem], *view.Error) {
+func fetchEvents(ctx context.Context, s selection) ([]eventItem, *view.Error) {
 	var out list[eventItem]
 	if verr := getJSON(ctx, s, "events", &out); verr != nil {
-		return out, verr
+		return nil, verr
 	}
-	return out, nil
+	return out.Items, nil
 }
 
 func runEventList(ctx context.Context, req plugin.Request) (view.View, error) {
-	s, verr := selectionOf(req)
+	l, verr := listingOf(req)
 	if verr != nil {
 		return nil, verr
 	}
-	events, verr := fetchEvents(ctx, s)
+	items, unread, verr := readListing(ctx, l, fetchEvents)
 	if verr != nil {
 		return nil, verr
 	}
-	items := events.Items
 	// Warnings only unless asked otherwise. This is the difference between a
 	// view somebody reads and one they close: Normal events are the routine
 	// narration of a cluster working — pulled an image, scheduled a pod,
@@ -167,11 +166,14 @@ func runEventList(ctx context.Context, req plugin.Request) (view.View, error) {
 	sort.SliceStable(items, func(i, j int) bool {
 		return items[i].lastAt().After(items[j].lastAt())
 	})
-	empty := "no events in " + s.scopeWords()
+	empty := "no events in " + l.scopeWords()
 	if !req.Bool("normal") {
-		empty = "no warning events in " + s.scopeWords() + " — " + req.Surface().InputName("normal") + " includes the routine ones"
+		empty = "no warning events in " + l.scopeWords() + " — " + req.Surface().InputName("normal") + " includes the routine ones"
 	}
-	return withEmpty(eventTable(items, s.AllNS), empty), nil
+	t := withEmpty(eventTable(items, l.wide()), empty)
+	// The message is the widest column of a table of events and the one a row
+	// that cannot be read has the most to say in.
+	return withUnread(t, unread, len(t.Columns)-1), nil
 }
 
 func eventTable(events []eventItem, withNS bool) view.Table {

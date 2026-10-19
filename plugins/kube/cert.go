@@ -257,18 +257,48 @@ func readTLSCerts(ctx context.Context, s selection) ([]tlsCert, *view.Error) {
 	return certs, nil
 }
 
+// mergeCertReads is the certificates of every namespace that was read. The answer
+// is an earlier read when any of them was, and as old as the oldest of those.
+func mergeCertReads(reads []certRead) certRead {
+	var out certRead
+	for _, r := range reads {
+		out.certs = append(out.certs, r.certs...)
+		if r.reused && (!out.reused || r.at.Before(out.at)) {
+			out.reused, out.at = true, r.at
+		}
+	}
+	return out
+}
+
 func runCertList(ctx context.Context, req plugin.Request) (view.View, error) {
-	s, verr := selectionOf(req)
+	l, verr := listingOf(req)
 	if verr != nil {
 		return nil, verr
 	}
-	read, secErr := tlsCerts(ctx, s, nil)
+	// A page of several namespaces asks for the kubeconfig once, and not once for
+	// each of them as the reads would when the call names no context: the scope
+	// each read is kept under is resolved from it (certScopeOf). One that cannot be
+	// read is the empty one readConfig returns, which names no context: the reads
+	// are then made and not kept, and the file is not asked again.
+	var cfg *kubeconfig
+	if len(l.names) > 1 && l.s.Context == "" {
+		read, _ := readConfig(ctx, l.s.sf)
+		cfg = &read
+	}
+	reads, unread, secErr := readListing(ctx, l, func(ctx context.Context, s selection) ([]certRead, *view.Error) {
+		read, verr := tlsCerts(ctx, s, cfg)
+		if verr != nil {
+			return nil, verr
+		}
+		return []certRead{read}, nil
+	})
 	if secErr != nil {
 		return nil, secErr
 	}
+	read := mergeCertReads(reads)
 
 	cols := []view.Column{}
-	if s.AllNS {
+	if l.wide() {
 		cols = append(cols, view.Column{Name: "namespace"})
 	}
 	cols = append(cols,
@@ -281,13 +311,13 @@ func runCertList(ctx context.Context, req plugin.Request) (view.View, error) {
 	rows := make([][]string, 0, len(read.certs))
 	for _, c := range read.certs {
 		row := []string{}
-		if s.AllNS {
+		if l.wide() {
 			row = append(row, c.Namespace)
 		}
 		rows = append(rows, append(row, c.Name, c.Subject, c.expiry(), c.status(now)))
 	}
-	t := withEmpty(view.Table{Columns: cols, Rows: rows, Total: len(rows)},
-		"no TLS Secrets in "+s.scopeWords())
+	t := withUnread(withEmpty(view.Table{Columns: cols, Rows: rows, Total: len(rows)},
+		"no TLS Secrets in "+l.scopeWords()), unread, 1)
 	// Said once the read is old enough to matter: the overview's own tile
 	// reads a moment before a listing of the same Secrets, and "read 0s ago"
 	// is a note about nothing.
