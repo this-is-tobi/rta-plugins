@@ -362,8 +362,9 @@ func classify(err error, addr string, req plugin.Request) *view.Error {
 		case "NOAUTH":
 			// Not redis.auth.failed: AUTH is sent whenever a password is set
 			// (connect), and one the server does not accept ends the call right
-			// there, before anything else is sent, so a NOAUTH only reaches here
-			// when no password was presented. The code ends in neither `.auth.failed` nor `.denied`
+			// there, before anything else is sent, as WRONGPASS or as `ERR invalid
+			// password` from a Redis before 6, so a NOAUTH only reaches here when no
+			// password was presented. The code ends in neither `.auth.failed` nor `.denied`
 			// on purpose: a dashboard stops asking a tile whose credential was
 			// refused twice by reading those endings (view.Error.CredentialRefused),
 			// and a server that was never given a password has refused nothing,
@@ -377,8 +378,7 @@ func classify(err error, addr string, req plugin.Request) *view.Error {
 				WithHint("the password belongs in $" + plugin.LocalEnvVar("redis.overview", "password") +
 					" or " + sf.SettingName("password"))
 		case "WRONGPASS":
-			return view.Errorf("redis.auth.failed", "%s rejected the credentials", reached).
-				WithHint("check the password, and " + sf.SettingName("username") + " if the server uses ACLs")
+			return credentialsRejected(reached, sf)
 		case "NOPERM":
 			denied := view.Errorf("redis.denied", "%s: %s", reached, srv.msg)
 			// The connection's own PING, which no capability asked for and no
@@ -397,6 +397,13 @@ func classify(err error, addr string, req plugin.Request) *view.Error {
 				WithHint("this is a cluster and that key lives on another node — " + nextCall(req, "redis.cluster") +
 					" lists them; point " + sf.SettingName("address") + " at the one named")
 		case "ERR":
+			// The same refusal as WRONGPASS, in the words of a Redis before 6, which has
+			// no error code for it: `ERR invalid password`. Left to the fallback below
+			// it was redis.server.error, and a tile on a server of that age whose
+			// password was wrong sent it again at every refresh.
+			if strings.Contains(srv.msg, "invalid password") {
+				return credentialsRejected(reached, sf)
+			}
 			if strings.Contains(srv.msg, "unknown command") {
 				return view.Errorf("redis.unsupported", "%s: %s", reached, srv.msg).
 					WithHint("the server is older than the command, or a proxy in front of it does not pass it through")
@@ -464,6 +471,13 @@ func classify(err error, addr string, req plugin.Request) *view.Error {
 	}
 	return view.Errorf("redis.conn.failed", "could not reach %s: %v", addr, err).
 		WithHint(sf.SettingsHint("redis.overview"))
+}
+
+// credentialsRejected is the server turning the account down: redis.auth.failed,
+// which a dashboard reads as a refused credential (view.Error.CredentialRefused).
+func credentialsRejected(reached string, sf plugin.Surface) *view.Error {
+	return view.Errorf("redis.auth.failed", "%s rejected the credentials", reached).
+		WithHint("check the password, and " + sf.SettingName("username") + " if the server uses ACLs")
 }
 
 // classifyDial is classify for the dial, its handshake and the commands
