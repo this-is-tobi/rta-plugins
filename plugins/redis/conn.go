@@ -360,6 +360,15 @@ func classify(err error, addr string, req plugin.Request) *view.Error {
 		code, _, _ := strings.Cut(srv.msg, " ")
 		switch code {
 		case "NOAUTH":
+			// Not redis.auth.failed: AUTH is sent whenever a password is set
+			// (connect), and one the server does not accept ends the call right
+			// there, before anything else is sent, so a NOAUTH only reaches here
+			// when no password was presented. The code ends in neither `.auth.failed` nor `.denied`
+			// on purpose: a dashboard stops asking a tile whose credential was
+			// refused twice by reading those endings (view.Error.CredentialRefused),
+			// and a server that was never given a password has refused nothing,
+			// so the tile keeps showing what it needs until one is set.
+			//
 			// Where the password comes from rather than a verb telling the
 			// reader to pass one: an agent told to pass `password` has no
 			// such argument, since the bridge drops a Local input given, and
