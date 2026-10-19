@@ -98,6 +98,9 @@ type session struct {
 	realm string
 	http  *http.Client
 	token string
+	// refused is the first answer of the Admin API that said the token was not
+	// accepted (classifyStatus), kept for withSession.
+	refused *view.Error
 }
 
 // connect validates the inputs and mints the run's token.
@@ -193,7 +196,20 @@ func withSession(ctx context.Context, req plugin.Request,
 	if verr != nil {
 		return nil, verr
 	}
-	return fn(ctx, s)
+	v, err := fn(ctx, s)
+	// **A token the Admin API refused is the call's error, however much of the page
+	// was made without that read.** The overview and the audit set a read that failed
+	// down as a row or a finding and answer with the rest, which is right for a service
+	// account short of one role (keycloak.denied) and wrong for a token that was not
+	// accepted: a dashboard stops asking a tile whose credential was refused twice, and
+	// reads that off the error a call returns (view.Error.CredentialRefused), so a
+	// refusal folded into a page is one it never sees and the secret goes out again at
+	// every refresh. The first read of a realm meets it first, which is why this is
+	// rare, and this is the net for the read that meets it later.
+	if err == nil && s.refused != nil {
+		return nil, s.refused
+	}
+	return v, err
 }
 
 // get reads one Admin REST resource under this session's realm. path is
@@ -475,15 +491,28 @@ func (s *session) classifyToken(code int, body []byte) *view.Error {
 		return view.Errorf("keycloak.realm.unknown", "%s has no realm to authenticate against: %s", s.reached(), firstOf(desc, oauthErr)).
 			WithHint(sf.SettingName("auth-realm") + " (or " + sf.SettingName("realm") + ") names the realm the client " +
 				"lives in; the issuer URL's last segment is its name")
-	case code == http.StatusUnauthorized, code == http.StatusBadRequest && oauthErr == "invalid_client":
+	case code == http.StatusUnauthorized,
+		code == http.StatusBadRequest && (oauthErr == "invalid_client" || oauthErr == "invalid_grant"):
 		return view.Errorf("keycloak.auth.failed", "%s refused the client credentials: %s", s.reached(), firstOf(desc, oauthErr)).
 			WithHint(sf.SettingName("client-id") + " names a confidential client with service accounts enabled, " +
 				"and its secret is read from " + secretSources(s.req))
 	case code == http.StatusBadRequest && oauthErr == "unauthorized_client":
-		return view.Errorf("keycloak.auth.grant", "%s: %s", s.reached(), firstOf(desc, oauthErr)).
+		// The secret was accepted and the client may not use this grant: the
+		// account is known and may not do this, so it ends `.denied` — which,
+		// like `.auth.failed`, is what a dashboard reads to stop asking a tile
+		// whose credential was refused twice (view.Error.CredentialRefused).
+		return view.Errorf("keycloak.grant.denied", "%s: %s", s.reached(), firstOf(desc, oauthErr)).
 			WithHint("the client needs \"Service accounts roles\" (client credentials grant) enabled")
 	}
-	return view.Errorf("keycloak.auth.failed", "%s returned %d from the token endpoint: %s", s.reached(), code, firstOf(desc, oauthErr, "no detail given"))
+	// Not a refusal of the client, and so not `.auth.failed`: a server that failed
+	// (5xx), one that is rate limiting (429), a proxy in front of it and an answer
+	// that is no OAuth error all reach here, and none of them judged the secret. A
+	// dashboard stops asking a tile whose credential was refused twice, reading it
+	// off that ending (view.Error.CredentialRefused), and a tile that stopped after
+	// an outage would hide it for as long as it lasts.
+	return view.Errorf("keycloak.request.failed", "%s returned %d from the token endpoint: %s", s.reached(), code, firstOf(desc, oauthErr, "no detail given")).
+		WithHint("this is not the server refusing the client's credentials, which it answers with a 401 or an invalid_client — " +
+			"a server error or a rate limit is the server's, so ask again later, and its own log says why if it keeps up")
 }
 
 // classifyStatus turns an Admin REST refusal into something an operator can
@@ -493,8 +522,12 @@ func (s *session) classifyStatus(code int, body []byte) *view.Error {
 	detail := adminError(body)
 	switch code {
 	case http.StatusUnauthorized:
-		return view.Errorf("keycloak.token.rejected", "%s refused the token it just issued", s.reached()).
+		verr := view.Errorf("keycloak.token.auth.failed", "%s refused the token it just issued", s.reached()).
 			WithHint("a clock far off the server's makes a fresh token look expired")
+		if s.refused == nil {
+			s.refused = verr
+		}
+		return verr
 	case http.StatusForbidden:
 		return view.Errorf("keycloak.denied", "the service account may not read this in realm %q", s.realm).
 			WithHint("grant it the realm-management roles view-users, view-clients, view-realm, " +
