@@ -155,6 +155,19 @@ func runMetricsPod(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr != nil {
 		return nil, verr
 	}
+	// A call that names no namespace is the context's own, as it is for every
+	// list here. `get --raw` is not kubectl resolving one for us: the path below
+	// is the cluster's list unless a namespace is in it, and the limits are read
+	// from the namespace kubectl does resolve, so the usage of every pod of the
+	// cluster was set beside the limits of one namespace's. The namespace is
+	// resolved from the kubeconfig once and passed to both reads.
+	if !s.AllNS && s.Namespace == "" {
+		cfg, verr := readConfig(ctx, s.sf)
+		if verr != nil {
+			return nil, verr
+		}
+		s.Namespace = cfg.namespaceOf(s.Context)
+	}
 	path := "/apis/metrics.k8s.io/v1beta1/pods"
 	if !s.AllNS && s.Namespace != "" {
 		// Re-validated here, at the point the path is built, rather than

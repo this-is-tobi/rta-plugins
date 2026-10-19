@@ -190,10 +190,7 @@ func certScopeOf(ctx context.Context, s selection, cfg *kubeconfig) (certScope, 
 			scope.context = cfg.CurrentContext
 		}
 		if scope.namespace == "" {
-			_, _, scope.namespace, _ = cfg.find(scope.context)
-			if scope.namespace == "" {
-				scope.namespace = "default"
-			}
+			scope.namespace = cfg.namespaceOf(scope.context)
 		}
 	}
 	if scope.context == "" {
