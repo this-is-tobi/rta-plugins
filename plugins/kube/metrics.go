@@ -94,8 +94,8 @@ func checkNamespaceLabel(v string) *view.Error {
 	}
 	if !namespaceLabelRe.MatchString(v) {
 		return view.Errorf("kube.name.invalid", "%q is not a usable namespace name", v).
-			WithHint("namespace names are lowercase letters, digits and dashes — this one goes " +
-				"into an API server URL, so it is held to that and nothing wider")
+			WithHint("namespace names are lowercase letters, digits and dashes, 63 at most, and begin " +
+				"and end with a letter or a digit")
 	}
 	return nil
 }

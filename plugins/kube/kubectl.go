@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -119,11 +120,25 @@ func (s selection) kubectlLine(rest ...string) string {
 }
 
 func selectionOf(req plugin.Request) (selection, *view.Error) {
+	var named []string
+	if ns := strings.TrimSpace(req.String("namespace")); ns != "" {
+		named = []string{ns}
+	}
+	return selectionFor(req, named)
+}
+
+// selectionFor is selectionOf for a call that has already read the namespaces it
+// names, as a capability that takes a list does: the selection carries a
+// namespace only when the call named exactly one, and the refusal of a
+// namespace beside every namespace is made for the list.
+func selectionFor(req plugin.Request, named []string) (selection, *view.Error) {
 	s := selection{
-		Context:   strings.TrimSpace(req.String("context")),
-		Namespace: strings.TrimSpace(req.String("namespace")),
-		AllNS:     req.Bool("all-namespaces"),
-		sf:        req.Surface(),
+		Context: strings.TrimSpace(req.String("context")),
+		AllNS:   req.Bool("all-namespaces"),
+		sf:      req.Surface(),
+	}
+	if len(named) == 1 {
+		s.Namespace = named[0]
 	}
 	if s.Context == "" || s.sf == plugin.SurfaceMCP {
 		s.reach = req.ReachArgs()
@@ -163,7 +178,7 @@ func selectionOf(req plugin.Request) (selection, *view.Error) {
 	// Fail closed, not "narrowest wins": silently choosing the namespace would
 	// answer a question nobody asked, and a caller that sent both does not
 	// know what it wants.
-	if s.AllNS && s.Namespace != "" {
+	if s.AllNS && len(named) > 0 {
 		// A caller that sent only the switch did not send the namespace: a
 		// profile or the config filled it in, and "pass one or the other"
 		// asked them for what they had already done. The hint says where the
@@ -263,6 +278,11 @@ func run(ctx context.Context, sf plugin.Surface, args ...string) ([]byte, *view.
 // this package assembled and immediately hands to a subprocess it also
 // waits on has none of that risk.
 func runStdin(ctx context.Context, sf plugin.Surface, stdin []byte, args ...string) ([]byte, *view.Error) {
+	g := gateOf(ctx)
+	if verr := g.enter(ctx); verr != nil {
+		return nil, verr
+	}
+	defer g.leave()
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, kubectlBin, args...)
@@ -275,7 +295,95 @@ func runStdin(ctx context.Context, sf plugin.Surface, stdin []byte, args ...stri
 	if err == nil {
 		return out, nil
 	}
-	return nil, classify(ctx, err, errBuf.String(), args, sf)
+	verr := classify(ctx, err, errBuf.String(), args, sf)
+	g.note(verr)
+	return nil, verr
+}
+
+// gate bounds how many kubectl calls one answer has running, for the answer that
+// makes thirty of them (kube.overview reads each namespace of a list with calls
+// of its own): subprocesses started all at once are a laptop's fans and an API
+// server's throttle, for a read that takes a minute to be asked again.
+//
+// And it keeps a cluster that does not answer from being asked thirty times. A
+// call that fails because the cluster cannot be reached, or does not accept the
+// credential, or there is nothing to reach it with, has said the same of every
+// call to come, and each of those waits for kubectl's own fifteen seconds: at six
+// at a time, thirty calls would keep a tile waiting for over a minute to be told
+// what the first six already said. The calls still waiting for a place are given
+// that answer instead. A refusal of one list (kube.forbidden) says nothing of the
+// others, and is not that.
+//
+// It travels in the context and is nil outside the one caller that makes it, so
+// every other call here runs as it always did.
+type gate struct {
+	slots chan struct{}
+	mu    sync.Mutex
+	down  *view.Error
+}
+
+type gateKey struct{}
+
+func withGate(ctx context.Context, width int) context.Context {
+	return context.WithValue(ctx, gateKey{}, &gate{slots: make(chan struct{}, width)})
+}
+
+func gateOf(ctx context.Context) *gate {
+	g, _ := ctx.Value(gateKey{}).(*gate)
+	return g
+}
+
+// enter waits for a place, and gives the answer a cluster that is down has
+// already given rather than asking it again.
+func (g *gate) enter(ctx context.Context) *view.Error {
+	if g == nil {
+		return nil
+	}
+	select {
+	case g.slots <- struct{}{}:
+	case <-ctx.Done():
+		return view.Errorf("kube.cancelled", "the call was cancelled")
+	}
+	g.mu.Lock()
+	down := g.down
+	g.mu.Unlock()
+	if down != nil {
+		<-g.slots
+		return down
+	}
+	return nil
+}
+
+func (g *gate) leave() {
+	if g != nil {
+		<-g.slots
+	}
+}
+
+// note keeps the first failure that is the cluster's as a whole, before the
+// place it was running in is given up, so that the call waiting for it already
+// sees it.
+func (g *gate) note(e *view.Error) {
+	if g == nil || !clusterWide(e.Code) {
+		return
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.down == nil {
+		g.down = e
+	}
+}
+
+// clusterWide is whether a failure says of every call, and not of the one that
+// hit it, that it will fail: nothing answered, or nothing was accepted, or
+// there was nothing to ask with.
+func clusterWide(code string) bool {
+	switch code {
+	case "kube.unreachable", "kube.unauthorized", "kube.login", "kube.credential.missing",
+		"kube.noconfig", "kube.context.unknown", "kube.context.none", "kube.kubectl.missing":
+		return true
+	}
+	return false
 }
 
 // classify turns a kubectl failure into something an operator can act on.
@@ -360,7 +468,8 @@ func classify(ctx context.Context, err error, stderr string, args []string, sf p
 				"(a login, an SSO session, an exec credential plugin) has to run first")
 	case strings.Contains(low, "connection refused"), strings.Contains(low, "no route to host"),
 		strings.Contains(low, "i/o timeout"), strings.Contains(low, "dial tcp"),
-		strings.Contains(low, "server could not find"), strings.Contains(low, "connect:"):
+		strings.Contains(low, "server could not find"), strings.Contains(low, "connect:"),
+		transportFailed(stderr):
 		return view.Errorf("kube.unreachable", "%s", msg).
 			WithHint("the API server did not answer — check the VPN, the context, and that the cluster is up; `" +
 				clusterInfoLine(args) + "` is the same question without this plugin in the way")
@@ -370,6 +479,42 @@ func classify(ctx context.Context, err error, stderr string, args []string, sf p
 		return view.Errorf("kube.failed", "%s", msg)
 	}
 	return view.Errorf("kube.failed", "kubectl %s failed: %v", strings.Join(args, " "), err)
+}
+
+// transportWords are the ways kubectl words a request that never got an answer
+// from the API server and that the cases above do not already read. The first
+// two are kubectl's own sentences for any failure of the connection, whatever
+// the transport said: its refusal has no "connection refused" in it, and its
+// handshake and deadline failures have no "dial tcp" or "connect:". The rest are
+// what the transport says when kubectl passes it through bare.
+var transportWords = []string{
+	"unable to connect to the server", "was refused - did you specify",
+	"tls handshake timeout", "client.timeout exceeded", "context deadline exceeded",
+	"connection reset by peer",
+}
+
+// transportFailed is whether stderr says the request did not get an answer, as
+// against the API server answering with a status of its own. The difference is
+// what the whole of a page is told: a cluster that cannot be reached cannot be
+// reached by any call that follows (clusterWide), where a status is about the one
+// thing asked. The same words come back inside a status as well, from an
+// admission webhook that timed out, which kubectl prints as "Error from server
+// (InternalError): ... context deadline exceeded" and which says nothing of the
+// next read, so a line that starts as a status is never one of these.
+func transportFailed(stderr string) bool {
+	line := strings.ToLower(strings.TrimSpace(stderr))
+	if i := strings.IndexByte(line, '\n'); i >= 0 {
+		line = line[:i]
+	}
+	if strings.HasPrefix(line, "error from server") {
+		return false
+	}
+	for _, word := range transportWords {
+		if strings.Contains(line, word) {
+			return true
+		}
+	}
+	return false
 }
 
 // clusterInfoLine is the kubectl command that asks whether the API server

@@ -20,32 +20,74 @@ import (
 // and every other list with nothing. What these tests count is the Secret
 // lists, because each one brings every TLS Secret's private key across the wire
 // and is a line in the API server's audit log.
+//
+// A list named for one namespace (--namespace=x) is answered from that
+// namespace's own file when the test wrote one (listIn, secretsIn, failIn) and
+// from the cluster's general one when it did not, so a cluster scripted as one
+// list keeps answering every namespace with the same items. A cluster that
+// refuses every list across namespaces (forbidClusterWide) is the namespaced
+// credential, the ordinary restricted identity; the file config.fail makes
+// `config view` fail with the words in it; the file conc.slow makes every
+// get take a moment and writes how many were running to conc, which is how a
+// test sees the bound on concurrent calls.
 type scriptedCluster struct{ dir string }
 
 func newScriptedCluster(t *testing.T) *scriptedCluster {
 	t.Helper()
 	c := &scriptedCluster{dir: t.TempDir()}
+	dir := shellQuote(c.dir)
 	script := `#!/bin/sh
 echo "$*" >> ` + shellQuote(filepath.Join(c.dir, "calls")) + `
+ns=""
+all=""
+for a in "$@"; do
+	case "$a" in
+	--namespace=*) ns="${a#--namespace=}" ;;
+	--all-namespaces) all=1 ;;
+	esac
+done
+if [ "$1" = get ] && [ -f ` + dir + `/conc.slow ]; then
+	echo up >> ` + dir + `/conc
+	sleep 0.2
+	echo down >> ` + dir + `/conc
+fi
 if [ "$1" = get ] && [ -f ` + shellQuote(filepath.Join(c.dir, "get.fail")) + ` ]; then
 	cat ` + shellQuote(filepath.Join(c.dir, "get.fail")) + ` >&2
+	exit 1
+fi
+if [ "$1" = get ] && [ -n "$all" ] && [ -f ` + dir + `/forbid-clusterwide ]; then
+	echo "Error from server (Forbidden): $2 is forbidden: User \"system:serviceaccount:ops:rta\" cannot list resource \"$2\" in API group \"\" at the cluster scope" >&2
+	exit 1
+fi
+if [ "$1 $2" = "config view" ] && [ -f ` + shellQuote(filepath.Join(c.dir, "config.fail")) + ` ]; then
+	cat ` + shellQuote(filepath.Join(c.dir, "config.fail")) + ` >&2
 	exit 1
 fi
 case "$1 $2" in
 "config view") cat ` + shellQuote(filepath.Join(c.dir, "config.json")) + ` ;;
 "get secrets")
 	if [ -f ` + shellQuote(filepath.Join(c.dir, "secrets.slow")) + ` ]; then sleep 1; fi
+	if [ -n "$ns" ] && [ -f ` + dir + `/secrets."$ns".fail ]; then
+		cat ` + dir + `/secrets."$ns".fail >&2
+		exit 1
+	fi
 	if [ -f ` + shellQuote(filepath.Join(c.dir, "secrets.fail")) + ` ]; then
 		cat ` + shellQuote(filepath.Join(c.dir, "secrets.fail")) + ` >&2
 		exit 1
 	fi
+	if [ -n "$ns" ] && [ -f ` + dir + `/secrets."$ns".json ]; then cat ` + dir + `/secrets."$ns".json; exit 0; fi
 	cat ` + shellQuote(filepath.Join(c.dir, "secrets.json")) + ` ;;
 "get "*)
-	if [ -f ` + shellQuote(c.dir) + `/list-"$2".fail ]; then
-		cat ` + shellQuote(c.dir) + `/list-"$2".fail >&2
+	if [ -n "$ns" ] && [ -f ` + dir + `/list-"$2"."$ns".fail ]; then
+		cat ` + dir + `/list-"$2"."$ns".fail >&2
 		exit 1
 	fi
-	if [ -f ` + shellQuote(c.dir) + `/list-"$2".json ]; then cat ` + shellQuote(c.dir) + `/list-"$2".json; else echo '{"items":[]}'; fi ;;
+	if [ -f ` + dir + `/list-"$2".fail ]; then
+		cat ` + dir + `/list-"$2".fail >&2
+		exit 1
+	fi
+	if [ -n "$ns" ] && [ -f ` + dir + `/list-"$2"."$ns".json ]; then cat ` + dir + `/list-"$2"."$ns".json; exit 0; fi
+	if [ -f ` + dir + `/list-"$2".json ]; then cat ` + dir + `/list-"$2".json; else echo '{"items":[]}'; fi ;;
 *) echo '{"items":[]}' ;;
 esac
 `

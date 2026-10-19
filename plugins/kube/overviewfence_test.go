@@ -65,7 +65,7 @@ func TestTheOverviewUnderANamespaceFenceReadsThatNamespaceAndNoOther(t *testing.
 		t.Fatalf("a call that names nothing was refused under a one-entry fence: %+v", breach)
 	}
 	req := plugin.ResolveRequest(overview, in, false, false)
-	if got := req.String("namespace"); got != "apps" {
+	if got := req.StringSlice("namespace"); len(got) != 1 || got[0] != "apps" {
 		t.Fatalf("the fence filled namespace = %q, want the one it allows", got)
 	}
 	if _, err := runOverview(context.Background(), req); err != nil {
