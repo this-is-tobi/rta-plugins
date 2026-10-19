@@ -115,7 +115,7 @@ func serviceAccountCapabilities() []plugin.Capability {
 				"ServiceAccount in the namespace. A minted token cannot be queried directly (Kubernetes " +
 				"does not persist a TokenRequest token as an object), so \"expired\" here is computed " +
 				"from the `ttl` and issue time provision recorded as annotations at mint time — a " +
-				"best-effort estimate, not a live check against the API server.",
+				"best-effort estimate, not a live check against the API server. " + namespaceWords,
 			Safety:     plugin.Read,
 			Idempotent: true,
 			Scope:      "namespace",
@@ -487,11 +487,11 @@ func suggestProvisionedAccounts(ctx context.Context, req plugin.Request) []strin
 }
 
 func runServiceAccountList(ctx context.Context, req plugin.Request) (view.View, error) {
-	s, verr := selectionOf(req)
+	l, verr := listingOf(req)
 	if verr != nil {
 		return nil, verr
 	}
-	items, verr := fetchProvisionedAccounts(ctx, s)
+	items, unread, verr := readListing(ctx, l, fetchProvisionedAccounts)
 	if verr != nil {
 		return nil, verr
 	}
@@ -519,8 +519,9 @@ func runServiceAccountList(ctx context.Context, req plugin.Request) (view.View, 
 		})
 	}
 	t.Total = len(t.Rows)
-	return withEmpty(t, "no ServiceAccounts provisioned in "+s.scopeWords()+" — "+
-		req.Surface().CapabilityName("kube.serviceaccount.provision")+" makes one"), nil
+	t = withEmpty(t, "no ServiceAccounts provisioned in "+l.scopeWords()+" — "+
+		req.Surface().CapabilityName("kube.serviceaccount.provision")+" makes one")
+	return withUnread(t, unread, 1), nil
 }
 
 func runServiceAccountRevoke(ctx context.Context, req plugin.Request) (view.View, error) {

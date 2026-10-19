@@ -150,24 +150,19 @@ type podSpecItem struct {
 	} `json:"spec"`
 }
 
-func runMetricsPod(ctx context.Context, req plugin.Request) (view.View, error) {
-	s, verr := selectionOf(req)
-	if verr != nil {
-		return nil, verr
-	}
-	// A call that names no namespace is the context's own, as it is for every
-	// list here. `get --raw` is not kubectl resolving one for us: the path below
-	// is the cluster's list unless a namespace is in it, and the limits are read
-	// from the namespace kubectl does resolve, so the usage of every pod of the
-	// cluster was set beside the limits of one namespace's. The namespace is
-	// resolved from the kubeconfig once and passed to both reads.
-	if !s.AllNS && s.Namespace == "" {
-		cfg, verr := readConfig(ctx, s.sf)
-		if verr != nil {
-			return nil, verr
-		}
-		s.Namespace = cfg.namespaceOf(s.Context)
-	}
+// podUsage is one pod's usage against its own limits, as a row of the table.
+type podUsage struct {
+	ns, name       string
+	cpu            float64
+	mem            uint64
+	cpuPct, memPct string
+	cpuPctN        float64
+	memPctN        float64
+}
+
+// fetchPodUsage reads the usage of the pods of one scope and the limits it is
+// measured against: two calls, which is what a namespace of a list costs.
+func fetchPodUsage(ctx context.Context, s selection) ([]podUsage, *view.Error) {
 	path := "/apis/metrics.k8s.io/v1beta1/pods"
 	if !s.AllNS && s.Namespace != "" {
 		// Re-validated here, at the point the path is built, rather than
@@ -195,16 +190,7 @@ func runMetricsPod(ctx context.Context, req plugin.Request) (view.View, error) {
 		}
 	}
 
-	type row struct {
-		ns, name       string
-		cpu            float64
-		mem            uint64
-		cpuLim, memLim float64
-		cpuPct, memPct string
-		cpuPctN        float64
-		memPctN        float64
-	}
-	rows := make([]row, 0, len(metrics.Items))
+	rows := make([]podUsage, 0, len(metrics.Items))
 	for _, m := range metrics.Items {
 		var cpu float64
 		var mem uint64
@@ -217,8 +203,7 @@ func runMetricsPod(ctx context.Context, req plugin.Request) (view.View, error) {
 			}
 		}
 		b := requests[m.Metadata.Namespace+"/"+m.Metadata.Name]
-		r := row{ns: m.Metadata.Namespace, name: m.Metadata.Name, cpu: cpu, mem: mem,
-			cpuLim: b.cpuLimit, memLim: b.memLimit}
+		r := podUsage{ns: m.Metadata.Namespace, name: m.Metadata.Name, cpu: cpu, mem: mem}
 		if b.memLimit > 0 {
 			r.memPct, r.memPctN = percentOf(float64(mem), b.memLimit), float64(mem)/b.memLimit
 		}
@@ -227,28 +212,62 @@ func runMetricsPod(ctx context.Context, req plugin.Request) (view.View, error) {
 		}
 		rows = append(rows, r)
 	}
+	return rows, nil
+}
+
+func runMetricsPod(ctx context.Context, req plugin.Request) (view.View, error) {
+	l, verr := listingOf(req)
+	if verr != nil {
+		return nil, verr
+	}
+	// A call that names no namespace is the context's own, as it is for every
+	// list here. `get --raw` is not kubectl resolving one for us: the path is the
+	// cluster's list unless a namespace is in it, and the limits are read from the
+	// namespace kubectl does resolve, so the usage of every pod of the cluster was
+	// set beside the limits of one namespace's. The namespace is resolved from the
+	// kubeconfig once and passed to both reads.
+	if len(l.names) == 0 && !l.s.AllNS {
+		cfg, verr := readConfig(ctx, l.s.sf)
+		if verr != nil {
+			return nil, verr
+		}
+		l.s.Namespace = cfg.namespaceOf(l.s.Context)
+	}
+	rows, unread, verr := readListing(ctx, l, fetchPodUsage)
+	if verr != nil {
+		return nil, verr
+	}
 	// Worst memory pressure first — OOMKilled is the failure mode this view
 	// exists to give an SRE a head start on, so the pod closest to it leads.
 	// CPU pressure as the tiebreaker for pods with no memory limit set at
-	// all, rather than falling back to an arbitrary name sort.
+	// all, rather than falling back to an arbitrary name sort. A pod that ties
+	// on both is put where its namespace and name say, so that the page of
+	// several namespaces is the same page whichever way the list was written.
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].memPctN != rows[j].memPctN {
 			return rows[i].memPctN > rows[j].memPctN
 		}
-		return rows[i].cpuPctN > rows[j].cpuPctN
+		if rows[i].cpuPctN != rows[j].cpuPctN {
+			return rows[i].cpuPctN > rows[j].cpuPctN
+		}
+		if rows[i].ns != rows[j].ns {
+			return rows[i].ns < rows[j].ns
+		}
+		return rows[i].name < rows[j].name
 	})
 
-	cols := podMetricColumns(s.AllNS)
+	cols := podMetricColumns(l.wide())
 	out := make([][]string, 0, len(rows))
 	for _, r := range rows {
 		line := []string{}
-		if s.AllNS {
+		if l.wide() {
 			line = append(line, r.ns)
 		}
 		out = append(out, append(line, r.name, cpuCores(r.cpu), r.cpuPct, format.Bytes(r.mem), r.memPct))
 	}
-	return withEmpty(view.Table{Columns: cols, Rows: out, Total: len(out)},
-		"no pod metrics in "+s.scopeWords()), nil
+	t := withEmpty(view.Table{Columns: cols, Rows: out, Total: len(out)},
+		"no pod metrics in "+l.scopeWords())
+	return withUnread(t, unread, 1), nil
 }
 
 // podBudget is one pod's summed container requests/limits — the ceiling

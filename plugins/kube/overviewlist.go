@@ -11,10 +11,11 @@ import (
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
-// The namespaces of kube.overview: a list, each one read with a call of its own.
+// The namespaces of kube.overview, and of every list of objects: a list, each one
+// read with a call of its own (namespacelist.go is what the lists add to it).
 //
 // A profile that fences the namespace to the several an operator named is the
-// connection of a tile that names them, and the overview was the one capability
+// connection of a tile that names them, and the overview was the first capability
 // that could not be handed them: its namespace was a single name, a list read as
 // text that is in no fence entry. It reads each namespace with its own kubectl
 // call (-n <ns>) and not the cluster with a filter over it, for two reasons that
@@ -24,14 +25,15 @@ import (
 // everything with the rest thrown away does not. The cost is the number of calls
 // (fetchOverview counts them), and these two constants bound it.
 
-// maxNamespaces is the longest list one overview reads. A refresh of thirty
-// namespaces is a hundred and twenty-three kubectl calls a minute, which is a lot
-// to ask of a cluster and of the machine asking, and a list longer than that is
-// a typo or a connection that should be several tiles. A cap that is refused is
-// worth more than a tile that quietly takes the cluster's attention.
+// maxNamespaces is the longest list one call reads. A refresh of thirty
+// namespaces is a hundred and twenty-three kubectl calls a minute for the
+// overview, which is a lot to ask of a cluster and of the machine asking, and a
+// list longer than that is a typo or a connection that should be several tiles. A
+// cap that is refused is worth more than a tile that quietly takes the cluster's
+// attention.
 const maxNamespaces = 30
 
-// readsAtOnce is how many kubectl calls one overview has running (see gate).
+// readsAtOnce is how many kubectl calls one answer has running (see gate).
 const readsAtOnce = 6
 
 // namespacesOf is the namespaces a call names, once each and in order: a blank
@@ -59,7 +61,7 @@ func namespacesOf(req plugin.Request) ([]string, *view.Error) {
 	if len(names) > maxNamespaces {
 		sf := req.Surface()
 		return nil, view.Errorf("kube.namespaces.toomany",
-			"an overview reads at most %d namespaces, and this call reaches more", maxNamespaces).
+			"at most %d namespaces are read in one call, and this call reaches more", maxNamespaces).
 			WithHint(contextHint(sf,
 				"name fewer namespaces, or ask the operator to fence fewer",
 				"name fewer with "+sf.InputName("namespace")+", or fence fewer in the profile or the tile that names them"))
@@ -121,17 +123,25 @@ func readEach[T any](scopes []selection, read func(selection) ([]T, *view.Error)
 	return items, failed, err
 }
 
-// whereWords says which namespaces, for a sentence that has the room for a few
-// names and not for many: the names when they are short enough together, and
-// their number when they are not.
+// whereWords says which namespaces could not be read, for a sentence that has the
+// room for a few names and not for many.
 func whereWords(failed []unreadNS) string {
 	names := make([]string, len(failed))
 	for i, f := range failed {
 		names[i] = f.namespace
 	}
-	const room = 24
-	if list := strings.Join(names, ", "); utf8.RuneCountInString(list) <= room {
-		return list
+	return namesWords(names, "")
+}
+
+// wordsRoom is how wide the names of a sentence may be before it counts them.
+const wordsRoom = 24
+
+// namesWords says which namespaces, for a sentence that has the room for a few
+// names and not for many: lead and the names when they are short enough together,
+// and their number when they are not.
+func namesWords(names []string, lead string) string {
+	if list := strings.Join(names, ", "); utf8.RuneCountInString(list) <= wordsRoom {
+		return lead + list
 	}
 	return fmt.Sprintf("%d %s", len(names), plural(len(names), "namespace", "namespaces"))
 }

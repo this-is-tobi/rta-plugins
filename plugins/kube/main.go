@@ -48,17 +48,25 @@
 //	  tiles:
 //	    - id: kube.overview
 //
-// kube.overview takes a list of namespaces, each read with a call of its own,
-// which is how a tile on a connection fenced to several of them names those:
+// kube.overview and every list of objects (pods, deployments, events, quotas,
+// claims, certificates, pod usage, provisioned ServiceAccounts) take a list of
+// namespaces, each read with a call of its own, which is how a tile on a
+// connection fenced to several of them names those:
 //
 //	dashboard:
 //	  tiles:
 //	    - id: kube.overview
 //	      profile: staging
 //	      with: {namespace: [shop-web, shop-billing]}
+//
+// A kube.overview tile that names none reads the whole fence of a profile that
+// fences the namespace. A list of objects is scoped on its namespaces, which the
+// host fills from no fence, so a tile of one on such a profile names them too;
+// with no fence, a tile that names none reads the context's own namespace.
 package main
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -102,22 +110,34 @@ func connFields() []plugin.Field {
 	}
 }
 
-// nsFields are the inputs for the capabilities that read namespaced objects.
+// nsFields are the inputs for the capabilities that list namespaced objects: the
+// namespaces to read, as a list (namespacelist.go says how each is read and what
+// naming none reads), and the switch that widens it.
+//
+// Every capability that takes them but kube.overview names `namespace` as its
+// Scope, which is the record a grant is checked against and so the one thing the
+// host fills from nothing (plugin.ProfileFillable): a profile that fences the
+// namespace refuses as blank the call that names none, and its `set: namespace:`
+// is no default. namespacelist.go says what that buys and costs, and why the
+// overview, which names no record, is the other trade.
+//
+// The list has no completion of the cluster's namespaces. The old one was Live,
+// which is how a suggestion that contacts the cluster stays something a press of
+// the key asked for and never something typing caused, and the host accepts Live
+// on a text input only; the same Suggest without it would be re-run, and kubectl
+// with it, on every edit of a sibling box. Under a profile that fences the
+// namespace the host completes from the fence, which is the list a person naming
+// several is choosing from.
 func nsFields() []plugin.Field {
 	return []plugin.Field{
-		// Live, because suggestNamespaces contacts the cluster: that read
-		// must be something a completion press asked for, never something
-		// typing caused — the per-keystroke channel re-evaluates plain
-		// Suggests on every sibling edit, which is exactly the cadence
-		// suggestNamespaces's own comment promises it is not called at.
-		{Name: "namespace", Short: "n", Type: plugin.String, Config: "namespace",
-			Help: "namespace to read — the context's own when omitted",
-			Live: true, Suggest: suggestNamespaces},
+		{Name: "namespace", Short: "n", Type: plugin.StringSlice, Config: "namespace",
+			Help: "namespaces to read, one call each, at most " + strconv.Itoa(maxNamespaces) +
+				" — the context's own when omitted"},
 		// Widens: the switch reads past `namespace`, and a profile that fences the
 		// namespace to the one or two an operator named holds every value of it,
 		// which the host can only extend to this switch if it is told it is one.
 		{Name: "all-namespaces", Short: "A", Type: plugin.Bool,
-			Widens: "namespace", Help: "every namespace instead of one"},
+			Widens: "namespace", Help: "every namespace instead of the ones named"},
 	}
 }
 
@@ -210,14 +230,14 @@ func Plugin() plugin.Plugin {
 		}),
 		cap(plugin.Capability{
 			ID:       "kube.pod.list",
-			Summary:  "Pods in a namespace, with readiness, restarts and age",
+			Summary:  "Pods in one namespace or several, with readiness, restarts and age",
 			Keywords: []string{"workloads", "crashloop", "oom", "pending", "containers"},
 			Examples: []plugin.Example{
 				{Title: "unhealthy pods across the cluster", Inputs: map[string]any{"all-namespaces": true, "unhealthy": true}},
-				{Title: "the pods of one namespace", Inputs: map[string]any{"namespace": "production"}},
+				{Title: "the pods of one namespace", Inputs: map[string]any{"namespace": []string{"production"}}},
+				{Title: "the pods of two namespaces", Inputs: map[string]any{"namespace": []string{"shop-web", "shop-billing"}}},
 			},
-			Description: "One namespace by default — the context's own — or every namespace " +
-				"with `all-namespaces`. Status, ready and restarts are what `kubectl get pods` " +
+			Description: namespaceWords + " Status, ready and restarts are what `kubectl get pods` " +
 				"prints for the same pod: the status is the word that explains the phase " +
 				"(Evicted, Terminating, Init:1/3, CrashLoopBackOff), and ready counts the " +
 				"containers that are ready over the containers the pod's spec declares, so a pod " +
@@ -228,7 +248,7 @@ func Plugin() plugin.Plugin {
 				"they were to be gone, or Running without every container ready. A pod in " +
 				"Succeeded is not included — a finished Job is not a broken one. The same " +
 				"judgement kube.overview makes, available here without the rest of the overview.",
-			Agent: "Pods in one namespace, or every one with `all-namespaces`. Status, ready and restarts are " +
+			Agent: "Pods of the namespaces read. " + agentNamespaceWords + " Status, ready and restarts are " +
 				"what kubectl prints: the status is the word that explains the phase (Evicted, Terminating, " +
 				"Init:1/3, CrashLoopBackOff), and ready is ready containers over the containers the spec " +
 				"declares, so a pod nothing has started reads 0/2. A Running pod restarted forty times is not " +
@@ -242,13 +262,13 @@ func Plugin() plugin.Plugin {
 			Help: "only pods that are not serving — Failed, Pending, Unknown, stuck terminating, or Running without every container ready"})...),
 		cap(plugin.Capability{
 			ID:       "kube.deployment.list",
-			Summary:  "Deployments in a namespace, with how many replicas are actually ready",
+			Summary:  "Deployments in one namespace or several, with how many replicas are actually ready",
 			Keywords: []string{"rollout", "workloads", "apps", "scale"},
 			Examples: []plugin.Example{
-				{Title: "one namespace's deployments", Inputs: map[string]any{"namespace": "production"}},
+				{Title: "one namespace's deployments", Inputs: map[string]any{"namespace": []string{"production"}}},
 			},
 			Description: "Ready against desired, which is the number that says whether a " +
-				"rollout finished. One namespace by default, or every one with `all-namespaces`.",
+				"rollout finished. " + namespaceWords,
 			Safety:     plugin.Read,
 			Idempotent: true,
 			Scope:      "namespace",
@@ -270,11 +290,12 @@ func Plugin() plugin.Plugin {
 				"from a one-off thirty seconds ago, and last-seen alone renders them the same. " +
 				"It also means the usual \"events only go back an hour\" is true only for " +
 				"problems that stopped: the TTL runs from last-seen, so anything still recurring " +
-				"is never collected and its first-seen can be weeks old.",
+				"is never collected and its first-seen can be weeks old.\n\n" + namespaceWords,
 			Agent: "Warnings only unless `normal` is set: Normal events are routine narration. An Event is a " +
 				"counter, not a log line, so first-seen and count come with last-seen: an event first seen " +
 				"eleven days ago with thirteen thousand occurrences is not a one-off from thirty seconds ago. " +
-				"A problem that keeps recurring is never collected, so its first-seen can be weeks old.",
+				"A problem that keeps recurring is never collected, so its first-seen can be weeks old. " +
+				agentNamespaceWords,
 			Safety:     plugin.Read,
 			Idempotent: true,
 			Scope:      "namespace",
@@ -291,7 +312,8 @@ func Plugin() plugin.Plugin {
 			Description: "One row per resource a quota tracks, not one row per quota object — " +
 				"cpu, memory and pod-count headroom read as a percentage rather than two numbers " +
 				"to do the division on by hand. LimitRange objects are noted by count rather than " +
-				"fully modeled; their shape does not table-ize alongside a used/hard resource map.",
+				"fully modeled; their shape does not table-ize alongside a used/hard resource map. " +
+				"Two calls for each namespace: its quotas and its limit ranges. " + namespaceWords,
 			Safety:     plugin.Read,
 			Idempotent: true,
 			Scope:      "namespace",
@@ -302,12 +324,13 @@ func Plugin() plugin.Plugin {
 			Summary:  "PersistentVolumeClaims: capacity, requested size, storage class and phase",
 			Keywords: []string{"storage", "volumes", "disk", "pv", "claims"},
 			Examples: []plugin.Example{
-				{Title: "the claims of one namespace", Inputs: map[string]any{"namespace": "production"}},
+				{Title: "the claims of one namespace", Inputs: map[string]any{"namespace": []string{"production"}}},
 			},
 			Description: "Provisioned capacity, not how full a volume actually is — that number " +
 				"lives in kubelet volume stats, a different and more involved mechanism this does " +
 				"not reach. A Pending PVC (no bound PersistentVolume yet) reports its requested " +
-				"size and an empty capacity, which is the honest state of an unfulfilled claim.",
+				"size and an empty capacity, which is the honest state of an unfulfilled claim. " +
+				namespaceWords,
 			Safety:     plugin.Read,
 			Idempotent: true,
 			Scope:      "namespace",
@@ -330,11 +353,11 @@ func Plugin() plugin.Plugin {
 				"namespace, and kube.overview draws on the same read: an answer can be that old, " +
 				"and says so when it is. As a tile it is re-run at most hourly. The leaf " +
 				"certificate's own expiry is judged on the same 30-day window `cert.expiry` and " +
-				"`audit.web` use.",
+				"`audit.web` use.\n\n" + namespaceWords,
 			Agent: "Every kubernetes.io/tls Secret's leaf certificate: subject, expiry and a status on the same " +
 				"30-day window `cert.expiry` uses. Only tls.crt is decoded. The Secrets arrive whole, private keys " +
 				"included, so they are read at most every 15 minutes per context and namespace, shared with " +
-				"kube.overview: an answer can be that old, and says so when it is.",
+				"kube.overview: an answer can be that old, and says so when it is. " + agentNamespaceWords,
 			Safety:     plugin.Read,
 			Idempotent: true,
 			Scope:      "namespace",
@@ -351,7 +374,9 @@ func Plugin() plugin.Plugin {
 			Description: "Needs the metrics-server add-on (metrics.k8s.io); a cluster without it " +
 				"names that in the error rather than a bare \"not found\". Sorted by memory " +
 				"pressure — the failure mode a container hits is OOMKilled, not \"CPU too high\" " +
-				"— so the pod closest to its own limit leads regardless of namespace or name.",
+				"— so the pod closest to its own limit leads regardless of namespace or name. " +
+				"Two calls for each namespace: the usage and the pods whose limits it is read against. " +
+				namespaceWords,
 			Safety:     plugin.Read,
 			Idempotent: true,
 			Scope:      "namespace",
@@ -448,8 +473,8 @@ func Plugin() plugin.Plugin {
 				"Reads more than it names: every pod, Deployment, ResourceQuota and TLS Secret of each " +
 				"namespace `namespace` lists (none: every namespace; at most 30), with a call of its own " +
 				"for each, so a Role per namespace is enough. Give a list in a tile's `with:`, the call " +
-				"or a profile fence, not in `plugins.kube.namespace`, which the other kube capabilities " +
-				"read as text. The nodes are always the cluster's; with namespaces named the pod slots " +
+				"or a profile fence, not in `plugins.kube.namespace`, which provision and revoke read " +
+				"as text. The nodes are always the cluster's; with namespaces named the pod slots " +
 				"are not counted, a namespace a list could not be read in is named on that row, and a " +
 				"missing one is a warning. The TLS Secrets arrive whole, private keys included (see " +
 				"kube.cert.list), so they are read at most every 15 minutes per context and namespace, " +

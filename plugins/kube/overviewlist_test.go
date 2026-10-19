@@ -42,8 +42,19 @@ func (c *scriptedCluster) secretsIn(t *testing.T, namespace string, items ...str
 // refuses a credential that may not read it.
 func (c *scriptedCluster) failIn(t *testing.T, resource, namespace string) {
 	t.Helper()
-	stderr := `Error from server (Forbidden): ` + resource + ` is forbidden: User "system:serviceaccount:ops:rta" ` +
+	c.failInWith(t, resource, namespace, forbiddenIn(resource, namespace))
+}
+
+// forbiddenIn is what the API server tells a credential that may not list a
+// resource in a namespace.
+func forbiddenIn(resource, namespace string) string {
+	return `Error from server (Forbidden): ` + resource + ` is forbidden: User "system:serviceaccount:ops:rta" ` +
 		`cannot list resource "` + resource + `" in API group "" in the namespace "` + namespace + `"`
+}
+
+// failInWith makes one namespace's list of a resource answer with stderr.
+func (c *scriptedCluster) failInWith(t *testing.T, resource, namespace, stderr string) {
+	t.Helper()
 	if resource == "secrets" {
 		c.write(t, "secrets."+namespace+".fail", stderr)
 		return
@@ -1122,9 +1133,10 @@ func TestTheNamespaceOfAnOverviewIsAListTheWayAPlainNamespaceWas(t *testing.T) {
 	if err := Plugin().Validate(); err != nil {
 		t.Errorf("the declaration is refused: %v", err)
 	}
-	// The siblings declare the same config key as text and refuse a list there, so
-	// the one place a list is written in the config is the one place it is said
-	// not to be; and the next edit of the text is not the one that trips the limit.
+	// The two siblings that act on one namespace (serviceaccount provision and
+	// revoke) declare the same config key as text and refuse a list there, so the
+	// one place a list is written in the config is the one place it is said not to
+	// be; and the next edit of the text is not the one that trips the limit.
 	if !strings.Contains(c.Description, "plugins.kube.namespace") {
 		t.Errorf("the Description never says that a list does not belong in plugins.kube.namespace: %s", c.Description)
 	}
@@ -1133,15 +1145,5 @@ func TestTheNamespaceOfAnOverviewIsAListTheWayAPlainNamespaceWas(t *testing.T) {
 	}
 	if c.Refresh != time.Minute {
 		t.Errorf("refresh = %v, want the minute it was", c.Refresh)
-	}
-	for _, other := range Plugin().Capabilities {
-		if other.ID == "kube.overview" {
-			continue
-		}
-		for _, f := range other.Inputs {
-			if f.Name == "namespace" && f.Type == plugin.StringSlice {
-				t.Errorf("%s takes a list of namespaces, which only the overview does", other.ID)
-			}
-		}
 	}
 }

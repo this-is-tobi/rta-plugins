@@ -57,12 +57,17 @@ func fetchQuotas(ctx context.Context, s selection) (list[resourceQuotaItem], *vi
 	return quotas, verr
 }
 
-func runQuotaList(ctx context.Context, req plugin.Request) (view.View, error) {
-	s, verr := selectionOf(req)
-	if verr != nil {
-		return nil, verr
-	}
+// quotaScope is what the read of one namespace's quotas and limit ranges came to.
+// The quotas are the page, so a namespace that cannot be read for them is
+// unread; the limit ranges are the note beside it, so a namespace that cannot be
+// read for them keeps its quotas and says so.
+type quotaScope struct {
+	quotas   []resourceQuotaItem
+	limits   []limitRangeItem
+	limitErr *view.Error
+}
 
+func fetchQuotaScope(ctx context.Context, s selection) ([]quotaScope, *view.Error) {
 	quotas, qerr := fetchQuotas(ctx, s)
 	if qerr != nil {
 		return nil, qerr
@@ -72,8 +77,28 @@ func runQuotaList(ctx context.Context, req plugin.Request) (view.View, error) {
 	if refusal := rejected(limitErr); refusal != nil {
 		return nil, refusal
 	}
+	return []quotaScope{{quotas: quotas.Items, limits: limits.Items, limitErr: limitErr}}, nil
+}
 
-	cols := quotaColumns(s.AllNS)
+func runQuotaList(ctx context.Context, req plugin.Request) (view.View, error) {
+	l, verr := listingOf(req)
+	if verr != nil {
+		return nil, verr
+	}
+	scopes, unread, qerr := readListing(ctx, l, fetchQuotaScope)
+	if qerr != nil {
+		return nil, qerr
+	}
+	var quotas list[resourceQuotaItem]
+	var limits list[limitRangeItem]
+	var limitErrs []*view.Error
+	for _, sc := range scopes {
+		quotas.Items = append(quotas.Items, sc.quotas...)
+		limits.Items = append(limits.Items, sc.limits...)
+		limitErrs = append(limitErrs, sc.limitErr)
+	}
+
+	cols := quotaColumns(l.wide())
 
 	sort.Slice(quotas.Items, func(i, j int) bool {
 		a, b := quotas.Items[i].Metadata, quotas.Items[j].Metadata
@@ -94,7 +119,7 @@ func runQuotaList(ctx context.Context, req plugin.Request) (view.View, error) {
 			hard := q.Status.Hard[r]
 			used := q.Status.Used[r]
 			row := []string{}
-			if s.AllNS {
+			if l.wide() {
 				row = append(row, q.Metadata.Namespace)
 			}
 			rows = append(rows, append(row, q.Metadata.Name, r, used, hard, quotaPercent(used, hard)))
@@ -102,15 +127,23 @@ func runQuotaList(ctx context.Context, req plugin.Request) (view.View, error) {
 	}
 
 	t := withEmpty(view.Table{Columns: cols, Rows: rows, Total: len(rows)},
-		"no resource quotas in "+s.scopeWords())
-	return quotaView(t, limits, limitErr), nil
+		"no resource quotas in "+l.scopeWords())
+	return quotaView(withUnread(t, unread, 1), limits, limitErrs...), nil
 }
 
 // quotaView folds the LimitRange count in as a trailing note rather than a
 // second table — one sentence, not a page, for a signal that is "present or
-// not" far more often than it is something to read row by row.
-func quotaView(t view.Table, limits list[limitRangeItem], limitErr *view.Error) view.View {
-	if limitErr != nil {
+// not" far more often than it is something to read row by row. limitErrs is a
+// read of the limit ranges of each namespace that failed, a nil among them being
+// one that did not.
+func quotaView(t view.Table, limits list[limitRangeItem], limitErrs ...*view.Error) view.View {
+	var warnings []view.Error
+	for _, e := range limitErrs {
+		if e != nil {
+			warnings = append(warnings, *e)
+		}
+	}
+	if len(warnings) > 0 {
 		// **"Forbidden to list limit ranges" and "this namespace has none"
 		// are different facts**, and both rendered as the quota table on its
 		// own — so a reader concluded there are no limit ranges from a page
@@ -118,7 +151,7 @@ func quotaView(t view.Table, limits list[limitRangeItem], limitErr *view.Error) 
 		// that did not is said beside them.
 		return view.Sections{
 			Items:    []view.Section{{ID: "quotas", Title: "Resource quotas", View: t}},
-			Warnings: []view.Error{*limitErr},
+			Warnings: warnings,
 		}
 	}
 	if len(limits.Items) == 0 {
