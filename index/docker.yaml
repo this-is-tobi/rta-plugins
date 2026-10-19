@@ -7,29 +7,29 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: docker
-version: 0.4.1
+version: 0.5.0
 summary: "Containers and images: what is running, what is stale, and the daily tidy-up"
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/docker
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.4.1/rta-plugin-docker_0.4.1_darwin_amd64.tar.gz
-  sha256: cfdfd0c10402d19dab6ba4ac20a3db4b0441cb88fd7f0ace091eab11d21192c3
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.5.0/rta-plugin-docker_0.5.0_darwin_amd64.tar.gz
+  sha256: 4621fd11e67febcef544d6e268c659b5940e4e90e7f946dfe87de9087acfdf2d
   bin: rta-plugin-docker
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.4.1/rta-plugin-docker_0.4.1_darwin_arm64.tar.gz
-  sha256: 9bf12b0bab0443598fbfeac71839a1eb9a527c732208e17006927d1613ce9f3b
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.5.0/rta-plugin-docker_0.5.0_darwin_arm64.tar.gz
+  sha256: cfff7d73cf8694ba25c5bed58ba5a5d35e7165112de6860acb3205546452ceda
   bin: rta-plugin-docker
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.4.1/rta-plugin-docker_0.4.1_linux_amd64.tar.gz
-  sha256: 9a2a2e89feecd822c2f993aa00649b124c134e8f6474025fdfc9755e7fd48171
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.5.0/rta-plugin-docker_0.5.0_linux_amd64.tar.gz
+  sha256: bb0336abe44a05bde2705f6cd84ac103e9c89222135eb3cd989688e7fe78f041
   bin: rta-plugin-docker
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.4.1/rta-plugin-docker_0.4.1_linux_arm64.tar.gz
-  sha256: 2ed4e4ca2f1dc4ec247a9b1dd70585972cbd396d569cf4e6ba274b59f5eff269
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.5.0/rta-plugin-docker_0.5.0_linux_arm64.tar.gz
+  sha256: c81fc0f82d54976e26d84b0c9bb10e8ef693b87795ffaa2a3528d9e852ac7a3a
   bin: rta-plugin-docker
 capabilities:
 - id: docker.container.list
@@ -39,7 +39,7 @@ capabilities:
   summary: Images, with size and age
   safety: read
 - id: docker.overview
-  summary: "One daemon at a glance: what is running, what is unhealthy, what disk is used"
+  summary: "One daemon at a glance: its verdict, what is unhealthy, where the disk went"
   safety: read
 - id: docker.container.inspect
   summary: Everything the daemon knows about one container

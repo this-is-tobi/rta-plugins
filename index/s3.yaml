@@ -7,33 +7,33 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: s3
-version: 0.9.0
+version: 0.10.0
 summary: "S3-compatible object storage: buckets, objects, presigned URLs and policy"
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/s3
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.9.0/rta-plugin-s3_0.9.0_darwin_amd64.tar.gz
-  sha256: 2620aedd4747f3910cc02fd6aa681c4f6d4c7b1c608146fe0f1290b9ae4e9b2d
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.10.0/rta-plugin-s3_0.10.0_darwin_amd64.tar.gz
+  sha256: 0d598676c1ba7d6f43abc5d9956eb11e11535caf0c77e58797803abc1ba64152
   bin: rta-plugin-s3
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.9.0/rta-plugin-s3_0.9.0_darwin_arm64.tar.gz
-  sha256: a6127f41d7823feed8b8f73f555e8d3423803e6d5a54f16683998f3eaa46284c
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.10.0/rta-plugin-s3_0.10.0_darwin_arm64.tar.gz
+  sha256: 80cd8400b9cc8435e79711136c6fe3c2cf852807592d0736b7af04072beb33b9
   bin: rta-plugin-s3
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.9.0/rta-plugin-s3_0.9.0_linux_amd64.tar.gz
-  sha256: 89654610bad970bef1a044be919e35f0ce4a1d7ab40f0b2d343a396bbd51b703
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.10.0/rta-plugin-s3_0.10.0_linux_amd64.tar.gz
+  sha256: 883a081128560c9d0db775acf290ef7954415ed319a5529f61400a42e6b102bb
   bin: rta-plugin-s3
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.9.0/rta-plugin-s3_0.9.0_linux_arm64.tar.gz
-  sha256: 68d0953359ac7340ec6896290d0b8833262185d2bdaafdef522915bd6febd45d
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fs3%2Fv0.10.0/rta-plugin-s3_0.10.0_linux_arm64.tar.gz
+  sha256: d6fab06c5e1cc554e1e36c6e3e3174b16a420ea4eb3eb7055a417d177cfbe1ed
   bin: rta-plugin-s3
 capabilities:
 - id: s3.overview
-  summary: Endpoint and bucket count at a glance
+  summary: Whether an endpoint or a bucket is healthy, at a glance
   safety: read
 - id: s3.bucket.list
   summary: List every bucket the configured credentials can see
