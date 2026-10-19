@@ -79,6 +79,19 @@ func (k kubeconfig) find(name string) (string, string, string, bool) {
 	return "", "", "", false
 }
 
+// namespaceOf is the namespace kubectl reads for a call that names none: the one
+// the context states, and default when it states none. The current context is
+// the one asked about when context is empty.
+func (k kubeconfig) namespaceOf(context string) string {
+	if context == "" {
+		context = k.CurrentContext
+	}
+	if _, _, ns, _ := k.find(context); ns != "" {
+		return ns
+	}
+	return "default"
+}
+
 func runContextList(ctx context.Context, req plugin.Request) (view.View, error) {
 	cfg, verr := readConfig(ctx, req.Surface())
 	if verr != nil {

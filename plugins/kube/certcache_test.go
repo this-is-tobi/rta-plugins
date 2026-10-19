@@ -17,7 +17,8 @@ import (
 
 // A cluster whose kubectl is a script: it logs every call, answers `config
 // view` from a file the test can rewrite, answers a Secret list from another,
-// and every other list with nothing. What these tests count is the Secret
+// a `get --raw <path>` from the file of that path (rawAt), and every other list
+// with nothing. What these tests count is the Secret
 // lists, because each one brings every TLS Secret's private key across the wire
 // and is a line in the API server's audit log.
 //
@@ -65,6 +66,27 @@ if [ "$1 $2" = "config view" ] && [ -f ` + shellQuote(filepath.Join(c.dir, "conf
 fi
 case "$1 $2" in
 "config view") cat ` + shellQuote(filepath.Join(c.dir, "config.json")) + ` ;;
+"get --raw")
+	if [ -f ` + dir + `/list---raw.fail ]; then
+		cat ` + dir + `/list---raw.fail >&2
+		exit 1
+	fi
+	case "$3" in
+	*/namespaces/*) ;;
+	*)
+		if [ -f ` + dir + `/forbid-clusterwide ]; then
+			echo "Error from server (Forbidden): pods.metrics.k8s.io is forbidden: User \"system:serviceaccount:ops:rta\" cannot list resource \"pods\" in API group \"metrics.k8s.io\" at the cluster scope" >&2
+			exit 1
+		fi ;;
+	esac
+	key=$(printf %s "$3" | tr / _)
+	if [ -f ` + dir + `/raw"$key".fail ]; then
+		cat ` + dir + `/raw"$key".fail >&2
+		exit 1
+	fi
+	if [ -f ` + dir + `/raw"$key".json ]; then cat ` + dir + `/raw"$key".json; exit 0; fi
+	echo "Error from server (NotFound): the server could not find the requested resource" >&2
+	exit 1 ;;
 "get secrets")
 	if [ -f ` + shellQuote(filepath.Join(c.dir, "secrets.slow")) + ` ]; then sleep 1; fi
 	if [ -n "$ns" ] && [ -f ` + dir + `/secrets."$ns".fail ]; then
