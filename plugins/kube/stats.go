@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"sync"
 
@@ -463,8 +464,29 @@ func worstByClaim(summaries []nodeSummary) (rows []claimUsage, failed []string) 
 	return rows, failed
 }
 
+// claimsIn keeps the claims of the namespaces named, all of them when none is.
+func claimsIn(claims []claimUsage, names []string) []claimUsage {
+	if len(names) == 0 {
+		return claims
+	}
+	return slices.DeleteFunc(claims, func(u claimUsage) bool { return !slices.Contains(names, u.ns) })
+}
+
+// runPVCUsage reads the volumes of every node's kubelet and shows the claims.
+//
+// **`namespace` keeps rows here; it is not a place to read.** A kubelet reports
+// the volumes of every pod it runs, whatever their namespace, and the Summary API
+// has no way to be asked for fewer, so every namespace's claims are read and the
+// ones not named are dropped before the table is made. That is the honest minimum,
+// and it is what a fence needs: this capability declared no namespace, so a
+// profile that fenced the namespace did not bind it, and it printed the namespace
+// and claim of every mounted volume on every node.
 func runPVCUsage(ctx context.Context, req plugin.Request) (view.View, error) {
-	s, verr := selectionOf(req)
+	names, verr := namespaceNames(req)
+	if verr != nil {
+		return nil, verr
+	}
+	s, verr := selectionFor(req, nil)
 	if verr != nil {
 		return nil, verr
 	}
@@ -477,6 +499,7 @@ func runPVCUsage(ctx context.Context, req plugin.Request) (view.View, error) {
 		return nil, refusal
 	}
 	rows, failed := worstByClaim(summaries)
+	rows = claimsIn(rows, names)
 
 	cols := pvcUsageColumns()
 	out := make([][]string, 0, len(rows))
@@ -484,7 +507,11 @@ func runPVCUsage(ctx context.Context, req plugin.Request) (view.View, error) {
 		out = append(out, []string{u.ns, u.name, format.Bytes(u.used), format.Bytes(u.capacity),
 			percentOf(float64(u.used), float64(u.capacity))})
 	}
-	table := withEmpty(view.Table{Columns: cols, Rows: out, Total: len(out)}, "no volume claims are mounted")
+	empty := "no volume claims are mounted"
+	if len(names) > 0 {
+		empty += " in " + keptWords(names)
+	}
+	table := withEmpty(view.Table{Columns: cols, Rows: out, Total: len(out)}, empty)
 	if len(failed) == 0 {
 		return table, nil
 	}

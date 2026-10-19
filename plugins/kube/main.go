@@ -63,6 +63,11 @@
 // fences the namespace. A list of objects is scoped on its namespaces, which the
 // host fills from no fence, so a tile of one on such a profile names them too;
 // with no fence, a tile that names none reads the context's own namespace.
+//
+// kube.namespace.list and kube.pvc.usage show rows of every namespace and cannot
+// ask the cluster for fewer, so their `namespace` keeps the rows of those named
+// and reads nothing for each: none named shows every namespace, or the whole
+// fence of a profile that has one.
 package main
 
 import (
@@ -141,6 +146,23 @@ func nsFields() []plugin.Field {
 	}
 }
 
+// filterFields is the namespace input of the two reads that show rows of every
+// namespace and cannot ask the cluster for fewer: kube.namespace.list prints the
+// namespaces themselves, and kube.pvc.usage the claim of every volume a kubelet
+// reports. `namespace` keeps the rows of those named and reads nothing for each of
+// them, so it has no switch to widen and no cap, and it is no Scope: nothing here
+// is a record a grant is narrowed to, so a profile that fences the namespace
+// fills a call that names none with everything the fence allows, and holds a name
+// outside it to the fence. Without the input a fence had nothing to hold them
+// to, and these two printed every namespace of the cluster to a connection
+// fenced to a few.
+func filterFields() []plugin.Field {
+	return []plugin.Field{
+		{Name: "namespace", Short: "n", Type: plugin.StringSlice, Config: "namespace",
+			Help: "only the rows of these namespaces — every namespace when omitted"},
+	}
+}
+
 // cap assembles a capability's inputs in the order a person reads them: its
 // own first, then the namespace selection, then the connection.
 //
@@ -208,11 +230,12 @@ func Plugin() plugin.Plugin {
 			Summary:  "Namespaces in the cluster, with their status and age",
 			Keywords: []string{"ns", "projects", "tenants"},
 			Description: "The first capability here that contacts the cluster, so it is also " +
-				"the quickest way to find out whether the current context can reach one.",
+				"the quickest way to find out whether the current context can reach one. " +
+				filterNamespaceWords,
 			Safety:     plugin.Read,
 			Idempotent: true,
 			Run:        runNamespaceList,
-		}),
+		}, filterFields()...),
 		cap(plugin.Capability{
 			ID:       "kube.node.list",
 			Summary:  "Nodes, with readiness, cordon state and the pressures a kubelet reports",
@@ -438,12 +461,13 @@ func Plugin() plugin.Plugin {
 				"kubelet API including exec on every pod on the node. That is why this is a " +
 				"separate capability rather than columns on kube.pvc.list, and why neither it " +
 				"nor kube.metrics.pressure can be granted to a minted ServiceAccount.\n\nA node " +
-				"that cannot be read is named, because a missing node means missing claims.",
+				"that cannot be read is named, because a missing node means missing claims.\n\n" +
+				filterNamespaceWords,
 			Agent: "How full each claim is, from the kubelet's Summary API (the claim list reports provisioned " +
 				"capacity only), worst first. Only volumes a live pod mounts are measured: an unmounted claim " +
 				"does not appear. A node that cannot be read is named, because a missing node means missing " +
 				"claims. Needs the nodes/proxy permission, which covers the whole kubelet API. `node` narrows " +
-				"to one node.",
+				"to one node. " + agentFilterNamespaceWords,
 			Safety:     plugin.Read,
 			Idempotent: true,
 			// A call to the kubelet of every node, through the API server's
@@ -452,8 +476,8 @@ func Plugin() plugin.Plugin {
 			// node twice a minute, for volumes that fill by the hour.
 			Refresh: 5 * time.Minute,
 			Run:     runPVCUsage,
-		}, plugin.Field{Name: "node", Type: plugin.String,
-			Help: "one node instead of every node"}),
+		}, append(filterFields(), plugin.Field{Name: "node", Type: plugin.String,
+			Help: "one node instead of every node"})...),
 		cap(plugin.Capability{
 			ID:       "kube.overview",
 			Summary:  "One cluster at a glance: its verdict, and what is not healthy",

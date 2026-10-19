@@ -165,3 +165,24 @@ const namespaceWords = "`namespace` is a list, each one read with a call of its 
 const agentNamespaceWords = "`namespace` is an array of at most 30, each read with a call of its own; none " +
 	"reads the context's own namespace. Under a profile that fences `namespace` a call must " +
 	"name its namespaces, and `all-namespaces` is refused."
+
+// filterNamespaceWords is what the two reads that show rows of every namespace
+// say of their namespace input, which keeps rows and reads nothing for each
+// namespace: none named shows every namespace, or the ones a fence allows, since
+// the host fills this input from a fence (it is no grant's scope).
+const filterNamespaceWords = "`namespace` is a list that keeps only the rows of those namespaces; none shows " +
+	"every namespace, or the ones a profile fences `namespace` to. The cluster is read whole and the rest dropped " +
+	"before anything is shown."
+
+// agentFilterNamespaceWords is the same for the reader of a tool listing.
+const agentFilterNamespaceWords = "`namespace` is an array that keeps only the rows of those namespaces; none " +
+	"shows every one, or the ones a profile fences `namespace` to."
+
+// keptWords says which namespaces a read that keeps only some looked at, for the
+// sentence that says it found nothing there.
+func keptWords(names []string) string {
+	if len(names) == 1 {
+		return "namespace " + names[0]
+	}
+	return namesWords(names, "namespaces ")
+}
