@@ -48,12 +48,12 @@ func TestAnUnhealthyContainerIsSeenWhenTheCLIReportsItOnlyInTheStatusText(t *tes
 	}
 	var sick string
 	for _, p := range v.(view.KeyValue).Pairs {
-		if p.Key == "not running or not healthy" {
+		if p.Key == "problems" {
 			sick = p.Value
 		}
 	}
 	if sick != "web (unhealthy)" {
-		t.Errorf("not running or not healthy = %q, want web (unhealthy) alone", sick)
+		t.Errorf("problems = %q, want web (unhealthy) alone", sick)
 	}
 
 	table, ok := answer(t, "docker.container.list", map[string]any{}).(view.Table)

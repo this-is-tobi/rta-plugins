@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -82,15 +84,104 @@ func healthInStatus(status string) string {
 	return ""
 }
 
-// unhealthy is the overview's definition of "worth looking at": a container
-// that is not running, or one that is running and failing its own
-// healthcheck. A container with no healthcheck cannot be unhealthy by this
-// rule, which is right — rta does not know what it should be doing.
-func unhealthy(r containerRow) bool {
-	if !strings.EqualFold(r.State, "running") {
-		return true
+// kind is how a container stands, as far as an overview has room to say: the
+// states a person is told apart by, and not the daemon's own list.
+type kind int
+
+const (
+	// kindFine is a container that is running and not failing its healthcheck,
+	// and the ones with no healthcheck are in it: rta does not know what they
+	// should be doing.
+	kindFine kind = iota
+	// kindExitedCleanly is a one-shot that finished: a migration, a seed, a
+	// build step. Finished is not failed, and kube.overview does not count a
+	// Succeeded pod either.
+	kindExitedCleanly
+	kindUnhealthy
+	kindRestarting
+	kindDead
+	// kindCrashed is a container that exited with a code other than 0, which
+	// may be a job that failed or a service that went down, and the code says
+	// which of the usual causes (137 is a kill, often the memory limit).
+	kindCrashed
+	// kindStopped is the rest: paused, created and never started, removing, and
+	// an exit whose code the status text does not give.
+	kindStopped
+)
+
+func kindOf(r containerRow) kind {
+	switch strings.ToLower(r.State) {
+	case "running":
+		if strings.EqualFold(health(r), "unhealthy") {
+			return kindUnhealthy
+		}
+		return kindFine
+	case "restarting":
+		return kindRestarting
+	case "dead":
+		return kindDead
+	case "exited":
+		code, ok := exitCode(r)
+		switch {
+		case !ok:
+			return kindStopped
+		case code == 0:
+			return kindExitedCleanly
+		}
+		return kindCrashed
 	}
-	return strings.EqualFold(health(r), "unhealthy")
+	return kindStopped
+}
+
+// rank orders what an overview lists: the containers that are broken now, then
+// the ones that crashed, then the rest. Finished ones are not listed.
+func (k kind) rank() int {
+	switch k {
+	case kindUnhealthy, kindRestarting, kindDead:
+		return 0
+	case kindCrashed:
+		return 1
+	}
+	return 2
+}
+
+// word is what is said beside the name of a container that is listed.
+func (k kind) word(r containerRow) string {
+	switch k {
+	case kindUnhealthy:
+		return "unhealthy"
+	case kindRestarting:
+		return "restarting"
+	case kindDead:
+		return "dead"
+	case kindCrashed:
+		code, _ := exitCode(r)
+		return fmt.Sprintf("exit %d", code)
+	}
+	if r.State == "" {
+		return "not running"
+	}
+	return strings.ToLower(r.State)
+}
+
+// exitedStatus is how the daemon writes the status of a container that exited:
+// "Exited (137) 3 days ago".
+var exitedStatus = regexp.MustCompile(`^Exited \((\d+)\)`)
+
+// exitCode is the code a container exited with, read from the status text the
+// daemon writes, which is the only place a `ps` carries it. It is only for a
+// container that has exited, and says false for one whose status gives none, so
+// that a code is never made up.
+func exitCode(r containerRow) (int, bool) {
+	if !strings.EqualFold(r.State, "exited") {
+		return 0, false
+	}
+	m := exitedStatus.FindStringSubmatch(r.Status)
+	if m == nil {
+		return 0, false
+	}
+	code, err := strconv.Atoi(m[1])
+	return code, err == nil
 }
 
 func containerTable(rows []containerRow) view.Table {

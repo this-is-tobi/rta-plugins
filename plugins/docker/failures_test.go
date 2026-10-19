@@ -23,7 +23,7 @@ func TestTheDaemonRowSaysWhichKindOfFailureItHit(t *testing.T) {
 			"did not answer — Cannot connect to the Docker daemon"},
 		{"the socket refuses this account",
 			"echo 'permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock' >&2\nexit 1\n",
-			"answered, and refused — permission denied while trying to connect"},
+			"answered, and refused — permission denied while trying to"},
 		{"the context does not exist",
 			"echo 'context \"lab\": context not found: open /nowhere/lab: no such file or directory' >&2\nexit 1\n",
 			"was never contacted — context \"lab\": context not found"},

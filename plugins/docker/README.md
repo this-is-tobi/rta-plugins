@@ -4,16 +4,16 @@ Containers and images: what is running, what is stale, and the daily tidy-up
 
 ## Capabilities
 
-| Capability               | Safety      | Summary                                                                       |
-|--------------------------|-------------|-------------------------------------------------------------------------------|
-| docker.container.env     | write       | The environment variables one container was started with                      |
-| docker.container.inspect | write       | Everything the daemon knows about one container                               |
-| docker.container.list    | read        | Containers, with state, health, ports and age                                 |
-| docker.container.restart | write       | Restart a container                                                           |
-| docker.container.rm      | destructive | Remove a container                                                            |
-| docker.container.stop    | write       | Stop a running container                                                      |
-| docker.image.list        | read        | Images, with size and age                                                     |
-| docker.overview          | read        | One daemon at a glance: what is running, what is unhealthy, what disk is used |
+| Capability               | Safety      | Summary                                                                     |
+|--------------------------|-------------|-----------------------------------------------------------------------------|
+| docker.container.env     | write       | The environment variables one container was started with                    |
+| docker.container.inspect | write       | Everything the daemon knows about one container                             |
+| docker.container.list    | read        | Containers, with state, health, ports and age                               |
+| docker.container.restart | write       | Restart a container                                                         |
+| docker.container.rm      | destructive | Remove a container                                                          |
+| docker.container.stop    | write       | Stop a running container                                                    |
+| docker.image.list        | read        | Images, with size and age                                                   |
+| docker.overview          | read        | One daemon at a glance: its verdict, what is unhealthy, where the disk went |
 
 ## Configuration
 
@@ -176,12 +176,12 @@ What is on this machine's disk. Dangling images — the untagged leftovers of a 
 
 ## docker.overview
 
-Whether the daemon answers, how many containers are up against how many exist, anything unhealthy or recently exited, and how much disk images are taking. With `detail`: the containers and the largest images themselves.
+The first row, `status`, is the verdict: ok, or warn or fail with the worst facts in a few words. Fail is a container failing its healthcheck, restarting or dead; warn is one that exited with a code other than 0, one that is paused or was never started, and a disk the daemon would not report. Then how many containers are running of those that exist, with the one-shots that exited cleanly (code 0) counted and not named; the problems, the unhealthy and the restarting first, then those that exited non-zero with the exit code read from their status text, then the rest, six at most; and where the disk went, from one `docker system df`: images, volumes and build cache, the largest first, and how much of them is reclaimable. Adding up the size of every volume takes the daemon seconds on a host with many, so a tile of it is re-run every 2 minutes at most, a floor a configuration can lengthen and not shorten. A daemon that does not answer is the verdict, with why and what to check. With `detail`: the images (a count and the leftovers of a rebuild, from an `image ls` the compact answer does not run), every container not running or not healthy, the one-shots included, the disk usage by kind, and the largest images.
 
 | Field         | Value                                                                                                                                                                                                         |
 |---------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | id            | docker.overview                                                                                                                                                                                               |
-| summary       | One daemon at a glance: what is running, what is unhealthy, what disk is used                                                                                                                                 |
+| summary       | One daemon at a glance: its verdict, what is unhealthy, where the disk went                                                                                                                                   |
 | safety        | read                                                                                                                                                                                                          |
 | idempotent    | true                                                                                                                                                                                                          |
 | cli           | rta docker overview \[--host \<string>\] \[--context \<string>\] \[--detail\]                                                                                                                                 |
@@ -190,5 +190,5 @@ Whether the daemon answers, how many containers are up against how many exist, a
 | input:host    | string, group network, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted                          |
 | input:context | string, group network, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                                                        |
 | set a key     | rta config set plugins.docker.host \<value>                                                                                                                                                                   |
-| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add docker.overview\`, or + on it in the TUI, puts it there, re-run every 30s                                                    |
+| dashboard     | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add docker.overview\`, or + on it in the TUI, puts it there, re-run every 2m                                                     |
 | input:detail  | bool, default false — return the full detailed view instead of the compact summary                                                                                                                            |
