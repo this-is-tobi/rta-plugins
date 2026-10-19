@@ -33,11 +33,14 @@ func bucketField(help string) plugin.Field {
 // what they do is to one bucket and its keys, and a grant's scope is a key in
 // that bucket.
 //
-// No Live completion, which is for a String box only: a list is typed a name
-// at a time, and a completion that read the account on every keystroke of it is
-// the channel Live exists to keep a keystroke off.
+// **Completed a name at a time, on a press of the key.** Live, because the Suggest
+// lists the account: a read of the provider must be something a press asked for
+// and never something typing caused. The host hands suggestBuckets the name being
+// typed, takes out of the answer the buckets the box already lists, and holds the
+// rest to the profile's `only: bucket:` fence, so none of that is tracked here.
 func optionalBucketField(help string) plugin.Field {
-	return plugin.Field{Name: "bucket", Short: "b", Type: plugin.StringSlice, Config: "bucket", Help: help}
+	return plugin.Field{Name: "bucket", Short: "b", Type: plugin.StringSlice, Config: "bucket", Help: help,
+		Live: true, Suggest: suggestBuckets}
 }
 
 // bucketNames is the buckets a listing was asked about, once each and in
