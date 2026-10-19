@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.6.0...plugins/redis/v0.7.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **redis:** a script or an agent that matches the code of a redis failure against a Redis of 5 or older, with a wrong password, matches `redis.auth.failed` where it matched `redis.server.error`. A Redis of 6 and newer already answered `redis.auth.failed` and is unaffected. The message and the hint are the ones `redis.auth.failed` already had. No README changes, since no declaration names the code.
+
+### Bug Fixes
+
+* **redis:** a wrong password on a Redis before 6 is redis.auth.failed ([e78d97c](https://github.com/this-is-tobi/rta-plugins/commit/e78d97ca7c7fb1634b7e734e0e172c61666bfb3d))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.48.0 ([3c51c18](https://github.com/this-is-tobi/rta-plugins/commit/3c51c1848c10bcffaa8571f5f8009b9d08de8572))
+
 ## [0.6.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.5.1...plugins/redis/v0.6.0) (2026-10-19)
 
 

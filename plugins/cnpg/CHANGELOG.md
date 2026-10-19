@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.11.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.10.0...plugins/cnpg/v0.11.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cnpg:** a script or an agent that matches the code of a cnpg failure changes `cnpg.forbidden` to `cnpg.denied` and `cnpg.unauthenticated` to `cnpg.auth.failed`, and matches `cnpg.login` as well where it meant a credential plugin that failed: that one was `cnpg.unauthenticated` and is no longer. A listing over several namespaces one of which answered 401 is an error coded `cnpg.auth.failed` and no longer a page with a warning. The messages and hints of the other failures are unchanged. No README changes, since no declaration names any of these codes. rta's own documentation of the codes a tile keeps refreshing names `cnpg.unauthenticated` still, and changes in rta with the release that carries this.
+
+### Bug Fixes
+
+* **cnpg:** name a refused credential cnpg.auth.failed or cnpg.denied ([008fdf1](https://github.com/this-is-tobi/rta-plugins/commit/008fdf1f58e199b5db068cdad21d0eeb41bb28d6))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.48.0 ([3c51c18](https://github.com/this-is-tobi/rta-plugins/commit/3c51c1848c10bcffaa8571f5f8009b9d08de8572))
+
 ## [0.10.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.9.0...plugins/cnpg/v0.10.0) (2026-10-19)
 
 

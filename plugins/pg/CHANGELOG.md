@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.13.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.12.0...plugins/pg/v0.13.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **pg:** a script or an agent that matches the code of a pg failure matches `pg.tls.client.auth.failed` where a certificate was presented and refused, and `pg.tls.client.required` only where none was; both used to be `pg.tls.client.required`. `pg.tls.client.role` is now `pg.tls.client.role.denied`. The messages and hints are the same. No README changes, since no declaration names any of these codes.
+
+### Bug Fixes
+
+* **pg:** a client certificate the server turns down ends in the family's endings ([219bf74](https://github.com/this-is-tobi/rta-plugins/commit/219bf742b4082277cd882e5190923e7fe0502716))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.48.0 ([3c51c18](https://github.com/this-is-tobi/rta-plugins/commit/3c51c1848c10bcffaa8571f5f8009b9d08de8572))
+
 ## [0.12.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.11.0...plugins/pg/v0.12.0) (2026-10-19)
 
 
