@@ -137,19 +137,26 @@ func clusterField(help string, required bool) plugin.Field {
 // did: plugin.Resolve lets any value the caller gave win, an empty one
 // included, and a test holds the help to that.
 //
-// No live completion, which the host declares for a text input only
-// (plugin.Field.Live). The names the fence allows are still offered under one.
+// Completed a name at a time, on a press of the key: Live, because the Suggest
+// reads the cluster, and the host hands it the name being typed, takes out of the
+// answer the clusters the box already lists and holds the rest to the fence
+// (suggestClusters says what it reads of the namespaces beside it).
 func clustersField(help string) plugin.Field {
 	return plugin.Field{Name: "cluster", Short: "c", Type: plugin.StringSlice, Config: "cluster",
-		Help: help + "; empty lifts the ones a profile or the config pins"}
+		Help: help + "; empty lifts the ones a profile or the config pins",
+		Live: true, Suggest: suggestClusters}
 }
 
 // namespacesField is the namespace input of a read that takes several, each
 // read with a call of its own (namespaces.go). cap adds the single-valued
 // nsFields to every capability that does not declare its own.
+//
+// Completed a name at a time, on a press of the key, like the clusters beside it
+// (clustersField) and for the same reason.
 func namespacesField() plugin.Field {
 	return plugin.Field{Name: "namespace", Short: "n", Type: plugin.StringSlice, Config: "namespace",
-		Help: "namespaces to look in, each read on its own — the context's own when omitted"}
+		Help: "namespaces to look in, each read on its own — the context's own when omitted",
+		Live: true, Suggest: suggestNamespaces}
 }
 
 // listsBelongInTheCall is the sentence the three reads that take lists carry for

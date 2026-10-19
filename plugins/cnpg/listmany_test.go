@@ -611,8 +611,8 @@ func TestTheReadsTakeListsAndTheCapabilitiesOnOneClusterKeepTheirSingleValues(t 
 				t.Errorf("%s: %s is a %s, want a list", id, input, f.Type)
 			case f.Short != short || f.Config != input:
 				t.Errorf("%s: %s has short %q and config %q, want %q and %q", id, input, f.Short, f.Config, short, input)
-			case f.Required || f.Live || f.Suggest != nil:
-				t.Errorf("%s: %s is required or completes live, which a list cannot", id, input)
+			case f.Required || !f.Live || f.Suggest == nil:
+				t.Errorf("%s: %s is required or does not complete on a press, which a list does since rta v0.48.0", id, input)
 			}
 		}
 		all, _ := inputOf(c, "all-namespaces")
