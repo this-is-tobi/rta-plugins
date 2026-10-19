@@ -73,6 +73,18 @@ type overviewFetch struct {
 	certMiss   []unreadNS
 }
 
+// errs is every failure of every read the page is made of, the cluster-scoped
+// reads first and then each kind's, namespace by namespace.
+func (f overviewFetch) errs() []*view.Error {
+	out := []*view.Error{f.nsErr, f.nodeErr}
+	for _, miss := range [][]unreadNS{f.podMiss, f.depMiss, f.quotaMiss, f.certMiss} {
+		for _, m := range miss {
+			out = append(out, m.err)
+		}
+	}
+	return out
+}
+
 // fetchOverview asks the cluster for everything a page is made of. What a
 // refresh costs is the lists it makes, and the one `config view` that read the
 // kubeconfig before them: for one namespace, or for every namespace, six lists
@@ -277,6 +289,22 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 	}
 
 	detail := req.Bool("detail")
+	// A cluster that did not accept the credential on any of the reads is the
+	// page's error and not a row of it, which no read's other answers soften: a
+	// dashboard stops asking a tile whose credential was refused twice, and reads
+	// that off the error a call returns (view.Error.CredentialRefused). The page
+	// it was before could be neither refused nor counted, so a tile on a cluster
+	// that rejected its token sent the token again at every refresh.
+	//
+	// Only the 401. A 403 of one list says nothing of the others and is a row
+	// (below, and in the rows of the page), because the credential a Role in each
+	// namespace makes is refused the lists across them and answered inside each; and
+	// a credential plugin that gave nothing (kube.login, kube.credential.missing)
+	// reached no API server to be refused, and is the page of a cluster never
+	// contacted.
+	if refusal := rejected(f.errs()...); refusal != nil {
+		return nil, refusal
+	}
 	// The namespaces list is the read that says the cluster answers at all, and
 	// its refusal is the page of a cluster that refused — unless the call names the
 	// namespaces it asks about, when the credential is as likely as not the one
@@ -286,7 +314,7 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 	// for several: a one-namespace tile on a Role per namespace is the common case,
 	// and it would otherwise be a failure on a cluster that answered every list
 	// it was asked.
-	if f.nsErr != nil && (len(names) == 0 || f.nsErr.Code != "kube.forbidden") {
+	if f.nsErr != nil && (len(names) == 0 || f.nsErr.Code != "kube.denied") {
 		return unanswered(req.Surface(), id, names, f.nsErr, detail), nil //nolint:nilerr
 	}
 
@@ -329,6 +357,10 @@ type identity struct {
 //
 // classify() already draws both distinctions and hands over its own
 // hint per code; all this does is stop discarding them.
+//
+// The cluster that answered 401 is not a page at all: runOverview returns it
+// as the error it is, before this is reached (rejected says why).
+//
 // The default is deliberately the vaguest of the four rather than the
 // most common one. "did not answer" is a claim about the network, and
 // a code this does not recognise — kube.failed is the catch-all, and
@@ -342,10 +374,8 @@ type identity struct {
 func unanswered(sf plugin.Surface, id identity, names []string, e *view.Error, detail bool) view.View {
 	answer := "could not be read"
 	switch e.Code {
-	case "kube.forbidden":
+	case "kube.denied":
 		answer = "answered, and refused"
-	case "kube.unauthorized":
-		answer = "answered, and did not accept this credential"
 	case "kube.noconfig", "kube.context.unknown", "kube.kubectl.missing", "kube.cancelled",
 		"kube.login", "kube.credential.missing":
 		answer = "was never contacted"

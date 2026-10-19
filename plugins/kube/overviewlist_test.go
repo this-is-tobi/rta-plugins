@@ -947,8 +947,8 @@ func TestAClusterThatDoesNotAnswerIsNotAskedAgainForEachNamespace(t *testing.T) 
 			"kube.unreachable", unreachable},
 		"no route": {"Unable to connect to the server: dial tcp 10.0.0.1:6443: connect: no route to host",
 			"kube.unreachable", unreachable},
-		"a token that is not accepted": {"error: You must be logged in to the server (Unauthorized)",
-			"kube.unauthorized", "fail — the cluster answered, and did not accept this credential"},
+		"a credential plugin that refused": {lapsedTsh, "kube.login", "fail — the cluster was never contacted"},
+		"a credential plugin that is gone": {missingPath, "kube.credential.missing", "fail — the cluster was never contacted"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			if verr := classify(context.Background(), errors.New("exit status 1"), tc.stderr,
@@ -976,7 +976,7 @@ func TestAClusterThatDoesNotAnswerIsNotAskedAgainForEachNamespace(t *testing.T) 
 func TestAFailureOfOneThingIsNotTakenForAClusterThatIsDown(t *testing.T) {
 	for name, tc := range map[string]struct{ stderr, code string }{
 		"a refusal": {`Error from server (Forbidden): pods is forbidden: User "u" cannot list resource "pods" in the namespace "gitea"`,
-			"kube.forbidden"},
+			"kube.denied"},
 		"a name that is not there": {`Error from server (NotFound): namespaces "ghost" not found`, "kube.notfound"},
 		"a webhook that timed out": {`Error from server (InternalError): Internal error occurred: failed calling webhook "v.example.io": ` +
 			`failed to call webhook: Post "https://svc.ns.svc:443/validate": context deadline exceeded`, "kube.failed"},

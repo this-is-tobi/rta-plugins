@@ -115,7 +115,7 @@ func TestOverviewNamesWhichKindOfFailureItHit(t *testing.T) {
 // hintOf is what the reader is sent to next, so a coded error must keep its
 // own hint rather than fall back to the generic one.
 func TestHintOfPrefersTheErrorsOwnHint(t *testing.T) {
-	own := view.Errorf("kube.forbidden", "nope").WithHint("check the binding")
+	own := view.Errorf("kube.denied", "nope").WithHint("check the binding")
 	if got := hintOf(plugin.SurfaceCLI, own); got != "check the binding" {
 		t.Errorf("hintOf = %q, want the error's own hint", got)
 	}

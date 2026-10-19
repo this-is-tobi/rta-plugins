@@ -79,7 +79,7 @@ func TestQuotaPressure(t *testing.T) {
 // said beside them.
 func TestAForbiddenLimitRangeReadIsNotAnAbsenceOfLimitRanges(t *testing.T) {
 	quotas := view.Table{Columns: []view.Column{{Name: "Quota"}}, Rows: [][]string{{"compute"}}, Total: 1}
-	denied := view.Errorf("kube.forbidden", "limitranges is forbidden for this credential")
+	denied := view.Errorf("kube.denied", "limitranges is forbidden for this credential")
 
 	v := quotaView(quotas, list[limitRangeItem]{}, denied)
 	s, ok := v.(view.Sections)

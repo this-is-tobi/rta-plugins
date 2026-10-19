@@ -209,6 +209,19 @@ func fetchSummaries(ctx context.Context, s selection, nodes []nodeItem) []nodeSu
 	return out
 }
 
+// rejectedSummary is the 401 any node's stats came back with, which ends the
+// call as it would a list: a node whose kubelet could not be asked is a row, and
+// the API server refusing the credential is not a fact about that node (rejected
+// says why).
+func rejectedSummary(summaries []nodeSummary) *view.Error {
+	for _, sum := range summaries {
+		if refusal := rejected(sum.err); refusal != nil {
+			return refusal
+		}
+	}
+	return nil
+}
+
 // nodesForStats resolves the node set both capabilities fan out over, honoring
 // a caller-named single node.
 func nodesForStats(ctx context.Context, s selection, only string) ([]nodeItem, *view.Error) {
@@ -311,7 +324,11 @@ func runMetricsPressure(ctx context.Context, req plugin.Request) (view.View, err
 	if verr != nil {
 		return nil, verr
 	}
-	rows, unsupported := pressureRows(fetchSummaries(ctx, s, nodes))
+	summaries := fetchSummaries(ctx, s, nodes)
+	if refusal := rejectedSummary(summaries); refusal != nil {
+		return nil, refusal
+	}
+	rows, unsupported := pressureRows(summaries)
 
 	cols := pressureColumns()
 	out := make([][]string, 0, len(rows))
@@ -455,7 +472,11 @@ func runPVCUsage(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr != nil {
 		return nil, verr
 	}
-	rows, failed := worstByClaim(fetchSummaries(ctx, s, nodes))
+	summaries := fetchSummaries(ctx, s, nodes)
+	if refusal := rejectedSummary(summaries); refusal != nil {
+		return nil, refusal
+	}
+	rows, failed := worstByClaim(summaries)
 
 	cols := pvcUsageColumns()
 	out := make([][]string, 0, len(rows))

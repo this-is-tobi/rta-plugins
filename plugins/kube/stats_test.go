@@ -79,7 +79,7 @@ func TestPressureRowsLeadWithTheWorstNode(t *testing.T) {
 // silently returning fewer rows would read as a healthy cluster.
 func TestAnUnreadableNodeBecomesAVisibleRow(t *testing.T) {
 	rows, unsupported := pressureRows([]nodeSummary{
-		{node: "pi1", err: view.Errorf("kube.forbidden", "nodes/proxy is forbidden")},
+		{node: "pi1", err: view.Errorf("kube.denied", "nodes/proxy is forbidden")},
 	})
 	if len(unsupported) != 0 {
 		t.Errorf("unsupported = %v, want a failure kept apart from an unsupported kernel", unsupported)
@@ -156,7 +156,7 @@ func TestClaimsAreOrderedFullestFirst(t *testing.T) {
 // dropped: a short table that looks complete is worse than one admitting a gap.
 func TestAFailedNodeIsNamedSoTheGapIsVisible(t *testing.T) {
 	_, failed := worstByClaim([]nodeSummary{
-		{node: "pi2", err: view.Errorf("kube.forbidden", "nodes/proxy is forbidden")},
+		{node: "pi2", err: view.Errorf("kube.denied", "nodes/proxy is forbidden")},
 	})
 	if len(failed) != 1 || failed[0] != "pi2" {
 		t.Errorf("failed = %v, want [pi2]", failed)
