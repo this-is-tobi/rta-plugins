@@ -19,11 +19,17 @@ import (
 
 // overviewPage is the cluster as the page reads it.
 type overviewPage struct {
-	f         overviewFetch
-	now       time.Time
-	namespace string
+	f   overviewFetch
+	now time.Time
+	// names are the namespaces the call named, sorted and each once; none means
+	// every namespace was read.
+	names []string
 
-	nodes, pods, deployments, certs, quotas, slots rowFacts
+	nodes, pods, deployments, certs, quotas, slots, spaces rowFacts
+
+	// Of several namespaces named: how many exist, and which do not.
+	found   int
+	missing []string
 
 	// What the tables of `detail` list, found on the way to the rows.
 	notReady      []podItem
@@ -53,8 +59,9 @@ const (
 	rankWarn
 )
 
-func readOverview(f overviewFetch, namespace string, now time.Time) overviewPage {
-	p := overviewPage{f: f, now: now, namespace: namespace}
+func readOverview(f overviewFetch, names []string, now time.Time) overviewPage {
+	p := overviewPage{f: f, now: now, names: names}
+	p.readNamespaces()
 	p.readNodes()
 	p.readPods()
 	p.readDeployments()
@@ -65,15 +72,93 @@ func readOverview(f overviewFetch, namespace string, now time.Time) overviewPage
 }
 
 // withNS is whether the pods, deployments, quotas and certificates read are
-// those of every namespace, in which case a name needs its namespace in front
-// of it to be one.
-func (p *overviewPage) withNS() bool { return p.namespace == "" }
+// those of more than one namespace, in which case a name needs its namespace in
+// front of it to be one.
+func (p *overviewPage) withNS() bool { return len(p.names) != 1 }
+
+// several is whether the call named more than one namespace, which is when the
+// page counts which of them exist and says which of them it could not read a
+// list in. One namespace and every namespace are read as they always were.
+func (p *overviewPage) several() bool { return len(p.names) > 1 }
+
+// readNamespaces finds the namespaces named that are not in the cluster. A name
+// that is not is not an error for the page, which reads it like the others and
+// finds nothing there: it is a warning of the verdict and a row of the detail,
+// because a tile that names a namespace its cluster does not have, or no longer
+// has, is otherwise a page that is well and has nothing in it.
+func (p *overviewPage) readNamespaces() {
+	if !p.several() || p.f.nsErr != nil {
+		return
+	}
+	exists := map[string]bool{}
+	for _, n := range p.f.namespaces.Items {
+		exists[n.Metadata.Name] = true
+	}
+	for _, name := range p.names {
+		if exists[name] {
+			p.found++
+		} else {
+			p.missing = append(p.missing, name)
+		}
+	}
+	switch n := len(p.missing); {
+	case n == 1:
+		p.spaces = rowFacts{clauses: []clause{{rankWarn, "namespace " + p.missing[0] + " does not exist"}}}
+	case n > 1:
+		p.spaces = rowFacts{clauses: []clause{{rankWarn, fmt.Sprintf("%d namespaces do not exist", n)}}}
+	}
+}
+
+// namespaceRows are the rows of the detailed page that say how many namespaces
+// the cluster has, or, of several named, how many of those it has and which it
+// has not. A list that was refused is said so whatever was named: it is the one
+// read of the page whose refusal does not end it when namespaces are named.
+func (p *overviewPage) namespaceRows() []view.Pair {
+	switch {
+	case p.f.nsErr != nil:
+		return []view.Pair{{Key: "namespaces", Value: "could not be read — " + p.f.nsErr.Message}}
+	case !p.several():
+		return []view.Pair{{Key: "namespaces", Value: strconv.Itoa(len(p.f.namespaces.Items))}}
+	}
+	rows := []view.Pair{{Key: "namespaces", Value: fmt.Sprintf("%d of %d named", p.found, len(p.names))}}
+	if len(p.missing) > 0 {
+		rows = append(rows, view.Pair{
+			Key:   plural(len(p.missing), "namespace missing", "namespaces missing"),
+			Value: strings.Join(p.missing, ", ")})
+	}
+	return rows
+}
+
+// unreadRows are the rows of the detailed page that say which namespaces a kind
+// could not be read in and the whole of each reason. A kind that could not be
+// read in the one namespace there was to read already has its row.
+func unreadRows(kind string, miss []unreadNS, err *view.Error) []view.Pair {
+	if len(miss) == 0 || (err != nil && len(miss) == 1) {
+		return nil
+	}
+	reasons := make([]string, len(miss))
+	for i, m := range miss {
+		reasons[i] = m.namespace + " — " + m.err.Message
+	}
+	return []view.Pair{{Key: kind + " unread", Value: strings.Join(reasons, "; ")}}
+}
+
+// blind is whether none of what the page is made of could be read: the nodes and
+// every list of the namespaces asked about were refused or never answered. What
+// each says is that it could not be read, which is a warning when there is more
+// to the page than that, and is the whole page here: a token refused everything
+// is not a cluster that is mostly well, and a tile has no business going yellow
+// for it.
+func (p overviewPage) blind() bool {
+	f := p.f
+	return f.nodeErr != nil && f.podErr != nil && f.depErr != nil && f.quotaErr != nil && f.certErr != nil
+}
 
 // verdict is the first row: ok, or the worst grade and the facts that earn it,
 // as many as fit and the rest counted.
 func (p overviewPage) verdict() string {
 	var all []clause
-	for _, r := range []rowFacts{p.nodes, p.pods, p.deployments, p.certs, p.quotas, p.slots} {
+	for _, r := range []rowFacts{p.nodes, p.pods, p.deployments, p.certs, p.quotas, p.slots, p.spaces} {
 		all = append(all, r.clauses...)
 	}
 	if len(all) == 0 {
@@ -81,7 +166,7 @@ func (p overviewPage) verdict() string {
 	}
 	sort.SliceStable(all, func(i, j int) bool { return all[i].rank < all[j].rank })
 	word := "warn"
-	if all[0].rank == rankFail {
+	if all[0].rank == rankFail || p.blind() {
 		word = "fail"
 	}
 	texts := make([]string, len(all))
@@ -104,21 +189,25 @@ func (p overviewPage) compact(id identity) []view.Pair {
 		{Key: "certs", Value: p.certs.value},
 		{Key: "quotas", Value: p.quotas.value},
 		{Key: "pod slots", Value: p.slots.value},
-		{Key: "context", Value: contextRow(id.context, p.namespace, kubeletVersions(p.f.nodes.Items))},
+		{Key: "context", Value: contextRow(id.context, p.names, kubeletVersions(p.f.nodes.Items))},
 	}
 }
 
 // contextRow is where this is: the context, the one namespace when the page
-// read only that, and the kubelet versions, last because they are identity and
-// not state. The skew they may show is on the nodes row.
-func contextRow(context, namespace string, versions []string) string {
+// read only that (or how many, of several), and the kubelet versions, last
+// because they are identity and not state. The skew they may show is on the
+// nodes row.
+func contextRow(context string, names []string, versions []string) string {
 	only := ""
-	if namespace != "" {
-		only = "namespace " + namespace + " only"
+	switch {
+	case len(names) == 1:
+		only = "namespace " + names[0] + " only"
+	case len(names) > 1:
+		only = fmt.Sprintf("%d namespaces only", len(names))
 	}
-	// The one namespace is said whatever the room: a short list of pods answers a
+	// The namespaces are said whatever the room: a short list of pods answers a
 	// different question than the cluster's, and a page that did not say which is
-	// read as the cluster's.
+	// read as the cluster's. The names of several are the detailed page's.
 	return rowOf(clip(context, rowRoom),
 		func(int) string { return only },
 		func(room int) string {
@@ -148,6 +237,82 @@ func unreadable(e *view.Error) string {
 
 func unreadClause(what string) []clause {
 	return []clause{{rank: rankUnread, text: what + " could not be read"}}
+}
+
+// unreadKind is the row of a kind that could not be read in any of the
+// namespaces it was asked in. Of one namespace, or of every namespace, it is
+// the row it always was; of several it names them, as many as fit, and says
+// the first reason, which is the reason the others are likely to have.
+func (p *overviewPage) unreadKind(what string, e *view.Error, miss []unreadNS) rowFacts {
+	if !p.several() {
+		return rowFacts{unreadable(e), unreadClause(what)}
+	}
+	where := whereWords(miss)
+	const lead = "could not be read in "
+	room := lineRoom - utf8.RuneCountInString(lead+where) - utf8.RuneCountInString(whyLead)
+	return rowFacts{
+		value:   lead + where + whyLead + clip(oneLine(e.Message), room),
+		clauses: []clause{{rank: rankUnread, text: what + " could not be read in " + where}},
+	}
+}
+
+const whyLead = " — "
+
+// missPhrase is what a row says of the namespaces a kind could not be read in
+// when it could be read in others, as long as the room allows: the sentence, the
+// same shortened, and at the least the namespaces and one word, which is said
+// whatever the room because it is what the numbers before it are not.
+func missPhrase(miss []unreadNS, room int) string {
+	where := whereWords(miss)
+	for _, phrase := range []string{"could not be read in " + where, "unread in " + where} {
+		if utf8.RuneCountInString(phrase) <= room {
+			return phrase
+		}
+	}
+	return where + " unread"
+}
+
+// missClauses is the verdict's clause for the same, in the sentence.
+func missClauses(what string, miss []unreadNS) []clause {
+	if len(miss) == 0 {
+		return nil
+	}
+	return []clause{{rank: rankUnread, text: what + " " + missPhrase(miss, lineRoom)}}
+}
+
+// missWidth is the room a row must leave for the namespaces it could not be read
+// in, at its longest: the part is said whatever else the row has to say, because
+// the numbers before it are the numbers of the namespaces that answered.
+func missWidth(miss []unreadNS) int {
+	if len(miss) == 0 {
+		return 0
+	}
+	return sepWidth + utf8.RuneCountInString(missPhrase(miss, lineRoom))
+}
+
+// rowWith is rowOf for a kind some namespaces could not be read in: the row of
+// the namespaces that answered, in the room that is left, and then the namespaces
+// that did not — with the first reason where the line has room for it, which at
+// a tile's width it seldom has, and the detailed page has the whole of. A row
+// that says more than a tile's room for what it is for (fitList's must) leaves
+// less for the namespaces: they are then said shorter, and if that is still too
+// much the row is cut where it ends, since the one thing it may not lose is the
+// namespaces it could not read.
+func rowWith(miss []unreadNS, first string, rest ...func(room int) string) string {
+	if len(miss) == 0 {
+		return rowOf(first, rest...)
+	}
+	out := rowIn(rowRoom-missWidth(miss), first, rest...)
+	phrase := missPhrase(miss, lineRoom-utf8.RuneCountInString(out)-sepWidth)
+	if over := utf8.RuneCountInString(out) + sepWidth + utf8.RuneCountInString(phrase) - lineRoom; over > 0 {
+		out = clip(out, utf8.RuneCountInString(out)-over)
+	}
+	out += " · " + phrase
+	const shortest = 16
+	if room := lineRoom - utf8.RuneCountInString(out) - utf8.RuneCountInString(whyLead); room >= shortest {
+		out += whyLead + clip(oneLine(miss[0].err.Message), room)
+	}
+	return out
 }
 
 func (p *overviewPage) readNodes() {
@@ -254,12 +419,13 @@ func minorOf(version string) string {
 
 func (p *overviewPage) readPods() {
 	if p.f.podErr != nil {
-		p.pods = rowFacts{unreadable(p.f.podErr), unreadClause("pods")}
+		p.pods = p.unreadKind("pods", p.f.podErr, p.f.podMiss)
 		return
 	}
+	miss := p.f.podMiss
 	pods := p.f.pods
 	if len(pods) == 0 {
-		p.pods = rowFacts{value: "none"}
+		p.pods = rowFacts{rowWith(miss, "none"), missClauses("pods", miss)}
 		return
 	}
 	reasons := map[string]int{}
@@ -291,17 +457,17 @@ func (p *overviewPage) readPods() {
 	// reason cut to "and 1 more" is the one thing the row was for.
 	head := strconv.Itoa(len(pods))
 	if len(p.notReady) > 0 {
-		room := lineRoom - utf8.RuneCountInString(head) - sepWidth
+		room := lineRoom - utf8.RuneCountInString(head) - sepWidth - missWidth(miss)
 		head += " · " + fitList(reasonGroups(reasons), room, moreWords, true)
 	}
 	p.pods = rowFacts{
-		value: rowOf(head,
+		value: rowWith(miss, head,
 			// Said whatever the room: a pod that restarts and still serves is on no
 			// other line of the page, and the verdict is the only place else its
 			// count can be, behind the failures.
 			func(int) string { return stormWord(len(p.storm)) },
 			func(room int) string { return fitList(p.worstPods(), room, noMore, false) }),
-		clauses: clauses,
+		clauses: append(clauses, missClauses("pods", miss)...),
 	}
 }
 
@@ -370,12 +536,13 @@ func labelOf(namespace, name string, withNS bool) string {
 
 func (p *overviewPage) readDeployments() {
 	if p.f.depErr != nil {
-		p.deployments = rowFacts{unreadable(p.f.depErr), unreadClause("deployments")}
+		p.deployments = p.unreadKind("deployments", p.f.depErr, p.f.depMiss)
 		return
 	}
+	miss := p.f.depMiss
 	deps := p.f.deps
 	if len(deps) == 0 {
-		p.deployments = rowFacts{value: "none"}
+		p.deployments = rowFacts{rowWith(miss, "none"), missClauses("deployments", miss)}
 		return
 	}
 	down := 0
@@ -410,20 +577,21 @@ func (p *overviewPage) readDeployments() {
 			names[i] = fmt.Sprintf("%s %d/%d", labelOf(d.Metadata.Namespace, d.Metadata.Name, p.withNS()),
 				d.Status.ReadyReplicas, desired(d))
 		}
-		room := rowRoom - utf8.RuneCountInString(head) - sepWidth - utf8.RuneCountInString(label)
+		room := rowRoom - missWidth(miss) - utf8.RuneCountInString(head) - sepWidth - utf8.RuneCountInString(label)
 		head += " · " + label + fitList(names, room, noMore, true)
 	}
-	p.deployments = rowFacts{head, clauses}
+	p.deployments = rowFacts{rowWith(miss, head), append(clauses, missClauses("deployments", miss)...)}
 }
 
 func (p *overviewPage) readCerts() {
 	if p.f.certErr != nil {
-		p.certs = rowFacts{unreadable(p.f.certErr), unreadClause("certs")}
+		p.certs = p.unreadKind("certs", p.f.certErr, p.f.certMiss)
 		return
 	}
-	certs := p.f.certs.certs
+	miss := p.f.certMiss
+	certs := p.f.certs
 	if len(certs) == 0 {
-		p.certs = rowFacts{value: "none"}
+		p.certs = rowFacts{rowWith(miss, "none"), missClauses("certs", miss)}
 		return
 	}
 	p.expired, p.soon = certPressure(certs, p.now)
@@ -434,10 +602,10 @@ func (p *overviewPage) readCerts() {
 	if n := len(p.soon); n > 0 {
 		clauses = append(clauses, clause{rankWarn, fmt.Sprintf("%d %s expiring soon", n, plural(n, "cert", "certs"))})
 	}
-	value := rowOf(strconv.Itoa(len(certs)),
+	value := rowWith(miss, strconv.Itoa(len(certs)),
 		func(room int) string { return p.lapsed("expired", p.expired, room, true) },
 		func(room int) string { return p.lapsed("soon", p.soon, room, false) })
-	p.certs = rowFacts{value, clauses}
+	p.certs = rowFacts{value, append(clauses, missClauses("certs", miss)...)}
 }
 
 // lapsed is "n word: names" for the certificates that are, or nothing for none
@@ -466,16 +634,17 @@ func (p *overviewPage) inScope(label string) string {
 	if p.withNS() {
 		return label
 	}
-	return strings.TrimPrefix(label, p.namespace+"/")
+	return strings.TrimPrefix(label, p.names[0]+"/")
 }
 
 func (p *overviewPage) readQuotas() {
 	if p.f.quotaErr != nil {
-		p.quotas = rowFacts{unreadable(p.f.quotaErr), unreadClause("quotas")}
+		p.quotas = p.unreadKind("quotas", p.f.quotaErr, p.f.quotaMiss)
 		return
 	}
+	miss := p.f.quotaMiss
 	if len(p.f.quotas.Items) == 0 {
-		p.quotas = rowFacts{value: "none"}
+		p.quotas = rowFacts{rowWith(miss, "none"), missClauses("quotas", miss)}
 		return
 	}
 	p.pressure = quotaPressure(p.f.quotas, quotaPressureThreshold)
@@ -486,7 +655,7 @@ func (p *overviewPage) readQuotas() {
 		clauses = append(clauses, clause{rankWarn, fmt.Sprintf("%d %s over 80%%", n, plural(n, "quota", "quotas"))})
 	}
 	p.quotas = rowFacts{
-		value: rowOf(strconv.Itoa(len(p.f.quotas.Items)), func(room int) string {
+		value: rowWith(miss, strconv.Itoa(len(p.f.quotas.Items)), func(room int) string {
 			if len(hits) == 0 {
 				return ""
 			}
@@ -498,18 +667,21 @@ func (p *overviewPage) readQuotas() {
 			}
 			return lead + fitList(names, room-utf8.RuneCountInString(lead), noMore, true)
 		}),
-		clauses: clauses,
+		clauses: append(clauses, missClauses("quotas", miss)...),
 	}
 }
 
 // readSlots is how many of the schedulable nodes' pod slots are taken. It needs
 // both the nodes and the pods, so it says which it is missing, and it does not
-// set the pods of one namespace against the slots of every node, a use of the
+// set the pods of some namespaces against the slots of every node, a use of the
 // cluster that other namespaces' pods make most of.
 func (p *overviewPage) readSlots() {
 	switch {
-	case p.namespace != "":
+	case len(p.names) == 1:
 		p.slots = rowFacts{value: "not counted — one namespace is read"}
+		return
+	case len(p.names) > 1:
+		p.slots = rowFacts{value: fmt.Sprintf("not counted — %d namespaces are read", len(p.names))}
 		return
 	case p.f.nodeErr != nil:
 		p.slots = rowFacts{value: "could not be read — needs the nodes"}
@@ -543,9 +715,15 @@ func (p *overviewPage) readSlots() {
 // says nothing when it has nothing to say or cannot say it in that, and says
 // more than fits only for what the row is for: fitList's must, and nothing else.
 func rowOf(first string, rest ...func(room int) string) string {
+	return rowIn(rowRoom, first, rest...)
+}
+
+// rowIn is rowOf for a row that has width columns and not a tile's, which is
+// less when the row has something else it must say after the parts.
+func rowIn(width int, first string, rest ...func(room int) string) string {
 	out := first
 	for _, part := range rest {
-		if s := part(rowRoom - utf8.RuneCountInString(out) - sepWidth); s != "" {
+		if s := part(width - utf8.RuneCountInString(out) - sepWidth); s != "" {
 			out += " · " + s
 		}
 	}

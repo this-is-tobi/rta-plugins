@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -36,10 +37,23 @@ import (
 // always answer would make the common case noisier, not more useful.
 // kube.metrics.pod and kube.metrics.node stay their own capabilities for
 // exactly that reason.
+//
+// The namespaces are a list (overviewlist.go says why each is read on its own).
+// Naming none reads every namespace, naming one reads that one, and naming
+// several reads the pods, deployments, quotas and certificates of each with a
+// call of its own and merges them into the page the single namespace gets. The
+// nodes and the namespaces are cluster-scoped and are one list each whatever is
+// named.
 
 // overviewFetch is the concurrent read: what every goroutine below writes to
 // its own field, read only after wg.Wait() — no field is written by more
 // than one goroutine, so nothing here needs a mutex.
+//
+// A kind is read once for each namespace named, and what it holds is the
+// namespaces that answered. xMiss is every namespace it could not be read in,
+// and xErr is set, to the first of their reasons, only when there was none it
+// could be read in: the kind as a whole could not be read, as it could not when
+// there was one namespace to read.
 type overviewFetch struct {
 	namespaces list[namespaceItem]
 	nsErr      *view.Error
@@ -47,24 +61,56 @@ type overviewFetch struct {
 	nodeErr    *view.Error
 	pods       []podItem
 	podErr     *view.Error
+	podMiss    []unreadNS
 	deps       []deploymentItem
 	depErr     *view.Error
+	depMiss    []unreadNS
 	quotas     list[resourceQuotaItem]
 	quotaErr   *view.Error
-	certs      certRead
+	quotaMiss  []unreadNS
+	certs      []tlsCert
 	certErr    *view.Error
+	certMiss   []unreadNS
 }
 
-func fetchOverview(ctx context.Context, scope, nsSel selection, cfg *kubeconfig) overviewFetch {
+// fetchOverview asks the cluster for everything a page is made of. What a
+// refresh costs is the lists it makes, and the one `config view` that read the
+// kubeconfig before them: for one namespace, or for every namespace, six lists
+// (the namespaces, the nodes, and the pods, deployments, quotas and TLS Secrets
+// of that scope); for n namespaces named, 2 + 4n (seven namespaces are thirty),
+// at most readsAtOnce of them running together. The TLS Secrets are a kept read
+// per namespace (certLife), so a refresh that finds them kept makes 2 + 3n.
+func fetchOverview(ctx context.Context, scopes []selection, nsSel selection, cfg *kubeconfig) overviewFetch {
+	ctx = withGate(ctx, readsAtOnce)
 	var f overviewFetch
 	var wg sync.WaitGroup
 	wg.Add(6)
 	go func() { defer wg.Done(); f.nsErr = getJSON(ctx, nsSel, "namespaces", &f.namespaces) }()
 	go func() { defer wg.Done(); f.nodes, f.nodeErr = fetchNodes(ctx, nsSel) }()
-	go func() { defer wg.Done(); f.pods, f.podErr = fetchPods(ctx, scope) }()
-	go func() { defer wg.Done(); f.deps, f.depErr = fetchDeployments(ctx, scope) }()
-	go func() { defer wg.Done(); f.quotas, f.quotaErr = fetchQuotas(ctx, scope) }()
-	go func() { defer wg.Done(); f.certs, f.certErr = tlsCerts(ctx, scope, cfg) }()
+	go func() {
+		defer wg.Done()
+		f.pods, f.podMiss, f.podErr = readEach(scopes, func(s selection) ([]podItem, *view.Error) { return fetchPods(ctx, s) })
+	}()
+	go func() {
+		defer wg.Done()
+		f.deps, f.depMiss, f.depErr = readEach(scopes, func(s selection) ([]deploymentItem, *view.Error) {
+			return fetchDeployments(ctx, s)
+		})
+	}()
+	go func() {
+		defer wg.Done()
+		f.quotas.Items, f.quotaMiss, f.quotaErr = readEach(scopes, func(s selection) ([]resourceQuotaItem, *view.Error) {
+			quotas, verr := fetchQuotas(ctx, s)
+			return quotas.Items, verr
+		})
+	}()
+	go func() {
+		defer wg.Done()
+		f.certs, f.certMiss, f.certErr = readEach(scopes, func(s selection) ([]tlsCert, *view.Error) {
+			read, verr := tlsCerts(ctx, s, cfg)
+			return read.certs, verr
+		})
+	}()
 	wg.Wait()
 	return f
 }
@@ -85,14 +131,31 @@ func fetchOverview(ctx context.Context, scope, nsSel selection, cfg *kubeconfig)
 // hour of this tile reads the TLS Secrets four times and not sixty. The other
 // kube capabilities keep the host's pace: a pod or event list is one call, and
 // a person who names one while a rollout runs wants it to move.
+//
+// A list of namespaces is more calls to the minute and not a different pace:
+// the two cluster-scoped lists and four for each namespace named, with the
+// Secrets of those kept as before, so seven namespaces are thirty lists a minute
+// and, between the Secret reads, twenty-three. The cap on the list
+// (maxNamespaces) is what bounds it.
 const overviewRefresh = time.Minute
 
-// overviewNSFields are the namespace selection, said for an overview: what
-// naming no namespace reads is every one of them, and not the context's own as
-// it is for a list. The switch is the same one, and widens the same input.
+// overviewNSFields are the namespace selection, said for an overview: a list,
+// and what naming none reads is every namespace and not the context's own as it
+// is for a list of pods. The switch is the same one, and widens the same input.
+//
+// A list has no completion of the cluster's namespaces. nsFields' is Live, which
+// is how a suggestion that contacts the cluster stays something a press of the
+// key asked for and never something typing caused, and the host accepts Live on a
+// String input only; the same Suggest without it would be re-run, and kubectl
+// with it, on every edit of a sibling box. Under a profile that fences the
+// namespace the host completes from the fence, which is the list a person
+// naming several is choosing from.
 func overviewNSFields() []plugin.Field {
 	fields := nsFields()
-	fields[0].Help = "read the pods, deployments, quotas and certificates of this namespace only — every namespace when omitted"
+	fields[0].Type = plugin.StringSlice
+	fields[0].Live, fields[0].Suggest = false, nil
+	fields[0].Help = "namespaces to read, one call each, at most " + strconv.Itoa(maxNamespaces) +
+		" — every namespace when omitted"
 	fields[1].Help = "every namespace, which is also what naming none reads"
 	return fields
 }
@@ -145,7 +208,11 @@ const sepWidth = 3
 const worstNames = 3
 
 func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
-	s, verr := selectionOf(req)
+	names, verr := namespacesOf(req)
+	if verr != nil {
+		return nil, verr
+	}
+	s, verr := selectionFor(req, names)
 	if verr != nil {
 		return nil, verr
 	}
@@ -167,29 +234,32 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 			id.namespace = ns
 		}
 	}
-	if s.Namespace != "" {
-		id.namespace = s.Namespace + " — the only namespace whose pods, deployments, quotas and certificates are read"
+	const read = " whose pods, deployments, quotas and certificates are read"
+	switch {
+	case len(names) == 1:
+		id.namespace = names[0] + " — the only namespace" + read
+	case len(names) > 1:
+		id.namespace = strings.Join(names, ", ") + " — the only namespaces" + read
 	}
 
-	// The pods, deployments, quotas and certificates are those of the namespace
+	// The pods, deployments, quotas and certificates are those of the namespaces
 	// named, and of every namespace when none is: "what is unhealthy" is not a
 	// question about one of them unless somebody asked it about one. A profile
 	// that fences the namespace has asked it for them, and a fence that read
-	// past its namespace here would hand out every pod name, quota and
-	// certificate of the cluster that `pod list` refuses. selectionOf has
+	// past its namespaces here would hand out every pod name, quota and
+	// certificate of the cluster that `pod list` refuses. selectionFor has
 	// already refused a namespace beside every namespace. The nodes and the
 	// namespaces are cluster-scoped and read as such.
-	scope := s
-	if s.Namespace == "" {
-		scope.AllNS = true
-	}
+	scopes := overviewScopes(s, names)
 	nsSel := s
 	nsSel.Namespace, nsSel.AllNS = "", false
 
-	var known *kubeconfig
-	if cfgErr == nil {
-		known = &cfg
-	}
+	// The kubeconfig is read once for the whole page. The certificates of each
+	// namespace need it to name the scope they keep a read under, and one that
+	// could not be read is the empty one readConfig returns, which names no
+	// context: each of them asking the same file the same question again would be
+	// a `config view` for every namespace on top of the lists, thirty at the cap.
+	known := &cfg
 	var f overviewFetch
 	if cfgErr == nil && len(cfg.Contexts) == 0 {
 		// No kubeconfig at all, which a current kubectl does not say: it tries
@@ -203,15 +273,24 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 				"this machine's kubeconfig lists no context — `kubectl config get-contexts` is the same question, "+
 					"and KUBECONFIG names the files it reads"))
 	} else {
-		f = fetchOverview(ctx, scope, nsSel, known)
+		f = fetchOverview(ctx, scopes, nsSel, known)
 	}
 
 	detail := req.Bool("detail")
-	if f.nsErr != nil {
-		return unanswered(req.Surface(), id, s.Namespace, f.nsErr, detail), nil //nolint:nilerr
+	// The namespaces list is the read that says the cluster answers at all, and
+	// its refusal is the page of a cluster that refused — unless the call names the
+	// namespaces it asks about, when the credential is as likely as not the one
+	// that may list inside each and nowhere across them, which is the identity a
+	// Role in a namespace makes, and the reads of those are the page. The refusal
+	// is then a row of the detailed page and not the end of it, for one name as
+	// for several: a one-namespace tile on a Role per namespace is the common case,
+	// and it would otherwise be a failure on a cluster that answered every list
+	// it was asked.
+	if f.nsErr != nil && (len(names) == 0 || f.nsErr.Code != "kube.forbidden") {
+		return unanswered(req.Surface(), id, names, f.nsErr, detail), nil //nolint:nilerr
 	}
 
-	p := readOverview(f, s.Namespace, time.Now())
+	p := readOverview(f, names, time.Now())
 	if !detail {
 		return view.KeyValue{Pairs: p.compact(id)}, nil
 	}
@@ -260,7 +339,7 @@ type identity struct {
 // The compact page keeps the message to a line, and the hint whole: it is the
 // one row that wraps, because advice cut short at a column is not advice, and a
 // page with nothing else to show has the lines to spare.
-func unanswered(sf plugin.Surface, id identity, namespace string, e *view.Error, detail bool) view.View {
+func unanswered(sf plugin.Surface, id identity, names []string, e *view.Error, detail bool) view.View {
 	answer := "could not be read"
 	switch e.Code {
 	case "kube.forbidden":
@@ -290,7 +369,7 @@ func unanswered(sf plugin.Surface, id identity, namespace string, e *view.Error,
 		status,
 		{Key: "cluster", Value: clip(oneLine(answer+" — "+e.Message), lineRoom)},
 		hint,
-		{Key: "context", Value: clip(contextRow(id.context, namespace, nil), lineRoom)},
+		{Key: "context", Value: clip(contextRow(id.context, names, nil), lineRoom)},
 	}}
 }
 
@@ -376,9 +455,8 @@ func (p overviewPage) clusterRows(id identity) []view.Pair {
 	if id.namespace != "" {
 		pairs = append(pairs, view.Pair{Key: "namespace", Value: id.namespace})
 	}
-	pairs = append(pairs,
-		view.Pair{Key: "cluster", Value: "answering"},
-		view.Pair{Key: "namespaces", Value: fmt.Sprintf("%d", len(p.f.namespaces.Items))})
+	pairs = append(pairs, view.Pair{Key: "cluster", Value: "answering"})
+	pairs = append(pairs, p.namespaceRows()...)
 
 	// Nodes before pods, because a node that is gone explains the pods and not
 	// the other way round — and because pod health alone cannot see it at all
@@ -421,6 +499,7 @@ func (p overviewPage) clusterRows(id identity) []view.Pair {
 			pairs = append(pairs, view.Pair{Key: plural(len(names), "not ready", "not ready"), Value: truncate(names, 6)})
 		}
 	}
+	pairs = append(pairs, unreadRows("pods", p.f.podMiss, p.f.podErr)...)
 	pairs = append(pairs, view.Pair{Key: "pod slots", Value: p.slots.value})
 
 	// The sibling reads above say "could not be read — <why>" when they
@@ -444,12 +523,15 @@ func (p overviewPage) clusterRows(id identity) []view.Pair {
 		}
 		pairs = append(pairs, view.Pair{Key: fmt.Sprintf("pods over %d restarts", restartStorm), Value: truncate(names, 6)})
 	}
+	pairs = append(pairs, unreadRows("deployments", p.f.depMiss, p.f.depErr)...)
 	if p.f.quotaErr != nil {
 		pairs = append(pairs, view.Pair{Key: "quotas", Value: "could not be read — " + p.f.quotaErr.Message})
 	}
+	pairs = append(pairs, unreadRows("quotas", p.f.quotaMiss, p.f.quotaErr)...)
 	if p.f.certErr != nil {
 		pairs = append(pairs, view.Pair{Key: "certificates", Value: "could not be read — " + p.f.certErr.Message})
 	}
+	pairs = append(pairs, unreadRows("certificates", p.f.certMiss, p.f.certErr)...)
 	if len(p.pressure) > 0 {
 		pairs = append(pairs, view.Pair{
 			Key:   plural(len(p.pressure), "quota over 80%", "quotas over 80%"),

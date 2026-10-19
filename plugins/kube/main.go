@@ -47,6 +47,15 @@
 //	dashboard:
 //	  tiles:
 //	    - id: kube.overview
+//
+// kube.overview takes a list of namespaces, each read with a call of its own,
+// which is how a tile on a connection fenced to several of them names those:
+//
+//	dashboard:
+//	  tiles:
+//	    - id: kube.overview
+//	      profile: staging
+//	      with: {namespace: [shop-web, shop-billing]}
 package main
 
 import (
@@ -424,43 +433,47 @@ func Plugin() plugin.Plugin {
 			ID:       "kube.overview",
 			Summary:  "One cluster at a glance: its verdict, and what is not healthy",
 			Keywords: []string{"summary", "health", "dashboard", "status"},
-			Description: "The first row, `status`, is the verdict: ok, or warn or fail with the worst facts in a " +
-				"few words. Fail is a node not Ready, a pod not serving, a deployment with no replica ready or an " +
-				"expired certificate; warn is any other fact the rows name, and a row the credential could not " +
-				"read. The rows run from state to capacity: the nodes (those not Ready, under pressure or " +
-				"cordoned, by name, and `skew` when the kubelets are on more than one minor version), the pods " +
-				"(every pod not serving — Failed, Pending, Unknown, stuck terminating, or Running without every " +
-				"container ready — grouped by the reason it gives, and serving pods restarted over 10 times), the " +
-				"deployments short of their replicas, the TLS certificates expired or expiring within 30 days, " +
-				"the quotas over 80%, pod-slot headroom from the schedulable nodes' own max-pods (whether a " +
-				"cluster can still take work when CPU and memory look fine) and, last, the context with the " +
-				"kubelet versions. A finished Job in Succeeded is not a pod that is not serving, and a cordoned " +
-				"node is reported rather than counted as not ready: both are deliberate, not faults. With " +
-				"`detail`: the server and the kubeconfig's namespace, and the nodes, pods and deployments " +
-				"themselves.\n\nReads more than it names: every Deployment, ResourceQuota and TLS Secret, " +
-				"those of every namespace or of the one `namespace` names, which is also what a profile that " +
-				"fences the namespace reads. The nodes and the namespace count are the cluster's whatever is " +
-				"named, and with a namespace the pod slots are not counted. The TLS Secrets arrive whole, " +
-				"private keys included (see kube.cert.list), so they are read at most every 15 minutes per " +
-				"context and shared with kube.cert.list, while the rest is read on every run. A credential " +
-				"that cannot list nodes still gets the rest: that read is reported as unavailable and stepped " +
-				"over, not treated as a failure.",
+			Description: "The first row, `status`, is the verdict: ok, or warn or fail with the worst facts. Fail " +
+				"is a node not Ready, a pod not serving, a deployment with no replica ready, an expired " +
+				"certificate, or nothing readable at all; warn is any other fact the rows name, and a row " +
+				"the credential could not read. Then: the nodes (not Ready, under pressure or cordoned, " +
+				"by name, and `skew` when the kubelets span minor versions), the pods not serving " +
+				"(Failed, Pending, Unknown, stuck terminating, or Running without every container ready) " +
+				"by the reason they give, and serving pods restarted over 10 times, deployments short of " +
+				"their replicas, TLS certificates expired or expiring within 30 days, quotas over 80%, " +
+				"pod-slot headroom from the schedulable nodes' own max-pods and the context with the " +
+				"kubelet versions. A finished Job (Succeeded) is not a pod that is not serving, and a " +
+				"cordoned node is reported, not counted as not ready: neither is a fault. `detail` adds " +
+				"the server, the namespaces and the nodes, pods and deployments themselves.\n\n" +
+				"Reads more than it names: every pod, Deployment, ResourceQuota and TLS Secret of each " +
+				"namespace `namespace` lists (none: every namespace; at most 30), with a call of its own " +
+				"for each, so a Role per namespace is enough. Give a list in a tile's `with:`, the call " +
+				"or a profile fence, not in `plugins.kube.namespace`, which the other kube capabilities " +
+				"read as text. The nodes are always the cluster's; with namespaces named the pod slots " +
+				"are not counted, a namespace a list could not be read in is named on that row, and a " +
+				"missing one is a warning. The TLS Secrets arrive whole, private keys included (see " +
+				"kube.cert.list), so they are read at most every 15 minutes per context and namespace, " +
+				"shared with it; the rest on every run. A credential that cannot list the nodes, or the " +
+				"namespaces when some are named, still gets the rest: that read is stepped over, not a " +
+				"failure.",
 			Agent: "`status` is the verdict (ok, or warn or fail with the worst facts), then the nodes (not Ready, under " +
 				"pressure, cordoned, kubelet skew), pods not serving by reason and serving pods over 10 restarts, " +
 				"deployments short of replicas, expired or expiring TLS certificates, quotas over 80%, pod-slot " +
 				"headroom from the schedulable nodes' max-pods, and the context. A finished Job and a cordoned node " +
-				"are not faults. `detail` adds the server, the namespace and the pods themselves. Reads the " +
-				"Deployments, ResourceQuotas and TLS Secrets of every namespace or of the `namespace` named (no " +
-				"pod slots then); the Secrets, keys included, at most every 15 minutes. A credential without " +
-				"node access still gets the rest.",
+				"are not faults. `detail` adds the server, the namespaces and the pods themselves. `namespace` is " +
+				"an array: each is read with a call of its own (at most 30), none reads every namespace; " +
+				"named ones have no pod slots, and an unreadable or missing one is said. " +
+				"Secrets (keys included) at most every 15 minutes. Without node access the rest answers.",
 			// No Scope, unlike the lists that take the same two inputs, and on
 			// purpose. An input a capability names as its Scope is the record a
 			// grant is checked against, which no profile may fill (see
 			// plugin.ProfileFillable), so a connection fenced to one namespace
 			// would refuse a call that does not name it. The overview names no
 			// record: its answer is the cluster's, narrowed when somebody asks,
-			// and a fence that holds one namespace is that ask, made once by the
-			// operator for every call through the connection.
+			// and a fence that holds some namespaces is that ask, made once by
+			// the operator for every call through the connection. The input is
+			// a list for that reason: a tile on a connection fenced to several
+			// names them all, and the host holds each element to the fence.
 			Safety:     plugin.Read,
 			Idempotent: true,
 			Detailed:   true,

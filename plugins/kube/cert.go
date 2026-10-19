@@ -121,6 +121,44 @@ func certEntryFor(scope certScope) *certEntry {
 	return e
 }
 
+// The kept reads are one for each namespace anyone named, so a plugin that lives
+// as long as the server that started it would hold one for every name it was ever
+// asked about, and an overview of thirty names is thirty at a time. They are kept
+// down in two places, when a read has been kept and when one has failed. What is
+// older than certLife is a read nobody would use (forgetOld), and a read that
+// failed (a namespace the credential may not list, named or not) holds nothing at
+// all (forgetUnread). A caller who had found an entry before it was dropped keeps
+// a read of its own that nobody else is given, which costs one read.
+
+// forgetOld drops the kept reads that are older than certLife. An entry in use is
+// passed over, by TryLock, so that this never waits for a read in progress: it is
+// not old, or it is about to be written, and the caller who holds it is the one
+// calling.
+func forgetOld() {
+	certReads.Lock()
+	defer certReads.Unlock()
+	for scope, e := range certReads.byScope {
+		if !e.mu.TryLock() {
+			continue
+		}
+		old := !e.at.IsZero() && time.Since(e.at) >= certLife
+		e.mu.Unlock()
+		if old {
+			delete(certReads.byScope, scope)
+		}
+	}
+}
+
+// forgetUnread drops the entry of a read that failed, which the caller holds
+// the lock of and which has never held a read.
+func forgetUnread(scope certScope, e *certEntry) {
+	certReads.Lock()
+	defer certReads.Unlock()
+	if certReads.byScope[scope] == e && e.at.IsZero() {
+		delete(certReads.byScope, scope)
+	}
+}
+
 // certRead is the certificates an answer is made of, and when they were read.
 type certRead struct {
 	certs []tlsCert
@@ -171,7 +209,9 @@ func certScopeOf(ctx context.Context, s selection, cfg *kubeconfig) (certScope, 
 // tlsCerts is the certificates of the TLS Secrets s selects, from a read made
 // at most certLife ago. It is shared with kube.overview's own composition, so
 // both read the same Secrets the same way and draw on the same read. cfg is the
-// kubeconfig when the caller has it already, and nil when it has not.
+// kubeconfig when the caller has it already, an empty one when the caller asked
+// and could not read it (it names no context, so the read is made and not kept,
+// and the file is not asked again), and nil when the caller has not asked.
 func tlsCerts(ctx context.Context, s selection, cfg *kubeconfig) (certRead, *view.Error) {
 	scope, pinned, ok := certScopeOf(ctx, s, cfg)
 	if !ok {
@@ -186,9 +226,11 @@ func tlsCerts(ctx context.Context, s selection, cfg *kubeconfig) (certRead, *vie
 	}
 	certs, verr := readTLSCerts(ctx, pinned)
 	if verr != nil {
+		forgetUnread(scope, e)
 		return certRead{}, verr
 	}
 	e.at, e.certs = time.Now(), certs
+	forgetOld()
 	return certRead{certs: certs, at: e.at}, nil
 }
 
