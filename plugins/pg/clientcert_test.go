@@ -310,6 +310,13 @@ func TestAServerThatWantsAClientCertificateIsNotAPasswordRefused(t *testing.T) {
 		strings.Contains(none.Hint, "password") {
 		t.Errorf("none presented: %s %q %q", none.Code, none.Message, none.Hint)
 	}
+	// What a dashboard stops asking a tile for is a credential the server
+	// turned down (view.Error.CredentialRefused). A server that wants a
+	// certificate nobody presented has refused none, and its code ends in
+	// neither `.auth.failed` nor `.denied`.
+	if none.CredentialRefused() {
+		t.Errorf("%s: no certificate was presented, and nothing was refused", none.Code)
+	}
 	for sf, want := range map[plugin.Surface]string{
 		plugin.SurfaceTUI: "the sslcert and sslkey boxes name the certificate",
 		plugin.SurfaceMCP: "the operator's `sslcert` and `sslkey` settings name the certificate",
@@ -320,17 +327,26 @@ func TestAServerThatWantsAClientCertificateIsNotAPasswordRefused(t *testing.T) {
 		}
 	}
 	presented := classify(required, reqFor(t, "pg.status", map[string]any{"sslcert": cert, "sslkey": key}))
-	if presented.Code != "pg.tls.client.required" || !strings.Contains(presented.Message, "refused the client certificate "+cert) ||
+	if presented.Code != "pg.tls.client.auth.failed" || !strings.Contains(presented.Message, "refused the client certificate "+cert) ||
 		!strings.Contains(presented.Hint, "ssl_ca_file") {
 		t.Errorf("presented, refused: %s %q %q", presented.Code, presented.Message, presented.Hint)
 	}
-	if got := classify(role, reqFor(t, "pg.status", map[string]any{"user": "app"})); got.Code != "pg.tls.client.role" ||
-		!strings.Contains(got.Hint, "common name is the role it logs in as") {
+	if !presented.CredentialRefused() {
+		t.Errorf("%s: a certificate the server turned down is a refused credential", presented.Code)
+	}
+	got := classify(role, reqFor(t, "pg.status", map[string]any{"user": "app"}))
+	if got.Code != "pg.tls.client.role.denied" || !strings.Contains(got.Hint, "common name is the role it logs in as") {
 		t.Errorf("another role: %s %q", got.Code, got.Hint)
 	}
+	if !got.CredentialRefused() {
+		t.Errorf("%s: a certificate that is not for this role is a refused credential", got.Code)
+	}
 	alert := errors.New("failed to receive message: remote error: tls: unknown certificate authority")
-	if got := classify(alert, reqFor(t, "pg.status", map[string]any{})); got.Code != "pg.tls.client.required" {
-		t.Errorf("a TLS alert about the certificate: %s, want pg.tls.client.required", got.Code)
+	if got := classify(alert, reqFor(t, "pg.status", map[string]any{})); got.Code != "pg.tls.client.required" || got.CredentialRefused() {
+		t.Errorf("a TLS alert about the certificate with none presented: %s, want pg.tls.client.required, which is not a refusal", got.Code)
+	}
+	if got := classify(alert, reqFor(t, "pg.status", map[string]any{"sslcert": cert, "sslkey": key})); got.Code != "pg.tls.client.auth.failed" {
+		t.Errorf("a TLS alert about the certificate presented: %s, want pg.tls.client.auth.failed", got.Code)
 	}
 	if got := classify(&pgconn.PgError{Code: "28P01", Message: "password authentication failed"},
 		reqFor(t, "pg.status", map[string]any{})); got.Code != "pg.auth.failed" {
@@ -347,10 +363,10 @@ func TestWhatLibpqSaysAboutTheTLSFilesIsNamedAsThat(t *testing.T) {
 	for _, tc := range []struct {
 		name, stderr, code, hint string
 	}{
-		{"no certificate", `psql: error: connection to server at "127.0.0.1", port 55417 failed: FATAL:  connection requires a valid client certificate`,
-			"pg.tls.client.required", "ssl_ca_file"},
+		{"a certificate the server says it requires", `psql: error: connection to server at "127.0.0.1", port 55417 failed: FATAL:  connection requires a valid client certificate`,
+			"pg.tls.client.auth.failed", "ssl_ca_file"},
 		{"a certificate no CA of the server's issued", `psql: error: connection to server at "127.0.0.1", port 55417 failed: SSL error: tlsv1 alert unknown ca`,
-			"pg.tls.client.required", "ssl_ca_file"},
+			"pg.tls.client.auth.failed", "ssl_ca_file"},
 		{"a key others can read", `psql: error: connection to server at "127.0.0.1", port 55417 failed: private key file "/etc/pg/client.key" has group or world access; file must have permissions u=rw (0600) or less if owned by the current user, or permissions u=rw,g=r (0640) or less if owned by root`,
 			"pg.tls.client.key.perms", "`chmod 600` on the file that --sslkey names"},
 		{"a root certificate that is not there", "psql: error: connection to server at \"127.0.0.1\", port 55417 failed: root certificate file \"/etc/pg/ca.crt\" does not exist\nEither provide the file, use the system's trusted roots with sslrootcert=system, or change sslmode to disable server certificate verification.",
