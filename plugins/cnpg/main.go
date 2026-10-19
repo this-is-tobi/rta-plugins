@@ -52,6 +52,19 @@
 // sentence than the boundary's actual answer, and the actual answer is the
 // one that holds: nothing reaches an agent that an operator did not turn on
 // and then grant.
+//
+// # Reading several namespaces
+//
+// cnpg.list, cnpg.backup.list and cnpg.storage take a list of namespaces and a
+// list of clusters, and read each namespace with a call of its own (see
+// namespaces.go). That is how a tile on a connection fenced to several of them
+// names those:
+//
+//	dashboard:
+//	  tiles:
+//	    - id: cnpg.list
+//	      profile: staging
+//	      with: {namespace: [shop-web, shop-billing]}
 package main
 
 import (
@@ -113,6 +126,45 @@ func clusterField(help string, required bool) plugin.Field {
 		Help: help + "; empty lifts one a profile or the config pins", Live: true, Suggest: suggestClusters}
 }
 
+// clustersField is clusterField for a read that is a filter: the clusters to
+// keep, none meaning every cluster of the namespaces read.
+//
+// A list, with the name, the letter and the config key the single value had, so
+// the key a profile fences it by is the same one. A list is the shape a
+// connection fenced to several clusters can be handed: the host holds each
+// element to the fence, and the handler reads the list it is given. A bare
+// string is still one name, and an empty list lifts a pin as an empty string
+// did: plugin.Resolve lets any value the caller gave win, an empty one
+// included, and a test holds the help to that.
+//
+// No live completion, which the host declares for a text input only
+// (plugin.Field.Live). The names the fence allows are still offered under one.
+func clustersField(help string) plugin.Field {
+	return plugin.Field{Name: "cluster", Short: "c", Type: plugin.StringSlice, Config: "cluster",
+		Help: help + "; empty lifts the ones a profile or the config pins"}
+}
+
+// namespacesField is the namespace input of a read that takes several, each
+// read with a call of its own (namespaces.go). cap adds the single-valued
+// nsFields to every capability that does not declare its own.
+func namespacesField() plugin.Field {
+	return plugin.Field{Name: "namespace", Short: "n", Type: plugin.StringSlice, Config: "namespace",
+		Help: "namespaces to look in, each read on its own — the context's own when omitted"}
+}
+
+// listsBelongInTheCall is the sentence the three reads that take lists carry for
+// whoever would write one in the configuration.
+//
+// `namespace` and `cluster` are one config key for every capability that
+// declares them, and the capabilities that act on one cluster declare them as
+// text: a list under `plugins: cnpg:` or a profile's `set:` is read by the
+// listings and refused (core.input.type) by cnpg.status, cnpg.backup.show and
+// cnpg.backup.request, and `rta config check` does not see it. So a list is
+// written where only the listings read it, and the key keeps a single name.
+const listsBelongInTheCall = "A list is written in the call, a tile's `with:` or a profile's `only:` fence; " +
+	"`namespace` and `cluster` under `plugins: cnpg:` or a profile's `set:` hold one name, since " +
+	"cnpg.status, cnpg.backup.show and cnpg.backup.request share the keys and take them as text."
+
 // allNamespacesField is the wide form of a read that takes a namespace: the
 // same read over every namespace in the connection, in place of the one it
 // would have made.
@@ -151,8 +203,9 @@ func nsFields() []plugin.Field {
 	}
 }
 
-// leading puts the Namespace column ahead of cols when the read covered every
-// namespace, and leaves them alone otherwise.
+// leading puts the Namespace column ahead of cols when the read covered more
+// than one namespace (every one, or several named), and leaves them alone
+// otherwise.
 //
 // A column that says what is already said is noise, and in one namespace the
 // namespace is the question that was asked. Across all of them a row without
@@ -161,7 +214,7 @@ func nsFields() []plugin.Field {
 // which is which is a listing nobody can act on. So the scope leads, only
 // when it is a variable, in every wide read the same way.
 func (s selection) leading(cols ...view.Column) []view.Column {
-	if !s.allNamespace {
+	if !s.wide() {
 		return cols
 	}
 	return append([]view.Column{{Name: "Namespace"}}, cols...)
@@ -169,7 +222,7 @@ func (s selection) leading(cols ...view.Column) []view.Column {
 
 // lead is leading for a row: the namespace ahead of cells, in the wide read.
 func (s selection) lead(namespace string, cells ...string) []string {
-	if !s.allNamespace {
+	if !s.wide() {
 		return cells
 	}
 	return append([]string{namespace}, cells...)
@@ -186,8 +239,15 @@ func (s selection) lead(namespace string, cells ...string) []string {
 // give it these, they arrive in whatever order those were written in, with the
 // cluster and the limit between the switch and the box it widens; so they are
 // ranked here, once, and everything else keeps the order it was declared in.
+//
+// The namespace is the one input a capability may declare itself, as the reads
+// that take a list of them do (namespacesField); one that does not gets the
+// single value.
 func cap(c plugin.Capability, own ...plugin.Field) plugin.Capability {
-	inputs := append(append(append(own, c.Inputs...), nsFields()...), connFields()...)
+	inputs := append(append(own, c.Inputs...), connFields()...)
+	if !slices.ContainsFunc(inputs, func(f plugin.Field) bool { return f.Name == "namespace" }) {
+		inputs = append(inputs, nsFields()...)
+	}
 	slices.SortStableFunc(inputs, func(a, b plugin.Field) int { return inputRank(a.Name) - inputRank(b.Name) })
 	c.Inputs = inputs
 	c.NoPreview = true
@@ -235,10 +295,13 @@ func Plugin() plugin.Plugin {
 				Examples: []plugin.Example{
 					{Title: "every cluster in every namespace", Inputs: map[string]any{"all-namespaces": true}},
 					{Title: "the clusters of one namespace", Inputs: map[string]any{"namespace": "production"}},
+					{Title: "the clusters of several namespaces", Inputs: map[string]any{"namespace": []string{"production", "staging"}}},
+					{Title: "two clusters, wherever they are in those", Inputs: map[string]any{
+						"namespace": []string{"production", "staging"}, "cluster": []string{"app-db", "billing-db"}}},
 				},
 				Safety: plugin.Read, Idempotent: true,
-				Description: "One `kubectl get clusters.postgresql.cnpg.io -o json`, one row " +
-					"per cluster, named namespace/name. Status is the worst finding cnpg.status " +
+				Description: "One `kubectl get clusters.postgresql.cnpg.io -o json` for each namespace " +
+					"read, one row per cluster, named namespace/name. Status is the worst finding cnpg.status " +
 					"lists for the cluster under Needs attention — ok, warn or fail — so a cluster " +
 					"short of its own spec, whose WAL archiving fails, with no backup, with a " +
 					"certificate near expiry or without a primary is not ok whatever its phase " +
@@ -248,19 +311,29 @@ func Plugin() plugin.Plugin {
 					"`not recorded` for a cluster that archives through a plugin, whose backups " +
 					"the resource does not record (cnpg.backup.list does). Ready is " +
 					"ready/desired instances; Phase is the operator's own, with the sentence of a " +
-					"healthy cluster said as `healthy`. Reads the context's own namespace unless " +
-					"`namespace` names another or `all-namespaces` reads every one, and an empty " +
-					"answer says which it read. `cluster` narrows the listing to one: a profile " +
-					"that fences it (`only: cluster:`) lists the clusters it names and no other. " +
-					"Reads one custom resource and nothing else: no pods, no exec, no logs.",
+					"healthy cluster said as `healthy`. `namespace` is a list of at most 30, each " +
+					"read with one call of its own (never the whole cluster with the rest filtered " +
+					"out, so a Role per namespace is enough); none reads the context's own " +
+					"namespace, `all-namespaces` reads every one in one call, and an empty answer " +
+					"says which it read. `cluster` is a list of at most 30 that keeps the clusters " +
+					"it names: one name is asked of the API server, several are filtered from the " +
+					"namespace's whole list, which a credential limited to clusters by name " +
+					"(RBAC `resourceNames`) is refused. A name found nowhere is a row saying so, " +
+					"and a profile that fences it (`only: cluster:`) lists the clusters it names " +
+					"and no other. A namespace that cannot be read is a row, and a warning, while " +
+					"the others answer. " + listsBelongInTheCall + " Reads one custom resource and " +
+					"nothing else: no pods, no exec, no logs.",
 				Agent: "One row per cluster, named namespace/name: Status (ok, warn or fail, the worst finding " +
 					"cnpg.status lists, so failing WAL archiving, no backup, a certificate near expiry or a cluster " +
 					"short of its instances is not ok), Backup (age of the last success; none, never, failing, or " +
-					"not recorded for a cluster that archives through a plugin), Ready, Primary and Phase. Reads " +
-					"the context's own namespace, `namespace` names another, `all-namespaces` reads every one and " +
-					"`cluster` narrows to one. One custom resource: no pods, exec or logs.",
+					"not recorded for a cluster that archives through a plugin), Ready, Primary and Phase. " +
+					"`namespace` is an array of at most 30, one call each; none reads the context's own " +
+					"namespace and `all-namespaces` reads every one. `cluster` is an array of at most 30 that " +
+					"keeps those named, several filtered from the namespace's whole list; a name found nowhere " +
+					"or a namespace not read is a row saying so. One custom resource: no pods, exec or logs.",
 				Inputs: []plugin.Field{
-					clusterField("only this cluster — every cluster of the namespace when omitted", false),
+					clustersField("only these clusters — every cluster of the namespaces when omitted"),
+					namespacesField(),
 					allNamespacesField(),
 				},
 				Run: runList,
@@ -320,25 +393,33 @@ func Plugin() plugin.Plugin {
 }
 
 func runList(ctx context.Context, req plugin.Request) (view.View, error) {
-	s, verr := selectionOf(req)
+	s, names, verr := listingOf(req)
 	if verr != nil {
 		return nil, verr
 	}
-	name := strings.TrimSpace(req.String("cluster"))
-	if verr := checkName("cluster", name); verr != nil {
-		return nil, verr
-	}
-	var list clusterList
-	// Asked of the API server and not filtered here, as storage does for a
-	// volume's label: the clusters a call is not about are not read to be thrown
-	// away, and a profile that fences `cluster` lists the ones it names and no
-	// other. Without it a connection fenced to one cluster answered with every
+	// One name is asked of the API server and not filtered here, as storage does
+	// for a volume's label: the cluster a call is not about is not read to be
+	// thrown away, and a profile that fences `cluster` to one name lists it and
+	// no other. Without it a connection fenced to one cluster answered with every
 	// cluster of the namespace, names the fence was written to keep out.
+	//
+	// **Several names are the exception, and the namespace's list is read whole
+	// and filtered below.** A field selector holds one `metadata.name`, so there
+	// is no single request that asks for two. Asking once for each would be a
+	// call per name in every namespace, which is the multiplication the cap on
+	// the namespaces exists to bound; so the clusters are read as the list they
+	// are, a handful of objects, and the ones not named are dropped here. The
+	// price falls on a credential allowed particular clusters by name (RBAC
+	// resourceNames): it can read each by name and is refused the list, and with
+	// several names it reads none. Naming one at a time reads them.
 	var extra []string
-	if name != "" {
-		extra = []string{"--field-selector", "metadata.name=" + name}
+	if len(names) == 1 {
+		extra = []string{"--field-selector", "metadata.name=" + names[0]}
 	}
-	if verr := getResource(ctx, s, clusterCRD, "", &list, extra...); verr != nil {
+	r, verr := settle(s, readEach(ctx, s.scopes(), func(ctx context.Context, scope selection) (clusterList, *view.Error) {
+		return fetch[clusterList](ctx, scope, clusterCRD, "", extra...)
+	}))
+	if verr != nil {
 		return nil, verr
 	}
 	// What a narrow tile keeps is decided by the order of these columns and by
@@ -357,16 +438,47 @@ func runList(ctx context.Context, req plugin.Request) (view.View, error) {
 		{Name: "Primary", Priority: 1},
 		{Name: "Phase", Priority: 2},
 	}}
-	for _, c := range list.Items {
-		t.Rows = append(t.Rows, []string{
-			c.Metadata.Namespace + "/" + c.Metadata.Name, c.verdict(), c.backupCell(), c.ready(),
-			orDash(c.Status.CurrentPrimary), shortPhase(c.Status.Phase),
-		})
+	// A namespace that could not be read, and a named cluster found nowhere,
+	// are rows of their own where they would have been: the phase is the prose
+	// column, and the warning under the table carries the same words to a tile
+	// too narrow to keep it.
+	found := map[string]bool{}
+	clusters := 0
+	for _, o := range r.outcomes {
+		if o.err != nil {
+			t.Rows = append(t.Rows, []string{o.scope.namespace + "/—", "fail", "—", "—", "—", o.reason()})
+			continue
+		}
+		for _, c := range o.got.Items {
+			if len(names) > 1 && !slices.Contains(names, c.Metadata.Name) {
+				continue
+			}
+			found[c.Metadata.Name] = true
+			clusters++
+			t.Rows = append(t.Rows, []string{
+				c.Metadata.Namespace + "/" + c.Metadata.Name, c.verdict(), c.backupCell(), c.ready(),
+				orDash(c.Status.CurrentPrimary), shortPhase(c.Status.Phase),
+			})
+		}
 	}
-	t.Total = len(t.Rows)
+	// Only for a list: one name that is not there is the empty sentence below, as
+	// it always was. And only for what was read: a name not found in the
+	// namespaces that answered may be in one that did not.
+	if len(names) > 1 && r.answered() {
+		for _, name := range names {
+			if !found[name] {
+				t.Rows = append(t.Rows, []string{name, "warn", "—", "—", "—", "not found in " + r.read.where()})
+			}
+		}
+	}
+	// The clusters there are, and not the rows that say what could not be read or
+	// was not found: those are not clusters, and a total that counted them would
+	// be a count of clusters that is wrong by exactly the failures.
+	t.Total = clusters
 	if len(t.Rows) == 0 {
-		t.Empty = emptyClusters(name, s)
+		t.Empty = emptyClusters(names, r.read)
 	}
+	t.Warnings = r.warnings()
 	return t, nil
 }
 
@@ -376,10 +488,14 @@ func runList(ctx context.Context, req plugin.Request) (view.View, error) {
 // say so read as "there are none" to somebody whose clusters live in another
 // namespace. Unless the read already covered them all, it names the call that
 // does.
-func emptyClusters(name string, s selection) string {
+func emptyClusters(names []string, s selection) string {
 	body := "no CloudNativePG clusters in " + s.where()
-	if name != "" {
-		body = "no CloudNativePG cluster called " + strconv.Quote(name) + " in " + s.where()
+	if len(names) > 0 {
+		quoted := make([]string, len(names))
+		for i, name := range names {
+			quoted[i] = strconv.Quote(name)
+		}
+		body = "no CloudNativePG cluster called " + strings.Join(quoted, ", ") + " in " + s.where()
 	}
 	if !s.allNamespace {
 		body += " — " + s.caller().listEverywhere() + " reads every namespace"

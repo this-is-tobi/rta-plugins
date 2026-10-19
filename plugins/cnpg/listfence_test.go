@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -29,8 +30,8 @@ func TestAListUnderAClusterFenceReadsThatClusterAndNoOther(t *testing.T) {
 		t.Fatalf("a call that names nothing was refused under a one-entry fence: %+v", breach)
 	}
 	req := plugin.ResolveRequest(*list, in, false, false)
-	if got := req.String("cluster"); got != "abrege-pg-cluster" {
-		t.Fatalf("the fence filled cluster = %q, want the one it allows", got)
+	if got := req.StringSlice("cluster"); !slices.Equal(got, []string{"abrege-pg-cluster"}) {
+		t.Fatalf("the fence filled cluster = %q, want the one it allows as a list of one", got)
 	}
 
 	argv := servesWithArgs(t, clusterList{})

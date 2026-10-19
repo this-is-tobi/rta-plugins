@@ -545,12 +545,18 @@ func TestAnEmptyClusterLiftsAPinAndTheHelpSaysSo(t *testing.T) {
 			t.Errorf("%s: a call that names no cluster resolves to %v, want the pin %q", id, got, want)
 		}
 
+		// The reads that take a list lift it with an empty one, which reads as no
+		// cluster at all.
 		lift := pinned
-		lift.Caller = map[string]any{"cluster": ""}
-		if got := plugin.Resolve(c, lift)["cluster"]; got != "" {
+		lifted, says := any(""), "empty lifts one a profile or the config pins"
+		if field.Type == plugin.StringSlice {
+			lifted, says = []string{}, "empty lifts the ones a profile or the config pins"
+		}
+		lift.Caller = map[string]any{"cluster": lifted}
+		if got := plugin.Resolve(c, lift)["cluster"]; !reflect.DeepEqual(got, lifted) {
 			t.Errorf("%s: an empty cluster resolved to %v, want it to lift the pin", id, got)
 		}
-		if !strings.Contains(field.Help, "empty lifts one a profile or the config pins") {
+		if !strings.Contains(field.Help, says) {
 			t.Errorf("%s: help = %q does not say an empty value lifts a pin", id, field.Help)
 		}
 	}
