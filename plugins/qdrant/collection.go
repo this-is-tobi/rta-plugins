@@ -64,9 +64,14 @@ func collectionField(help string) plugin.Field {
 // text that is in no entry, and a call naming none was refused as blank. The host
 // holds each element to the fence. The same shape as plugins/kube's namespace.
 //
-// **No Live, no Suggest.** Completion of a name is what collectionField has, and
-// Live is a String's: a list that suggested without it would ask the instance on
-// every keystroke. The collections that act on one stay a String and keep it.
+// **Completed a name at a time, on a press of the key.** Live, because the Suggest
+// asks the instance: a read of it must be something a press asked for and never
+// something typing caused, and a plain Suggest would ask on every keystroke. The
+// host hands suggestCollections the name being typed, takes out of the answer the
+// collections the box already lists, holds the rest to the profile's fence and
+// writes an accepted one with the double quotes a comma in it needs, so none of
+// that is tracked here. The collections that act on one stay a String and keep
+// their own completion.
 //
 // **The help says how a name with a comma is written, because the flag splits on
 // it.** Qdrant allows a comma in a collection's name, and a value of the flag is
@@ -78,7 +83,8 @@ func collectionField(help string) plugin.Field {
 func collectionsField() plugin.Field {
 	return plugin.Field{Name: "collection", Short: "c", Type: plugin.StringSlice, Config: "collection",
 		Help: "only these; none reads all the key can see, inside the profile's fence when it has one. " +
-			"As a flag, repeat it and double-quote a name with a comma"}
+			"As a flag, repeat it and double-quote a name with a comma",
+		Live: true, Suggest: suggestCollections}
 }
 
 // maxNamedCollections is the most collections a call that names some reads. Each
@@ -125,6 +131,18 @@ func namedCollections(req plugin.Request, who string) ([]string, *view.Error) {
 	return names, nil
 }
 
+// suggestCollections lists the collections the key can see, by name.
+//
+// It serves the collection of the capabilities that act on one and the list of the
+// two listings alike, and reads the box of neither: on a list the request carries
+// the name being typed under `collection`, and the answer is every collection the
+// instance has, for the box to match against what is typed. A name with a comma is
+// given as it is; the host writes it in double quotes when it is accepted. The
+// instance is asked whole and the fence holds the answer, not the call.
+//
+// The answer is not capped. The text typed is never sent to the instance: the host
+// narrows what the box offers by it after this has answered, so a cap here would cut
+// the collections by their place in the list, and no typing could bring a cut one back.
 func suggestCollections(ctx context.Context, req plugin.Request) []string {
 	var out collectionsResponse
 	if verr := get(ctx, req, "/collections", &out); verr != nil {
