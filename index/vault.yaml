@@ -7,29 +7,29 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: vault
-version: 0.9.1
+version: 0.9.2
 summary: "HashiCorp Vault: secrets, tokens, leases, policies and transit encryption"
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/vault
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.9.1/rta-plugin-vault_0.9.1_darwin_amd64.tar.gz
-  sha256: e14d70d9a705c508c383c5c22a1679b3870b6fa5a8de89de7c312a0e253e6fe4
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.9.2/rta-plugin-vault_0.9.2_darwin_amd64.tar.gz
+  sha256: 39d3e4a4d14656fbecbf19fb19265ff91225e1c9610b87bd43abfe74c56f0bf9
   bin: rta-plugin-vault
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.9.1/rta-plugin-vault_0.9.1_darwin_arm64.tar.gz
-  sha256: daa4fa1f2305ff3a77f55b80255a0d7534209c5924a7fbe482583a4b06364e28
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.9.2/rta-plugin-vault_0.9.2_darwin_arm64.tar.gz
+  sha256: ad83f50efb942fc48631e0ad7a515c7aa9f2eb55fdbab1763a72af220d669753
   bin: rta-plugin-vault
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.9.1/rta-plugin-vault_0.9.1_linux_amd64.tar.gz
-  sha256: 90ed4e3897020d66ed927488ca29543220b13949eb538d852de3f1713ef4527f
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.9.2/rta-plugin-vault_0.9.2_linux_amd64.tar.gz
+  sha256: 06512b5089359855cfbdb8bd9f58df747f4321a2c8bf5cabe25bf2531c849a87
   bin: rta-plugin-vault
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.9.1/rta-plugin-vault_0.9.1_linux_arm64.tar.gz
-  sha256: eb3bc139e47b40974a461ad1aa46faa22c711afd42391e41b08f8a528ac77696
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fvault%2Fv0.9.2/rta-plugin-vault_0.9.2_linux_arm64.tar.gz
+  sha256: 2bafcb14e98dd43b93d805775af9e34a76fdfd77ac5d72ef4ff7f0d9b0b14745
   bin: rta-plugin-vault
 capabilities:
 - id: vault.overview
