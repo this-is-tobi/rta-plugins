@@ -7,29 +7,29 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: keycloak
-version: 0.8.1
+version: 0.8.2
 summary: "Keycloak: users, clients, roles, flows, sessions, events — and a realm graded against named controls"
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/keycloak
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkeycloak%2Fv0.8.1/rta-plugin-keycloak_0.8.1_darwin_amd64.tar.gz
-  sha256: 7be45a42f33ba83166d206a412310bb0010ff72ec1f61d7ce8068843602c7e20
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkeycloak%2Fv0.8.2/rta-plugin-keycloak_0.8.2_darwin_amd64.tar.gz
+  sha256: 037d90a889804deca3ffefd66f549b03fa3de8ed51195d7ca53823f97517625e
   bin: rta-plugin-keycloak
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkeycloak%2Fv0.8.1/rta-plugin-keycloak_0.8.1_darwin_arm64.tar.gz
-  sha256: d46c6c5fd8e3d070f9d2838d75d37d48177f0ccd9ab1e590bac9d3f7557b80fa
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkeycloak%2Fv0.8.2/rta-plugin-keycloak_0.8.2_darwin_arm64.tar.gz
+  sha256: 2b592e4b1855a88b7fd5b0b0a09d5314a9d8db483e994de0a4bc03819fdcbba7
   bin: rta-plugin-keycloak
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkeycloak%2Fv0.8.1/rta-plugin-keycloak_0.8.1_linux_amd64.tar.gz
-  sha256: 56ad4ad2f3a068744685551079c02e947e1f1926fdb66e4ad35e5c51ffd0d27c
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkeycloak%2Fv0.8.2/rta-plugin-keycloak_0.8.2_linux_amd64.tar.gz
+  sha256: 3b4bd1e764cae47b003fbdf154ef5f7fd47dbd150cef9bb513bda82917b694d2
   bin: rta-plugin-keycloak
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkeycloak%2Fv0.8.1/rta-plugin-keycloak_0.8.1_linux_arm64.tar.gz
-  sha256: 3e3fe1b4cf2871ef6f72cebe6abb118a4febbe3804c5ab5254a79fb752479adc
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkeycloak%2Fv0.8.2/rta-plugin-keycloak_0.8.2_linux_arm64.tar.gz
+  sha256: 598fce0bbcd0f94b2054659686ca92382e1086f93a6ce515ad3813675b969847
   bin: rta-plugin-keycloak
 capabilities:
 - id: keycloak.overview
