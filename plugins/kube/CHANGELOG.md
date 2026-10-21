@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.10.0...plugins/kube/v0.10.1) (2026-10-21)
+
+
+### Dependencies
+
+* every plugin builds against rta v0.49.1 ([da361a3](https://github.com/this-is-tobi/rta-plugins/commit/da361a3622b6aa57eddb5f86cd9cae54bb6a4325))
+
 ## [0.10.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.9.0...plugins/kube/v0.10.0) (2026-10-19)
 
 
