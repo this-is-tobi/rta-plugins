@@ -5,7 +5,7 @@
 //
 module github.com/this-is-tobi/rta-plugins/plugins/mariadb
 
-go 1.26.9
+go 1.26.10
 
 require (
 	github.com/go-sql-driver/mysql v1.10.0

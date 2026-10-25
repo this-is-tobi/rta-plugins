@@ -3,7 +3,7 @@
 //
 module github.com/this-is-tobi/rta-plugins/plugins/vault
 
-go 1.26.9
+go 1.26.10
 
 require (
 	github.com/hashicorp/vault/api v1.23.0

@@ -1,6 +1,6 @@
 module github.com/this-is-tobi/rta-plugins/plugins/keycloak
 
-go 1.26.9
+go 1.26.10
 
 require github.com/this-is-tobi/rta v0.49.1
 
