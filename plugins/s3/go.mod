@@ -3,7 +3,7 @@
 //
 module github.com/this-is-tobi/rta-plugins/plugins/s3
 
-go 1.26.9
+go 1.26.10
 
 require (
 	github.com/minio/minio-go/v7 v7.3.0
