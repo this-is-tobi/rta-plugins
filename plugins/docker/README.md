@@ -137,7 +137,7 @@ Deletes the container and its writable layer — everything written inside it th
 
 ## docker.container.stop
 
-Sends SIGTERM and gives the container time to exit before the daemon kills it. Reversible — `docker start` brings it back with the same id, disk and configuration — which is why this is Write and not Destructive.
+Sends SIGTERM and gives the container time to exit before the daemon kills it. Reversible — `docker start` brings it back with the same id, disk and configuration — which is why this is Write and not Destructive. Except for a container started to remove itself when it stops (AutoRemove), which the daemon removes: the preview and the receipt say so, and an agent is refused it, as it is any stop of a container docker could not first be asked about.
 
 | Field                | Value                                                                                                                                                                                                         |
 |----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
