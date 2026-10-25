@@ -16,9 +16,10 @@ import (
 // column names, types, keys and sizes are all things somebody declared rather
 // than things somebody entered.
 //
-// The line matters because it is what makes `--allow-read` worth granting. An
-// agent with nothing but the read tier can tell you what this database is,
-// what is in it and what shape it has, and cannot return one row of it.
+// The line matters because it is what makes the read tier, which an agent
+// reaches with no grant, safe to leave open: an agent with nothing but that tier
+// can tell you what this database is, what is in it and what shape it has, and
+// cannot return one row of it.
 
 // schemaField names the database to describe. It falls back to the connection's
 // own `database` rather than defaulting to a name this plugin invented, so the

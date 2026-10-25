@@ -453,12 +453,10 @@ func backupRequestCapability() plugin.Capability {
 		// costing a full copy of the database in whatever the cluster pays
 		// for storage.
 		Idempotent: false,
-		// A grant, even though Write already keeps this off the default MCP
-		// surface — `--allow-write cnpg` is what puts it there at all. The two
-		// gates answer different questions and the operator wants both: the
-		// flag is "this plugin may change things on this server", said once at
-		// launch, and the grant is "this agent may back up this cluster until
-		// this time", said per agent and expiring on its own.
+		// A grant, which Write costs on its own and which is declared all the
+		// same, beside the Scope that narrows it: "this agent may back up this
+		// cluster until this time", said per agent by a person and expiring on
+		// its own.
 		NeedsGrant: true,
 		// The cluster, so a grant to back up one database is not a grant to
 		// back up every database the kubeconfig can reach.
