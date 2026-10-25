@@ -243,6 +243,7 @@ type inspected struct {
 		RestartPolicy struct {
 			Name string `json:"Name"`
 		} `json:"RestartPolicy"`
+		AutoRemove bool `json:"AutoRemove"`
 	} `json:"HostConfig"`
 	Mounts []struct {
 		Type        string `json:"Type"`
@@ -397,7 +398,11 @@ func envView(env []string, masked bool) view.View {
 // One function because the three differ only in the verb and in what they
 // have to say about consequences — and because a dry-run that is assembled
 // separately from the act it previews is a dry-run that drifts from it.
-func mutate(ctx context.Context, req plugin.Request, verb string,
+//
+// target is the container it finds and acts on: the name the call gave, or
+// the id a check made of that name answered with, so that what was checked is
+// what is acted on (runStop). args go before it on docker's command line.
+func mutate(ctx context.Context, req plugin.Request, verb, target string,
 	preview func(containerRow) string, done func(containerRow) []view.Pair, args ...string,
 ) (view.View, error) {
 	c, verr := connectionOf(req)
@@ -408,6 +413,9 @@ func mutate(ctx context.Context, req plugin.Request, verb string,
 	if verr := checkName("container", name); verr != nil {
 		return nil, verr
 	}
+	if verr := checkName("container", target); verr != nil {
+		return nil, verr
+	}
 	// Every container, stopped ones included: `rm` acts on a stopped
 	// container and `stop` needs to know it is already stopped, so the
 	// running-only default would make both of them wrong.
@@ -415,14 +423,14 @@ func mutate(ctx context.Context, req plugin.Request, verb string,
 	if verr != nil {
 		return nil, verr
 	}
-	found, ok := findContainer(rows, name)
+	found, ok := findContainer(rows, target)
 	if !ok {
 		return nil, c.notFound(name)
 	}
 	if req.DryRun {
 		return view.Text{Body: preview(found)}, nil
 	}
-	if _, verr := run(ctx, c, append([]string{verb}, args...)...); verr != nil {
+	if _, verr := run(ctx, c, append(append([]string{verb}, args...), target)...); verr != nil {
 		return nil, verr
 	}
 	return view.KeyValue{Pairs: done(found)}, nil
@@ -451,27 +459,95 @@ func runStop(ctx context.Context, req plugin.Request) (view.View, error) {
 	// below runs only after it has answered, so this one cannot be the invalid
 	// one, and is read for the daemon the line that starts it again names.
 	c, _ := connectionOf(req)
-	return mutate(ctx, req, "stop",
+	// **A container started with --rm is removed as it stops.** The daemon
+	// deletes it, its writable layer and its anonymous volumes, and there is
+	// nothing for `docker start` to bring back — so the stop the description
+	// calls reversible, and the class Write is set by, is not the act this one
+	// is. The receipt said "reversible — yes" over a container that no longer
+	// existed.
+	//
+	// A person is told so before and after, and goes ahead: whoever started
+	// the container with --rm meant it to go when it stops. An agent is
+	// refused. Its grant was for the stop that can be undone; removing a
+	// running container is two decisions, the same two rm refuses to make in
+	// one call, and the second is not one a grant to stop was asked for.
+	//
+	// **An agent's stop that could not be judged is refused too.** An inspect
+	// that failed — a daemon slower than the command's timeout, an ssh
+	// DOCKER_HOST that dropped the connection, an answer that does not parse —
+	// read as "not started with --rm", and the stop went on to remove the
+	// container the refusal is there to keep, under a receipt saying `docker
+	// start` brings it back. Only a name the daemon does not hold goes on, to
+	// be refused in mutate's words.
+	//
+	// **And what is stopped is what was judged.** The stop named the container
+	// again, and the daemon resolved that name a second time: a name moved to
+	// another container in between was judged on one and stopped the other. The
+	// stop is sent to the id the inspect answered with.
+	id, removes, judged := stopTarget(ctx, req)
+	if req.Surface() == plugin.SurfaceMCP {
+		switch {
+		case judged != nil && judged.Code != "docker.notfound":
+			return nil, view.Refusef("docker.container.unjudged",
+				"whether stopping %s removes it could not be told, so it was not stopped: %s", name, judged.Message).
+				WithHint("a grant to stop covers a stop that can be undone: try again once docker answers, " +
+					"or ask the operator to stop it")
+		case removes:
+			return nil, view.Refusef("docker.container.autoremove",
+				"%s was started to remove itself when it stops (AutoRemove), so stopping it removes it, "+
+					"with nothing left to start again", name).
+				WithHint("a grant to stop covers a stop that can be undone: ask the operator to stop it, " +
+					"which removes it")
+		}
+	}
+	target := name
+	if id != "" {
+		target = id
+	}
+	return mutate(ctx, req, "stop", target,
 		func(r containerRow) string {
 			if !strings.EqualFold(r.State, "running") {
 				return fmt.Sprintf("%s is already %s — stopping it would do nothing", r.Names, r.State)
 			}
-			return fmt.Sprintf("would stop %s (%s), giving it %ds to exit before the daemon kills it",
+			line := fmt.Sprintf("would stop %s (%s), giving it %ds to exit before the daemon kills it",
 				r.Names, r.Image, stopSeconds)
+			if removes {
+				line += " — it was started to remove itself when it stops (AutoRemove), so the daemon " +
+					"removes it, with its writable layer and anonymous volumes, and it cannot be started again"
+			}
+			return line
 		},
 		func(r containerRow) []view.Pair {
+			reversible := "yes — `" + c.startLine(r.Names) + "` brings it back unchanged"
+			if removes {
+				reversible = "no — it was started to remove itself when it stops (AutoRemove), and the daemon removed it"
+			}
 			return []view.Pair{
 				{Key: "stopped", Value: r.Names},
 				{Key: "image", Value: r.Image},
-				{Key: "reversible", Value: "yes — `" + c.startLine(r.Names) + "` brings it back unchanged"},
+				{Key: "reversible", Value: reversible},
 			}
 		},
-		fmt.Sprintf("--time=%d", stopSeconds), name)
+		fmt.Sprintf("--time=%d", stopSeconds))
+}
+
+// stopTarget is the container a stop of the one the request names acts on: the
+// id the daemon's inspect answered with, and whether it is running and was
+// started with --rm (HostConfig.AutoRemove), so that the daemon removes it the
+// moment it stops. judged is the inspect's failure, when it failed:
+// docker.notfound for a name the daemon does not hold, and anything else for a
+// container whose stop nothing could judge.
+func stopTarget(ctx context.Context, req plugin.Request) (id string, removes bool, judged *view.Error) {
+	d, _, _, verr := inspectOne(ctx, req)
+	if verr != nil {
+		return "", false, verr
+	}
+	return d.ID, d.State.Running && d.HostConfig.AutoRemove, nil
 }
 
 func runRestart(ctx context.Context, req plugin.Request) (view.View, error) {
 	name := strings.TrimSpace(req.String("container"))
-	return mutate(ctx, req, "restart",
+	return mutate(ctx, req, "restart", name,
 		func(r containerRow) string {
 			return fmt.Sprintf("would restart %s (%s) — it keeps its id, volumes and configuration, "+
 				"and loses whatever was only in memory", r.Names, r.Image)
@@ -482,7 +558,7 @@ func runRestart(ctx context.Context, req plugin.Request) (view.View, error) {
 				{Key: "image", Value: r.Image},
 			}
 		},
-		fmt.Sprintf("--time=%d", stopSeconds), name)
+		fmt.Sprintf("--time=%d", stopSeconds))
 }
 
 func runRemove(ctx context.Context, req plugin.Request) (view.View, error) {

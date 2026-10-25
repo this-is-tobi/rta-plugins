@@ -222,7 +222,10 @@ func Plugin() plugin.Plugin {
 				Keywords: []string{"halt", "shutdown", "sigterm", "down"},
 				Description: "Sends SIGTERM and gives the container time to exit before the daemon " +
 					"kills it. Reversible — `docker start` brings it back with the same id, disk " +
-					"and configuration — which is why this is Write and not Destructive.",
+					"and configuration — which is why this is Write and not Destructive. Except for a " +
+					"container started to remove itself when it stops (AutoRemove), which the daemon removes: " +
+					"the preview and the receipt say so, and an agent is refused it, as it is any stop of a " +
+					"container docker could not first be asked about.",
 				Safety:     plugin.Write,
 				Idempotent: true,
 				NeedsGrant: true,
@@ -268,8 +271,8 @@ func Plugin() plugin.Plugin {
 					"decisions and only one of them was made here.",
 				// The one genuine delete in this plugin, and the place docker
 				// accepts a risk kube declined for the equivalent case (no pod
-				// delete). Destructive, so it is behind --allow-destructive as
-				// well as a grant, and rta will preview it.
+				// delete). Destructive, so a person is asked before it runs and
+				// an agent needs a grant for it.
 				Safety:     plugin.Destructive,
 				NeedsGrant: true,
 				Scope:      "container",
