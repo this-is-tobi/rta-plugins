@@ -499,11 +499,11 @@ func TestOnlyTheBackupRequestWritesAndItIsGatedTwice(t *testing.T) {
 		if c.ID == "cnpg.backup.request" {
 			switch {
 			case c.Safety != plugin.Write:
-				t.Errorf("%s is %v, want Write — Read would put it on the default MCP surface",
+				t.Errorf("%s is %v, want Write — Read would let an agent call it with no grant",
 					c.ID, c.Safety)
 			case !c.NeedsGrant:
-				t.Errorf("%s does not need a grant, so --allow-write cnpg would be the "+
-					"whole decision, made once and never expiring", c.ID)
+				t.Errorf("%s does not declare the grant each call of it costs, beside the scope "+
+					"that narrows it", c.ID)
 			case c.Scope != "cluster":
 				t.Errorf("%s is scoped to %q, want the cluster — otherwise a grant to back "+
 					"up one database is a grant to back up every one the kubeconfig reaches",

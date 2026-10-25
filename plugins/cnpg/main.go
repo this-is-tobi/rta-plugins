@@ -44,14 +44,12 @@
 // exists because a caller could name a place — `net.probe` and `cert.expiry`
 // were closed for exactly that — and here there is no place to name.
 //
-// It is still gated twice over. Safety: Write keeps it off the default MCP
-// surface entirely, so an agent sees it only after an operator passes
-// `--allow-write cnpg`; NeedsGrant then makes each call a decision that
-// names the cluster and expires on its own. The blanket claim that used to
-// stand here — "an agent granted this can change nothing" — was a simpler
-// sentence than the boundary's actual answer, and the actual answer is the
-// one that holds: nothing reaches an agent that an operator did not turn on
-// and then grant.
+// It is still gated. Safety: Write means an agent is refused every call until
+// a person issues a grant, which names the cluster and expires on its own. The
+// blanket claim that used to stand here — "an agent granted this can change
+// nothing" — was a simpler sentence than the boundary's actual answer, and the
+// actual answer is the one that holds: nothing reaches an agent that a person
+// did not grant.
 //
 // # Reading several namespaces
 //

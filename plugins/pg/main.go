@@ -417,12 +417,12 @@ func Plugin() plugin.Plugin {
 				// because there is no table known to be safe: orders carry
 				// addresses, events carry payloads, logs carry tokens.
 				//
-				// What it buys is a read tier that means something. With
-				// --allow-read alone this plugin now describes the database —
-				// what server it is, what is in it, what shape it has, what
-				// is stuck — and returns no value stored in it. --allow-write
-				// is where rows live. That sentence was not true before and
-				// the description claimed it anyway.
+				// What it buys is a read tier that means something. With no
+				// grant an agent gets this plugin's description of the
+				// database — what server it is, what is in it, what shape it
+				// has, what is stuck — and no value stored in it. A grant is
+				// where rows live. That sentence was not true before and the
+				// description claimed it anyway.
 				Safety:     plugin.Write,
 				Idempotent: true,
 				Description: "Runs inside a READ ONLY transaction, so the server refuses any " +
@@ -539,9 +539,9 @@ func Plugin() plugin.Plugin {
 				// Write, and nothing here mutates: the transaction is READ
 				// ONLY and the server enforces it. The class is about
 				// disclosure, exactly as kv.get is read — and it is
-				// what keeps the read-only MCP tier coherent, since with
-				// --allow-read alone this plugin answers about health, shape
-				// and activity and hands over no bulk rows.
+				// what keeps the read-only MCP tier coherent, since without
+				// a grant this plugin answers about health, shape and
+				// activity and hands over no bulk rows.
 				//
 				// **A capability whose blast radius cannot be named in a grant
 				// does not belong on the agent surface** — which is why

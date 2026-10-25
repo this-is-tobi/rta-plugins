@@ -25,8 +25,9 @@ import (
 // reason.
 type grading struct {
 	// mcp is the weakest tier that exposes this capability at all:
-	// "read" for anything Safety Read, "write" for --allow-write pg, and
-	// "never" for one that refuses the surface outright.
+	// "read" for anything Safety Read, which an agent calls with no grant,
+	// "write" for one each call of which costs a grant, and "never" for one
+	// that refuses the surface outright.
 	mcp string
 	// consent is what a call over MCP costs: "" for none, "grant" for a
 	// grant the person issues, naming the record in scope when there is one.
@@ -47,9 +48,9 @@ type grading struct {
 	bound string
 }
 
-// **The line between the two tiers, in one sentence:** `--allow-read pg`
-// describes the database and returns no value stored in it; `--allow-write
-// pg` returns values.
+// **The line between the two tiers, in one sentence:** what an agent reaches
+// with no grant describes the database and returns no value stored in it; what
+// costs a grant returns values.
 //
 // From the user, and it is what forced this file to be rewritten once:
 // *"almost every table could store sensitive data in a db, not only user
@@ -97,9 +98,9 @@ var expected = map[string]grading{
 	// schema_test.go is what holds that claim up.
 	"pg.schema": {mcp: "read"},
 
-	// The one that hands over rows in bulk. Write so it needs
-	// --allow-write pg, NeedsGrant so a person allows the call, and scoped
-	// on the table so the grant names one relation rather than the database.
+	// The one that hands over rows in bulk. Write and NeedsGrant, so a
+	// person allows the call, and scoped on the table so the grant names one
+	// relation rather than the database.
 	"pg.table.rows": {mcp: "write", consent: "grant", scope: "table", bound: "caller"},
 
 	// No blast radius a grant could name, so it does not reach the surface
@@ -136,7 +137,7 @@ func TestEveryCapabilityIsGradedDeliberately(t *testing.T) {
 			}
 		case "write", "never":
 			if c.Safety == plugin.Read {
-				t.Errorf("%s: safety = read, so --allow-read alone exposes it; want write", c.ID)
+				t.Errorf("%s: safety = read, so an agent reaches it with no grant; want write", c.ID)
 			}
 		}
 
@@ -302,7 +303,7 @@ func TestOnlyDescribingCapabilitiesAreInTheReadTier(t *testing.T) {
 			continue
 		}
 		if !slices.Contains(describes, c.ID) {
-			t.Errorf("%s is Read, so --allow-read alone exposes it — the read tier is for "+
+			t.Errorf("%s is Read, so an agent reaches it with no grant — the read tier is for "+
 				"capabilities that describe the database and return no value stored in it", c.ID)
 		}
 	}

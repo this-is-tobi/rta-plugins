@@ -40,17 +40,16 @@ import (
 //
 // Three gates, and each one is a different question:
 //
-//   - **Safety: Write**, so it is not a tool at all unless the operator
-//     passed --allow-write pg. Nothing here mutates and the transaction is
-//     READ ONLY, so the class is about disclosure rather than mutation —
-//     exactly the reading kv.get gets, whose entire purpose is
-//     revealing something and which is classified write for that reason.
-//     It also keeps the read-only MCP tier coherent: with --allow-read
-//     alone, pg answers about health, shape and activity, and hands over no
-//     bulk rows.
+//   - **Safety: Write**, so an agent is refused it until a person issues a
+//     grant. Nothing here mutates and the transaction is READ ONLY, so the
+//     class is about disclosure rather than mutation — exactly the reading
+//     kv.get gets, whose entire purpose is revealing something and which is
+//     classified write for that reason. It also keeps the read-only MCP tier
+//     coherent: with no grant, pg answers about health, shape and activity,
+//     and hands over no bulk rows.
 //   - **NeedsGrant with Scope "table"**, so a person named the relation and
-//     the grant expires. Write does not imply a grant (grant.Required is
-//     NeedsGrant, Destructive, or a profiled call), so this is opted into.
+//     the grant expires. Every class above Read costs a grant
+//     (grant.Required); the scope is what narrows this one to a relation.
 //   - **A bound on rows and on bytes**, refused rather than truncated,
 //     because a shortened table is a different answer wearing the right
 //     shape.
