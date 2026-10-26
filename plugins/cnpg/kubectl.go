@@ -125,7 +125,7 @@ func connectionOf(req plugin.Request) (selection, *view.Error) {
 		s.reach = req.ReachArgs(plugin.Arg{Name: "context", Value: s.context})
 	}
 	if verr := checkName("context", s.context); verr != nil {
-		return selection{}, verr
+		return selection{}, verr.WithInput("context")
 	}
 	return s, nil
 }
@@ -138,7 +138,7 @@ func selectionOf(req plugin.Request) (selection, *view.Error) {
 	s.namespace = strings.TrimSpace(req.String("namespace"))
 	s.allNamespace = req.Bool("all-namespaces")
 	if verr := checkName("namespace", s.namespace); verr != nil {
-		return selection{}, verr
+		return selection{}, verr.WithInput("namespace")
 	}
 	if verr := s.refuseBoth(); verr != nil {
 		return selection{}, verr
@@ -422,7 +422,8 @@ func classify(ctx context.Context, err error, stderr string, args []string, by c
 		strings.Contains(s, "does not exist") && strings.Contains(s, "context"):
 		return view.Errorf("cnpg.context.none", "%s", firstLine(s)).
 			WithHint("kubectl has no context to ask — `kubectl config get-contexts` shows what this machine " +
-				"has, and the context this call used is the operator's to change")
+				"has, and the context this call used is the operator's to change").
+			WithInput(contextRefused(s, args))
 	case strings.Contains(s, "not found"):
 		return objectMissing(by, s, askedOf(s, args))
 	case s == "":
@@ -432,6 +433,27 @@ func classify(ctx context.Context, err error, stderr string, args []string, by c
 	return view.Errorf("cnpg.kubectl.failed", "%s", firstLine(s)).
 		WithHint("that message is kubectl's; this plugin shells out to it so your cluster " +
 			"credentials keep working")
+}
+
+// contextRefused is the input kubectl's refusal of a context names
+// (view.Error.Input): the context, when the call was given one (--context=)
+// and kubectl answered that there is no such context. A kubeconfig with no
+// current context, with no configuration at all, or whose current context names
+// one it does not hold names none: that is the file's word, no box of the call
+// holds it, and a form reopened on the empty context box would point at
+// something nobody typed.
+func contextRefused(stderr string, args []string) string {
+	unknown := strings.Contains(stderr, "context was not found") ||
+		strings.Contains(stderr, "does not exist") && strings.Contains(stderr, "context")
+	if !unknown {
+		return ""
+	}
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "--context=") {
+			return "context"
+		}
+	}
+	return ""
 }
 
 // unreachable reports whether stderr is the connection to the API server
@@ -492,6 +514,17 @@ func firstLine(s string) string {
 // getJSON reads one or many clusters and decodes into out.
 func getJSON(ctx context.Context, s selection, name string, out any) *view.Error {
 	return getResource(ctx, s, clusterCRD, name, out)
+}
+
+// namedCluster is a failed read of the one cluster a call names in its
+// `cluster` input: a cluster that is not there is that input's refusal
+// (view.Error.Input), and every other failure is the connection's, the
+// credential's or the cluster's, which name none.
+func namedCluster(verr *view.Error) *view.Error {
+	if verr.Code == "cnpg.cluster.missing" {
+		return verr.WithInput("cluster")
+	}
+	return verr
 }
 
 // getResource is getJSON over any of the two resources this plugin reads.

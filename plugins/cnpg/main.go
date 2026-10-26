@@ -515,11 +515,11 @@ func runStatus(ctx context.Context, req plugin.Request) (view.View, error) {
 	}
 	name := req.String("cluster")
 	if verr := checkName("cluster", name); verr != nil {
-		return nil, verr
+		return nil, verr.WithInput("cluster")
 	}
 	var c cluster
 	if verr := getJSON(ctx, s, name, &c); verr != nil {
-		return nil, verr
+		return nil, namedCluster(verr)
 	}
 	return statusView(c, pointers{lag: lagPointer(req), backups: s.backupListOf(c), arrangement: s.backupShowOf(c)}), nil
 }

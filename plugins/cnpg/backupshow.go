@@ -304,15 +304,15 @@ func runBackupShow(ctx context.Context, req plugin.Request) (view.View, error) {
 	}
 	name := strings.TrimSpace(req.String("cluster"))
 	if verr := checkName("cluster", name); verr != nil {
-		return nil, verr
+		return nil, verr.WithInput("cluster")
 	}
 	if name == "" {
 		return nil, view.Errorf("cnpg.backup.nocluster", "no cluster named").
-			WithHint(s.caller().listEverywhere() + " shows what is there")
+			WithHint(s.caller().listEverywhere() + " shows what is there").WithInput("cluster")
 	}
 	var c cluster
 	if verr := getJSON(ctx, s, name, &c); verr != nil {
-		return nil, verr
+		return nil, namedCluster(verr)
 	}
 
 	// The secondary reads are made in the Cluster's own namespace, which is
