@@ -268,11 +268,11 @@ func inspectOne(ctx context.Context, req plugin.Request) (d inspected, name stri
 	}
 	name = strings.TrimSpace(req.String("container"))
 	if verr = checkName("container", name); verr != nil {
-		return d, name, c, verr
+		return d, name, c, verr.WithInput("container")
 	}
 	raw, verr := run(ctx, c, "inspect", name)
 	if verr != nil {
-		return d, name, c, verr
+		return d, name, c, ofContainer(verr)
 	}
 	var got []inspected
 	if err := json.Unmarshal(raw, &got); err != nil {
@@ -411,8 +411,11 @@ func mutate(ctx context.Context, req plugin.Request, verb, target string,
 	}
 	name := strings.TrimSpace(req.String("container"))
 	if verr := checkName("container", name); verr != nil {
-		return nil, verr
+		return nil, verr.WithInput("container")
 	}
+	// No input named here: a target that is not the name checked above is the
+	// id the daemon's inspect answered with, so a refusal of it is of docker's
+	// answer, not of a value the call was given.
 	if verr := checkName("container", target); verr != nil {
 		return nil, verr
 	}
@@ -431,7 +434,7 @@ func mutate(ctx context.Context, req plugin.Request, verb, target string,
 		return view.Text{Body: preview(found)}, nil
 	}
 	if _, verr := run(ctx, c, append(append([]string{verb}, args...), target)...); verr != nil {
-		return nil, verr
+		return nil, ofContainer(verr)
 	}
 	return view.KeyValue{Pairs: done(found)}, nil
 }
@@ -568,7 +571,7 @@ func runRemove(ctx context.Context, req plugin.Request) (view.View, error) {
 		return nil, verr
 	}
 	if verr := checkName("container", name); verr != nil {
-		return nil, verr
+		return nil, verr.WithInput("container")
 	}
 	rows, verr := fetchContainers(ctx, c, true)
 	if verr != nil {
@@ -596,7 +599,7 @@ func runRemove(ctx context.Context, req plugin.Request) (view.View, error) {
 				"inside it that was not on a volume is gone for good", found.Names, found.Image, found.Status)}, nil
 	}
 	if _, verr := run(ctx, c, "rm", name); verr != nil {
-		return nil, verr
+		return nil, ofContainer(verr)
 	}
 	return view.KeyValue{Pairs: []view.Pair{
 		{Key: "removed", Value: found.Names},
