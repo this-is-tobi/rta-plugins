@@ -4,7 +4,7 @@ go 1.26.10
 
 require (
 	github.com/goccy/go-yaml v1.19.2
-	github.com/this-is-tobi/rta v0.49.1
+	github.com/this-is-tobi/rta v0.50.0
 )
 
 require (
