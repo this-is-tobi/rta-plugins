@@ -79,3 +79,20 @@ func TestAnAnswerWithNoBodyIsRefusedRatherThanPanicking(t *testing.T) {
 		})
 	}
 }
+
+// Vault's 404 for a version asked for by number is the same for a path that is
+// not there and a version that is not, so the refusal says both, and points at
+// the history, which tells the two apart.
+func TestAMissingVersionIsNotSaidToBeAMissingPath(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	t.Cleanup(srv.Close)
+	_, err := runKVGet(context.Background(), req(t, "vault.kv.get",
+		map[string]any{"url": srv.URL, "token": "t", "path": "app/db", "version": 3}))
+	var verr *view.Error
+	if !errors.As(err, &verr) || verr.Code != "vault.notfound" || verr.Input != "" ||
+		!strings.Contains(verr.Message, "no version 3") || !strings.Contains(verr.Hint, "history") {
+		t.Errorf("a version that is not there = %+v", verr)
+	}
+}

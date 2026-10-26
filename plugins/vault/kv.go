@@ -236,8 +236,19 @@ func runKVGet(ctx context.Context, req plugin.Request) (view.View, error) {
 			// path the box the caller holds. One asked for by number is the
 			// path's or the version's, and Vault's answer is the same empty 404
 			// for both, so it names neither.
-			if req.Int("version") > 0 {
-				return nil, classify(err, req)
+			//
+			// And its words say both: "nothing at that path" said only one of
+			// them, and the wrong one whenever the path is there and the
+			// version is not.
+			if v := req.Int("version"); v > 0 {
+				verr := classify(err, req)
+				if verr.Code == "vault.notfound" {
+					return nil, view.Errorf("vault.notfound", "no version %d at that path on %s, or nothing at the path at all",
+						v, reached(req)).
+						WithHint(nextCall(req, "vault.kv.history", plugin.Arg{Name: "path", Value: req.String("path"), Positional: true}) +
+							" lists the versions there are, and fails the same way when the path is not there")
+				}
+				return nil, verr
 			}
 			return nil, naming(classify(err, req), "path", "vault.notfound")
 		}
