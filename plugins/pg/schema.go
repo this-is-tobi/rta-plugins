@@ -114,7 +114,9 @@ func runSchema(ctx context.Context, req plugin.Request) (view.View, error) {
 // unknownSchema is the refusal for a schema this role cannot see or that is
 // not there, or nil when it is. It is the one answer both the dump and the
 // table listing give, so a name that is wrong reads the same wherever it is
-// typed.
+// typed. It names the schema input (view.Error.Input), which pg.schema,
+// pg.table.list and pg.overview each declare under that name; a caller that
+// called it something else would have to name its own.
 func unknownSchema(ctx context.Context, q querier, req plugin.Request, schema string) *view.Error {
 	names, err := schemaNames(ctx, q)
 	if err != nil {
@@ -124,7 +126,7 @@ func unknownSchema(ctx context.Context, q querier, req plugin.Request, schema st
 		return nil
 	}
 	e := view.Errorf("pg.schema.missing", "%s has no schema named %q",
-		req.String("database"), schema)
+		req.String("database"), schema).WithInput("schema")
 	if len(names) == 0 {
 		return e.WithHint("this role can see no schemas at all in this database — " +
 			nextCall(req, "pg.status") + " shows which role the connection is using")
@@ -158,7 +160,7 @@ func schemaDDL(ctx context.Context, q querier, req plugin.Request) (view.View, e
 			"the description of schema %s is %s, over the %s a result may be",
 			quotedName(schema), format.Bytes(len(body)), format.Bytes(maxBytes)).
 			WithHint("lower " + req.Surface().InputName("limit") + " to describe fewer tables, or use " +
-				"`pg_dump --schema-only` for a schema this large")
+				"`pg_dump --schema-only` for a schema this large").WithInput("limit")
 	}
 	return view.Text{Body: body}, nil
 }

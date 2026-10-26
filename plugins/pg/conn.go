@@ -368,12 +368,12 @@ func checkRootCert(req plugin.Request) *view.Error {
 	if err != nil {
 		return view.Errorf("pg.tls.ca.unreadable", "%v", err).
 			WithHint(t.rootSetting(sf) + " names a file on this machine, read by rta rather than by the " +
-				"server, holding the CA's certificate in PEM")
+				"server, holding the CA's certificate in PEM").WithInput(pathInput(t.rootInput(), err))
 	}
 	if !x509.NewCertPool().AppendCertsFromPEM(pem) {
 		return view.Errorf("pg.tls.ca.invalid", "%s holds no PEM certificate", path).
 			WithHint(t.rootSetting(sf) + " wants a PEM certificate — the CA's, or a self-signed " +
-				"server's own — and a private key or a DER-encoded certificate is not one")
+				"server's own — and a private key or a DER-encoded certificate is not one").WithInput(t.rootInput())
 	}
 	return nil
 }
@@ -444,7 +444,7 @@ func classify(err error, req plugin.Request) *view.Error {
 		case "3D000": // invalid_catalog_name
 			return view.Errorf("pg.database.missing", "%s has no database named %q",
 				req.Reached(where), req.String("database")).
-				WithHint(nextCall(req, "pg.database.list") + " shows what is there")
+				WithHint(nextCall(req, "pg.database.list") + " shows what is there").WithInput("database")
 		case "42501": // insufficient_privilege
 			return view.Errorf("pg.denied", "%q may not do that on %s",
 				req.String("user"), req.String("database")).
@@ -529,8 +529,16 @@ func classify(err error, req plugin.Request) *view.Error {
 	}
 	var dnsErr *net.DNSError
 	if errors.As(err, &dnsErr) {
-		return view.Errorf("pg.host.unknown", "no address for %q", req.String("host")).
+		unknown := view.Errorf("pg.host.unknown", "no address for %q", req.String("host")).
 			WithHint(sf.DNSHint(req.String("host")))
+		// The host's own refusal only when the resolver answered that the name
+		// does not exist, which is what a mistyped one gets. A resolver that did
+		// not answer, or failed, says nothing of the name: the network is what
+		// failed, and no box holds the fix (rta's net.probe draws the same line).
+		if dnsErr.IsNotFound {
+			return unknown.WithInput("host")
+		}
+		return unknown
 	}
 	if strings.Contains(err.Error(), "SSL is not enabled") ||
 		strings.Contains(err.Error(), "server does not support SSL") {
@@ -616,6 +624,33 @@ func classify(err error, req plugin.Request) *view.Error {
 	}
 	return view.Errorf("pg.conn.failed", "could not connect to %s: %v", where, err).
 		WithHint(sf.SettingsHint("pg.status"))
+}
+
+// statementInput is pg.query's refusal naming its sql input when the server
+// refused the statement for what it says, which another statement in that box
+// is the fix for: by the SQLSTATE classes the standard keeps for the statement
+// and its data — syntax and the names in it (42: a table, a column or a
+// function that is not there), data exceptions (22: a division by zero, text
+// that is no number), a feature PostgreSQL does not have (0A), a subquery that
+// answered more than one row (21) — and the write the READ ONLY transaction
+// refused (25006). Every other failure names none: a statement cancelled, out
+// of memory, or rolled back for a conflict may be exactly right, and trying
+// again, or the server, is the answer there.
+//
+// By the code classify gave as well as by the class: 42501 is the role's
+// privilege, which classify reads as pg.denied, and no box holds that.
+func statementInput(verr *view.Error, err error) *view.Error {
+	var pgErr *pgconn.PgError
+	if verr.Code != "pg.query.failed" || !errors.As(err, &pgErr) {
+		return verr
+	}
+	switch code := pgErr.Code; {
+	case strings.HasPrefix(code, "42"), strings.HasPrefix(code, "22"),
+		strings.HasPrefix(code, "0A"), strings.HasPrefix(code, "21"),
+		code == "25006": // read_only_sql_transaction
+		return verr.WithInput("sql")
+	}
+	return verr
 }
 
 // nameRefusal is pg.tls.name: the certificate presented at where refused for

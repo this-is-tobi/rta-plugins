@@ -137,13 +137,15 @@ func resolveRelation(ctx context.Context, q querier, req plugin.Request) (relati
 			// unqualified name would resolve through whichever schema comes
 			// first, so the exact-match grant a person issued and the table
 			// actually read could disagree. That is a policy line about
-			// who is asking, which is Refusef's test.
+			// who is asking, which is Refusef's test. It names table all the
+			// same (view.Error.Input): the bare name is what is refused, and
+			// schema.table in that argument is what is sent again.
 			return relation{}, view.Refusef("pg.table.unqualified",
 				"name the table as schema.table, not %q", raw).
 				WithHint("a grant for this name will not help — grants are matched exactly, so " +
 					"an unqualified one would follow whichever schema resolves first. For the " +
 					"qualified name, " + plugin.AskOperator("grant allow pg.table.rows <schema>."+raw) + "; " +
-					nextCall(req, "pg.table.list") + " shows the schema of each table")
+					nextCall(req, "pg.table.list") + " shows the schema of each table").WithInput("table")
 		}
 		schema, name = "", raw
 	}
@@ -180,7 +182,7 @@ func resolveRelation(ctx context.Context, q querier, req plugin.Request) (relati
 			"%s has no table named %q", req.String("database"), raw).
 			WithHint(nextCall(req, "pg.table.list") + " shows what is there — foreign tables and the " +
 				"system catalogues are deliberately not read here, since neither has rows " +
-				"this database owns")
+				"this database owns").WithInput("table")
 	default:
 		var where []string
 		for _, r := range found {
@@ -190,7 +192,7 @@ func resolveRelation(ctx context.Context, q querier, req plugin.Request) (relati
 		// name never quietly means a different table than it did yesterday.
 		return relation{}, view.Errorf("pg.table.ambiguous",
 			"%q names more than one table", raw).
-			WithHint("say which: " + strings.Join(where, ", "))
+			WithHint("say which: " + strings.Join(where, ", ")).WithInput("table")
 	}
 }
 
@@ -224,7 +226,7 @@ func readRows(ctx context.Context, q querier, req plugin.Request, rel relation) 
 			if !slices.Contains(cols, w) {
 				return nil, view.Errorf("pg.column.missing",
 					"%s has no column %q", rel.listed(), w).
-					WithHint("it has: " + listedNames(cols))
+					WithHint("it has: " + listedNames(cols)).WithInput("columns")
 			}
 			selected = append(selected, w)
 		}

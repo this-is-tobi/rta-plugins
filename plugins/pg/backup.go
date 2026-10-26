@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/this-is-tobi/rta/pkg/format"
@@ -76,7 +77,7 @@ func runFullDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	if out == "" {
 		return nil, view.Errorf("pg.dump.nooutput", "say where the dump should be written").
 			WithHint(req.Surface().SettingTo("out", "./"+req.String("database")+backupSuffix(req.String("format"))) +
-				" — a whole database is a file, not something to read in a terminal")
+				" — a whole database is a file, not something to read in a terminal").WithInput("out")
 	}
 	path, err := expandHome(out)
 	if err != nil {
@@ -350,12 +351,12 @@ func writeDump(ctx context.Context, tool string, args []string,
 		// the no-overwrite guarantee lives. MkdirAll on the leaf would accept
 		// an existing directory and lose whatever was in it.
 		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-			return 0, view.Errorf("pg.dump.create", "creating %s: %v", filepath.Dir(path), err)
+			return 0, view.Errorf("pg.dump.create", "creating %s: %v", filepath.Dir(path), err).WithInput("out")
 		}
 		if err := os.Mkdir(path, 0o700); errors.Is(err, os.ErrExist) {
 			return 0, alreadyThere(path)
 		} else if err != nil {
-			return 0, view.Errorf("pg.dump.create", "creating %s: %v", path, err)
+			return 0, view.Errorf("pg.dump.create", "creating %s: %v", path, err).WithInput("out")
 		}
 		if verr := runDumpTool(ctx, tool, args, req, nil); verr != nil {
 			_ = os.RemoveAll(path)
@@ -369,7 +370,7 @@ func writeDump(ctx context.Context, tool string, args []string,
 		return 0, alreadyThere(path)
 	}
 	if err != nil {
-		return 0, view.Errorf("pg.dump.create", "creating %s: %v", path, err)
+		return 0, view.Errorf("pg.dump.create", "creating %s: %v", path, err).WithInput("out")
 	}
 	verr := runDumpTool(ctx, tool, args, req, f)
 	closeErr := f.Close()
@@ -382,7 +383,7 @@ func writeDump(ctx context.Context, tool string, args []string,
 		return 0, verr
 	case closeErr != nil:
 		_ = os.Remove(path)
-		return 0, view.Errorf("pg.dump.write", "finishing %s: %v", path, closeErr)
+		return 0, view.Errorf("pg.dump.write", "finishing %s: %v", path, closeErr).WithInput("out")
 	}
 	return sizeOnDisk(path), nil
 }
@@ -390,7 +391,7 @@ func writeDump(ctx context.Context, tool string, args []string,
 func alreadyThere(path string) *view.Error {
 	return view.Errorf("pg.dump.exists", "%s already exists", path).
 		WithHint("a dump is never written over an existing file — name a new one, or " +
-			"move that one aside")
+			"move that one aside").WithInput("out")
 }
 
 // sizeOnDisk measures what was written — one file, or every file under a
@@ -652,7 +653,7 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 				"transaction. rta will not run `pg_dump --no-synchronized-snapshots` to make " +
 				req.Surface().InputName("jobs") + " work here: that drops the " +
 				"guarantee that every table came from the same instant, and a dump without it " +
-				"restores without complaint into a state that never existed")
+				"restores without complaint into a state that never existed").WithInput("jobs")
 	case strings.Contains(stderr, "server version") && strings.Contains(stderr, "aborting"):
 		// The one failure nobody guesses from the message, because it reads
 		// like a server problem and is a client one.
@@ -812,4 +813,18 @@ func lastLine(s string) string {
 // relative "." answers nothing.
 func expandHome(p string) (string, error) {
 	return filepath.Abs(plugin.ExpandHome(p))
+}
+
+// pathInput is the input a refusal to read the file a path input names is
+// about (view.Error.Input): input itself when err says the path is what is
+// wrong — nothing is there, a directory is where a file was wanted, or a file
+// where a directory was — so the form the call came from opens again on that
+// box, and none when the file is there and cannot be read, which no box
+// answers: the path is right, and the fix is a chmod or the machine. rta's own
+// built-ins hold their paths to the same line.
+func pathInput(input string, err error) string {
+	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) || errors.Is(err, syscall.EISDIR) {
+		return input
+	}
+	return ""
 }
