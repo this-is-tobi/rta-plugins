@@ -96,7 +96,7 @@ func flowShowCapability() plugin.Capability {
 
 func runFlowShow(ctx context.Context, req plugin.Request) (view.View, error) {
 	return withSession(ctx, req, func(ctx context.Context, s *session) (view.View, error) {
-		execs, verr := s.executions(ctx, req.String("flow"))
+		execs, verr := s.executions(ctx, req.String("flow"), "flow")
 		if verr != nil {
 			return nil, verr
 		}
@@ -104,12 +104,17 @@ func runFlowShow(ctx context.Context, req plugin.Request) (view.View, error) {
 	})
 }
 
-func (s *session) executions(ctx context.Context, alias string) ([]executionRep, *view.Error) {
+// executions is the steps of the flow alias names. input is the call's input
+// the alias came from, which a flow the realm does not have is refused naming,
+// and "" for an alias the plugin read off the realm itself, which is no box of
+// the call's.
+func (s *session) executions(ctx context.Context, alias, input string) ([]executionRep, *view.Error) {
 	var execs []executionRep
 	if verr := s.get(ctx, "authentication/flows/"+segment(strings.TrimSpace(alias))+"/executions", nil, &execs); verr != nil {
 		if verr.Code == "keycloak.notfound" {
 			return nil, view.Errorf("keycloak.flow.unknown", "no flow %q in realm %s", alias, s.realm).
-				WithHint(nextCall(s.req, "keycloak.flow.list") + " shows the aliases")
+				WithHint(nextCall(s.req, "keycloak.flow.list") + " shows the aliases").
+				WithInput(input)
 		}
 		return nil, verr
 	}

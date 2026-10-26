@@ -115,7 +115,7 @@ func clientShowCapability() plugin.Capability {
 
 func runClientShow(ctx context.Context, req plugin.Request) (view.View, error) {
 	return withSession(ctx, req, func(ctx context.Context, s *session) (view.View, error) {
-		c, verr := s.client(ctx, req.String("client"))
+		c, verr := s.client(ctx, req.String("client"), "client")
 		if verr != nil {
 			return nil, verr
 		}
@@ -144,14 +144,19 @@ func runClientShow(ctx context.Context, req plugin.Request) (view.View, error) {
 }
 
 // client resolves a client id — the name the console shows — to the client.
-func (s *session) client(ctx context.Context, clientID string) (clientRep, *view.Error) {
+//
+// input is the call's input the id came from, which a client the realm does
+// not have is refused naming, and "" for an id the plugin asks for by a name
+// of its own, which is no box of the call's.
+func (s *session) client(ctx context.Context, clientID, input string) (clientRep, *view.Error) {
 	var matches []clientRep
 	if verr := s.get(ctx, "clients", query("clientId", strings.TrimSpace(clientID)), &matches); verr != nil {
 		return clientRep{}, verr
 	}
 	if len(matches) != 1 {
 		return clientRep{}, view.Errorf("keycloak.client.unknown", "no client %q in realm %s", clientID, s.realm).
-			WithHint(nextCall(s.req, "keycloak.client.list") + " shows what is registered")
+			WithHint(nextCall(s.req, "keycloak.client.list") + " shows what is registered").
+			WithInput(input)
 	}
 	return matches[0], nil
 }

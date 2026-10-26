@@ -33,7 +33,7 @@ func runRoleList(ctx context.Context, req plugin.Request) (view.View, error) {
 	return withSession(ctx, req, func(ctx context.Context, s *session) (view.View, error) {
 		path := "roles"
 		if clientID := req.String("client"); clientID != "" {
-			c, verr := s.client(ctx, clientID)
+			c, verr := s.client(ctx, clientID, "client")
 			if verr != nil {
 				return nil, verr
 			}

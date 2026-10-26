@@ -64,7 +64,7 @@ func runSessionList(ctx context.Context, req plugin.Request) (view.View, error) 
 			}
 			return sessionTable(sessions), nil
 		case req.String("client") != "":
-			c, verr := s.client(ctx, req.String("client"))
+			c, verr := s.client(ctx, req.String("client"), "client")
 			if verr != nil {
 				return nil, verr
 			}
