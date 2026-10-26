@@ -9,12 +9,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	stdnet "net"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -214,7 +216,8 @@ func newRequest(ctx context.Context, req plugin.Request, method, path string,
 	if err != nil {
 		return nil, view.Errorf("qdrant.endpoint.invalid", "%v", err).
 			WithHint(req.Surface().SettingName("address") + " is host[:port] with no scheme — set " +
-				req.Surface().SettingName("tls") + " separately")
+				req.Surface().SettingName("tls") + " separately").
+			WithInput("address")
 	}
 	httpReq.Header.Set("Accept", "application/json")
 	if key := req.String("api-key"); key != "" {
@@ -275,7 +278,8 @@ func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 	pem, err := os.ReadFile(ca)
 	if err != nil {
 		return nil, view.Errorf("qdrant.tls.ca.unreadable", "%v", err).
-			WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by the server")
+			WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by the server").
+			WithInput(pathInput("ca-file", err))
 	}
 	pool := x509.NewCertPool()
 	// What the file has to hold, rather than a guess at what it held instead.
@@ -287,10 +291,24 @@ func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 	if !pool.AppendCertsFromPEM(pem) {
 		return nil, view.Errorf("qdrant.tls.ca.invalid", "%s holds no PEM certificate", ca).
 			WithHint(sf.SettingName("ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
-				"server's own — and a private key or a DER-encoded certificate is not one")
+				"server's own — and a private key or a DER-encoded certificate is not one").
+			WithInput("ca-file")
 	}
 	cfg.RootCAs = pool
 	return &http.Client{Transport: &http.Transport{TLSClientConfig: cfg}, CheckRedirect: refuseRedirect}, nil
+}
+
+// pathInput is the input a refusal to read the path it holds names
+// (view.Error.Input): input when the path is what is wrong — nothing there, or
+// a directory where a file was wanted — so that the form opens again on that
+// box, and none when the file is there and this process may not read it, which
+// no box answers: the path is right, and the fix is a chmod. rta's own
+// built-ins draw the same line.
+func pathInput(input string, err error) string {
+	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) || errors.Is(err, syscall.EISDIR) {
+		return input
+	}
+	return ""
 }
 
 // serverName is the name the certificate is checked for in place of the
@@ -402,6 +420,9 @@ func classifyStatus(code int, body []byte, req plugin.Request) *view.Error {
 				"reads everything and writes nothing, and a JWT scoped to collections cannot read the cluster's " +
 				"own state, which needs global access")
 	case http.StatusNotFound:
+		// Naming no input: this serves every request, and a 404 of the root or
+		// the cluster is no collection's. The call that asked for one names it
+		// (ofCollection).
 		return view.Errorf("qdrant.notfound", "%s: %s", where, detail).
 			WithHint(nextCall(req, "qdrant.collection.list") + " shows what is there")
 	case http.StatusTooManyRequests:
@@ -613,6 +634,17 @@ func hostOnly(endpoint string) string {
 		return endpoint
 	}
 	return host
+}
+
+// ofCollection is verr naming the collection input when it is the instance's
+// 404 to a request for the collection the call named: Qdrant's "Collection
+// doesn't exist", which the refusal's own hint already reads it as. Every
+// capability here declares that input under that name.
+func ofCollection(verr *view.Error) *view.Error {
+	if verr != nil && verr.Code == "qdrant.notfound" {
+		return verr.WithInput("collection")
+	}
+	return verr
 }
 
 // pathFor escapes a collection name into a URL path. A name is caller-supplied

@@ -44,7 +44,7 @@ func runPointsCount(ctx context.Context, req plugin.Request) (view.View, error) 
 	}
 	body := map[string]any{"exact": req.Bool("exact")}
 	if verr := post(ctx, req, pathFor("/collections/%s/points/count", name), body, &out); verr != nil {
-		return nil, verr
+		return nil, ofCollection(verr)
 	}
 	kind := "estimated"
 	if req.Bool("exact") {
@@ -149,7 +149,7 @@ func runPointsScroll(ctx context.Context, req plugin.Request) (view.View, error)
 	// next page is asked for with came back in that exponent form too.
 	var result json.RawMessage
 	if verr := post(ctx, req, pathFor("/collections/%s/points/scroll", name), body, &result); verr != nil {
-		return nil, verr
+		return nil, ofCollection(verr)
 	}
 	var out struct {
 		Points         []scrollPoint `json:"points"`

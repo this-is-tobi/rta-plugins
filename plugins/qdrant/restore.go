@@ -138,15 +138,18 @@ func checkSnapshotFile(sf plugin.Surface, path string) *view.Error {
 	if err != nil {
 		return view.Errorf("qdrant.restore.missing", "no snapshot at %s", path).
 			WithHint("`" + sf.Call("qdrant.dump", plugin.Arg{Name: "collection", Value: "<collection>"},
-				plugin.Arg{Name: "out", Value: "<path>"}) + "` writes one; this restores what that wrote")
+				plugin.Arg{Name: "out", Value: "<path>"}) + "` writes one; this restores what that wrote").
+			WithInput(pathInput("file", err))
 	}
 	if info.IsDir() {
 		return view.Errorf("qdrant.restore.notafile", "%s is a directory", path).
-			WithHint("a qdrant.dump snapshot is a single file")
+			WithHint("a qdrant.dump snapshot is a single file").
+			WithInput("file")
 	}
 	if info.Size() == 0 {
 		return view.Errorf("qdrant.restore.empty", "%s is empty", path).
-			WithHint("an empty file holds no collection — if this was a dump, it did not finish")
+			WithHint("an empty file holds no collection — if this was a dump, it did not finish").
+			WithInput("file")
 	}
 	return nil
 }
@@ -198,7 +201,7 @@ func checkTarget(ctx context.Context, req plugin.Request, collection string) *vi
 func uploadSnapshot(ctx context.Context, req plugin.Request, collection, path string) *view.Error {
 	f, err := os.Open(path)
 	if err != nil {
-		return view.Errorf("qdrant.restore.unreadable", "opening %s: %v", path, err)
+		return view.Errorf("qdrant.restore.unreadable", "opening %s: %v", path, err).WithInput(pathInput("file", err))
 	}
 	defer func() { _ = f.Close() }()
 

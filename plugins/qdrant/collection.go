@@ -126,7 +126,7 @@ func namedCollections(req plugin.Request, who string) ([]string, *view.Error) {
 			hint = "name fewer with " + sf.InputName("collection") + ", or fence fewer in the profile or the tile that names them"
 		}
 		return nil, view.Errorf("qdrant.collection.toomany", "%s reads at most %d collections, and this call reaches more",
-			who, maxNamedCollections).WithHint(hint)
+			who, maxNamedCollections).WithHint(hint).WithInput("collection")
 	}
 	return names, nil
 }
@@ -721,7 +721,7 @@ func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState,
 		anyDistributed = anyDistributed || r.distributed
 		if r.err != nil {
 			if len(named) == 1 {
-				return view.Table{}, nil, r.err
+				return view.Table{}, nil, ofCollection(r.err)
 			}
 			// Reported, not fatal. A collection this key may not see is the
 			// normal case on a shared instance, and ending the listing at the
@@ -887,7 +887,7 @@ func runCollectionShow(ctx context.Context, req plugin.Request) (view.View, erro
 	name := req.String("collection")
 	var info collectionInfo
 	if verr := get(ctx, req, pathFor("/collections/%s", name), &info); verr != nil {
-		return nil, verr
+		return nil, ofCollection(verr)
 	}
 
 	pairs := []view.Pair{
