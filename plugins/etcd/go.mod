@@ -3,14 +3,14 @@ module github.com/this-is-tobi/rta-plugins/plugins/etcd
 go 1.26.10
 
 require (
-	github.com/this-is-tobi/rta v0.50.0
+	github.com/this-is-tobi/rta v0.51.0
 	go.etcd.io/etcd/api/v3 v3.7.1
 	go.etcd.io/etcd/client/v3 v3.7.1
-	google.golang.org/grpc v1.83.2
+	google.golang.org/grpc v1.84.0
 )
 
 require (
-	charm.land/bubbles/v2 v2.1.1 // indirect
+	charm.land/bubbles/v2 v2.2.1 // indirect
 	charm.land/bubbletea/v2 v2.0.8 // indirect
 	charm.land/glamour/v2 v2.0.1 // indirect
 	charm.land/huh/v2 v2.0.3 // indirect
@@ -46,7 +46,7 @@ require (
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.17 // indirect
-	github.com/mattn/go-runewidth v0.0.24 // indirect
+	github.com/mattn/go-runewidth v0.0.27 // indirect
 	github.com/microcosm-cc/bluemonday v1.0.27 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
@@ -58,11 +58,11 @@ require (
 	go.etcd.io/etcd/client/pkg/v3 v3.7.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.1 // indirect
-	golang.org/x/net v0.60.0 // indirect
-	golang.org/x/sync v0.23.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
-	golang.org/x/text v0.42.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
+	golang.org/x/net v0.61.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260706201446-f0a921348800 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260818201246-1b0934165a6f // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
