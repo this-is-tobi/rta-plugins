@@ -72,7 +72,7 @@ func overviewBuckets(req plugin.Request) ([]string, *view.Error) {
 		hint = "name fewer with " + sf.InputName("bucket") + ", or fence fewer in the profile or the tile that names them"
 	}
 	return nil, view.Errorf("s3.bucket.toomany",
-		"an overview reads at most %d buckets, and this call reaches more", maxBuckets).WithHint(hint)
+		"an overview reads at most %d buckets, and this call reaches more", maxBuckets).WithHint(hint).WithInput("bucket")
 }
 
 // readScope is what a list is read of: the buckets to read, and what the page

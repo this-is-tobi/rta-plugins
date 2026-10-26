@@ -6,12 +6,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"io/fs"
 	"iter"
 	stdnet "net"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
+	"syscall"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -128,7 +130,7 @@ func connectWith(req plugin.Request, attempts int) (*minio.Client, *view.Error) 
 	if err != nil {
 		return nil, view.Errorf("s3.conn.invalid", "%s: %v", endpoint, err).
 			WithHint(req.Surface().SettingName("address") + " is host[:port] with no scheme — set " +
-				req.Surface().SettingName("tls") + " separately")
+				req.Surface().SettingName("tls") + " separately").WithInput("address")
 	}
 	return client, nil
 }
@@ -153,7 +155,8 @@ func tlsTransport(sf plugin.Surface, ca, name string) (*http.Transport, *view.Er
 	pem, err := os.ReadFile(ca)
 	if err != nil {
 		return nil, view.Errorf("s3.tls.ca.unreadable", "%v", err).
-			WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by the server")
+			WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by the server").
+			WithInput(pathInput("ca-file", err))
 	}
 	pool := x509.NewCertPool()
 	// What the file has to hold, rather than a guess at what it held instead.
@@ -166,7 +169,7 @@ func tlsTransport(sf plugin.Surface, ca, name string) (*http.Transport, *view.Er
 		return nil, view.Errorf("s3.tls.ca.invalid", "%s holds no PEM certificate", ca).
 			WithHint(sf.SettingName("ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
 				"server's own such as a local MinIO's public.crt — and a private key or a DER-encoded " +
-				"certificate is not one")
+				"certificate is not one").WithInput("ca-file")
 	}
 	transport.TLSClientConfig.RootCAs = pool
 	return transport, nil
@@ -235,7 +238,7 @@ func classify(err error, req plugin.Request) *view.Error {
 		if invalid := s3utils.CheckValidBucketName(bucket); invalid != nil && strings.Contains(err.Error(), invalid.Error()) {
 			return view.Errorf("s3.bucket.invalid", "%s is not a valid bucket name: %s", quoted(bucket), invalid.Error()).
 				WithHint("a bucket name is 3 to 63 characters of lowercase letters, digits, dots and hyphens; " +
-					nextCall(req, "s3.bucket.list") + " shows the buckets there are")
+					nextCall(req, "s3.bucket.list") + " shows the buckets there are").WithInput("bucket")
 		}
 	}
 
@@ -250,12 +253,13 @@ func classify(err error, req plugin.Request) *view.Error {
 		switch errResp.Code {
 		case minio.NoSuchBucket:
 			return view.Errorf("s3.bucket.notfound", "%s has no bucket %s", answered, quoted(bucket)).
-				WithHint(nextCall(req, "s3.bucket.list") + " shows what is there")
+				WithHint(nextCall(req, "s3.bucket.list") + " shows what is there").
+				WithInput(inputHolding(req, bucket, "bucket", "dest-bucket"))
 		case minio.NoSuchKey:
-			return view.Errorf("s3.object.notfound", "no object %s in %s",
-				quoted(cmp.Or(errResp.Key, req.String("key"))), quoted(bucket)).
+			key := cmp.Or(errResp.Key, req.String("key"))
+			return view.Errorf("s3.object.notfound", "no object %s in %s", quoted(key), quoted(bucket)).
 				WithHint(nextCall(req, "s3.object.list", plugin.Arg{Name: "bucket", Value: bucket}) +
-					" shows what is there")
+					" shows what is there").WithInput(inputHolding(req, key, "key"))
 		case minio.NoSuchBucketPolicy:
 			return noPolicy(bucket)
 		case minio.AccessDenied:
@@ -400,6 +404,43 @@ func classify(err error, req plugin.Request) *view.Error {
 	}
 	return view.Errorf("s3.conn.failed", "could not reach %s: %v", where, err).
 		WithHint(sf.SettingsHint("s3.overview"))
+}
+
+// inputHolding is the first of names whose value in req is value: the input a
+// refusal of that value names (view.Error.Input), so the form the call came
+// from opens again on that box and an agent is told which argument to send
+// again. None when value is empty, or when no input of the call holds it.
+//
+// **By the value, because classify serves every capability alike.** The
+// bucket a NoSuchBucket names is a copy's source or its destination, by the
+// name the server gave, and the key a NoSuchKey names may be one a download's
+// listing found rather than one the caller typed. Stamped by which input a
+// capability declares, a copy's form would reopen on the source bucket when
+// the destination was the one missing, and a download's would name a key box
+// it does not have.
+func inputHolding(req plugin.Request, value string, names ...string) string {
+	if value == "" {
+		return ""
+	}
+	for _, name := range names {
+		if req.String(name) == value {
+			return name
+		}
+	}
+	return ""
+}
+
+// pathInput is the input a refusal to read the path it holds names: input
+// itself when the path is what is wrong — nothing there, a directory where a
+// file was wanted, a file where a directory was — since another path is the
+// fix, and none when the file is there and cannot be read, permission denied
+// or an I/O error, since the path is right and the fix is a chmod or the
+// machine. The line rta's own built-ins draw for a path they read.
+func pathInput(input string, err error) string {
+	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) || errors.Is(err, syscall.EISDIR) {
+		return input
+	}
+	return ""
 }
 
 // listObjects is every listing this plugin makes, so what every listing asks

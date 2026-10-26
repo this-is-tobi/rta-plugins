@@ -215,10 +215,10 @@ func runObjectGet(ctx context.Context, req plugin.Request) (view.View, error) {
 			f, ferr := os.OpenFile(plugin.ExpandHome(out), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 			if errors.Is(ferr, fs.ErrExist) {
 				return nil, view.Errorf("s3.object.exists", "%s already exists", out).
-					WithHint("this never overwrites — remove it, or name a path that does not exist yet")
+					WithHint("this never overwrites — remove it, or name a path that does not exist yet").WithInput("out")
 			}
 			if ferr != nil {
-				return nil, view.Errorf("s3.object.out", "opening %s: %v", out, ferr)
+				return nil, view.Errorf("s3.object.out", "opening %s: %v", out, ferr).WithInput("out")
 			}
 			// Closed here and not deferred, the same three lines
 			// s3.bucket.download's fetchOne already runs. A Close that fails
@@ -240,7 +240,7 @@ func runObjectGet(ctx context.Context, req plugin.Request) (view.View, error) {
 				return nil, classify(cerr, req)
 			}
 			if closeErr != nil {
-				return nil, view.Errorf("s3.object.write", "finishing %s: %v", out, closeErr)
+				return nil, view.Errorf("s3.object.write", "finishing %s: %v", out, closeErr).WithInput("out")
 			}
 			return view.Text{Body: "wrote " + format.Bytes(n) + " to " + out}, nil
 		}
@@ -315,12 +315,12 @@ func runObjectSet(ctx context.Context, req plugin.Request) (view.View, error) {
 			}
 			f, err := os.Open(plugin.ExpandHome(path))
 			if err != nil {
-				return nil, view.Errorf("s3.file.unreadable", "reading %s: %v", path, err)
+				return nil, view.Errorf("s3.file.unreadable", "reading %s: %v", path, err).WithInput(pathInput("file", err))
 			}
 			defer func() { _ = f.Close() }()
 			info, err := f.Stat()
 			if err != nil {
-				return nil, view.Errorf("s3.file.unreadable", "reading %s: %v", path, err)
+				return nil, view.Errorf("s3.file.unreadable", "reading %s: %v", path, err).WithInput(pathInput("file", err))
 			}
 			// A directory opens, and states a size of a few dozen bytes, so it
 			// went up as a file of that length and failed on its first read,
@@ -329,7 +329,7 @@ func runObjectSet(ctx context.Context, req plugin.Request) (view.View, error) {
 			if info.IsDir() {
 				return nil, view.Errorf("s3.file.directory", "%s is a directory", path).
 					WithHint(req.Surface().CapabilityName("s3.bucket.upload") +
-						" uploads the files under a directory, an object each")
+						" uploads the files under a directory, an object each").WithInput("file")
 			}
 			body = f
 			// Anything else that is not a regular file is a stream, and its
