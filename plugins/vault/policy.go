@@ -70,7 +70,7 @@ func runPolicyGet(ctx context.Context, req plugin.Request) (view.View, error) {
 		}
 		if rules == "" {
 			return nil, view.Errorf("vault.policy.notfound", "no policy named %q", req.String("name")).
-				WithHint(nextCall(req, "vault.policy.list") + " shows what exists")
+				WithHint(nextCall(req, "vault.policy.list") + " shows what exists").WithInput("name")
 		}
 		return view.Text{Body: rules}, nil
 	})

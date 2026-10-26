@@ -44,7 +44,7 @@ func parseVersions(raw []string) ([]int, *view.Error) {
 			n, err := strconv.Atoi(part)
 			if err != nil || n < 1 {
 				return nil, view.Errorf("vault.kv.version.invalid", "%q is not a version number", part).
-					WithHint("vault.kv.history numbers them, from 1")
+					WithHint("vault.kv.history numbers them, from 1").WithInput("versions")
 			}
 			out = append(out, n)
 		}
@@ -120,7 +120,7 @@ func runKVHistory(ctx context.Context, req plugin.Request) (view.View, error) {
 	return withClient(req, func(client *vaultapi.Client) (view.View, error) {
 		meta, err := client.KVv2(req.String("mount")).GetMetadata(ctx, req.String("path"))
 		if err != nil {
-			return nil, classify(err, req)
+			return nil, naming(classify(err, req), "path", "vault.notfound")
 		}
 		// The map's keys are the numbers; the values do not carry their own.
 		versions := make([]vaultapi.KVVersionMetadata, 0, len(meta.Versions))

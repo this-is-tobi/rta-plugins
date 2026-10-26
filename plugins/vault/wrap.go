@@ -121,7 +121,7 @@ func runWrapGet(ctx context.Context, req plugin.Request) (view.View, error) {
 			secret, err := client.Logical().WriteWithContext(ctx, "sys/wrapping/lookup",
 				map[string]interface{}{"token": req.String("wrapping-token")})
 			if err != nil {
-				return nil, classify(err, req)
+				return nil, naming(classify(err, req), "wrapping-token", "vault.badrequest")
 			}
 			kv := view.KeyValue{}
 			keys := []string{"creation_path", "creation_time", "creation_ttl"}
@@ -140,9 +140,11 @@ func runWrapGet(ctx context.Context, req plugin.Request) (view.View, error) {
 			return kv, nil
 		}
 
+		// A token that is spent, or never was, is Vault's 400 "wrapping token
+		// is not valid or does not exist", to the lookup above and to this.
 		secret, err := client.Logical().UnwrapWithContext(ctx, req.String("wrapping-token"))
 		if err != nil {
-			return nil, classify(err, req)
+			return nil, naming(classify(err, req), "wrapping-token", "vault.badrequest")
 		}
 		kv := view.KeyValue{}
 		keys := make([]string, 0, len(secret.Data))

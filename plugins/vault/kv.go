@@ -152,7 +152,7 @@ func unknownMount(ctx context.Context, client *vaultapi.Client, req plugin.Reque
 		hint = "its KV mounts are: " + strings.Join(listed, ", ")
 	}
 	return view.Errorf("vault.kv.mount.unknown",
-		"%s has no KV mount named %q", reached(req), mount).WithHint(hint)
+		"%s has no KV mount named %q", reached(req), mount).WithHint(hint).WithInput("mount")
 }
 
 func runKVList(ctx context.Context, req plugin.Request) (view.View, error) {
@@ -231,7 +231,15 @@ func runKVGet(ctx context.Context, req plugin.Request) (view.View, error) {
 			secret, err = engine.Get(ctx, req.String("path"))
 		}
 		if err != nil {
-			return nil, classify(err, req)
+			// The current version not there is the path's to answer for: the
+			// mount the hint names beside it is the operator's setting, and the
+			// path the box the caller holds. One asked for by number is the
+			// path's or the version's, and Vault's answer is the same empty 404
+			// for both, so it names neither.
+			if req.Int("version") > 0 {
+				return nil, classify(err, req)
+			}
+			return nil, naming(classify(err, req), "path", "vault.notfound")
 		}
 		if secret.Data == nil {
 			return view.KeyValue{Pairs: []view.Pair{
