@@ -7,11 +7,13 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/fs"
 	stdnet "net"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -120,7 +122,8 @@ func newSession(req plugin.Request) (*session, *view.Error) {
 	parsed, err := url.Parse(base)
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
 		return nil, view.Errorf("keycloak.url.invalid", "%q is not a Keycloak base URL", req.String("url")).
-			WithHint("http(s)://host[:port], the part of the address before /realms")
+			WithHint("http(s)://host[:port], the part of the address before /realms").
+			WithInput("url")
 	}
 	// A name given is an operator expecting a certificate to be checked, and
 	// over http:// the call would have gone in the clear with nothing said.
@@ -143,7 +146,8 @@ func newSession(req plugin.Request) (*session, *view.Error) {
 	realm := req.String("realm")
 	if realm == "" {
 		return nil, view.Errorf("keycloak.realm.missing", "no realm named").
-			WithHint(req.Surface().SettingName("realm") + ", or `realm:` under this plugin's section in rta's config")
+			WithHint(req.Surface().SettingName("realm") + ", or `realm:` under this plugin's section in rta's config").
+			WithInput("realm")
 	}
 	// Where the secret comes from rather than a verb telling the reader to
 	// set one: an agent has no host environment to set, and no secret
@@ -151,7 +155,8 @@ func newSession(req plugin.Request) (*session, *view.Error) {
 	secret := req.String("client-secret")
 	if secret == "" {
 		return nil, view.Errorf("keycloak.secret.missing", "no client secret").
-			WithHint("the secret is read from " + secretSources(req))
+			WithHint("the secret is read from " + secretSources(req)).
+			WithInput("client-secret")
 	}
 	client, verr := httpClient(req)
 	if verr != nil {
@@ -246,7 +251,8 @@ func (s *session) call(ctx context.Context, method, u string, body io.Reader, co
 
 	httpReq, err := http.NewRequestWithContext(ctx, method, u, body)
 	if err != nil {
-		return view.Errorf("keycloak.url.invalid", "%v", err)
+		// The url input's: every other part of u is escaped on its way in.
+		return view.Errorf("keycloak.url.invalid", "%v", err).WithInput("url")
 	}
 	httpReq.Header.Set("Accept", "application/json")
 	if contentType != "" {
@@ -328,7 +334,8 @@ func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 	pem, err := os.ReadFile(ca)
 	if err != nil {
 		return nil, view.Errorf("keycloak.tls.ca.unreadable", "%v", err).
-			WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by the server")
+			WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by the server").
+			WithInput(pathInput("ca-file", err))
 	}
 	pool := x509.NewCertPool()
 	// What the file has to hold, rather than a guess at what it held instead.
@@ -341,10 +348,24 @@ func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 	if !pool.AppendCertsFromPEM(pem) {
 		return nil, view.Errorf("keycloak.tls.ca.invalid", "%s holds no PEM certificate", ca).
 			WithHint(sf.SettingName("ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
-				"server's own — and a private key or a DER-encoded certificate is not one")
+				"server's own — and a private key or a DER-encoded certificate is not one").
+			WithInput("ca-file")
 	}
 	cfg.RootCAs = pool
 	return &http.Client{Transport: &http.Transport{TLSClientConfig: cfg}, CheckRedirect: refuseRedirect}, nil
+}
+
+// pathInput is the input a refusal to read the path it holds names
+// (view.Error.Input): input when the path is what is wrong — nothing there, or
+// a directory where a file was wanted — so that the form opens again on that
+// box, and none when the file is there and this process may not read it, which
+// no box answers: the path is right, and the fix is a chmod. rta's own
+// built-ins draw the same line.
+func pathInput(input string, err error) string {
+	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) || errors.Is(err, syscall.EISDIR) {
+		return input
+	}
+	return ""
 }
 
 // serverName is the name the certificate is checked for in place of the
@@ -488,9 +509,16 @@ func (s *session) classifyToken(code int, body []byte) *view.Error {
 	sf := s.req.Surface()
 	switch {
 	case code == http.StatusNotFound:
+		// Of the realm the token was asked of: auth-realm when the call gave
+		// one, and the realm read otherwise (authenticate).
+		asked := "realm"
+		if s.req.String("auth-realm") != "" {
+			asked = "auth-realm"
+		}
 		return view.Errorf("keycloak.realm.unknown", "%s has no realm to authenticate against: %s", s.reached(), firstOf(desc, oauthErr)).
 			WithHint(sf.SettingName("auth-realm") + " (or " + sf.SettingName("realm") + ") names the realm the client " +
-				"lives in; the issuer URL's last segment is its name")
+				"lives in; the issuer URL's last segment is its name").
+			WithInput(asked)
 	case code == http.StatusUnauthorized,
 		code == http.StatusBadRequest && (oauthErr == "invalid_client" || oauthErr == "invalid_grant"):
 		return view.Errorf("keycloak.auth.failed", "%s refused the client credentials: %s", s.reached(), firstOf(desc, oauthErr)).

@@ -172,6 +172,9 @@ var uuidShape = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 // user resolves a username or an id to the account. Username first, exactly
 // — Keycloak's `sub` is the id, and a person reading a token wants to paste
 // it, so an id-shaped name that matched no username is tried as one.
+//
+// An account the realm does not have names the user input: every capability
+// that resolves one takes it under that name.
 func (s *session) user(ctx context.Context, name string) (userRep, *view.Error) {
 	name = strings.TrimSpace(name)
 	var matches []userRep
@@ -189,7 +192,8 @@ func (s *session) user(ctx context.Context, name string) (userRep, *view.Error) 
 	}
 	return userRep{}, view.Errorf("keycloak.user.unknown", "no user %q in realm %s", name, s.realm).
 		WithHint(nextCall(s.req, "keycloak.user.list", plugin.Arg{Name: "search", Value: name, Positional: true}) +
-			" searches by username, email and name")
+			" searches by username, email and name").
+		WithInput("user")
 }
 
 func userProfile(u userRep) view.View {

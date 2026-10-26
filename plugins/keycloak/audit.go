@@ -196,7 +196,7 @@ var secondFactorSteps = map[string]bool{
 }
 
 func (s *session) auditSecondFactor(ctx context.Context, r *findings.Report, realm realmRep, max int) {
-	execs, verr := s.executions(ctx, realm.BrowserFlow)
+	execs, verr := s.executions(ctx, realm.BrowserFlow, "")
 	if verr != nil {
 		r.Add(grpMFA, "browser-flow", findings.Info, "the browser flow could not be read: "+verr.Message, findings.Reference{})
 	} else {
@@ -713,7 +713,7 @@ func auditEvents(r *findings.Report, realm realmRep) {
 // answers; a role reached through a group or a composite is not in it, and
 // the detail says so.
 func (s *session) auditAdmins(ctx context.Context, r *findings.Report) {
-	rm, verr := s.client(ctx, "realm-management")
+	rm, verr := s.client(ctx, "realm-management", "")
 	if verr != nil {
 		r.Add(grpAdmins, "realm-admin", findings.Info, "the realm-management client could not be read: "+verr.Message, findings.Reference{})
 		return
