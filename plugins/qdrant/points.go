@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -139,6 +140,14 @@ func runPointsScroll(ctx context.Context, req plugin.Request) (view.View, error)
 		"with_vector":  withVectors,
 	}
 	if offset := req.String("offset"); offset != "" {
+		// A point id is an unsigned integer or a UUID. Anything else went to
+		// the server as typed and came back as its 400, under the hint that
+		// lists every setting, naming nothing.
+		if _, number := pointID(offset).(uint64); !number && !isUUID(offset) {
+			return nil, view.Errorf("qdrant.points.offset", "%q is not a point id", offset).
+				WithHint("a point id is an unsigned integer or a UUID: the next page's first, which the last page's " +
+					"`page.next` holds").WithInput("offset")
+		}
 		body["offset"] = pointID(offset)
 	}
 
@@ -269,6 +278,21 @@ func vectorSummary(raw json.RawMessage) string {
 // zeros, a JSON number literal does not, so a hand-typed 007 sent as typed
 // failed in the encoder before any request was made. uint64 encodes exactly,
 // which is why this is not a float64.
+// isUUID reports whether s is a UUID in one of the forms Qdrant reads one in:
+// hyphenated, as 32 hex digits, in braces, or as a urn.
+func isUUID(s string) bool {
+	s = strings.TrimPrefix(strings.ToLower(s), "urn:uuid:")
+	s = strings.TrimSuffix(strings.TrimPrefix(s, "{"), "}")
+	if len(s) == 36 && s[8] == '-' && s[13] == '-' && s[18] == '-' && s[23] == '-' {
+		s = strings.ReplaceAll(s, "-", "")
+	}
+	if len(s) != 32 {
+		return false
+	}
+	_, err := hex.DecodeString(s)
+	return err == nil
+}
+
 func pointID(s string) any {
 	if n, err := strconv.ParseUint(s, 10, 64); err == nil {
 		return n
