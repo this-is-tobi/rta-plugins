@@ -10,6 +10,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"syscall"
 	"time"
 
 	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
@@ -388,7 +389,8 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 		pem, err := os.ReadFile(ca)
 		if err != nil {
 			return nil, view.Errorf("etcd.tls.ca.unreadable", "%v", err).
-				WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by the cluster")
+				WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by the cluster").
+				WithInput(pathInput("ca-file", err))
 		}
 		pool := x509.NewCertPool()
 		// What the file has to hold, rather than a guess at what it held
@@ -402,7 +404,7 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 			return nil, view.Errorf("etcd.tls.ca.invalid", "%s holds no PEM certificate", ca).
 				WithHint(sf.SettingName("ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
 					"server's own — and a private key, which belongs in " + sf.SettingName("key-file") +
-					", or a DER-encoded certificate is not one")
+					", or a DER-encoded certificate is not one").WithInput("ca-file")
 		}
 		cfg.RootCAs = pool
 	}
@@ -422,11 +424,42 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 		pair, err := tls.LoadX509KeyPair(cert, key)
 		if err != nil {
 			return nil, view.Errorf("etcd.tls.pair.invalid", "%v", err).
-				WithHint("both paths are read on this machine — check they are PEM and belong together")
+				WithHint("both paths are read on this machine — check they are PEM and belong together").
+				WithInput(pairInput(err, cert, key))
 		}
 		cfg.Certificates = []tls.Certificate{pair}
 	}
 	return cfg, nil
+}
+
+// pathInput is the input a refusal to read the file it names names
+// (view.Error.Input), on the line rta's own reads of a path hold: input itself
+// when the path is what is wrong — nothing is there, or a directory is — so the
+// form opens again on that box, and none when the file is there and this
+// process may not read it, where the path is right and the fix is a chmod.
+func pathInput(input string, err error) string {
+	if errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) || errors.Is(err, syscall.EISDIR) {
+		return input
+	}
+	return ""
+}
+
+// pairInput is pathInput for the client certificate and its key, which are
+// read in one call: the input of whichever file the failure names, and none for
+// two files that were read and make no pair — not PEM, or a key that is not the
+// certificate's — where both paths are the suspects.
+func pairInput(err error, cert, key string) string {
+	var pathErr *os.PathError
+	if !errors.As(err, &pathErr) {
+		return ""
+	}
+	switch pathErr.Path {
+	case cert:
+		return pathInput("cert-file", err)
+	case key:
+		return pathInput("key-file", err)
+	}
+	return ""
 }
 
 // serverCode is the gRPC code a failure carries and the server's words for
@@ -515,8 +548,16 @@ func classify(err error, req plugin.Request) *view.Error {
 	// quoting the port beside it names something no lookup was ever made for.
 	var dnsErr *stdnet.DNSError
 	if errors.As(err, &dnsErr) {
-		return view.Errorf("etcd.host.unknown", "no address for %q", hostOnly(where)).
+		unknown := view.Errorf("etcd.host.unknown", "no address for %q", hostOnly(where)).
 			WithHint(sf.DNSHint(hostOnly(where)))
+		// The address is the box that holds the fix only when the resolver
+		// answered that the name does not exist (view.Error.Input). One that
+		// could not be asked, or failed, said nothing of the name, which may
+		// well be right.
+		if dnsErr.IsNotFound {
+			return unknown.WithInput("address")
+		}
+		return unknown
 	}
 	// The handshake before the port: a connection that was made and then
 	// failed its handshake is something listening, and a reset or a hang-up

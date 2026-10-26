@@ -149,7 +149,7 @@ func runSnapshot(ctx context.Context, req plugin.Request) (view.View, error) {
 	if out == "" {
 		return nil, view.Errorf("etcd.snapshot.nooutput", "say where the snapshot should be written").
 			WithHint(req.Surface().SettingTo("out", "./etcd.snap") + " — a whole keyspace is a file, not " +
-				"something to read in a terminal")
+				"something to read in a terminal").WithInput("out")
 	}
 	path, err := expandHome(out)
 	if err != nil {
@@ -271,7 +271,7 @@ func writeSnapshot(ctx context.Context, c *clientv3.Client, req plugin.Request,
 		return nil, snapshotExists(path)
 	}
 	if err != nil {
-		return nil, view.Errorf("etcd.snapshot.create", "creating %s: %v", path, err)
+		return nil, view.Errorf("etcd.snapshot.create", "creating %s: %v", path, err).WithInput("out")
 	}
 
 	started := time.Now()
@@ -298,7 +298,7 @@ func writeSnapshot(ctx context.Context, c *clientv3.Client, req plugin.Request,
 		return nil, classifySnapshot(copyErr, req)
 	case closeErr != nil:
 		_ = os.Remove(path)
-		return nil, view.Errorf("etcd.snapshot.write", "finishing %s: %v", path, closeErr)
+		return nil, view.Errorf("etcd.snapshot.write", "finishing %s: %v", path, closeErr).WithInput("out")
 	}
 
 	verified, verr := th.verify()
@@ -365,7 +365,7 @@ func snapshotReceipt(path string, size int64, took time.Duration,
 func snapshotExists(path string) *view.Error {
 	return view.Errorf("etcd.snapshot.exists", "%s already exists", path).
 		WithHint("a snapshot is never written over an existing file — name a new one, or move " +
-			"that one aside")
+			"that one aside").WithInput("out")
 }
 
 // trailerHasher passes every byte through to the file while hashing all but

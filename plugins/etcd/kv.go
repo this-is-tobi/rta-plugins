@@ -433,7 +433,7 @@ func noSuchKey(req plugin.Request, key string) *view.Error {
 	return view.Errorf("etcd.key.notfound", "no key %s", quoted(key)).
 		WithHint("`" + req.Surface().Call("etcd.kv.list",
 			append([]plugin.Arg{{Name: "prefix", Value: key, Positional: true}}, reachArgs(req)...)...) +
-			"` shows what is there — this is an exact match, not a prefix")
+			"` shows what is there — this is an exact match, not a prefix").WithInput("key")
 }
 
 // quoted is a key named inside a sentence: in double quotes, as the sentences
