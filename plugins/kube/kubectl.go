@@ -146,10 +146,10 @@ func selectionFor(req plugin.Request, named []string) (selection, *view.Error) {
 		s.reach = req.ReachArgs(plugin.Arg{Name: "context", Value: s.Context})
 	}
 	if verr := checkName("context", s.Context); verr != nil {
-		return selection{}, verr
+		return selection{}, verr.WithInput("context")
 	}
 	if verr := checkName("namespace", s.Namespace); verr != nil {
-		return selection{}, verr
+		return selection{}, verr.WithInput("namespace")
 	}
 	// **Refused rather than resolved, because a grant is scoped on one of
 	// these two and not the other.** args() below picks --all-namespaces when
@@ -233,6 +233,33 @@ func (s selection) where() string {
 		return "the current context"
 	}
 	return "context " + s.Context
+}
+
+// contextInput is the input a refusal of the context a call reached names
+// (view.Error.Input): the context, when the call was given one, and none when
+// the call followed the kubeconfig's own current context. That one is the
+// file's word and no box of the call holds it: a form reopened on the empty
+// context box would point at something nobody typed, and the fix is the
+// kubeconfig's (kube.context.set, or the file itself).
+func (s selection) contextInput() string {
+	if s.Context == "" {
+		return ""
+	}
+	return "context"
+}
+
+// contextInputOf is contextInput for a kubectl call that has already failed,
+// read back from the arguments it ran with, as clusterInfoLine reads them: a
+// call given a context passed it as --context=, and one that followed the
+// current context passed none.
+func contextInputOf(args []string) string {
+	var s selection
+	for _, arg := range args {
+		if name, ok := strings.CutPrefix(arg, "--context="); ok {
+			s.Context = name
+		}
+	}
+	return s.contextInput()
 }
 
 // scopeWords is where a listing looked, for the sentence that says it found
@@ -494,7 +521,8 @@ func classify(ctx context.Context, err error, stderr string, args []string, sf p
 	case strings.Contains(low, "context") && strings.Contains(low, "does not exist"),
 		strings.Contains(low, "context was not found"):
 		return view.Errorf("kube.context.unknown", "%s", msg).
-			WithHint(contextHint(sf, askFixContext, sf.CapabilityName("kube.context.list")+" shows the contexts this machine has"))
+			WithHint(contextHint(sf, askFixContext, sf.CapabilityName("kube.context.list")+" shows the contexts this machine has")).
+			WithInput(contextInputOf(args))
 	case strings.Contains(low, "forbidden"), strings.Contains(low, "cannot list"),
 		strings.Contains(low, "is not allowed"):
 		// Left as the API server phrased it. An RBAC refusal names the verb,

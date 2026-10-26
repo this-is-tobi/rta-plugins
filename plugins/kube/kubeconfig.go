@@ -98,7 +98,8 @@ func coordinatesFor(cfg rawClusterConfig, s selection) (clusterCoordinates, *vie
 	}
 	if !found {
 		return clusterCoordinates{}, view.Errorf("kube.context.unknown", "no context named %q", name).
-			WithHint(contextHint(s.sf, askFixContext, s.sf.CapabilityName("kube.context.list")+" shows the contexts this machine has"))
+			WithHint(contextHint(s.sf, askFixContext, s.sf.CapabilityName("kube.context.list")+" shows the contexts this machine has")).
+			WithInput(s.contextInput())
 	}
 	for _, c := range cfg.Clusters {
 		if c.Name == clusterName {

@@ -50,7 +50,7 @@ func namespaceNames(req plugin.Request) ([]string, *view.Error) {
 			continue
 		}
 		if verr := checkNamespaceLabel(name); verr != nil {
-			return nil, verr
+			return nil, verr.WithInput("namespace")
 		}
 		names = append(names, name)
 	}
@@ -72,7 +72,8 @@ func namespacesOf(req plugin.Request) ([]string, *view.Error) {
 			"at most %d namespaces are read in one call, and this call reaches more", maxNamespaces).
 			WithHint(contextHint(sf,
 				"name fewer namespaces, or ask the operator to fence fewer",
-				"name fewer with "+sf.InputName("namespace")+", or fence fewer in the profile or the tile that names them"))
+				"name fewer with "+sf.InputName("namespace")+", or fence fewer in the profile or the tile that names them")).
+			WithInput("namespace")
 	}
 	return names, nil
 }
