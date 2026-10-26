@@ -118,3 +118,21 @@ func TestTheStopActsOnTheContainerItJudged(t *testing.T) {
 		t.Errorf("docker was run as `docker %s`, want the stop sent to the judged id", line)
 	}
 }
+
+// docker inspect answers for whatever object holds a name, so the inspect asks
+// for a container: an image called web is no container web, and its
+// environment is never shown as the container's.
+func TestAnImageOfTheSameNameIsNoContainer(t *testing.T) {
+	scriptedDocker(t, "case \"$*\" in\n"+
+		"  *\"inspect --type=container web\"*) echo 'Error: No such container: web' >&2; exit 1 ;;\n"+
+		"  *inspect*) echo '[{\"Id\":\"sha256:image\",\"Config\":{\"Env\":[\"TOKEN=from-the-image\"]}}]' ;;\n"+
+		"esac\n")
+	for _, id := range []string{"docker.container.inspect", "docker.container.env"} {
+		c := capabilityNamed(t, id)
+		_, err := c.Run(t.Context(), capReq(t, id, map[string]any{"container": "web"}).WithSurface(plugin.SurfaceCLI))
+		verr, ok := err.(*view.Error)
+		if !ok || verr.Code != "docker.notfound" {
+			t.Errorf("%s of a name only an image holds = %v, want docker.notfound", id, err)
+		}
+	}
+}
