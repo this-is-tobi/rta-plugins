@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.5.3...plugins/docker/v0.5.4) (2026-10-26)
+
+
+### Bug Fixes
+
+* **docker:** stopping a container started to remove itself says it is gone; an agent is refused ([2a5d95e](https://github.com/this-is-tobi/rta-plugins/commit/2a5d95eb7a748ccc28d819d1d709eda77c83e771))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.50.0 ([81b69b8](https://github.com/this-is-tobi/rta-plugins/commit/81b69b83c2d083fb499b317c35fff82da687f1e9))
+* every plugin builds with Go 1.26.10, which distrusts compromised intermediate certificates ([f6c44ff](https://github.com/this-is-tobi/rta-plugins/commit/f6c44ffb57fd9540f407769fb7d300a619913412))
+
 ## [0.5.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.5.2...plugins/docker/v0.5.3) (2026-10-21)
 
 

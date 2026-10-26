@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.12.1...plugins/cnpg/v0.12.2) (2026-10-26)
+
+
+### Dependencies
+
+* every plugin builds against rta v0.50.0 ([81b69b8](https://github.com/this-is-tobi/rta-plugins/commit/81b69b83c2d083fb499b317c35fff82da687f1e9))
+* every plugin builds with Go 1.26.10, which distrusts compromised intermediate certificates ([f6c44ff](https://github.com/this-is-tobi/rta-plugins/commit/f6c44ffb57fd9540f407769fb7d300a619913412))
+
 ## [0.12.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.12.0...plugins/cnpg/v0.12.1) (2026-10-21)
 
 
