@@ -174,8 +174,8 @@ github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+
 github.com/stretchr/testify v1.7.2/go.mod h1:R6va5+xMeoiuVRoj+gSkQ7d3FALtqAAGI1FQKckRals=
 github.com/stretchr/testify v1.12.0 h1:K6Mr6jO9JICuend/5xzTM03ydSV3vdNRYAdPSukj8uI=
 github.com/stretchr/testify v1.12.0/go.mod h1:bOYBZb5qJ00vPzWfIqBUZPaxK8jWiXc6d3ErP4Ca9Gw=
-github.com/this-is-tobi/rta v0.49.1 h1:nmCaEdKx+UFYw5TwJLO9rUzs368EVxSsvXljaR0kkGU=
-github.com/this-is-tobi/rta v0.49.1/go.mod h1:FDvj7O5RfdC1nQmA9L5K4ZfdB8KOWTBTnubzRxJpFZs=
+github.com/this-is-tobi/rta v0.50.0 h1:fR0a+ryBrHBgdmNaDofYZxEFxTe0E5soIbujZG0gSZI=
+github.com/this-is-tobi/rta v0.50.0/go.mod h1:wDA7Y2jSarsI5lCNShi092DQjqDM498TtsXPD86swNE=
 github.com/tklauser/go-sysconf v0.3.16 h1:frioLaCQSsF5Cy1jgRBrzr6t502KIIwQ0MArYICU0nA=
 github.com/tklauser/go-sysconf v0.3.16/go.mod h1:/qNL9xxDhc7tx3HSRsLWNnuzbVfh3e7gh/BmM179nYI=
 github.com/tklauser/numcpus v0.11.0 h1:nSTwhKH5e1dMNsCdVBukSZrURJRoHbSEQjdEbY+9RXw=
