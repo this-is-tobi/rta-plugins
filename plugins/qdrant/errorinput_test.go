@@ -94,6 +94,11 @@ func TestARefusalOfOneInputNamesIt(t *testing.T) {
 			given: func(t *testing.T) map[string]any {
 				return map[string]any{"address": instance(t), "collection": "ghost"}
 			}},
+		{name: "an offset that is no point id", cap: "qdrant.points.scroll",
+			code: "qdrant.points.offset", input: "offset",
+			given: func(t *testing.T) map[string]any {
+				return map[string]any{"address": instance(t), "collection": "docs", "offset": "page-2"}
+			}},
 		{name: "a collection the instance does not hold, to an agent", cap: "qdrant.points.scroll",
 			surface: plugin.SurfaceMCP, code: "qdrant.notfound", input: "collection",
 			given: func(t *testing.T) map[string]any {
@@ -257,6 +262,24 @@ func TestAFileThatCannotBeReadNamesNoInput(t *testing.T) {
 		_, err := c.Run(t.Context(), reqAt(t, f, tc.cap, tc.values).WithSurface(plugin.SurfaceCLI))
 		if verr := view.AsError(err, "qdrant.test.none"); verr == nil || verr.Code != tc.code || verr.Input != "" {
 			t.Errorf("%s: %+v, want %s naming none", tc.cap, verr, tc.code)
+		}
+	}
+}
+
+// Qdrant reads a UUID in four forms, and an id is an unsigned integer or one of
+// them; anything else is no point id.
+func TestAPointIDIsAnUnsignedIntegerOrAUUID(t *testing.T) {
+	for id, want := range map[string]bool{
+		"6b9e5f0e-2d1c-4a8b-9f3e-1a2b3c4d5e6f":          true,
+		"6B9E5F0E2D1C4A8B9F3E1A2B3C4D5E6F":              true,
+		"{6b9e5f0e-2d1c-4a8b-9f3e-1a2b3c4d5e6f}":        true,
+		"urn:uuid:6b9e5f0e-2d1c-4a8b-9f3e-1a2b3c4d5e6f": true,
+		"6b9e5f0e-2d1c-4a8b-9f3e-1a2b3c4d5e6":           false,
+		"page-2":                                        false,
+		"-1":                                            false,
+	} {
+		if got := isUUID(id); got != want {
+			t.Errorf("isUUID(%q) = %v, want %v", id, got, want)
 		}
 	}
 }
