@@ -89,9 +89,13 @@ const dialTimeout = 10 * time.Second
 
 // tlsRequested is whether any setting asks for TLS: the switch itself, or a
 // file or a name that only means something over it.
+//
+// A key-file is one of them, as a cert-file is: left out, a key given alone
+// asked for nothing, the call went out in the clear, and the refusal of a key
+// without its certificate was never reached.
 func tlsRequested(req plugin.Request) bool {
 	return req.Bool("tls") || req.String("ca-file") != "" || req.String("cert-file") != "" ||
-		serverName(req) != ""
+		req.String("key-file") != "" || serverName(req) != ""
 }
 
 func connect(ctx context.Context, req plugin.Request) (*clientv3.Client, *view.Error) {
