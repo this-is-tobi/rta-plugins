@@ -173,17 +173,17 @@ func serviceAccountCapabilities() []plugin.Capability {
 func validatedIdentity(req plugin.Request) (name, namespace string, verr *view.Error) {
 	name = strings.TrimSpace(req.String("name"))
 	if verr = checkName("serviceaccount", name); verr != nil {
-		return "", "", verr
+		return "", "", verr.WithInput("name")
 	}
 	if name == "" {
-		return "", "", view.Errorf("kube.serviceaccount.name.empty", "name the ServiceAccount")
+		return "", "", view.Errorf("kube.serviceaccount.name.empty", "name the ServiceAccount").WithInput("name")
 	}
 	namespace = strings.TrimSpace(req.String("namespace"))
 	if verr = checkName("namespace", namespace); verr != nil {
-		return "", "", verr
+		return "", "", verr.WithInput("namespace")
 	}
 	if namespace == "" {
-		return "", "", view.Errorf("kube.serviceaccount.namespace.empty", "name the namespace")
+		return "", "", view.Errorf("kube.serviceaccount.namespace.empty", "name the namespace").WithInput("namespace")
 	}
 	return name, namespace, nil
 }
@@ -205,12 +205,12 @@ func runServiceAccountProvision(ctx context.Context, req plugin.Request) (view.V
 	if err != nil || ttl < minTokenTTL {
 		return nil, view.Errorf("kube.serviceaccount.ttl.invalid", "%q is not a usable duration", ttlStr).
 			WithHint("use a Go-style duration of at least 10m — the TokenRequest API's own floor, " +
-				"e.g. 15m, 1h or 24h")
+				"e.g. 15m, 1h or 24h").WithInput("ttl")
 	}
 
 	rules, verr := rulesFor(req.Surface(), req.StringSlice("grant"))
 	if verr != nil {
-		return nil, verr
+		return nil, verr.WithInput("grant")
 	}
 
 	// selectionOf reads "namespace" itself, the same field validatedIdentity
@@ -238,7 +238,7 @@ func runServiceAccountProvision(ctx context.Context, req plugin.Request) (view.V
 			return nil, view.Errorf("kube.serviceaccount.out.exists",
 				"%s already exists", plugin.ExpandHome(out)).
 				WithHint("name a path that does not exist yet, or pass " + req.Surface().InputName("force") + " to replace it — " +
-					"checked before anything was created on the cluster")
+					"checked before anything was created on the cluster").WithInput("out")
 		}
 	}
 
@@ -358,10 +358,10 @@ func runServiceAccountProvision(ctx context.Context, req plugin.Request) (view.V
 	// nothing outside the operator's own account has business listing it. The
 	// file itself is 0600 either way — this narrows the path to it.
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		return nil, view.Errorf("kube.serviceaccount.out.unwritable", "creating %s: %v", filepath.Dir(path), err)
+		return nil, view.Errorf("kube.serviceaccount.out.unwritable", "creating %s: %v", filepath.Dir(path), err).WithInput("out")
 	}
 	if verr := writeKubeconfig(req.Surface(), path, []byte(kubeconfigYAML), force); verr != nil {
-		return nil, verr
+		return nil, verr.WithInput("out")
 	}
 	summary.Pairs = append(summary.Pairs, view.Pair{Key: "wrote kubeconfig to", Value: path})
 	return summary, nil
@@ -540,7 +540,7 @@ func runServiceAccountRevoke(ctx context.Context, req plugin.Request) (view.View
 	if verr != nil {
 		if verr.Code == "kube.notfound" {
 			return nil, view.Errorf("kube.serviceaccount.notfound",
-				"no ServiceAccount named %q in namespace %q", name, namespace)
+				"no ServiceAccount named %q in namespace %q", name, namespace).WithInput("name")
 		}
 		return nil, verr
 	}

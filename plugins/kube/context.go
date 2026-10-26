@@ -144,7 +144,8 @@ func runContextGet(ctx context.Context, req plugin.Request) (view.View, error) {
 	if !ok {
 		sf := req.Surface()
 		return nil, view.Errorf("kube.context.unknown", "no context named %q", name).
-			WithHint(contextHint(sf, askFixContext, sf.CapabilityName("kube.context.list")+" shows the contexts this machine has"))
+			WithHint(contextHint(sf, askFixContext, sf.CapabilityName("kube.context.list")+" shows the contexts this machine has")).
+			WithInput(s.contextInput())
 	}
 	if ns == "" {
 		ns = "default"
@@ -174,10 +175,10 @@ func runContextGet(ctx context.Context, req plugin.Request) (view.View, error) {
 func runContextSet(ctx context.Context, req plugin.Request) (view.View, error) {
 	name := strings.TrimSpace(req.String("name"))
 	if verr := checkName("context", name); verr != nil {
-		return nil, verr
+		return nil, verr.WithInput("name")
 	}
 	if name == "" {
-		return nil, view.Errorf("kube.context.empty", "name a context to switch to")
+		return nil, view.Errorf("kube.context.empty", "name a context to switch to").WithInput("name")
 	}
 	cfg, verr := readConfig(ctx, req.Surface())
 	if verr != nil {
@@ -193,7 +194,7 @@ func runContextSet(ctx context.Context, req plugin.Request) (view.View, error) {
 		if len(cfg.Contexts) == 0 {
 			hint = "this machine's kubeconfig has no context at all, so there is none to switch to"
 		}
-		return nil, view.Errorf("kube.context.unknown", "no context named %q", name).WithHint(hint)
+		return nil, view.Errorf("kube.context.unknown", "no context named %q", name).WithHint(hint).WithInput("name")
 	}
 	if cfg.CurrentContext == name {
 		// Idempotent, and said rather than silently re-run: an operator who

@@ -224,10 +224,12 @@ func rejectedSummary(summaries []nodeSummary) *view.Error {
 }
 
 // nodesForStats resolves the node set both capabilities fan out over, honoring
-// a caller-named single node.
+// a caller-named single node. only is the `node` input of both, so a refusal of
+// it names that input; a failure listing the nodes is the cluster's, and names
+// none.
 func nodesForStats(ctx context.Context, s selection, only string) ([]nodeItem, *view.Error) {
 	if verr := checkNodeName(only); verr != nil {
-		return nil, verr
+		return nil, verr.WithInput("node")
 	}
 	nodes, verr := fetchNodes(ctx, s)
 	if verr != nil {
@@ -242,7 +244,7 @@ func nodesForStats(ctx context.Context, s selection, only string) ([]nodeItem, *
 		}
 	}
 	return nil, view.Errorf("kube.node.unknown", "%s has no node called %q", s.where(), only).
-		WithHint(s.sf.CapabilityName("kube.node.list") + " shows the nodes this cluster has")
+		WithHint(s.sf.CapabilityName("kube.node.list") + " shows the nodes this cluster has").WithInput("node")
 }
 
 // pressureOf picks the series to report, and the choice is a correctness one.
