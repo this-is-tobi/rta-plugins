@@ -208,3 +208,20 @@ func TestAPodsMemoryIsItsContainersSummedAgainstTheirLimits(t *testing.T) {
 		t.Errorf("memory %% = %q, want 50%% of both limits summed", got)
 	}
 }
+
+// kubectl's real words for a cluster without metrics-server are the API
+// server's 404, an answer: they are kube.notfound, which is what carries the
+// metrics-server hint, and never a cluster that did not answer.
+func TestTheServerCouldNotFindTheResourceIsNotFoundAndNotUnreachable(t *testing.T) {
+	script := filepath.Join(t.TempDir(), "kubectl")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\necho 'Error from server (NotFound): the server could not find the requested resource' >&2\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	orig := kubectlBin
+	kubectlBin = script
+	t.Cleanup(func() { kubectlBin = orig })
+	verr := getRawJSON(context.Background(), selection{}, "/apis/metrics.k8s.io/v1beta1/nodes", &struct{}{})
+	if verr == nil || verr.Code != "kube.notfound" || !strings.Contains(verr.Hint, "metrics-server") {
+		t.Errorf("a cluster without metrics-server = %+v, want kube.notfound with the metrics-server hint", verr)
+	}
+}
