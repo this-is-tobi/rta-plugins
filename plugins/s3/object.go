@@ -135,7 +135,19 @@ func runObjectShow(ctx context.Context, req plugin.Request) (view.View, error) {
 	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
 		info, err := client.StatObject(ctx, req.String("bucket"), req.String("key"), minio.StatObjectOptions{})
 		if err != nil {
-			return nil, classify(err, req)
+			verr := classify(err, req)
+			// A HEAD's answer has no body, and minio-go reads a bare 404 as
+			// NoSuchKey: from a server that sends no error code in a header, AWS
+			// among them, a bucket that is not there was answered as an object
+			// that is not there, naming the key. Which one it is is asked once,
+			// on the way out, of the bucket.
+			if verr.Code == "s3.object.notfound" {
+				if exists, berr := client.BucketExists(ctx, req.String("bucket")); berr == nil && !exists {
+					return nil, classify(minio.ErrorResponse{Code: minio.NoSuchBucket, BucketName: req.String("bucket"),
+						StatusCode: 404}, req)
+				}
+			}
+			return nil, verr
 		}
 		pairs := []view.Pair{
 			{Key: "size", Value: format.Bytes(info.Size)},

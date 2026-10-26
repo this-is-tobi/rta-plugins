@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -28,6 +29,12 @@ func refusingS3(t *testing.T, status int, code, bucket, key string) string {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodHead {
+			// A bucket's HEAD is a bucket that is there, unless it is the one
+			// refused; an object's is a bare not found.
+			if !strings.Contains(strings.Trim(r.URL.Path, "/"), "/") && code != "NoSuchBucket" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -188,6 +195,14 @@ func TestARefusalOfOneInputNamesIt(t *testing.T) {
 		{name: "a bucket name S3 does not allow", id: "s3.object.list",
 			values: given(map[string]any{"bucket": "b1"}),
 			code:   "s3.bucket.invalid", input: "bucket"},
+		{name: "a destination bucket name S3 does not allow", id: "s3.object.copy",
+			values: given(map[string]any{"bucket": "shop", "key": "k", "dest-bucket": "B!", "dest-key": "k2"}),
+			code:   "s3.bucket.invalid", input: "dest-bucket"},
+		// A HEAD's 404 has no body to say which is missing: the bucket is asked.
+		{name: "the metadata of a key in a bucket that is not there", id: "s3.object.show",
+			endpoint: refusing(http.StatusNotFound, "NoSuchBucket", "nope", ""),
+			values:   given(map[string]any{"bucket": "nope", "key": "k"}),
+			code:     "s3.bucket.notfound", input: "bucket"},
 		{name: "more buckets than an overview reads", id: "s3.overview",
 			values: given(map[string]any{"bucket": many}),
 			code:   "s3.bucket.toomany", input: "bucket"},

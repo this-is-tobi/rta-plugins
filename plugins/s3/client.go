@@ -234,11 +234,19 @@ func classify(err error, req plugin.Request) *view.Error {
 	// settings, for an argument. The same check minio-go ran, on the name the
 	// call carried, and only when it is the error in hand — a name that is fine
 	// is no explanation for any other failure.
-	if bucket := req.String("bucket"); bucket != "" {
+	//
+	// The destination of a copy or a rename too: only the source was read, and
+	// an invalid dest-bucket came back as the server's InvalidBucketName under
+	// the hint to the connection's settings.
+	for _, name := range []string{"bucket", "dest-bucket"} {
+		bucket := req.String(name)
+		if bucket == "" {
+			continue
+		}
 		if invalid := s3utils.CheckValidBucketName(bucket); invalid != nil && strings.Contains(err.Error(), invalid.Error()) {
 			return view.Errorf("s3.bucket.invalid", "%s is not a valid bucket name: %s", quoted(bucket), invalid.Error()).
 				WithHint("a bucket name is 3 to 63 characters of lowercase letters, digits, dots and hyphens; " +
-					nextCall(req, "s3.bucket.list") + " shows the buckets there are").WithInput("bucket")
+					nextCall(req, "s3.bucket.list") + " shows the buckets there are").WithInput(name)
 		}
 	}
 
