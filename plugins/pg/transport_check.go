@@ -166,12 +166,12 @@ func checkClientPair(req plugin.Request) *view.Error {
 	if err != nil {
 		return view.Errorf("pg.tls.client.unreadable", "%v", err).
 			WithHint(cert + " names a file on this machine, read by rta rather than by the server, holding the " +
-				"client certificate in PEM")
+				"client certificate in PEM").WithInput(pathInput(t.clientInput("sslcert"), err))
 	}
 	if info, err := os.Stat(t.clientKey); err != nil {
 		return view.Errorf("pg.tls.client.unreadable", "%v", err).
 			WithHint(key + " names a file on this machine, read by rta rather than by the server, holding the " +
-				"client certificate's private key in PEM")
+				"client certificate's private key in PEM").WithInput(pathInput(t.clientInput("sslkey"), err))
 	} else if info.Mode().Perm()&0o077 != 0 {
 		return view.Errorf("pg.tls.client.key.perms", "%s is readable by others (mode %04o)", t.clientKey, info.Mode().Perm()).
 			WithHint("libpq refuses a private key that group or others can read, and rta holds its own " +
@@ -181,12 +181,13 @@ func checkClientPair(req plugin.Request) *view.Error {
 	if err != nil {
 		return view.Errorf("pg.tls.client.unreadable", "%v", err).
 			WithHint(key + " names a file on this machine, read by rta rather than by the server, holding the " +
-				"client certificate's private key in PEM")
+				"client certificate's private key in PEM").WithInput(pathInput(t.clientInput("sslkey"), err))
 	}
 	if encrypted(keyPEM) {
 		return view.Errorf("pg.tls.client.key.encrypted", "%s holds a private key protected by a passphrase", t.clientKey).
 			WithHint("rta has nowhere to ask for it, and libpq would ask a terminal it does not own — " +
-				key + " wants a key without one: `openssl pkey -in <key> -out <new key>` writes it")
+				key + " wants a key without one: `openssl pkey -in <key> -out <new key>` writes it").
+			WithInput(t.clientInput("sslkey"))
 	}
 	if _, err := tls.X509KeyPair(certPEM, keyPEM); err != nil {
 		return view.Errorf("pg.tls.client.invalid", "%s and %s are not a certificate and its key: %v",
@@ -204,6 +205,26 @@ func (t transport) rootSetting(sf plugin.Surface) string {
 		return sf.SettingName("ssl-home")
 	}
 	return sf.SettingName("sslrootcert")
+}
+
+// rootInput is the input a refusal of the root certificate's file is about
+// (view.Error.Input): sslrootcert, when it named the file. A file ssl-home
+// found is in no box, and a refusal of one names none: ssl-home is a switch,
+// and the box a form would reopen on would hold nothing to change.
+func (t transport) rootInput() string {
+	if t.fromHome.root {
+		return ""
+	}
+	return "sslrootcert"
+}
+
+// clientInput is rootInput for the client pair: setting, sslcert or sslkey,
+// when it named the file, and none when ssl-home found the pair.
+func (t transport) clientInput(setting string) string {
+	if t.fromHome.client {
+		return ""
+	}
+	return setting
 }
 
 // caSubject is what a refusal about a root certificate begins with: the setting

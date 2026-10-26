@@ -465,7 +465,7 @@ func Plugin() plugin.Plugin {
 									"the query returned more than %s", format.Bytes(maxBytes)).
 									WithHint("select fewer columns, or fewer rows — a row bound is not a " +
 										"size bound, and one wide text or bytea column is usually what " +
-										"does this")
+										"does this").WithInput("sql")
 							}
 							if err != nil {
 								return err
@@ -474,7 +474,7 @@ func Plugin() plugin.Plugin {
 							return nil
 						})
 						if err != nil {
-							return nil, classify(err, req)
+							return nil, statementInput(classify(err, req), err)
 						}
 						return out, nil
 					})

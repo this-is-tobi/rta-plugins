@@ -124,21 +124,22 @@ func detectFormat(sf plugin.Surface, path string) (dumpFormat, *view.Error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return "", view.Errorf("pg.restore.missing", "no dump at %s", path).
-			WithHint("`" + sf.Call("pg.dump", plugin.Arg{Name: "out", Value: "<path>"}) + "` writes one; this restores what that wrote")
+			WithHint("`" + sf.Call("pg.dump", plugin.Arg{Name: "out", Value: "<path>"}) + "` writes one; this restores what that wrote").
+			WithInput(pathInput("file", err))
 	}
 	if info.IsDir() {
 		if _, err := os.Stat(filepath.Join(path, "toc.dat")); err != nil {
 			return "", view.Errorf("pg.restore.notadump",
 				"%s is a directory with no toc.dat, so it is not a directory-format dump", path).
 				WithHint("a directory-format dump is what `" + sf.Call("pg.dump", plugin.Arg{Name: "format", Value: "directory"}) +
-					"` writes — one toc.dat and one compressed file per table")
+					"` writes — one toc.dat and one compressed file per table").WithInput(pathInput("file", err))
 		}
 		return formatDirectory, nil
 	}
 
 	f, err := os.Open(path)
 	if err != nil {
-		return "", view.Errorf("pg.restore.unreadable", "opening %s: %v", path, err)
+		return "", view.Errorf("pg.restore.unreadable", "opening %s: %v", path, err).WithInput(pathInput("file", err))
 	}
 	defer func() { _ = f.Close() }()
 	magic := make([]byte, len(customMagic))
@@ -151,7 +152,7 @@ func detectFormat(sf plugin.Surface, path string) (dumpFormat, *view.Error) {
 		// nothing, which is the same lie a truncated dump tells.
 		return "", view.Errorf("pg.restore.empty", "%s is empty", path).
 			WithHint("an empty file restores as nothing and reports success — if this was a " +
-				"dump, it did not finish")
+				"dump, it did not finish").WithInput("file")
 	}
 	if string(magic[:n]) == customMagic {
 		return formatCustom, nil
@@ -319,7 +320,7 @@ func checkTarget(ctx context.Context, req plugin.Request, format dumpFormat) (so
 		if verr.Code == "pg.database.missing" {
 			return source{}, view.Errorf("pg.restore.nodatabase", "%s", verr.Message).
 				WithHint("rta does not create databases on its own — a typo'd name becoming " +
-					"a new database is worse than this refusal. " + createdbHint(req))
+					"a new database is worse than this refusal. " + createdbHint(req)).WithInput("database")
 		}
 		return source{}, verr
 	}
