@@ -270,12 +270,13 @@ func readRows(ctx context.Context, q querier, req plugin.Request, rel relation) 
 	t, err := rowsToTable(rows, limit)
 	switch {
 	case errors.Is(err, ErrTooManyRows):
+		// limit is the one box: naming fewer columns, which the hint also
+		// offered, changes how wide a row is and never how many there are.
 		return nil, view.Errorf("pg.table.rows.toomany",
 			"%s has more than %s", rel.listed(), format.CountOf(limit, "row")).
-			WithHint("raise " + req.Surface().InputName("limit") + ", or narrow the read with " +
-				req.Surface().InputName("columns") + " — refused rather " +
+			WithHint("raise " + req.Surface().InputName("limit") + " — refused rather " +
 				"than shortened, because a truncated table is a different answer wearing " +
-				"the right shape. `psql \\copy` is the tool for a whole table")
+				"the right shape. `psql \\copy` is the tool for a whole table").WithInput("limit")
 	case errors.Is(err, ErrTooLarge):
 		return nil, view.Errorf("pg.table.rows.toolarge",
 			"the rows of %s are over the %s a result may be",
