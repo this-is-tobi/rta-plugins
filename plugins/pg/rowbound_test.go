@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
 )
@@ -188,8 +189,9 @@ func (f *fakeRows) Values() ([]any, error) {
 	}
 	return []any{f.n}, nil
 }
-func (f *fakeRows) RawValues() [][]byte { return nil }
-func (f *fakeRows) Conn() *pgx.Conn     { return nil }
+func (f *fakeRows) RawValues() [][]byte  { return nil }
+func (f *fakeRows) Conn() *pgx.Conn      { return nil }
+func (f *fakeRows) TypeMap() *pgtype.Map { return nil }
 
 // A cell of one byte is the heaviest case per byte of text, three on the wire
 // for the one the bound counts (the text, a tag and a length), so the bound has

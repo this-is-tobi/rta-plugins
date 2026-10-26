@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -110,6 +111,7 @@ func (r *valueRows) Scan(dest ...any) error { return assignAll(dest, r.rows[r.at
 func (r *valueRows) Values() ([]any, error) { return r.rows[r.at-1], nil }
 func (r *valueRows) RawValues() [][]byte    { return nil }
 func (r *valueRows) Conn() *pgx.Conn        { return nil }
+func (r *valueRows) TypeMap() *pgtype.Map   { return nil }
 func assignAll(dest, vals []any) error {
 	if len(dest) != len(vals) {
 		return errors.New("scanned the wrong number of columns")
