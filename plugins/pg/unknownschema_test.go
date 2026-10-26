@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // schemaNameRows yields one text column per name, for the catalogue query that
@@ -30,6 +31,7 @@ func (r *schemaNameRows) Scan(dest ...any) error {
 func (r *schemaNameRows) Values() ([]any, error) { return []any{r.names[r.at-1]}, nil }
 func (r *schemaNameRows) RawValues() [][]byte    { return nil }
 func (r *schemaNameRows) Conn() *pgx.Conn        { return nil }
+func (r *schemaNameRows) TypeMap() *pgtype.Map   { return nil }
 
 type schemasSeen []string
 
