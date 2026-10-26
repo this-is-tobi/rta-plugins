@@ -103,13 +103,13 @@ func connectionOf(req plugin.Request) (connection, *view.Error) {
 	c.reached = reachedDaemon(req, c.Host, c.Context)
 	c.reach = reachArgs(req, c.Host, c.Context)
 	if verr := checkName("context", c.Context); verr != nil {
-		return connection{}, verr
+		return connection{}, verr.WithInput("context")
 	}
 	// A host is a URL rather than a name, so nameRe would refuse legitimate
 	// values. What matters is the same thing: it must not be read as a flag.
 	if strings.HasPrefix(c.Host, "-") {
 		return connection{}, view.Errorf("docker.host.invalid",
-			"%q is not a usable daemon address", c.Host)
+			"%q is not a usable daemon address", c.Host).WithInput("host")
 	}
 	return c, nil
 }
@@ -136,12 +136,29 @@ func reachedDaemon(req plugin.Request, host, context string) string {
 // listing that shows what is there carrying the daemon this call reached:
 // pasted bare it listed the daemon the configuration where it was pasted
 // names, and a container the profile's daemon lacks may well be there.
+//
+// It names the container input: every capability that looks a container up
+// takes it under that name (nameInput), and the name it was given is the one
+// that is not there.
 func (c connection) notFound(name string) *view.Error {
 	message := fmt.Sprintf("no container named %q", name)
 	if c.reached != "" {
 		message += " on " + c.reached
 	}
-	return view.Errorf("docker.notfound", "%s", message).WithHint(c.listHint() + " shows what is there")
+	return view.Errorf("docker.notfound", "%s", message).WithHint(c.listHint() + " shows what is there").
+		WithInput("container")
+}
+
+// ofContainer is verr naming the container input when it is docker's own
+// docker.notfound, from a run that named the container the call was given:
+// the CLI's "No such container" is that container not being there, as
+// notFound is. classify names none of it itself, since it serves every run,
+// and a listing that answered so would be naming an input it does not take.
+func ofContainer(verr *view.Error) *view.Error {
+	if verr != nil && verr.Code == "docker.notfound" {
+		return verr.WithInput("container")
+	}
+	return verr
 }
 
 // startLine is the docker command that starts the container names again, on
@@ -287,7 +304,14 @@ func classify(ctx context.Context, err error, stderr string, args []string, c co
 		return view.Errorf("docker.notfound", "%s", msg).
 			WithHint(c.listHint() + " shows what is there, stopped ones included")
 	case strings.Contains(low, "context") && strings.Contains(low, "not found"):
-		return view.Errorf("docker.context.unknown", "%s", msg)
+		// The context input's when it was given one. Given none, the context
+		// docker could not find is the CLI's own current one — DOCKER_CONTEXT,
+		// or `docker context use` — and no box of this call holds it.
+		unknown := view.Errorf("docker.context.unknown", "%s", msg)
+		if c.Context != "" {
+			return unknown.WithInput("context")
+		}
+		return unknown
 	case msg != "":
 		return view.Errorf("docker.failed", "%s", msg)
 	}
