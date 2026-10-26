@@ -72,6 +72,17 @@ func runTransitEncrypt(ctx context.Context, req plugin.Request) (view.View, erro
 		if err != nil {
 			return nil, classify(err, req)
 		}
+		// No ciphertext and no error is a mount that is not transit. A KV
+		// version 1 mount answers a write with an empty 204 and keeps what it
+		// was sent, which here is the plaintext, at the path this wrote: it
+		// has to be said, so whoever reads this can go and delete it.
+		if secret == nil {
+			return nil, view.Errorf("vault.transit.notransit",
+				"%s answered with no ciphertext, so %s is not a transit mount, and nothing was encrypted", reached(req),
+				req.String("mount")).
+				WithHint("a mount that stores what it is written, KV version 1, now holds the plaintext at " + path +
+					" — read it there and delete it, and point the call at the transit mount").WithInput("mount")
+		}
 		ciphertext, _ := secret.Data["ciphertext"].(string)
 		return view.KeyValue{Pairs: []view.Pair{{Key: "ciphertext", Value: ciphertext}}}, nil
 	})
@@ -113,6 +124,9 @@ func runTransitDecrypt(ctx context.Context, req plugin.Request) (view.View, erro
 		})
 		if err != nil {
 			return nil, classify(err, req)
+		}
+		if secret == nil {
+			return nil, noAnswer(req, "the decryption at "+path).WithInput("mount")
 		}
 		encoded, _ := secret.Data["plaintext"].(string)
 		plaintext, decErr := base64.StdEncoding.DecodeString(encoded)

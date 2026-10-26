@@ -567,6 +567,16 @@ func dataHint(sf plugin.Surface) string {
 // that names it.
 func reached(req plugin.Request) string { return req.Reached(req.String("url")) }
 
+// noAnswer is the refusal of a call Vault answered with no body. vault/api
+// hands a 204 back as a nil secret and no error, and every handler that went
+// on to read the secret's data panicked on it, taking the plugin's process with
+// it. what is the call, as the message says it.
+func noAnswer(req plugin.Request, what string) *view.Error {
+	return view.Errorf("vault.answer.empty", "%s answered %s with nothing", reached(req), what).
+		WithHint("Vault sends no body for a write a store kept, or a path that is no endpoint of this kind — " +
+			"check the mount and the path")
+}
+
 // hostOf is the name in url, the one DNS was asked for: url is a
 // URL, and a lookup given the whole of it, scheme and port and all, answers
 // for no name anybody has. The address itself when it holds no host to take.
