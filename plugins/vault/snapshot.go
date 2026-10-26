@@ -99,7 +99,7 @@ func runSnapshot(ctx context.Context, req plugin.Request) (view.View, error) {
 	if out == "" {
 		return nil, view.Errorf("vault.snapshot.nooutput", "say where the snapshot should be written").
 			WithHint(req.Surface().SettingTo("out", "./vault.snap") + " — a whole Vault is a file, not something " +
-				"to read in a terminal")
+				"to read in a terminal").WithInput("out")
 	}
 	path, err := expandHome(out)
 	if err != nil {
@@ -127,7 +127,7 @@ func runSnapshot(ctx context.Context, req plugin.Request) (view.View, error) {
 			return nil, snapshotExists(path)
 		}
 		if err != nil {
-			return nil, view.Errorf("vault.snapshot.create", "creating %s: %v", path, err)
+			return nil, view.Errorf("vault.snapshot.create", "creating %s: %v", path, err).WithInput("out")
 		}
 
 		started := time.Now()
@@ -152,7 +152,7 @@ func runSnapshot(ctx context.Context, req plugin.Request) (view.View, error) {
 		}
 		if closeErr != nil {
 			_ = os.Remove(path)
-			return nil, view.Errorf("vault.snapshot.write", "finishing %s: %v", path, closeErr)
+			return nil, view.Errorf("vault.snapshot.write", "finishing %s: %v", path, closeErr).WithInput("out")
 		}
 
 		var size int64
@@ -214,7 +214,7 @@ func restoreCommand(req plugin.Request, path string) string {
 func snapshotExists(path string) *view.Error {
 	return view.Errorf("vault.snapshot.exists", "%s already exists", path).
 		WithHint("a snapshot is never written over an existing file — name a new one, or move " +
-			"that one aside")
+			"that one aside").WithInput("out")
 }
 
 // classifySnapshot names the failures particular to this endpoint before

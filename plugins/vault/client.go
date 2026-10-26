@@ -6,12 +6,15 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
+	"syscall"
 
 	vaultapi "github.com/hashicorp/vault/api"
 
@@ -211,12 +214,13 @@ func caBundle(req plugin.Request, path string) ([]byte, *view.Error) {
 	pem, err := os.ReadFile(path)
 	if err != nil {
 		return nil, view.Errorf("vault.tls.ca.unreadable", "%v", err).
-			WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by Vault")
+			WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by Vault").
+			WithInput(pathInput("ca-file", err))
 	}
 	if !x509.NewCertPool().AppendCertsFromPEM(pem) {
 		return nil, view.Errorf("vault.tls.ca.invalid", "%s holds no PEM certificate", path).
 			WithHint(sf.SettingName("ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
-				"server's own — and a private key or a DER-encoded certificate is not one")
+				"server's own — and a private key or a DER-encoded certificate is not one").WithInput("ca-file")
 	}
 	return pem, nil
 }
@@ -450,6 +454,35 @@ func classify(err error, req plugin.Request) *view.Error {
 		WithHint(sf.SettingsHint("vault.seal.status"))
 }
 
+// naming is verr naming input (view.Error.Input) when its code is one of codes,
+// and verr as it was otherwise.
+//
+// **Named where the call is made, never in classify.** classify words a 404 or
+// a 400 alike for every capability, and what it is about depends on what the
+// call sent: the path a read found nothing at, the lease id a lookup was
+// refused, the wrapping token an unwrap was refused — and on a write, a mount
+// that is not there, which is the same 404 and no input the caller gave. Only
+// the call site knows which, so it says, and says nothing where it cannot tell.
+func naming(verr *view.Error, input string, codes ...string) *view.Error {
+	if slices.Contains(codes, verr.Code) {
+		return verr.WithInput(input)
+	}
+	return verr
+}
+
+// pathInput is the input a refusal to read the path it holds names: input
+// itself when the path is what is wrong — nothing there, a directory where a
+// file was wanted, a file where a directory was — since another path is the
+// fix, and none when the file is there and cannot be read, permission denied
+// or an I/O error, since the path is right and the fix is a chmod or the
+// machine. The line rta's own built-ins draw for a path they read.
+func pathInput(input string, err error) string {
+	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) || errors.Is(err, syscall.EISDIR) {
+		return input
+	}
+	return ""
+}
+
 // timedOut is the refusal for a Vault that did not answer in the time it was
 // given, under the one code the plugins that wait on a server share, and with
 // the cause that looks exactly like it.
@@ -591,7 +624,7 @@ func dataFields(sf plugin.Surface, pairs []string) (map[string]interface{}, *vie
 			// itself, and a message is returned to the caller and written to the
 			// agent ledger, which holds this input masked.
 			return nil, view.Errorf("vault.data.invalid", "entry %d of %s is not key=value", i+1, sf.InputName("data")).
-				WithHint(dataHint(sf))
+				WithHint(dataHint(sf)).WithInput("data")
 		}
 		data[key] = value
 	}

@@ -105,7 +105,7 @@ func runRestoreSnapshot(ctx context.Context, req plugin.Request) (view.View, err
 	return withClient(req, func(client *vaultapi.Client) (view.View, error) {
 		f, err := os.Open(path)
 		if err != nil {
-			return nil, view.Errorf("vault.restore.unreadable", "opening %s: %v", path, err)
+			return nil, view.Errorf("vault.restore.unreadable", "opening %s: %v", path, err).WithInput(pathInput("file", err))
 		}
 		defer func() { _ = f.Close() }()
 
@@ -139,15 +139,16 @@ func checkSnapshotFile(sf plugin.Surface, path string) *view.Error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return view.Errorf("vault.restore.missing", "no snapshot at %s", path).
-			WithHint("`" + sf.Call("vault.snapshot", plugin.Arg{Name: "out", Value: "<path>"}) + "` writes one; this restores what that wrote")
+			WithHint("`" + sf.Call("vault.snapshot", plugin.Arg{Name: "out", Value: "<path>"}) + "` writes one; this restores what that wrote").
+			WithInput(pathInput("file", err))
 	}
 	if info.IsDir() {
 		return view.Errorf("vault.restore.notafile", "%s is a directory", path).
-			WithHint("a vault.snapshot file is a single archive")
+			WithHint("a vault.snapshot file is a single archive").WithInput("file")
 	}
 	if info.Size() == 0 {
 		return view.Errorf("vault.restore.empty", "%s is empty", path).
-			WithHint("an empty file holds no Vault — if this was a snapshot, it did not finish")
+			WithHint("an empty file holds no Vault — if this was a snapshot, it did not finish").WithInput("file")
 	}
 	return nil
 }

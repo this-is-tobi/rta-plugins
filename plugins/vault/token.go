@@ -92,7 +92,9 @@ func runLeaseShow(ctx context.Context, req plugin.Request) (view.View, error) {
 	return withClient(req, func(client *vaultapi.Client) (view.View, error) {
 		secret, err := client.Sys().LookupWithContext(ctx, req.String("id"))
 		if err != nil {
-			return nil, classify(err, req)
+			// A lease Vault does not hold is its 400, "invalid lease": the id
+			// is the one thing this call sent.
+			return nil, naming(classify(err, req), "id", "vault.badrequest")
 		}
 		kv := view.KeyValue{}
 		keys := []string{"id", "issue_time", "expire_time", "last_renewal", "renewable", "ttl"}
