@@ -548,12 +548,17 @@ func classify(ctx context.Context, err error, stderr string, args []string, sf p
 				"not valid — whatever refreshes it (a login, an SSO session, an exec credential plugin) has to run first")
 	case strings.Contains(low, "connection refused"), strings.Contains(low, "no route to host"),
 		strings.Contains(low, "i/o timeout"), strings.Contains(low, "dial tcp"),
-		strings.Contains(low, "server could not find"), strings.Contains(low, "connect:"),
-		transportFailed(stderr):
+		strings.Contains(low, "connect:"), transportFailed(stderr):
 		return view.Errorf("kube.unreachable", "%s", msg).
 			WithHint("the API server did not answer — check the VPN, the context, and that the cluster is up; `" +
 				clusterInfoLine(args) + "` is the same question without this plugin in the way")
-	case strings.Contains(low, "not found"):
+	// "The server could not find the requested resource" is the API server's
+	// own 404, an answer: a cluster without metrics-server gives it for
+	// metrics.k8s.io, and getRawJSON adds the hint that says so on
+	// kube.notfound. It was read with the transport's failures, as a cluster
+	// that did not answer, which hid the hint and took the whole cluster for
+	// down.
+	case strings.Contains(low, "not found"), strings.Contains(low, "server could not find"):
 		return view.Errorf("kube.notfound", "%s", msg)
 	case msg != "":
 		return view.Errorf("kube.failed", "%s", msg)
