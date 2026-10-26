@@ -163,7 +163,7 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 // finish"; the server just sees no statements.
 func checkDumpFile(sf plugin.Surface, path string) *view.Error {
 	info, err := os.Stat(path)
-	if err != nil && pathInput("file", err) == "" {
+	if err != nil && plugin.PathInput("file", err) == "" {
 		// Only a path that leads nowhere is no dump. One this account cannot
 		// look at, behind a directory it may not enter, was said not to be
 		// there, about a file that may well be; it names no input, since the
@@ -174,7 +174,7 @@ func checkDumpFile(sf plugin.Surface, path string) *view.Error {
 	if err != nil {
 		return view.Errorf("mariadb.restore.nofile", "no dump at %s", path).
 			WithHint("`" + sf.Call("mariadb.dump", plugin.Arg{Name: "out", Value: "<path>"}) + "` writes one; this restores what that wrote").
-			WithInput(pathInput("file", err))
+			WithInput(plugin.PathInput("file", err))
 	}
 	if info.IsDir() {
 		return view.Errorf("mariadb.restore.notafile", "%s is a directory", path).
@@ -295,7 +295,7 @@ func runRestoreTool(ctx context.Context, tool string, args []string,
 	req plugin.Request, path string) *view.Error {
 	f, err := os.Open(path)
 	if err != nil {
-		return view.Errorf("mariadb.restore.unreadable", "opening %s: %v", path, err).WithInput(pathInput("file", err))
+		return view.Errorf("mariadb.restore.unreadable", "opening %s: %v", path, err).WithInput(plugin.PathInput("file", err))
 	}
 	defer func() { _ = f.Close() }()
 

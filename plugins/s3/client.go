@@ -6,14 +6,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"io/fs"
 	"iter"
 	stdnet "net"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
-	"syscall"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -156,7 +154,7 @@ func tlsTransport(sf plugin.Surface, ca, name string) (*http.Transport, *view.Er
 	if err != nil {
 		return nil, view.Errorf("s3.tls.ca.unreadable", "%v", err).
 			WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by the server").
-			WithInput(pathInput("ca-file", err))
+			WithInput(plugin.PathInput("ca-file", err))
 	}
 	pool := x509.NewCertPool()
 	// What the file has to hold, rather than a guess at what it held instead.
@@ -434,19 +432,6 @@ func inputHolding(req plugin.Request, value string, names ...string) string {
 		if req.String(name) == value {
 			return name
 		}
-	}
-	return ""
-}
-
-// pathInput is the input a refusal to read the path it holds names: input
-// itself when the path is what is wrong — nothing there, a directory where a
-// file was wanted, a file where a directory was — since another path is the
-// fix, and none when the file is there and cannot be read, permission denied
-// or an I/O error, since the path is right and the fix is a chmod or the
-// machine. The line rta's own built-ins draw for a path they read.
-func pathInput(input string, err error) string {
-	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) || errors.Is(err, syscall.EISDIR) {
-		return input
 	}
 	return ""
 }

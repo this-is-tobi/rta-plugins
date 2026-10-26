@@ -6,12 +6,10 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"errors"
-	"io/fs"
 	stdnet "net"
 	"net/url"
 	"os"
 	"strconv"
-	"syscall"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -260,7 +258,7 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 	if err != nil {
 		return nil, view.Errorf("mariadb.tls.ca.unreadable", "%v", err).
 			WithHint(sf.SettingName("ca-file") + " names a file on this machine, read by rta rather than " +
-				"by the server, holding the CA's certificate in PEM").WithInput(pathInput("ca-file", err))
+				"by the server, holding the CA's certificate in PEM").WithInput(plugin.PathInput("ca-file", err))
 	}
 	// What the file has to hold, rather than a guess at what it held
 	// instead: only a file with no PEM certificate in it reaches this, a
@@ -321,21 +319,6 @@ func caFile(req plugin.Request) string {
 		return abs
 	}
 	return plugin.ExpandHome(ca)
-}
-
-// pathInput is the input a refusal to read the file a path input names is
-// about (view.Error.Input): name itself when the path is what is wrong —
-// nothing is there, a file stands where a directory was wanted, a directory
-// where the file was — so the form the call came from opens again on that
-// box, and none when the file is there and this process may not read it,
-// which no other path in that box cures: the fix is a chmod, or the machine.
-// rta's own built-ins draw the line where this does, in a package no plugin
-// can import.
-func pathInput(name string, err error) string {
-	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) || errors.Is(err, syscall.EISDIR) {
-		return name
-	}
-	return ""
 }
 
 // classify turns a driver error into something an operator can act on.

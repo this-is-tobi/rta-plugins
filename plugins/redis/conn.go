@@ -13,7 +13,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -180,7 +179,7 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 		if err != nil {
 			return nil, view.Errorf("redis.tls.ca.unreadable", "%v", err).
 				WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by the server").
-				WithInput(pathInput("ca-file", err))
+				WithInput(plugin.PathInput("ca-file", err))
 		}
 		pool := x509.NewCertPool()
 		// What the file has to hold, rather than a guess at what it held
@@ -218,21 +217,7 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 	return cfg, nil
 }
 
-// pathInput is the input a refusal to read the file a path setting names is
-// about (view.Error.Input): input itself when err says the path is what is
-// wrong — nothing is there, a directory is where a file was wanted, or a file
-// where a directory was — so the form the call came from opens again on that
-// box, and none when the file is there and cannot be read, which no box
-// answers: the path is right, and the fix is a chmod or the machine. rta's own
-// built-ins hold their paths to the same line.
-func pathInput(input string, err error) string {
-	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) || errors.Is(err, syscall.EISDIR) {
-		return input
-	}
-	return ""
-}
-
-// pairInput is pathInput for the client pair, which tls.LoadX509KeyPair reads
+// pairInput is plugin.PathInput for the client pair, which tls.LoadX509KeyPair reads
 // both halves of and answers with the error of the one it could not read:
 // cert-file or key-file by the path that error names. A pair it read and could
 // not make one of names none, since its words do not say which half is wrong,
@@ -244,9 +229,9 @@ func pairInput(err error, cert, key string) string {
 	}
 	switch pathErr.Path {
 	case cert:
-		return pathInput("cert-file", err)
+		return plugin.PathInput("cert-file", err)
 	case key:
-		return pathInput("key-file", err)
+		return plugin.PathInput("key-file", err)
 	}
 	return ""
 }

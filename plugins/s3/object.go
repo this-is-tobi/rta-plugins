@@ -327,12 +327,12 @@ func runObjectSet(ctx context.Context, req plugin.Request) (view.View, error) {
 			}
 			f, err := os.Open(plugin.ExpandHome(path))
 			if err != nil {
-				return nil, view.Errorf("s3.file.unreadable", "reading %s: %v", path, err).WithInput(pathInput("file", err))
+				return nil, view.Errorf("s3.file.unreadable", "reading %s: %v", path, err).WithInput(plugin.PathInput("file", err))
 			}
 			defer func() { _ = f.Close() }()
 			info, err := f.Stat()
 			if err != nil {
-				return nil, view.Errorf("s3.file.unreadable", "reading %s: %v", path, err).WithInput(pathInput("file", err))
+				return nil, view.Errorf("s3.file.unreadable", "reading %s: %v", path, err).WithInput(plugin.PathInput("file", err))
 			}
 			// A directory opens, and states a size of a few dozen bytes, so it
 			// went up as a file of that length and failed on its first read,

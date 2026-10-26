@@ -9,14 +9,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	stdnet "net"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -279,7 +277,7 @@ func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 	if err != nil {
 		return nil, view.Errorf("qdrant.tls.ca.unreadable", "%v", err).
 			WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by the server").
-			WithInput(pathInput("ca-file", err))
+			WithInput(plugin.PathInput("ca-file", err))
 	}
 	pool := x509.NewCertPool()
 	// What the file has to hold, rather than a guess at what it held instead.
@@ -296,19 +294,6 @@ func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 	}
 	cfg.RootCAs = pool
 	return &http.Client{Transport: &http.Transport{TLSClientConfig: cfg}, CheckRedirect: refuseRedirect}, nil
-}
-
-// pathInput is the input a refusal to read the path it holds names
-// (view.Error.Input): input when the path is what is wrong — nothing there, or
-// a directory where a file was wanted — so that the form opens again on that
-// box, and none when the file is there and this process may not read it, which
-// no box answers: the path is right, and the fix is a chmod. rta's own
-// built-ins draw the same line.
-func pathInput(input string, err error) string {
-	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) || errors.Is(err, syscall.EISDIR) {
-		return input
-	}
-	return ""
 }
 
 // serverName is the name the certificate is checked for in place of the

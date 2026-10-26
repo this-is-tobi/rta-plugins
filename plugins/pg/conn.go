@@ -368,7 +368,7 @@ func checkRootCert(req plugin.Request) *view.Error {
 	if err != nil {
 		return view.Errorf("pg.tls.ca.unreadable", "%v", err).
 			WithHint(t.rootSetting(sf) + " names a file on this machine, read by rta rather than by the " +
-				"server, holding the CA's certificate in PEM").WithInput(pathInput(t.rootInput(), err))
+				"server, holding the CA's certificate in PEM").WithInput(plugin.PathInput(t.rootInput(), err))
 	}
 	if !x509.NewCertPool().AppendCertsFromPEM(pem) {
 		return view.Errorf("pg.tls.ca.invalid", "%s holds no PEM certificate", path).
