@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.8.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.7.3...plugins/redis/v0.8.0) (2026-10-26)
+
+
+### Features
+
+* **redis:** a refusal of one input names it ([736297d](https://github.com/this-is-tobi/rta-plugins/commit/736297d29da0cb68b13a82f7d7e9a02c305990e0))
+
+
+### Bug Fixes
+
+* **redis:** a password given to a server that has none is told so on Redis 6 and later ([922c7d9](https://github.com/this-is-tobi/rta-plugins/commit/922c7d9130dfde83f02af18d807533a7471bce66))
+* **redis:** the sizes a reply announces are held before anything is made to them ([c6410f8](https://github.com/this-is-tobi/rta-plugins/commit/c6410f8c99b51e707a1a5363275c7dc6d648e6fc))
+
+
+### Code Refactoring
+
+* the plugins read their path inputs with the SDK's plugin.PathInput ([02145de](https://github.com/this-is-tobi/rta-plugins/commit/02145de2e57deab7bc3ea2d22fa1f18796eeddcf))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.51.0 ([d226efb](https://github.com/this-is-tobi/rta-plugins/commit/d226efb6f18b41cc53221ebb88e286e2b31eecdd))
+
 ## [0.7.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.7.2...plugins/redis/v0.7.3) (2026-10-26)
 
 

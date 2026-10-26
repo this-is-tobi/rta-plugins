@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.13.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.12.2...plugins/cnpg/v0.13.0) (2026-10-26)
+
+
+### Features
+
+* **cnpg:** a refusal of one input names it ([dd0cc84](https://github.com/this-is-tobi/rta-plugins/commit/dd0cc847f2cba1487cf3e067e4e4a3bec6820d64))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.51.0 ([d226efb](https://github.com/this-is-tobi/rta-plugins/commit/d226efb6f18b41cc53221ebb88e286e2b31eecdd))
+
 ## [0.12.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.12.1...plugins/cnpg/v0.12.2) (2026-10-26)
 
 

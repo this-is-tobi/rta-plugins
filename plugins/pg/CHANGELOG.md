@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.14.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.13.3...plugins/pg/v0.14.0) (2026-10-26)
+
+
+### Features
+
+* **pg:** a refusal of one input names it ([57936be](https://github.com/this-is-tobi/rta-plugins/commit/57936be6112d80681ac0274c8a9e0fc8170b2c20))
+
+
+### Bug Fixes
+
+* **pg,mariadb,mysql,qdrant:** a dump that cannot be looked at is not said to be missing ([84f303d](https://github.com/this-is-tobi/rta-plugins/commit/84f303d2bce03870f8f5de046e76603575bb69df))
+* **pg:** a statement naming a database that is not there is the statement's failure ([cae224f](https://github.com/this-is-tobi/rta-plugins/commit/cae224fd7422a6df9123badf7c8030a87d09821f))
+* **pg:** too many rows is answered by the limit alone, and names it ([adfc3a3](https://github.com/this-is-tobi/rta-plugins/commit/adfc3a3db0c8bb1b21bf9a9589444c288f5c2511))
+
+
+### Code Refactoring
+
+* the plugins read their path inputs with the SDK's plugin.PathInput ([02145de](https://github.com/this-is-tobi/rta-plugins/commit/02145de2e57deab7bc3ea2d22fa1f18796eeddcf))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.51.0 ([d226efb](https://github.com/this-is-tobi/rta-plugins/commit/d226efb6f18b41cc53221ebb88e286e2b31eecdd))
+
 ## [0.13.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.13.2...plugins/pg/v0.13.3) (2026-10-26)
 
 

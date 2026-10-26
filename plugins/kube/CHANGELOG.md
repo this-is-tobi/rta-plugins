@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.11.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.10.2...plugins/kube/v0.11.0) (2026-10-26)
+
+
+### Features
+
+* **kube:** a refusal of one input names it ([52f20b8](https://github.com/this-is-tobi/rta-plugins/commit/52f20b829e014e121b52ad355df5860641471af1))
+
+
+### Bug Fixes
+
+* **kube:** the server's own "could not find" is not found, not a cluster that did not answer ([527b176](https://github.com/this-is-tobi/rta-plugins/commit/527b176c70f4079c78dc5fb2148e8ea65bb44058))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.51.0 ([d226efb](https://github.com/this-is-tobi/rta-plugins/commit/d226efb6f18b41cc53221ebb88e286e2b31eecdd))
+
 ## [0.10.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.10.1...plugins/kube/v0.10.2) (2026-10-26)
 
 

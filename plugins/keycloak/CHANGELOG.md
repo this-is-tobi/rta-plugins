@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.9.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.8.3...plugins/keycloak/v0.9.0) (2026-10-26)
+
+
+### Features
+
+* **keycloak:** a refusal of one input names it ([cd57ad8](https://github.com/this-is-tobi/rta-plugins/commit/cd57ad85020a0019f965dc759223c706ad38e201))
+
+
+### Code Refactoring
+
+* the plugins read their path inputs with the SDK's plugin.PathInput ([02145de](https://github.com/this-is-tobi/rta-plugins/commit/02145de2e57deab7bc3ea2d22fa1f18796eeddcf))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.51.0 ([d226efb](https://github.com/this-is-tobi/rta-plugins/commit/d226efb6f18b41cc53221ebb88e286e2b31eecdd))
+
 ## [0.8.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.8.2...plugins/keycloak/v0.8.3) (2026-10-26)
 
 

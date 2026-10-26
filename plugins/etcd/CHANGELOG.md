@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.9.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.8.4...plugins/etcd/v0.9.0) (2026-10-26)
+
+
+### Features
+
+* **etcd:** a refusal of one input names it ([364e685](https://github.com/this-is-tobi/rta-plugins/commit/364e6859d9b732b08ee4d23c3650f65def684275))
+
+
+### Bug Fixes
+
+* **etcd:** a key-file asks for TLS, as a cert-file does ([71f7299](https://github.com/this-is-tobi/rta-plugins/commit/71f7299a47e1e87b275c8828d1806b4569b410a7))
+
+
+### Code Refactoring
+
+* the plugins read their path inputs with the SDK's plugin.PathInput ([02145de](https://github.com/this-is-tobi/rta-plugins/commit/02145de2e57deab7bc3ea2d22fa1f18796eeddcf))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.51.0 ([d226efb](https://github.com/this-is-tobi/rta-plugins/commit/d226efb6f18b41cc53221ebb88e286e2b31eecdd))
+
 ## [0.8.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.8.3...plugins/etcd/v0.8.4) (2026-10-26)
 
 

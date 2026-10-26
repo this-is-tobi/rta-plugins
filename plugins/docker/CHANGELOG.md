@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.6.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.5.4...plugins/docker/v0.6.0) (2026-10-26)
+
+
+### Features
+
+* **docker:** a refusal of one input names it ([9f0d440](https://github.com/this-is-tobi/rta-plugins/commit/9f0d44043915dcafea137d7045ed94ff5d7d7d99))
+
+
+### Bug Fixes
+
+* **docker:** an agent's stop of a name docker is never asked about is refused as the name ([3510d02](https://github.com/this-is-tobi/rta-plugins/commit/3510d02ab7d79c8e642f13d627343341f673c8a4))
+* **docker:** inspect asks for a container, never an image of the same name ([bed0ead](https://github.com/this-is-tobi/rta-plugins/commit/bed0eadcb626ec91c8bd7f3e4a2b8c44d58d9d56))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.51.0 ([d226efb](https://github.com/this-is-tobi/rta-plugins/commit/d226efb6f18b41cc53221ebb88e286e2b31eecdd))
+
 ## [0.5.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.5.3...plugins/docker/v0.5.4) (2026-10-26)
 
 
