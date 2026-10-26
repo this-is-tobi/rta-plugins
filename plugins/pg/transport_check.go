@@ -166,12 +166,12 @@ func checkClientPair(req plugin.Request) *view.Error {
 	if err != nil {
 		return view.Errorf("pg.tls.client.unreadable", "%v", err).
 			WithHint(cert + " names a file on this machine, read by rta rather than by the server, holding the " +
-				"client certificate in PEM").WithInput(pathInput(t.clientInput("sslcert"), err))
+				"client certificate in PEM").WithInput(plugin.PathInput(t.clientInput("sslcert"), err))
 	}
 	if info, err := os.Stat(t.clientKey); err != nil {
 		return view.Errorf("pg.tls.client.unreadable", "%v", err).
 			WithHint(key + " names a file on this machine, read by rta rather than by the server, holding the " +
-				"client certificate's private key in PEM").WithInput(pathInput(t.clientInput("sslkey"), err))
+				"client certificate's private key in PEM").WithInput(plugin.PathInput(t.clientInput("sslkey"), err))
 	} else if info.Mode().Perm()&0o077 != 0 {
 		return view.Errorf("pg.tls.client.key.perms", "%s is readable by others (mode %04o)", t.clientKey, info.Mode().Perm()).
 			WithHint("libpq refuses a private key that group or others can read, and rta holds its own " +
@@ -181,7 +181,7 @@ func checkClientPair(req plugin.Request) *view.Error {
 	if err != nil {
 		return view.Errorf("pg.tls.client.unreadable", "%v", err).
 			WithHint(key + " names a file on this machine, read by rta rather than by the server, holding the " +
-				"client certificate's private key in PEM").WithInput(pathInput(t.clientInput("sslkey"), err))
+				"client certificate's private key in PEM").WithInput(plugin.PathInput(t.clientInput("sslkey"), err))
 	}
 	if encrypted(keyPEM) {
 		return view.Errorf("pg.tls.client.key.encrypted", "%s holds a private key protected by a passphrase", t.clientKey).

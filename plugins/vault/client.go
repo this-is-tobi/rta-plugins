@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"io/fs"
 	"net"
 	"net/http"
 	"net/url"
@@ -14,7 +13,6 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"syscall"
 
 	vaultapi "github.com/hashicorp/vault/api"
 
@@ -215,7 +213,7 @@ func caBundle(req plugin.Request, path string) ([]byte, *view.Error) {
 	if err != nil {
 		return nil, view.Errorf("vault.tls.ca.unreadable", "%v", err).
 			WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by Vault").
-			WithInput(pathInput("ca-file", err))
+			WithInput(plugin.PathInput("ca-file", err))
 	}
 	if !x509.NewCertPool().AppendCertsFromPEM(pem) {
 		return nil, view.Errorf("vault.tls.ca.invalid", "%s holds no PEM certificate", path).
@@ -468,19 +466,6 @@ func naming(verr *view.Error, input string, codes ...string) *view.Error {
 		return verr.WithInput(input)
 	}
 	return verr
-}
-
-// pathInput is the input a refusal to read the path it holds names: input
-// itself when the path is what is wrong — nothing there, a directory where a
-// file was wanted, a file where a directory was — since another path is the
-// fix, and none when the file is there and cannot be read, permission denied
-// or an I/O error, since the path is right and the fix is a chmod or the
-// machine. The line rta's own built-ins draw for a path they read.
-func pathInput(input string, err error) string {
-	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) || errors.Is(err, syscall.EISDIR) {
-		return input
-	}
-	return ""
 }
 
 // timedOut is the refusal for a Vault that did not answer in the time it was

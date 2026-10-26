@@ -122,7 +122,7 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 // detectFormat reads what the artifact is rather than trusting its name.
 func detectFormat(sf plugin.Surface, path string) (dumpFormat, *view.Error) {
 	info, err := os.Stat(path)
-	if err != nil && pathInput("file", err) == "" {
+	if err != nil && plugin.PathInput("file", err) == "" {
 		// Only a path that leads nowhere is no dump. One this account cannot
 		// look at, behind a directory it may not enter, was said not to be
 		// there, about a file that may well be; it names no input, since the
@@ -136,21 +136,21 @@ func detectFormat(sf plugin.Surface, path string) (dumpFormat, *view.Error) {
 	if err != nil {
 		return "", view.Errorf("pg.restore.nofile", "no dump at %s", path).
 			WithHint("`" + sf.Call("pg.dump", plugin.Arg{Name: "out", Value: "<path>"}) + "` writes one; this restores what that wrote").
-			WithInput(pathInput("file", err))
+			WithInput(plugin.PathInput("file", err))
 	}
 	if info.IsDir() {
 		if _, err := os.Stat(filepath.Join(path, "toc.dat")); err != nil {
 			return "", view.Errorf("pg.restore.notadump",
 				"%s is a directory with no toc.dat, so it is not a directory-format dump", path).
 				WithHint("a directory-format dump is what `" + sf.Call("pg.dump", plugin.Arg{Name: "format", Value: "directory"}) +
-					"` writes — one toc.dat and one compressed file per table").WithInput(pathInput("file", err))
+					"` writes — one toc.dat and one compressed file per table").WithInput(plugin.PathInput("file", err))
 		}
 		return formatDirectory, nil
 	}
 
 	f, err := os.Open(path)
 	if err != nil {
-		return "", view.Errorf("pg.restore.unreadable", "opening %s: %v", path, err).WithInput(pathInput("file", err))
+		return "", view.Errorf("pg.restore.unreadable", "opening %s: %v", path, err).WithInput(plugin.PathInput("file", err))
 	}
 	defer func() { _ = f.Close() }()
 	magic := make([]byte, len(customMagic))

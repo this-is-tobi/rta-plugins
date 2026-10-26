@@ -10,7 +10,6 @@ import (
 	"os"
 	"slices"
 	"strings"
-	"syscall"
 	"time"
 
 	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
@@ -394,7 +393,7 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 		if err != nil {
 			return nil, view.Errorf("etcd.tls.ca.unreadable", "%v", err).
 				WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by the cluster").
-				WithInput(pathInput("ca-file", err))
+				WithInput(plugin.PathInput("ca-file", err))
 		}
 		pool := x509.NewCertPool()
 		// What the file has to hold, rather than a guess at what it held
@@ -436,19 +435,7 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 	return cfg, nil
 }
 
-// pathInput is the input a refusal to read the file it names names
-// (view.Error.Input), on the line rta's own reads of a path hold: input itself
-// when the path is what is wrong — nothing is there, or a directory is — so the
-// form opens again on that box, and none when the file is there and this
-// process may not read it, where the path is right and the fix is a chmod.
-func pathInput(input string, err error) string {
-	if errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) || errors.Is(err, syscall.EISDIR) {
-		return input
-	}
-	return ""
-}
-
-// pairInput is pathInput for the client certificate and its key, which are
+// pairInput is plugin.PathInput for the client certificate and its key, which are
 // read in one call: the input of whichever file the failure names, and none for
 // two files that were read and make no pair — not PEM, or a key that is not the
 // certificate's — where both paths are the suspects.
@@ -459,9 +446,9 @@ func pairInput(err error, cert, key string) string {
 	}
 	switch pathErr.Path {
 	case cert:
-		return pathInput("cert-file", err)
+		return plugin.PathInput("cert-file", err)
 	case key:
-		return pathInput("key-file", err)
+		return plugin.PathInput("key-file", err)
 	}
 	return ""
 }

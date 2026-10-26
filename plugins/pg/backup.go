@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/this-is-tobi/rta/pkg/format"
@@ -813,18 +812,4 @@ func lastLine(s string) string {
 // relative "." answers nothing.
 func expandHome(p string) (string, error) {
 	return filepath.Abs(plugin.ExpandHome(p))
-}
-
-// pathInput is the input a refusal to read the file a path input names is
-// about (view.Error.Input): input itself when err says the path is what is
-// wrong — nothing is there, a directory is where a file was wanted, or a file
-// where a directory was — so the form the call came from opens again on that
-// box, and none when the file is there and cannot be read, which no box
-// answers: the path is right, and the fix is a chmod or the machine. rta's own
-// built-ins hold their paths to the same line.
-func pathInput(input string, err error) string {
-	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) || errors.Is(err, syscall.EISDIR) {
-		return input
-	}
-	return ""
 }
