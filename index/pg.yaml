@@ -7,29 +7,29 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: pg
-version: 0.13.2
+version: 0.13.3
 summary: "PostgreSQL: connection health, replication, schema, rows and activity"
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/pg
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.13.2/rta-plugin-pg_0.13.2_darwin_amd64.tar.gz
-  sha256: a39584500dfc28b98b0b47c8565007fc49fed1f8758e874a579989bb8eac5708
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.13.3/rta-plugin-pg_0.13.3_darwin_amd64.tar.gz
+  sha256: fd888e5ae8f88918b55566cb4ac4e7d1cfc6e481889bd28150b4dbc79e8a74b2
   bin: rta-plugin-pg
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.13.2/rta-plugin-pg_0.13.2_darwin_arm64.tar.gz
-  sha256: 47e9d41e1ec75fd79f9b08ff6520bbc4c55bbf0720d5e387c24df96401c37ff1
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.13.3/rta-plugin-pg_0.13.3_darwin_arm64.tar.gz
+  sha256: 2642edd617e8152a8ee78088361c916aac1d0d8deb79adc171d3e92ff24fc00b
   bin: rta-plugin-pg
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.13.2/rta-plugin-pg_0.13.2_linux_amd64.tar.gz
-  sha256: 207aabe2af7f4496beefa305e873d2956b17a986a60aacbc3005e919ae17618e
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.13.3/rta-plugin-pg_0.13.3_linux_amd64.tar.gz
+  sha256: ae55708944709236302fea3c9b43e08d2b92751ac9c7ea88b169cf0362efa7d3
   bin: rta-plugin-pg
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.13.2/rta-plugin-pg_0.13.2_linux_arm64.tar.gz
-  sha256: 033a1fa5325a09d2d57ac3b6abd2bfafd009751fa9ff7527a88d62128186110d
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fpg%2Fv0.13.3/rta-plugin-pg_0.13.3_linux_arm64.tar.gz
+  sha256: 48b3d8842bc12e42239a08752806971ad606cc9cf9b6b2f2f534cd9fc717a214
   bin: rta-plugin-pg
 capabilities:
 - id: pg.status
