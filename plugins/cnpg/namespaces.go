@@ -71,7 +71,7 @@ func namesOf(req plugin.Request, input, noun string, limit int) ([]string, *view
 			continue
 		}
 		if verr := checkName(noun, name); verr != nil {
-			return nil, verr
+			return nil, verr.WithInput(input)
 		}
 		names = append(names, name)
 	}
@@ -84,7 +84,7 @@ func namesOf(req plugin.Request, input, noun string, limit int) ([]string, *view
 			hint = "name fewer " + noun + "s, or ask the operator to fence fewer"
 		}
 		return nil, view.Errorf("cnpg."+noun+"s.toomany",
-			"a listing reads at most %d %ss, and this call reaches more", limit, noun).WithHint(hint)
+			"a listing reads at most %d %ss, and this call reaches more", limit, noun).WithHint(hint).WithInput(input)
 	}
 	return names, nil
 }

@@ -603,11 +603,11 @@ func runBackupRequest(ctx context.Context, req plugin.Request) (view.View, error
 	}
 	name := strings.TrimSpace(req.String("cluster"))
 	if verr := checkName("cluster", name); verr != nil {
-		return nil, verr
+		return nil, verr.WithInput("cluster")
 	}
 	if name == "" {
 		return nil, view.Errorf("cnpg.backup.nocluster", "no cluster named").
-			WithHint(s.caller().listEverywhere() + " shows what is there")
+			WithHint(s.caller().listEverywhere() + " shows what is there").WithInput("cluster")
 	}
 
 	// The cluster is read before anything is written, and it earns its round
@@ -617,7 +617,7 @@ func runBackupRequest(ctx context.Context, req plugin.Request) (view.View, error
 	// when it says where the bytes are going.
 	var c cluster
 	if verr := getJSON(ctx, s, name, &c); verr != nil {
-		return nil, verr
+		return nil, namedCluster(verr)
 	}
 	if !c.backupConfigured() {
 		return nil, view.Errorf("cnpg.backup.unconfigured",
@@ -729,6 +729,9 @@ func methodRefusal(sf plugin.Surface, c cluster, asked string) *view.Error {
 	verr := view.Errorf("cnpg.backup.method.unconfigured",
 		"%s is not set up to take a %s",
 		c.Metadata.Namespace+"/"+c.Metadata.Name, named)
+	// The method is the box that holds the fix whenever the cluster configures
+	// one to name instead (view.Error.Input); a cluster that configures none is
+	// fixed in its own `.spec.backup`, and no method would do.
 	have := c.configuredMethods()
 	switch {
 	case len(have) == 0:
@@ -741,10 +744,11 @@ func methodRefusal(sf plugin.Surface, c cluster, asked string) *view.Error {
 		// would, if asked by its method.
 		return verr.WithHint("this cluster archives through the " + c.walArchiverPlugin() +
 			" plugin, the newer arrangement, which replaces `.spec.backup` rather than " +
-			"joining it — pass " + sf.InputTo("method", "plugin") + ", which asks that plugin to take it")
+			"joining it — pass " + sf.InputTo("method", "plugin") + ", which asks that plugin to take it").
+			WithInput("method")
 	}
 	return verr.WithHint("this cluster configures " + strings.Join(have, " and ") +
-		" — pass " + sf.InputTo("method", have[0]))
+		" — pass " + sf.InputTo("method", have[0])).WithInput("method")
 }
 
 // resolveMethod is the method a request that names none is sent as: the one
@@ -776,7 +780,7 @@ func resolveMethod(sf plugin.Surface, c cluster) (string, *view.Error) {
 		"%s is set up to take a backup %s, and none was named",
 		c.Metadata.Namespace+"/"+c.Metadata.Name, strings.Join(have, " or ")).
 		WithHint("rta will not choose between them for a backup that costs a full copy — name one with " +
-			sf.InputName("method") + ", which takes " + strings.Join(have, ", "))
+			sf.InputName("method") + ", which takes " + strings.Join(have, ", ")).WithInput("method")
 }
 
 // buildBackupRequest assembles the document, and validates every value that
@@ -800,7 +804,7 @@ func buildBackupRequest(req plugin.Request, c cluster, s selection) ([]byte, bac
 
 	method := strings.TrimSpace(req.String("method"))
 	if verr := oneOf("method", method, backupMethods...); verr != nil {
-		return nil, b, verr
+		return nil, b, verr.WithInput("method")
 	}
 	if method == "" {
 		var verr *view.Error
@@ -820,7 +824,7 @@ func buildBackupRequest(req plugin.Request, c cluster, s selection) ([]byte, bac
 
 	target := strings.TrimSpace(req.String("target"))
 	if verr := oneOf("target", target, "primary", "prefer-standby"); verr != nil {
-		return nil, b, verr
+		return nil, b, verr.WithInput("target")
 	}
 	b.Spec.Target = target
 
@@ -850,7 +854,7 @@ func buildBackupRequest(req plugin.Request, c cluster, s selection) ([]byte, bac
 		b.Spec.Online = &v
 	default:
 		return nil, b, view.Errorf("cnpg.backup.online.invalid",
-			"online is %q, which is neither true nor false", online)
+			"online is %q, which is neither true nor false", online).WithInput("online")
 	}
 
 	doc, err := json.Marshal(b)
