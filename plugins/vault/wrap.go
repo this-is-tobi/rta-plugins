@@ -78,6 +78,9 @@ func runWrapSet(ctx context.Context, req plugin.Request) (view.View, error) {
 		if err != nil {
 			return nil, classify(err, req)
 		}
+		if secret == nil {
+			return nil, noAnswer(req, "the wrap")
+		}
 		if secret.WrapInfo == nil {
 			return nil, view.Errorf("vault.wrap.failed", "%s did not wrap the response", reached(req))
 		}
@@ -123,6 +126,9 @@ func runWrapGet(ctx context.Context, req plugin.Request) (view.View, error) {
 			if err != nil {
 				return nil, naming(classify(err, req), "wrapping-token", "vault.badrequest")
 			}
+			if secret == nil {
+				return nil, noAnswer(req, "the lookup of the wrapping token")
+			}
 			kv := view.KeyValue{}
 			keys := []string{"creation_path", "creation_time", "creation_ttl"}
 			sort.Strings(keys)
@@ -145,6 +151,9 @@ func runWrapGet(ctx context.Context, req plugin.Request) (view.View, error) {
 		secret, err := client.Logical().UnwrapWithContext(ctx, req.String("wrapping-token"))
 		if err != nil {
 			return nil, naming(classify(err, req), "wrapping-token", "vault.badrequest")
+		}
+		if secret == nil {
+			return nil, noAnswer(req, "the unwrap")
 		}
 		kv := view.KeyValue{}
 		keys := make([]string, 0, len(secret.Data))

@@ -41,6 +41,9 @@ func runTokenStatus(ctx context.Context, req plugin.Request) (view.View, error) 
 			}
 			return nil, verr
 		}
+		if secret == nil {
+			return nil, noAnswer(req, "the lookup of its own token")
+		}
 		kv := view.KeyValue{}
 		add := func(key, dataKey string, render func(interface{}) string) {
 			if v, ok := secret.Data[dataKey]; ok {
@@ -95,6 +98,9 @@ func runLeaseShow(ctx context.Context, req plugin.Request) (view.View, error) {
 			// A lease Vault does not hold is its 400, "invalid lease": the id
 			// is the one thing this call sent.
 			return nil, naming(classify(err, req), "id", "vault.badrequest")
+		}
+		if secret == nil {
+			return nil, noAnswer(req, "the lookup of the lease")
 		}
 		kv := view.KeyValue{}
 		keys := []string{"id", "issue_time", "expire_time", "last_renewal", "renewable", "ttl"}
