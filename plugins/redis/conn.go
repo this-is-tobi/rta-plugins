@@ -293,12 +293,51 @@ func (c *client) do(ctx context.Context, args ...string) (reply, error) {
 	return r, nil
 }
 
-func (c *client) read() (reply, error) {
-	line, err := c.r.ReadString('\n')
+// What a reply may claim of itself, held before anything is sized from it. A
+// length is the server's word, and a buffer made to a number a server chose is
+// how a wrong one, or a hostile one, takes the plugin down with it: a bulk
+// string "of" 9 GB was a 9 GB allocation, and so was an array of a billion
+// items, before a single byte of either had arrived.
+const (
+	// maxBulk is Redis's own ceiling on one bulk string (proto-max-bulk-len,
+	// 512 MiB unless an operator raised it).
+	maxBulk = 512 << 20
+	// maxLine bounds a line that is not a bulk string: a status, an error text,
+	// a length. The longest a server writes is a few thousand bytes.
+	maxLine = 64 << 10
+	// maxDepth bounds arrays inside arrays. The deepest reply Redis sends, a
+	// stream's full info, is about five levels.
+	maxDepth = 16
+	// preallocated is how many items of an array are made room for before they
+	// arrive; the rest grow with what is read.
+	preallocated = 1024
+)
+
+func (c *client) read() (reply, error) { return c.readAt(0) }
+
+// readLine is the next line without its terminator, refused past maxLine.
+func (c *client) readLine() (string, error) {
+	var line []byte
+	for {
+		chunk, err := c.r.ReadSlice('\n')
+		line = append(line, chunk...)
+		if len(line) > maxLine {
+			return "", fmt.Errorf("a reply line longer than %d bytes", maxLine)
+		}
+		if err == nil {
+			return strings.TrimRight(string(line), "\r\n"), nil
+		}
+		if !errors.Is(err, bufio.ErrBufferFull) {
+			return "", err
+		}
+	}
+}
+
+func (c *client) readAt(depth int) (reply, error) {
+	line, err := c.readLine()
 	if err != nil {
 		return reply{}, err
 	}
-	line = strings.TrimRight(line, "\r\n")
 	if line == "" {
 		return reply{}, errors.New("empty reply line")
 	}
@@ -320,11 +359,18 @@ func (c *client) read() (reply, error) {
 		if n < 0 {
 			return reply{kind: kind, null: true}, nil
 		}
-		buf := make([]byte, n+2)
-		if _, err := io.ReadFull(c.r, buf); err != nil {
+		if n > maxBulk {
+			return reply{}, fmt.Errorf("a bulk reply of %d bytes, past the %d Redis sends", n, maxBulk)
+		}
+		// What arrives, not what was announced: the buffer grows with the bytes.
+		body, err := io.ReadAll(io.LimitReader(c.r, int64(n)+2))
+		if err != nil {
 			return reply{}, err
 		}
-		return reply{kind: kind, str: string(buf[:n])}, nil
+		if len(body) != n+2 {
+			return reply{}, io.ErrUnexpectedEOF
+		}
+		return reply{kind: kind, str: string(body[:n])}, nil
 	case '*':
 		n, err := strconv.Atoi(rest)
 		if err != nil {
@@ -333,9 +379,12 @@ func (c *client) read() (reply, error) {
 		if n < 0 {
 			return reply{kind: kind, null: true}, nil
 		}
-		items := make([]reply, 0, n)
+		if depth >= maxDepth {
+			return reply{}, fmt.Errorf("a reply nested more than %d arrays deep", maxDepth)
+		}
+		items := make([]reply, 0, min(n, preallocated))
 		for i := 0; i < n; i++ {
-			item, err := c.read()
+			item, err := c.readAt(depth + 1)
 			if err != nil {
 				return reply{}, err
 			}
