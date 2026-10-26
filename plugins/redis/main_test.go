@@ -516,9 +516,10 @@ func TestServerErrorsAreClassified(t *testing.T) {
 		"-ERR invalid password\r\n":                         {"redis.auth.failed", true},
 		"-ERR unknown command 'PING'\r\n":                   {"redis.unsupported", false},
 		"-ERR Client sent AUTH, but no password is set\r\n": {"redis.auth.unneeded", false},
-		"-LOADING Redis is loading the dataset\r\n":         {"redis.loading", false},
-		"-MOVED 3999 127.0.0.1:6381\r\n":                    {"redis.cluster.redirect", false},
-		"-NOPERM this user has no permissions\r\n":          {"redis.denied", true},
+		"-ERR AUTH <password> called without any password configured for the default user. Are you sure your configuration is correct?\r\n": {"redis.auth.unneeded", false},
+		"-LOADING Redis is loading the dataset\r\n": {"redis.loading", false},
+		"-MOVED 3999 127.0.0.1:6381\r\n":            {"redis.cluster.redirect", false},
+		"-NOPERM this user has no permissions\r\n":  {"redis.denied", true},
 	}
 	for answer, want := range cases {
 		srv := newFakeServer(t, map[string]string{"PING": answer})

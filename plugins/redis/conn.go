@@ -450,7 +450,13 @@ func classify(err error, addr string, req plugin.Request) *view.Error {
 					WithHint("the server's `databases` setting counts them from 0 (16 unless raised) — pick " + sf.SettingName("db") + " below it").
 					WithInput("db")
 			}
-			if strings.Contains(srv.msg, "AUTH") && strings.Contains(srv.msg, "no password") {
+			// Redis 5 and older say "Client sent AUTH, but no password is set";
+			// 6 and later "AUTH <password> called without any password
+			// configured for the default user", the placeholder written as is.
+			// Only the first was read, and a newer server's answer was a bare
+			// redis.server.error.
+			if strings.Contains(srv.msg, "AUTH") &&
+				(strings.Contains(srv.msg, "no password") || strings.Contains(srv.msg, "without any password configured")) {
 				return view.Errorf("redis.auth.unneeded", "%s has no password set, and one was given", reached).
 					WithHint("drop " + sf.SettingName("password") + " (or the environment variable) for this server")
 			}
