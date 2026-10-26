@@ -316,6 +316,10 @@ func TestARefusalOfOneInputNamesIt(t *testing.T) {
 			run: func(t *testing.T) error { return runOn(t, "pg.query", statement("0A000", map[string]any{})) }},
 		{name: "a subquery that answers more than one row", id: "pg.query", code: "pg.query.failed", input: "sql",
 			run: func(t *testing.T) error { return runOn(t, "pg.query", statement("21000", map[string]any{})) }},
+		// A statement's 3D000 is about a database the statement names, while
+		// the connection's own is there: the statement's box, not the database's.
+		{name: "a statement naming a database that is not there", id: "pg.query", code: "pg.query.failed", input: "sql",
+			run: func(t *testing.T) error { return runOn(t, "pg.query", statement("3D000", map[string]any{})) }},
 		{name: "a write the READ ONLY transaction refuses", id: "pg.query", code: "pg.query.failed", input: "sql",
 			run: func(t *testing.T) error { return runOn(t, "pg.query", statement("25006", map[string]any{})) }},
 		{name: "rows over the size bound", id: "pg.query", code: "pg.query.toolarge", input: "sql",

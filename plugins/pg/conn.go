@@ -442,6 +442,14 @@ func classify(err error, req plugin.Request) *view.Error {
 					" or " + sf.SettingName("password") + " — check it, and " + sf.SettingName("user") +
 					": rta only ever uses the password it is given, never ~/.pgpass")
 		case "3D000": // invalid_catalog_name
+			// The connection's own database is refused at startup, as a FATAL.
+			// An ERROR is a statement's, about a database the statement names
+			// (pg_database_size('nope')), while the connection's was there: it
+			// was answered "has no database named <the connected one>", and is
+			// the statement's failure, whose box is the sql (statementInput).
+			if pgErr.SeverityUnlocalized == "ERROR" || pgErr.Severity == "ERROR" {
+				break
+			}
 			return view.Errorf("pg.database.missing", "%s has no database named %q",
 				req.Reached(where), req.String("database")).
 				WithHint(nextCall(req, "pg.database.list") + " shows what is there").WithInput("database")
@@ -647,6 +655,7 @@ func statementInput(verr *view.Error, err error) *view.Error {
 	switch code := pgErr.Code; {
 	case strings.HasPrefix(code, "42"), strings.HasPrefix(code, "22"),
 		strings.HasPrefix(code, "0A"), strings.HasPrefix(code, "21"),
+		code == "3D000", // a database the statement names (classify)
 		code == "25006": // read_only_sql_transaction
 		return verr.WithInput("sql")
 	}
