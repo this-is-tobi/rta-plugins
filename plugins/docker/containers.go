@@ -270,7 +270,11 @@ func inspectOne(ctx context.Context, req plugin.Request) (d inspected, name stri
 	if verr = checkName("container", name); verr != nil {
 		return d, name, c, verr.WithInput("container")
 	}
-	raw, verr := run(ctx, c, "inspect", name)
+	// --type, because docker inspect answers for whatever object holds the
+	// name: an image, a volume or a network called web was read as the
+	// container web, and container.env showed that image's environment as
+	// the container's.
+	raw, verr := run(ctx, c, "inspect", "--type=container", name)
 	if verr != nil {
 		return d, name, c, ofContainer(verr)
 	}
