@@ -90,7 +90,7 @@ func stdinRefusal(req plugin.Request, path string) *view.Error {
 	}
 	return view.Errorf("s3.file.stdin",
 		"%s is this plugin's own standard input, which holds nothing: what is piped to rta stays with rta", path).
-		WithHint(hint)
+		WithHint(hint).WithInput("file")
 }
 
 // streamed reads the first part of r and returns what to upload and its size:
@@ -171,7 +171,7 @@ func uploadFailure(err error, body io.Reader, req plugin.Request) *view.Error {
 		return view.Errorf("s3.file.toolarge", "%s is longer than %s, the most one upload of a stream can hold",
 			file, format.Bytes(streamMost)).
 			WithHint("nothing was stored: the upload was abandoned before it completed. Write it to a " +
-				"file and upload that — a file states its size, and its parts are sized to fit it")
+				"file and upload that — a file states its size, and its parts are sized to fit it").WithInput("file")
 	}
 	return view.Errorf("s3.file.unreadable", "reading %s: %v", file, b.err).
 		WithHint("nothing was stored: the upload was abandoned before it completed")

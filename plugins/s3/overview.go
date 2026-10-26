@@ -342,7 +342,7 @@ func missingBucket(req plugin.Request, bucket string) *view.Error {
 	return view.Errorf("s3.bucket.notfound", "%s has no bucket %s",
 		req.Reached(req.String("address")), quoted(bucket)).
 		WithHint("the name comes from the connection's `bucket` setting or its `only: bucket:` fence — " +
-			"check it against the bucket's real name; the key may also not reach it")
+			"check it against the bucket's real name; the key may also not reach it").WithInput("bucket")
 }
 
 // targetOverview is the page about one bucket.

@@ -132,7 +132,7 @@ func runBucketDownload(ctx context.Context, req plugin.Request) (view.View, erro
 	if out == "" {
 		return nil, view.Errorf("s3.download.nooutput", "say where the objects should be written").
 			WithHint(req.Surface().SettingTo("out", "./"+req.String("bucket")+"-backup") + " — a bucket is a " +
-				"directory of files, not something to read in a terminal")
+				"directory of files, not something to read in a terminal").WithInput("out")
 	}
 	root, err := filepath.Abs(plugin.ExpandHome(out))
 	if err != nil {
@@ -164,16 +164,21 @@ func runBucketDownload(ctx context.Context, req plugin.Request) (view.View, erro
 		// pre-creating `backups` — then the leaf exclusively, which is where
 		// the no-overwrite guarantee lives. MkdirAll on the leaf would happily
 		// accept an existing directory and lose it.
+		//
+		// A failure to make either is out refused, and names it: another
+		// destination is the fix. The same code from fetchOne names nothing,
+		// since the path there is one the bucket's keys made, inside the
+		// directory made here.
 		if err := os.MkdirAll(filepath.Dir(root), 0o700); err != nil {
 			return nil, view.Errorf("s3.download.create",
-				"creating %s: %v", filepath.Dir(root), err)
+				"creating %s: %v", filepath.Dir(root), err).WithInput("out")
 		}
 		if err := os.Mkdir(root, 0o700); errors.Is(err, os.ErrExist) {
 			return nil, view.Errorf("s3.download.exists", "%s already exists", root).
 				WithHint("a download always makes its own directory, so what lands in it is " +
-					"one bucket at one moment — name a new one, or move that one aside")
+					"one bucket at one moment — name a new one, or move that one aside").WithInput("out")
 		} else if err != nil {
-			return nil, view.Errorf("s3.download.create", "creating %s: %v", root, err)
+			return nil, view.Errorf("s3.download.create", "creating %s: %v", root, err).WithInput("out")
 		}
 
 		started := time.Now()

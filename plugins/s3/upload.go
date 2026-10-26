@@ -170,11 +170,11 @@ func planUpload(sf plugin.Surface, root string, limit int) ([]upload, int64, *vi
 	if err != nil {
 		return nil, 0, view.Errorf("s3.upload.missing", "no directory at %s", root).
 			WithHint("`" + sf.Call("s3.bucket.download", plugin.Arg{Name: "out", Value: "<dir>"}) +
-				"` writes one; this uploads what that wrote")
+				"` writes one; this uploads what that wrote").WithInput(pathInput("dir", err))
 	}
 	if !info.IsDir() {
 		return nil, 0, view.Errorf("s3.upload.notadir", "%s is not a directory", root).
-			WithHint("one file is s3.object.set's job — this uploads a directory")
+			WithHint("one file is s3.object.set's job — this uploads a directory").WithInput("dir")
 	}
 
 	var plan []upload
@@ -235,7 +235,7 @@ func planUpload(sf plugin.Surface, root string, limit int) ([]upload, int64, *vi
 	if len(plan) == 0 {
 		return nil, 0, view.Errorf("s3.upload.empty", "%s holds no files", root).
 			WithHint("an empty directory uploads nothing and would report success — if this was " +
-				"a backup, it did not finish")
+				"a backup, it did not finish").WithInput("dir")
 	}
 	return plan, total, nil
 }
