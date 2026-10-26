@@ -117,7 +117,8 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	if out == "" {
 		return nil, view.Errorf("qdrant.dump.nooutput", "say where the snapshot should be written").
 			WithHint(req.Surface().SettingTo("out", "./"+collection+".snapshot") + " — a collection is a file, not " +
-				"something to read in a terminal")
+				"something to read in a terminal").
+			WithInput("out")
 	}
 	path, err := expandHome(out)
 	if err != nil {
@@ -142,7 +143,7 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	// collection fails here, classified, before any file is created.
 	var info collectionInfo
 	if verr := get(ctx, req, pathFor("/collections/%s", collection), &info); verr != nil {
-		return nil, verr
+		return nil, ofCollection(verr)
 	}
 	version := serverVersion(ctx, req)
 
@@ -280,7 +281,7 @@ func downloadSnapshot(ctx context.Context, req plugin.Request,
 		return 0, alreadyThere(path)
 	}
 	if err != nil {
-		return 0, view.Errorf("qdrant.dump.create", "creating %s: %v", path, err)
+		return 0, view.Errorf("qdrant.dump.create", "creating %s: %v", path, err).WithInput("out")
 	}
 	// Unbounded on purpose, unlike every enveloped call: the body is the
 	// snapshot, its size is the collection's, and the destination is the
@@ -337,7 +338,8 @@ func describeContents(info collectionInfo, version string) string {
 func alreadyThere(path string) *view.Error {
 	return view.Errorf("qdrant.dump.exists", "%s already exists", path).
 		WithHint("a snapshot is never written over an existing file — name a new one, or " +
-			"move that one aside")
+			"move that one aside").
+		WithInput("out")
 }
 
 // expandHome makes a Local path input absolute, with a leading ~ resolved.
