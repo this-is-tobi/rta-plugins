@@ -123,11 +123,11 @@ func TestARefusalOfOneInputNamesIt(t *testing.T) {
 			values: func(t *testing.T) map[string]any {
 				return map[string]any{"address": closedPort(t), "cert-file": fileHolding(t, "client.crt", "not a certificate\n")}
 			}},
-		// With tls on: a key-file alone asks for no TLS (tlsRequested), so the
-		// pair is never read and the refusal is not reached.
+		// A key-file alone asks for TLS as a cert-file does (tlsRequested): it
+		// went out in the clear, and this refusal was never reached.
 		{why: "a client key without its certificate", id: "etcd.overview", code: "etcd.tls.cert.missing", input: "",
 			values: func(t *testing.T) map[string]any {
-				return map[string]any{"address": closedPort(t), "tls": true, "key-file": fileHolding(t, "client.key", "not a key\n")}
+				return map[string]any{"address": closedPort(t), "key-file": fileHolding(t, "client.key", "not a key\n")}
 			}},
 		{why: "a CA beside a plain HTTP endpoint", id: "etcd.overview", code: "etcd.tls.ca.unused", input: "",
 			values: func(t *testing.T) map[string]any {
