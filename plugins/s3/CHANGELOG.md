@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.13.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.12.2...plugins/s3/v0.13.0) (2026-10-26)
+
+
+### Features
+
+* **s3:** a refusal of one input names it ([d527f8b](https://github.com/this-is-tobi/rta-plugins/commit/d527f8bb2cf4cae9ad72069bfd84ede93ead80d4))
+
+
+### Bug Fixes
+
+* **s3:** a refusal names the bucket that is wrong, the destination's and a missing one's ([ac51e8c](https://github.com/this-is-tobi/rta-plugins/commit/ac51e8c1a1e37f405a18c10f71de1f119b9d0e6b))
+
+
+### Code Refactoring
+
+* the plugins read their path inputs with the SDK's plugin.PathInput ([02145de](https://github.com/this-is-tobi/rta-plugins/commit/02145de2e57deab7bc3ea2d22fa1f18796eeddcf))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.51.0 ([d226efb](https://github.com/this-is-tobi/rta-plugins/commit/d226efb6f18b41cc53221ebb88e286e2b31eecdd))
+
 ## [0.12.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.12.1...plugins/s3/v0.12.2) (2026-10-26)
 
 

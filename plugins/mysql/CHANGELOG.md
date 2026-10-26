@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.12.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.11.4...plugins/mysql/v0.12.0) (2026-10-26)
+
+
+### Features
+
+* **mysql:** a refusal of one input names it ([845b8e6](https://github.com/this-is-tobi/rta-plugins/commit/845b8e60dd006b511c8db982a1d36e556718bd3c))
+
+
+### Bug Fixes
+
+* **mariadb,mysql:** a statement's refusal says what the server refused ([dc6537d](https://github.com/this-is-tobi/rta-plugins/commit/dc6537d01702a63abef2d57b612e21d1d2c28f20))
+* **pg,mariadb,mysql,qdrant:** a dump that cannot be looked at is not said to be missing ([84f303d](https://github.com/this-is-tobi/rta-plugins/commit/84f303d2bce03870f8f5de046e76603575bb69df))
+
+
+### Code Refactoring
+
+* the plugins read their path inputs with the SDK's plugin.PathInput ([02145de](https://github.com/this-is-tobi/rta-plugins/commit/02145de2e57deab7bc3ea2d22fa1f18796eeddcf))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.51.0 ([d226efb](https://github.com/this-is-tobi/rta-plugins/commit/d226efb6f18b41cc53221ebb88e286e2b31eecdd))
+
 ## [0.11.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.11.3...plugins/mysql/v0.11.4) (2026-10-26)
 
 

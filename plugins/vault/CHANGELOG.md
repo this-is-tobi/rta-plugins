@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.10.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.9.4...plugins/vault/v0.10.0) (2026-10-26)
+
+
+### Features
+
+* **vault:** a refusal of one input names it ([255604e](https://github.com/this-is-tobi/rta-plugins/commit/255604e0656d18166cbe17ceea9e9802ca78c619))
+
+
+### Bug Fixes
+
+* **vault:** a version that is not there is not said to be a path that is not there ([bb66787](https://github.com/this-is-tobi/rta-plugins/commit/bb66787de90b082a062acb6f34523f607cc3793a))
+* **vault:** an answer with no body is refused, not a nil dereference ([e184afb](https://github.com/this-is-tobi/rta-plugins/commit/e184afb0127714d2bc91395a3e8a5037e70ee5d3))
+
+
+### Code Refactoring
+
+* the plugins read their path inputs with the SDK's plugin.PathInput ([02145de](https://github.com/this-is-tobi/rta-plugins/commit/02145de2e57deab7bc3ea2d22fa1f18796eeddcf))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.51.0 ([d226efb](https://github.com/this-is-tobi/rta-plugins/commit/d226efb6f18b41cc53221ebb88e286e2b31eecdd))
+
 ## [0.9.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.9.3...plugins/vault/v0.9.4) (2026-10-26)
 
 
