@@ -410,7 +410,7 @@ func TestARefusalOfOneInputNamesIt(t *testing.T) {
 			run: func(t *testing.T) error {
 				return runOn(t, "pg.query", at(serveStatements(t, "", "a", "b", "c"), map[string]any{"sql": "select v", "limit": 2}))
 			}},
-		{name: "more rows than the table read's limit", id: "pg.table.rows", code: "pg.table.rows.toomany",
+		{name: "more rows than the table read's limit", id: "pg.table.rows", code: "pg.table.rows.toomany", input: "limit",
 			run: func(t *testing.T) error {
 				_, verr := readRows(ctx, ordersRows, reqFor(t, "pg.table.rows",
 					map[string]any{"table": "public.orders", "limit": 2}), orders)
