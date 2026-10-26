@@ -8,10 +8,21 @@
   "schedule": ["before 6am on monday"],
   "osvVulnerabilityAlerts": true,
   "postUpdateOptions": ["gomodTidy"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Bump the Go tools the Makefile builds under .tools, each marked with a 'renovate:' comment on the line above its pin. Go module tags carry the v the Makefile writes, so the matched value is reused as is.",
+      "managerFilePatterns": ["/^Makefile$/"],
+      "matchStrings": [
+        "# renovate: datasource=go depName=(?<depName>[^\\s]+)\\n[A-Z_]+ := (?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+      ],
+      "datasourceTemplate": "go"
+    }
+  ],
   "packageRules": [
     {
       "description": "Every bump lands as 'build' so it appears under the Dependencies changelog section, which release-please treats as releasable: a bumped module is a new binary for every plugin whose go.mod moved, and it reaches nobody without a release.",
-      "matchManagers": ["gomod", "github-actions", "mise"],
+      "matchManagers": ["gomod", "github-actions", "mise", "custom.regex"],
       "semanticCommitType": "build",
       "commitMessageTopic": "{{depName}}"
     },
