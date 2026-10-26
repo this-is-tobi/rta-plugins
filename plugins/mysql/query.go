@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-sql-driver/mysql"
+
 	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
@@ -144,6 +146,14 @@ func queryView(ctx context.Context, db *sql.DB, req plugin.Request) (view.View, 
 // none: no other statement in that box would cure either.
 func statementFailure(err error, req plugin.Request) *view.Error {
 	verr := classify(err, req)
+	// A statement's 1049 is about a database the statement names, USE nope or
+	// SHOW TABLES FROM nope, and classify words 1049 as the connection's: "has
+	// no database <the connection's>", which was there. The server's own words
+	// name the one that is not.
+	var myErr *mysql.MySQLError
+	if verr.Code == "mysql.database.notfound" && errors.As(err, &myErr) {
+		verr = view.Errorf(verr.Code, "%s", myErr.Message).WithHint(verr.Hint)
+	}
 	if verr.Code == "mysql.query.failed" {
 		verr.Hint = "the server rejected the statement as written, not the connection — what it says above is " +
 			"what to fix, and then the statement can be run again"

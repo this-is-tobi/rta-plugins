@@ -393,8 +393,14 @@ func classify(err error, req plugin.Request) *view.Error {
 			return view.Errorf("mariadb.host.denied", "%s will not accept connections from this machine", req.Reached(where)).
 				WithHint("MariaDB authorizes on user@host — the grant has to name where you are connecting from")
 		case 1290: // ER_OPTION_PREVENTS_STATEMENT
+			// Any server option refuses a statement with this number, and the
+			// message, in the server's language, names which: read_only is one,
+			// and inside the READ ONLY transaction a write meets 1792 first, so
+			// here it is as often secure_file_priv refusing a file a statement
+			// reads or writes. The hint said read_only whatever it was.
 			return view.Errorf("mariadb.readonly", "%s", myErr.Message).
-				WithHint("the server is running with read_only on; this is a replica or was set that way deliberately")
+				WithHint("a server option prevents this statement, and the message names it: read_only on a replica, " +
+					"or secure_file_priv for a file the statement reads or writes")
 		case 3159: // ER_SECURE_TRANSPORT_REQUIRED
 			// The server refusing a connection without TLS, which is not a
 			// query that failed: nothing was queried, and the answer is a

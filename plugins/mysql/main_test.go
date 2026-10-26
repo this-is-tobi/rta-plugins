@@ -426,3 +426,19 @@ func TestADialIsReadByItsOwnErrorNotByTheWrapper(t *testing.T) {
 		}
 	}
 }
+
+// A statement's 1049 is about the database the statement names, and the
+// server's words say which: it was "has no database <the connection's>", which
+// was there. 1290 is any server option refusing a statement, read_only only one
+// of them, and its hint says so.
+func TestAStatementsRefusalsSayWhatTheServerRefused(t *testing.T) {
+	r := req(t, "mysql.query", map[string]any{"host": "db.internal", "database": "app", "sql": "SHOW TABLES FROM nope"})
+	got := statementFailure(&mysql.MySQLError{Number: 1049, Message: "Unknown database 'nope'"}, r)
+	if got.Code != "mysql.database.notfound" || got.Message != "Unknown database 'nope'" || got.Input != "sql" {
+		t.Errorf("a statement's 1049 = %+v, want the server's words, naming the sql", got)
+	}
+	option := classify(&mysql.MySQLError{Number: 1290, Message: "server text"}, req(t, "mysql.status", nil))
+	if !strings.Contains(option.Hint, "read_only") || !strings.Contains(option.Hint, "secure_file_priv") {
+		t.Errorf("1290's hint = %q, want it to name the options that refuse a statement", option.Hint)
+	}
+}
