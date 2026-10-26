@@ -119,6 +119,19 @@ func TestTheStopActsOnTheContainerItJudged(t *testing.T) {
 	}
 }
 
+// A name refused before docker is asked is refused as itself, for an agent
+// too: it is no inspect that failed, and "try again once docker answers" sent
+// the agent to wait for something that was never the trouble.
+func TestAStopOfANameDockerIsNeverAskedAboutIsRefusedAsTheName(t *testing.T) {
+	scriptedDocker(t, "exit 0\n")
+	_, err := runStop(t.Context(), capReq(t, "docker.container.stop", map[string]any{"container": "-web"}).
+		WithSurface(plugin.SurfaceMCP))
+	verr, ok := err.(*view.Error)
+	if !ok || verr.Code != "docker.name.invalid" || verr.Input != "container" {
+		t.Fatalf("an agent's stop of -web = %v, want docker.name.invalid naming container", err)
+	}
+}
+
 // docker inspect answers for whatever object holds a name, so the inspect asks
 // for a container: an image called web is no container web, and its
 // environment is never shown as the container's.
