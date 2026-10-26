@@ -6,10 +6,12 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"errors"
+	"io/fs"
 	stdnet "net"
 	"net/url"
 	"os"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -258,7 +260,7 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 	if err != nil {
 		return nil, view.Errorf("mariadb.tls.ca.unreadable", "%v", err).
 			WithHint(sf.SettingName("ca-file") + " names a file on this machine, read by rta rather than " +
-				"by the server, holding the CA's certificate in PEM")
+				"by the server, holding the CA's certificate in PEM").WithInput(pathInput("ca-file", err))
 	}
 	// What the file has to hold, rather than a guess at what it held
 	// instead: only a file with no PEM certificate in it reaches this, a
@@ -270,7 +272,7 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 	if !pool.AppendCertsFromPEM(pem) {
 		return nil, view.Errorf("mariadb.tls.ca.invalid", "%s holds no PEM certificate", path).
 			WithHint(sf.SettingName("ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
-				"server's own — and a private key or a DER-encoded certificate is not one")
+				"server's own — and a private key or a DER-encoded certificate is not one").WithInput("ca-file")
 	}
 	cfg := &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12, ServerName: serverName(req)}
 	if mode == "verify-ca" {
@@ -321,6 +323,21 @@ func caFile(req plugin.Request) string {
 	return plugin.ExpandHome(ca)
 }
 
+// pathInput is the input a refusal to read the file a path input names is
+// about (view.Error.Input): name itself when the path is what is wrong —
+// nothing is there, a file stands where a directory was wanted, a directory
+// where the file was — so the form the call came from opens again on that
+// box, and none when the file is there and this process may not read it,
+// which no other path in that box cures: the fix is a chmod, or the machine.
+// rta's own built-ins draw the line where this does, in a package no plugin
+// can import.
+func pathInput(name string, err error) string {
+	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) || errors.Is(err, syscall.EISDIR) {
+		return name
+	}
+	return ""
+}
+
 // classify turns a driver error into something an operator can act on.
 //
 // Every branch here is a sentence somebody has stared at without knowing what
@@ -355,7 +372,7 @@ func classify(err error, req plugin.Request) *view.Error {
 				WithHint("the credentials are valid but not granted on this database — check SHOW GRANTS")
 		case 1049: // ER_BAD_DB_ERROR
 			return view.Errorf("mariadb.database.notfound", "%s has no database %q", req.Reached(where), req.String("database")).
-				WithHint(nextCall(req, "mariadb.database.list") + " shows what is there")
+				WithHint(nextCall(req, "mariadb.database.list") + " shows what is there").WithInput("database")
 		case 1046: // ER_NO_DB_ERROR
 			return noDatabase("no database is selected for this statement", req,
 				"name the table as database.table in the statement")
@@ -489,10 +506,19 @@ func classify(err error, req plugin.Request) *view.Error {
 	// The name first: a dial that could not resolve its host fails with a
 	// *net.OpError wrapping the *net.DNSError, and read the other way round
 	// every name nothing resolves was reported as a port nothing listens on.
+	//
+	// The host is named only when the resolver answered that the name does not
+	// exist, which is what a mistyped host gets. A resolver that did not answer,
+	// or failed on its own, names none: the name may be right, and the lookup is
+	// what failed — rta's net.probe draws the same line.
 	var dnsErr *stdnet.DNSError
 	if errors.As(err, &dnsErr) {
-		return view.Errorf("mariadb.host.unknown", "no address for %q", req.String("host")).
+		refusal := view.Errorf("mariadb.host.unknown", "no address for %q", req.String("host")).
 			WithHint(req.Surface().DNSHint(req.String("host")))
+		if dnsErr.IsNotFound {
+			return refusal.WithInput("host")
+		}
+		return refusal
 	}
 	// A dial that found no way to the host, and one the host refused, by the
 	// operating system's own error, as plugin.DialUnroutable and DialRefused

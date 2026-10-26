@@ -92,11 +92,11 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 		return nil, view.Errorf("mariadb.restore.nodatabase", "say which database to restore into").
 			WithHint(req.Surface().SettingTo("database", "<name>") + " — " +
 				nextCall(req, "mariadb.database.list") + " shows what is there, and " +
-				"CREATE DATABASE makes a fresh one")
+				"CREATE DATABASE makes a fresh one").WithInput("database")
 	}
 	path, err := expandHome(strings.TrimSpace(req.String("file")))
 	if err != nil {
-		return nil, view.Errorf("mariadb.restore.path", "resolving the dump path: %v", err)
+		return nil, view.Errorf("mariadb.restore.path", "resolving the dump path: %v", err).WithInput("file")
 	}
 	if verr := checkDumpFile(req.Surface(), path); verr != nil {
 		return nil, verr
@@ -165,16 +165,17 @@ func checkDumpFile(sf plugin.Surface, path string) *view.Error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return view.Errorf("mariadb.restore.nofile", "no dump at %s", path).
-			WithHint("`" + sf.Call("mariadb.dump", plugin.Arg{Name: "out", Value: "<path>"}) + "` writes one; this restores what that wrote")
+			WithHint("`" + sf.Call("mariadb.dump", plugin.Arg{Name: "out", Value: "<path>"}) + "` writes one; this restores what that wrote").
+			WithInput(pathInput("file", err))
 	}
 	if info.IsDir() {
 		return view.Errorf("mariadb.restore.notafile", "%s is a directory", path).
-			WithHint("a mariadb.dump file is a single SQL file")
+			WithHint("a mariadb.dump file is a single SQL file").WithInput("file")
 	}
 	if info.Size() == 0 {
 		return view.Errorf("mariadb.restore.empty", "%s is empty", path).
 			WithHint("an empty file restores as nothing and reports success — if this was a " +
-				"dump, it did not finish")
+				"dump, it did not finish").WithInput("file")
 	}
 	return nil
 }
@@ -245,7 +246,7 @@ func checkTarget(ctx context.Context, req plugin.Request, database string) (stri
 			return "", view.Errorf("mariadb.restore.notarget", "%s", verr.Message).
 				WithHint("rta does not create databases on its own — a typo'd name becoming a " +
 					"new database is worse than this refusal. `" + createDatabase(database) +
-					"` makes it, then restore again")
+					"` makes it, then restore again").WithInput("database")
 		}
 		return "", verr
 	}
@@ -273,7 +274,7 @@ func checkTarget(ctx context.Context, req plugin.Request, database string) (stri
 			"%s already holds %s", database, format.CountOf(tables, "table")).
 			WithHint("restore into a fresh database — CREATE DATABASE is one command, and " +
 				"whether this dump drops objects first was decided when mariadb-dump wrote it, " +
-				"so rta will not guess on its behalf")
+				"so rta will not guess on its behalf").WithInput("database")
 	}
 	return pin, nil
 }
@@ -286,7 +287,7 @@ func runRestoreTool(ctx context.Context, tool string, args []string,
 	req plugin.Request, path string) *view.Error {
 	f, err := os.Open(path)
 	if err != nil {
-		return view.Errorf("mariadb.restore.unreadable", "opening %s: %v", path, err)
+		return view.Errorf("mariadb.restore.unreadable", "opening %s: %v", path, err).WithInput(pathInput("file", err))
 	}
 	defer func() { _ = f.Close() }()
 
@@ -320,7 +321,7 @@ func classifyRestore(err error, stderr string, req plugin.Request) *view.Error {
 	case strings.Contains(stderr, "Unknown database"):
 		return view.Errorf("mariadb.restore.notarget", "%s", msg("Unknown database")).
 			WithHint("rta does not create databases on its own — CREATE DATABASE makes it, " +
-				"then restore again")
+				"then restore again").WithInput("database")
 	case strings.Contains(stderr, "Access denied"):
 		return view.Errorf("mariadb.auth.failed", "%s", msg("Access denied")).
 			WithHint("set $" + plugin.LocalEnvVar("mariadb.restore", "password") + ", or check " + req.Surface().SettingName("user"))

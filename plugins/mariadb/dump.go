@@ -150,17 +150,18 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	if database == "" {
 		return nil, view.Errorf("mariadb.dump.nodatabase", "say which database to dump").
 			WithHint(req.Surface().SettingTo("database", "<name>") + " — " +
-				nextCall(req, "mariadb.database.list") + " shows what is there")
+				nextCall(req, "mariadb.database.list") + " shows what is there").WithInput("database")
 	}
 	out := strings.TrimSpace(req.String("out"))
 	if out == "" {
 		return nil, view.Errorf("mariadb.dump.nooutput", "say where the dump should be written").
 			WithHint(req.Surface().SettingTo("out", "./"+database+".sql") + " — a whole database is a file, not something " +
-				"to read in a terminal")
+				"to read in a terminal").WithInput("out")
 	}
 	path, err := expandHome(out)
 	if err != nil {
-		return nil, view.Errorf("mariadb.dump.path", "resolving %s: %v", req.Surface().InputName("out"), err)
+		return nil, view.Errorf("mariadb.dump.path", "resolving %s: %v", req.Surface().InputName("out"), err).
+			WithInput("out")
 	}
 	// Here and not only in connect, so the dry run, which connects to
 	// nothing, refuses the CA the real run would, rather than describing a
@@ -446,7 +447,7 @@ func writeDump(ctx context.Context, tool string, args []string,
 		return 0, alreadyThere(path)
 	}
 	if err != nil {
-		return 0, view.Errorf("mariadb.dump.create", "creating %s: %v", path, err)
+		return 0, view.Errorf("mariadb.dump.create", "creating %s: %v", path, err).WithInput("out")
 	}
 
 	cmd := exec.CommandContext(ctx, tool, args...)
@@ -463,7 +464,7 @@ func writeDump(ctx context.Context, tool string, args []string,
 		return 0, classifyDump(runErr, stderr.String(), req)
 	case closeErr != nil:
 		_ = os.Remove(path)
-		return 0, view.Errorf("mariadb.dump.write", "finishing %s: %v", path, closeErr)
+		return 0, view.Errorf("mariadb.dump.write", "finishing %s: %v", path, closeErr).WithInput("out")
 	}
 
 	var size int64
@@ -517,7 +518,7 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 			WithHint("set $" + plugin.LocalEnvVar("mariadb.dump", "password") + ", or check " + req.Surface().SettingName("user"))
 	case strings.Contains(stderr, "Unknown database"):
 		return view.Errorf("mariadb.database.notfound", "%s", msg("Unknown database")).
-			WithHint(nextCall(req, "mariadb.database.list") + " shows what is there")
+			WithHint(nextCall(req, "mariadb.database.list") + " shows what is there").WithInput("database")
 	case strings.Contains(stderr, "Unknown MySQL server host"):
 		return view.Errorf("mariadb.host.unknown", "%s", msg("Unknown MySQL server host")).
 			WithHint(req.Surface().DNSHint(req.String("host")))
@@ -675,7 +676,7 @@ func nextCall(req plugin.Request, id string, args ...plugin.Arg) string {
 func alreadyThere(path string) *view.Error {
 	return view.Errorf("mariadb.dump.exists", "%s already exists", path).
 		WithHint("a dump is never written over an existing file — name a new one, or move " +
-			"that one aside")
+			"that one aside").WithInput("out")
 }
 
 func lookupTool(names []string) (string, error) {
