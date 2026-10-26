@@ -122,8 +122,19 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 // detectFormat reads what the artifact is rather than trusting its name.
 func detectFormat(sf plugin.Surface, path string) (dumpFormat, *view.Error) {
 	info, err := os.Stat(path)
+	if err != nil && pathInput("file", err) == "" {
+		// Only a path that leads nowhere is no dump. One this account cannot
+		// look at, behind a directory it may not enter, was said not to be
+		// there, about a file that may well be; it names no input, since the
+		// path can be right.
+		return "", view.Errorf("pg.restore.unreadable", "cannot look at %s: %v", path, err).
+			WithHint("the dump may be there: check that this account can read it and enter every directory above it")
+	}
+	// .nofile, as mariadb.restore and mysql.restore say it: .missing was this
+	// and the client tool not on $PATH below, two failures a caller could not
+	// tell apart by the code.
 	if err != nil {
-		return "", view.Errorf("pg.restore.missing", "no dump at %s", path).
+		return "", view.Errorf("pg.restore.nofile", "no dump at %s", path).
 			WithHint("`" + sf.Call("pg.dump", plugin.Arg{Name: "out", Value: "<path>"}) + "` writes one; this restores what that wrote").
 			WithInput(pathInput("file", err))
 	}

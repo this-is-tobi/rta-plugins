@@ -135,6 +135,14 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 // finish being written" is the answer, and the server does not know it.
 func checkSnapshotFile(sf plugin.Surface, path string) *view.Error {
 	info, err := os.Stat(path)
+	if err != nil && pathInput("file", err) == "" {
+		// Only a path that leads nowhere is no snapshot. One this account cannot
+		// look at, behind a directory it may not enter, was said not to be
+		// there, about a file that may well be; it names no input, since the
+		// path can be right.
+		return view.Errorf("qdrant.restore.unreadable", "cannot look at %s: %v", path, err).
+			WithHint("the snapshot may be there: check that this account can read it and enter every directory above it")
+	}
 	if err != nil {
 		return view.Errorf("qdrant.restore.missing", "no snapshot at %s", path).
 			WithHint("`" + sf.Call("qdrant.dump", plugin.Arg{Name: "collection", Value: "<collection>"},

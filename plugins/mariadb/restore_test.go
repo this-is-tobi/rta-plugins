@@ -186,3 +186,23 @@ func TestAMidFileFailureNamesItsLineAndThePartialState(t *testing.T) {
 		t.Errorf("hint = %q, want it to own that a partial restore remains", verr.Hint)
 	}
 }
+
+// A dump behind a directory this account may not enter is not said to be
+// missing: it may well be there, and the path names no input.
+func TestADumpThatCannotBeLookedAtIsNotSaidToBeMissing(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("mode bits do not stop this reader")
+	}
+	shut := filepath.Join(t.TempDir(), "shut")
+	if err := os.Mkdir(shut, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(shut, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(shut, 0o700) })
+	verr := checkDumpFile(plugin.SurfaceCLI, filepath.Join(shut, "app.sql"))
+	if verr == nil || verr.Code != "mariadb.restore.unreadable" || verr.Input != "" {
+		t.Errorf("a dump that cannot be looked at = %+v, want mariadb.restore.unreadable naming no input", verr)
+	}
+}

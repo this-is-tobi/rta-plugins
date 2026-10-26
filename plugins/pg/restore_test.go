@@ -75,8 +75,8 @@ func TestTheFormatComesFromTheBytesNotTheName(t *testing.T) {
 func TestWhatIsNotADumpIsRefusedByName(t *testing.T) {
 	dir := t.TempDir()
 
-	if _, verr := detectFormat(plugin.SurfaceCLI, filepath.Join(dir, "nope")); verr == nil || verr.Code != "pg.restore.missing" {
-		t.Errorf("missing file: %v, want pg.restore.missing", verr)
+	if _, verr := detectFormat(plugin.SurfaceCLI, filepath.Join(dir, "nope")); verr == nil || verr.Code != "pg.restore.nofile" {
+		t.Errorf("missing file: %v, want pg.restore.nofile", verr)
 	}
 
 	if _, verr := detectFormat(plugin.SurfaceCLI, dir); verr == nil || verr.Code != "pg.restore.notadump" {
@@ -436,5 +436,25 @@ func TestTheReceiptGuaranteeMatchesTheRun(t *testing.T) {
 	parallel := restoreGuarantee(reqFor(t, "pg.restore", map[string]any{"jobs": 8}))
 	if !strings.Contains(parallel, "8 workers") || !strings.Contains(parallel, "partial") {
 		t.Errorf("parallel guarantee = %q", parallel)
+	}
+}
+
+// A dump behind a directory this account may not enter is not said to be
+// missing: it may well be there, and the path names no input.
+func TestADumpThatCannotBeLookedAtIsNotSaidToBeMissing(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("mode bits do not stop this reader")
+	}
+	shut := filepath.Join(t.TempDir(), "shut")
+	if err := os.Mkdir(shut, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(shut, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(shut, 0o700) })
+	_, verr := detectFormat(plugin.SurfaceCLI, filepath.Join(shut, "app.dump"))
+	if verr == nil || verr.Code != "pg.restore.unreadable" || verr.Input != "" {
+		t.Errorf("a dump that cannot be looked at = %+v, want pg.restore.unreadable naming no input", verr)
 	}
 }

@@ -359,7 +359,7 @@ func TestARefusalOfOneInputNamesIt(t *testing.T) {
 				return refusal(classifyDump(errStub{}, snapshot,
 					reqFor(t, "pg.dump", map[string]any{"format": "directory", "jobs": 4})))
 			}},
-		{name: "no dump at the path", id: "pg.restore", code: "pg.restore.missing", input: "file",
+		{name: "no dump at the path", id: "pg.restore", code: "pg.restore.nofile", input: "file",
 			run: func(t *testing.T) error {
 				_, err := runRestore(ctx, reqFor(t, "pg.restore", map[string]any{"file": absent}))
 				return err
