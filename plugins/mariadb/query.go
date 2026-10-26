@@ -119,7 +119,7 @@ func queryView(ctx context.Context, db *sql.DB, req plugin.Request) (view.View, 
 		return nil, view.Errorf("mariadb.query.toolarge",
 			"the query returned more than %s", format.Bytes(maxBytes)).
 			WithHint("select fewer columns, or fewer rows — a row bound is not a size bound, " +
-				"and one wide TEXT or BLOB column is usually what does this")
+				"and one wide TEXT or BLOB column is usually what does this").WithInput("sql")
 	case err != nil:
 		return nil, statementFailure(err, req)
 	}
@@ -134,11 +134,24 @@ func queryView(ctx context.Context, db *sql.DB, req plugin.Request) (view.View, 
 // told an agent to ask the operator which settings exist. Whatever the number,
 // an error that came back for the caller's own statement is about that
 // statement.
+//
+// So it names sql (view.Error.Input), where the server's refusal is of what
+// the statement says: one it could not run as written, one that would write,
+// a table or a database it names that is not there, a table it leaves
+// unqualified with no database selected. Here and not in classify, which
+// every capability shares and where only this one has a statement to name.
+// What the server refuses the account, and what the connection does, names
+// none: no other statement in that box would cure either.
 func statementFailure(err error, req plugin.Request) *view.Error {
 	verr := classify(err, req)
 	if verr.Code == "mariadb.query.failed" {
 		verr.Hint = "the server rejected the statement as written, not the connection — what it says above is " +
 			"what to fix, and then the statement can be run again"
+	}
+	switch verr.Code {
+	case "mariadb.query.failed", "mariadb.query.readonly", "mariadb.table.notfound",
+		"mariadb.database.notfound", "mariadb.schema.unset":
+		return verr.WithInput("sql")
 	}
 	return verr
 }

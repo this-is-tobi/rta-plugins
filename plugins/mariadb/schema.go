@@ -54,6 +54,17 @@ func schemaOf(req plugin.Request) (string, *view.Error) {
 	return "", noDatabase("this call has no database to look in", req, "name one with "+req.Surface().InputName("schema"))
 }
 
+// schemaInput is the input that named the database schemaOf resolved, for a
+// refusal of that database to name (view.Error.Input): schema when the call
+// gave one, and otherwise the connection's own database, which it fell back
+// to. The form then opens again on the box that holds the name refused.
+func schemaInput(req plugin.Request) string {
+	if req.String("schema") != "" {
+		return "schema"
+	}
+	return "database"
+}
+
 // noDatabase is the refusal for a call that reached the server with no
 // database to work in, wherever that is noticed: before the call, when a
 // schema has to be named, or by the server, when a statement leaves the
@@ -158,7 +169,7 @@ func tableTable(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 			`SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?`, schema).
 			Scan(&exists); err == nil && exists == 0 {
 			return nil, view.Errorf("mariadb.database.notfound", "no database %q, or none this user may see", schema).
-				WithHint(nextCall(req, "mariadb.database.list") + " shows what is there")
+				WithHint(nextCall(req, "mariadb.database.list") + " shows what is there").WithInput(schemaInput(req))
 		}
 	}
 	return t, nil
@@ -340,10 +351,10 @@ func schemaTree(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 		if only := req.String("table"); only != "" {
 			return nil, view.Errorf("mariadb.table.notfound", "no table %q in %q", only, schema).
 				WithHint(nextCall(req, "mariadb.table.list", plugin.Arg{Name: "schema", Value: schema}) +
-					" shows what is there")
+					" shows what is there").WithInput("table")
 		}
 		return nil, view.Errorf("mariadb.database.empty", "%q has no tables, or none this user may see", schema).
-			WithHint(nextCall(req, "mariadb.database.list") + " shows what is there")
+			WithHint(nextCall(req, "mariadb.database.list") + " shows what is there").WithInput(schemaInput(req))
 	}
 
 	limit := req.Int("limit")
