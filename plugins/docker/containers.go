@@ -491,7 +491,10 @@ func runStop(ctx context.Context, req plugin.Request) (view.View, error) {
 	// again, and the daemon resolved that name a second time: a name moved to
 	// another container in between was judged on one and stopped the other. The
 	// stop is sent to the id the inspect answered with.
-	id, removes, judged := stopTarget(ctx, req)
+	id, removes, judged, refused := stopTarget(ctx, req)
+	if refused != nil {
+		return nil, refused
+	}
 	if req.Surface() == plugin.SurfaceMCP {
 		switch {
 		case judged != nil && judged.Code != "docker.notfound":
@@ -544,12 +547,24 @@ func runStop(ctx context.Context, req plugin.Request) (view.View, error) {
 // moment it stops. judged is the inspect's failure, when it failed:
 // docker.notfound for a name the daemon does not hold, and anything else for a
 // container whose stop nothing could judge.
-func stopTarget(ctx context.Context, req plugin.Request) (id string, removes bool, judged *view.Error) {
+//
+// refused is a refusal of the call made before the daemon is asked — a name
+// docker would read as a flag, a connection setting that is no connection —
+// which the stop itself answers the same way. It was taken for an inspect that
+// failed, and an agent's `-web` was told that whether stopping it removes it
+// could not be told, to try again once docker answers.
+func stopTarget(ctx context.Context, req plugin.Request) (id string, removes bool, judged, refused *view.Error) {
+	if _, verr := connectionOf(req); verr != nil {
+		return "", false, nil, verr
+	}
+	if verr := checkName("container", strings.TrimSpace(req.String("container"))); verr != nil {
+		return "", false, nil, verr.WithInput("container")
+	}
 	d, _, _, verr := inspectOne(ctx, req)
 	if verr != nil {
-		return "", false, verr
+		return "", false, verr, nil
 	}
-	return d.ID, d.State.Running && d.HostConfig.AutoRemove, nil
+	return d.ID, d.State.Running && d.HostConfig.AutoRemove, nil, nil
 }
 
 func runRestart(ctx context.Context, req plugin.Request) (view.View, error) {
