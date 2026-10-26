@@ -8,10 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	stdnet "net"
 	"os"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
@@ -177,7 +179,8 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 		pem, err := os.ReadFile(ca)
 		if err != nil {
 			return nil, view.Errorf("redis.tls.ca.unreadable", "%v", err).
-				WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by the server")
+				WithHint(sf.SettingName("ca-file") + " is a path on this machine, read by rta rather than by the server").
+				WithInput(pathInput("ca-file", err))
 		}
 		pool := x509.NewCertPool()
 		// What the file has to hold, rather than a guess at what it held
@@ -191,7 +194,7 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 			return nil, view.Errorf("redis.tls.ca.invalid", "%s holds no PEM certificate", ca).
 				WithHint(sf.SettingName("ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
 					"server's own — and a private key, which belongs in " + sf.SettingName("key-file") +
-					", or a DER-encoded certificate is not one")
+					", or a DER-encoded certificate is not one").WithInput("ca-file")
 		}
 		cfg.RootCAs = pool
 	}
@@ -207,11 +210,45 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 		pair, err := tls.LoadX509KeyPair(cert, key)
 		if err != nil {
 			return nil, view.Errorf("redis.tls.pair.invalid", "%v", err).
-				WithHint("both paths are read on this machine — check they are PEM and belong together")
+				WithHint("both paths are read on this machine — check they are PEM and belong together").
+				WithInput(pairInput(err, cert, key))
 		}
 		cfg.Certificates = []tls.Certificate{pair}
 	}
 	return cfg, nil
+}
+
+// pathInput is the input a refusal to read the file a path setting names is
+// about (view.Error.Input): input itself when err says the path is what is
+// wrong — nothing is there, a directory is where a file was wanted, or a file
+// where a directory was — so the form the call came from opens again on that
+// box, and none when the file is there and cannot be read, which no box
+// answers: the path is right, and the fix is a chmod or the machine. rta's own
+// built-ins hold their paths to the same line.
+func pathInput(input string, err error) string {
+	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) || errors.Is(err, syscall.EISDIR) {
+		return input
+	}
+	return ""
+}
+
+// pairInput is pathInput for the client pair, which tls.LoadX509KeyPair reads
+// both halves of and answers with the error of the one it could not read:
+// cert-file or key-file by the path that error names. A pair it read and could
+// not make one of names none, since its words do not say which half is wrong,
+// or whether the two only do not belong together.
+func pairInput(err error, cert, key string) string {
+	var pathErr *fs.PathError
+	if !errors.As(err, &pathErr) {
+		return ""
+	}
+	switch pathErr.Path {
+	case cert:
+		return pathInput("cert-file", err)
+	case key:
+		return pathInput("key-file", err)
+	}
+	return ""
 }
 
 // reply is one RESP2 value. kind is the type byte the server sent.
@@ -410,7 +447,8 @@ func classify(err error, addr string, req plugin.Request) *view.Error {
 			}
 			if strings.Contains(srv.msg, "DB index is out of range") {
 				return view.Errorf("redis.db.range", "%s has no database with that index", reached).
-					WithHint("the server's `databases` setting counts them from 0 (16 unless raised) — pick " + sf.SettingName("db") + " below it")
+					WithHint("the server's `databases` setting counts them from 0 (16 unless raised) — pick " + sf.SettingName("db") + " below it").
+					WithInput("db")
 			}
 			if strings.Contains(srv.msg, "AUTH") && strings.Contains(srv.msg, "no password") {
 				return view.Errorf("redis.auth.unneeded", "%s has no password set, and one was given", reached).
@@ -435,8 +473,17 @@ func classify(err error, addr string, req plugin.Request) *view.Error {
 		return view.Errorf("redis.timeout", "%s did not answer in time", addr).
 			WithHint("a server blocked on a long command, or a firewall that drops rather than refuses, looks exactly like this")
 	case errors.As(err, &dnsErr):
-		return view.Errorf("redis.host.unknown", "no address for %q", hostOnly(addr)).
+		unknown := view.Errorf("redis.host.unknown", "no address for %q", hostOnly(addr)).
 			WithHint(sf.DNSHint(hostOnly(addr)))
+		// The address's own refusal only when the resolver answered that the
+		// name does not exist, which is what a mistyped one gets. A resolver
+		// that did not answer, or failed, says nothing of the name: the network
+		// is what failed, and no box holds the fix (rta's net.probe draws the
+		// same line).
+		if dnsErr.IsNotFound {
+			return unknown.WithInput("address")
+		}
+		return unknown
 	case plugin.DialUnroutable(err):
 		why := err
 		if errors.As(err, &netErr) {
