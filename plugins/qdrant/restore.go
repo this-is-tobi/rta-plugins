@@ -145,8 +145,8 @@ func checkSnapshotFile(sf plugin.Surface, path string) *view.Error {
 	}
 	if err != nil {
 		return view.Errorf("qdrant.restore.missing", "no snapshot at %s", path).
-			WithHint("`" + sf.Call("qdrant.dump", plugin.Arg{Name: "collection", Value: "<collection>"},
-				plugin.Arg{Name: "out", Value: "<path>"}) + "` writes one; this restores what that wrote").
+			WithHint("`" + sf.Call("qdrant.dump", plugin.Arg{Name: "collection", Value: plugin.Placeholder("collection")},
+				plugin.Arg{Name: "out", Value: plugin.Placeholder("path")}) + "` writes one; this restores what that wrote").
 			WithInput(plugin.PathInput("file", err))
 	}
 	if info.IsDir() {

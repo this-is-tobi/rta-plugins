@@ -149,7 +149,7 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	database := req.String("database")
 	if database == "" {
 		return nil, view.Errorf("mariadb.dump.nodatabase", "say which database to dump").
-			WithHint(req.Surface().SettingTo("database", "<name>") + " — " +
+			WithHint(req.Surface().SettingTo("database", plugin.Placeholder("name")) + " — " +
 				nextCall(req, "mariadb.database.list") + " shows what is there").WithInput("database")
 	}
 	out := strings.TrimSpace(req.String("out"))

@@ -546,7 +546,7 @@ func outHint(req plugin.Request, bucket, key string) string {
 			plugin.SurfaceCLI.Call("s3.object.get",
 				plugin.Arg{Name: "key", Value: key, Positional: true},
 				plugin.Arg{Name: "bucket", Value: bucket},
-				plugin.Arg{Name: "out", Value: "<file>"}), "rta "))
+				plugin.Arg{Name: "out", Value: plugin.Placeholder("file")}), "rta "))
 	}
 	return "use " + sf.InputName("out") + " to write it to a file instead of printing it"
 }
