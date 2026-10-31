@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.6.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.6.0...plugins/docker/v0.6.1) (2026-10-31)
+
+
+### Dependencies
+
+* **deps:** update golang.org/x/net to v0.62.0 [security] ([8429cde](https://github.com/this-is-tobi/rta-plugins/commit/8429cde67c4becd869e3a0798bd5786d1226575a))
+* every plugin builds against rta v0.51.1 ([0228bdc](https://github.com/this-is-tobi/rta-plugins/commit/0228bdc53a06c1a22db66d2c50471e9fc0b9d313))
+* every plugin builds against rta v0.52.0 ([67afd0c](https://github.com/this-is-tobi/rta-plugins/commit/67afd0ce9bd9d743c938de52ac2863b7deec8fb4))
+
 ## [0.6.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.5.4...plugins/docker/v0.6.0) (2026-10-26)
 
 
