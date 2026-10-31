@@ -505,11 +505,17 @@ bump-rta: name-check ## Pin every module and .rta-version to rta RTA_VERSION (e.
 # so it refuses to start over one somebody made: a `make dev` edit loop
 # pointed at a local checkout would be gone when this finished, and every
 # build after it would pin go.mod's rta again with nothing saying so.
+#
+# Every module is checked whatever the first one says (-k), as CI's own check
+# is. Without it make stops at the first module that fails, and a red run
+# names one module where an SDK change broke six, which is the run that said
+# "mariadb" for a quoting change mysql, qdrant, redis, s3 and vault failed
+# on as well.
 canary: name-check ## Check every plugin against rta at RTA_REF (default main), without touching go.mod
 	@test ! -e go.work || { echo "canary replaces go.work, and one is here already: 'make dev-off' first"; exit 1; }
 	@tmp=$$(mktemp -d); \
 	git clone --quiet --depth 1 --branch $(RTA_REF) https://github.com/this-is-tobi/rta "$$tmp/rta" || exit 1; \
-	$(MAKE) dev RTA_DIR="$$tmp/rta" && $(MAKE) check; rc=$$?; \
+	$(MAKE) dev RTA_DIR="$$tmp/rta" && $(MAKE) -k check; rc=$$?; \
 	$(MAKE) dev-off; rm -rf "$$tmp"; exit $$rc
 
 ##@ Everything
