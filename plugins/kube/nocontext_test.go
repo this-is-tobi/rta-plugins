@@ -35,6 +35,19 @@ func TestAKubeconfigWithNoCurrentContextNamesTheCallsThatFixIt(t *testing.T) {
 	}
 }
 
+// The switch to a context leaves the name for its reader to type, bare as a
+// usage line spells it, rather than quoted as a name somebody gave.
+func TestTheSwitchToAContextLeavesItsNameForTheReader(t *testing.T) {
+	for sf, want := range map[plugin.Surface]string{
+		plugin.SurfaceCLI: "`rta kube context set <name>` picks one",
+		plugin.SurfaceTUI: "`kube.context.set name=<name>` picks one",
+	} {
+		if got := pickContext(sf); got != want {
+			t.Errorf("%s: %q, want %q", sf, got, want)
+		}
+	}
+}
+
 // With no kubeconfig at all, a current kubectl does not say so: it tries
 // localhost:8080 and answers with a client-go log line about a connection
 // refused. The overview put that line in its cluster row as "did not answer",
