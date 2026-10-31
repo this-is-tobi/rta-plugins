@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"net"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -21,6 +22,7 @@ import (
 // no terminal for.
 func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 	refusal := func(verr *view.Error) string { return verr.Message + "\n" + verr.Hint }
+	missing := filepath.Join(t.TempDir(), "nope.dump")
 	for _, tc := range []struct {
 		name, cli, other string
 		surface          plugin.Surface
@@ -94,6 +96,27 @@ func TestWhatItSaysNamesWhatItsSurfaceGives(t *testing.T) {
 			surface: plugin.SurfaceTUI,
 			say: func(sf plugin.Surface) string {
 				return refusal(checkParallel(reqFor(t, "pg.dump", map[string]any{"format": "custom", "jobs": 4}).WithSurface(sf)))
+			},
+		},
+		{
+			// A placeholder is spelled bare, as a usage line spells it: quoted,
+			// as a value somebody gave is, it reads as the literal <path>.
+			name:    "a dump to restore that is not there",
+			cli:     "`rta pg dump --out <path>` writes one; this restores what that wrote",
+			other:   "`pg.dump out=<path>` writes one; this restores what that wrote",
+			surface: plugin.SurfaceTUI,
+			say: func(sf plugin.Surface) string {
+				_, verr := detectFormat(sf, missing)
+				return refusal(verr)
+			},
+		},
+		{
+			name:    "a plain dump asked to restore in parallel",
+			cli:     "`rta pg dump --out <path> --format directory --jobs <n>` writes a dump that restores in parallel",
+			other:   "`pg.dump out=<path> format=directory jobs=<n>` writes a dump that restores in parallel",
+			surface: plugin.SurfaceTUI,
+			say: func(sf plugin.Surface) string {
+				return refusal(checkRestoreFlags(reqFor(t, "pg.restore", map[string]any{"jobs": 4}).WithSurface(sf), formatPlain))
 			},
 		},
 		{
