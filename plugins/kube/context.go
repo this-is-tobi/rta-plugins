@@ -290,5 +290,5 @@ func contextHint(sf plugin.Surface, agent, person string) string {
 // pickContext is the call that switches this machine to a context, spelled
 // for the surface that will make it, with the name left for its reader.
 func pickContext(sf plugin.Surface) string {
-	return "`" + sf.Call("kube.context.set", plugin.Arg{Name: "name", Value: "<name>", Positional: true}) + "` picks one"
+	return "`" + sf.Call("kube.context.set", plugin.Arg{Name: "name", Value: plugin.Placeholder("name"), Positional: true}) + "` picks one"
 }

@@ -135,7 +135,7 @@ func detectFormat(sf plugin.Surface, path string) (dumpFormat, *view.Error) {
 	// tell apart by the code.
 	if err != nil {
 		return "", view.Errorf("pg.restore.nofile", "no dump at %s", path).
-			WithHint("`" + sf.Call("pg.dump", plugin.Arg{Name: "out", Value: "<path>"}) + "` writes one; this restores what that wrote").
+			WithHint("`" + sf.Call("pg.dump", plugin.Arg{Name: "out", Value: plugin.Placeholder("path")}) + "` writes one; this restores what that wrote").
 			WithInput(plugin.PathInput("file", err))
 	}
 	if info.IsDir() {
@@ -187,8 +187,8 @@ func checkRestoreFlags(req plugin.Request, format dumpFormat) *view.Error {
 		return view.Errorf("pg.restore.plainflag",
 			"%s needs a custom or directory dump, not plain SQL", sf.InputName("jobs")).
 			WithHint("psql replays the file as written, one statement at a time — `" +
-				sf.Call("pg.dump", plugin.Arg{Name: "out", Value: "<path>"},
-					plugin.Arg{Name: "format", Value: "directory"}, plugin.Arg{Name: "jobs", Value: "<n>"}) +
+				sf.Call("pg.dump", plugin.Arg{Name: "out", Value: plugin.Placeholder("path")},
+					plugin.Arg{Name: "format", Value: "directory"}, plugin.Arg{Name: "jobs", Value: plugin.Placeholder("n")}) +
 				"` writes a dump that restores in parallel")
 	case req.Bool("clean"):
 		return view.Errorf("pg.restore.plainflag",

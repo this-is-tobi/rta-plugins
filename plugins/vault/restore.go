@@ -139,7 +139,7 @@ func checkSnapshotFile(sf plugin.Surface, path string) *view.Error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return view.Errorf("vault.restore.missing", "no snapshot at %s", path).
-			WithHint("`" + sf.Call("vault.snapshot", plugin.Arg{Name: "out", Value: "<path>"}) + "` writes one; this restores what that wrote").
+			WithHint("`" + sf.Call("vault.snapshot", plugin.Arg{Name: "out", Value: plugin.Placeholder("path")}) + "` writes one; this restores what that wrote").
 			WithInput(plugin.PathInput("file", err))
 	}
 	if info.IsDir() {

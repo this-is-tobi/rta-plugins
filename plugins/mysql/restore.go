@@ -89,7 +89,7 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 	database := req.String("database")
 	if database == "" {
 		return nil, view.Errorf("mysql.restore.nodatabase", "say which database to restore into").
-			WithHint(req.Surface().SettingTo("database", "<name>") + " — " +
+			WithHint(req.Surface().SettingTo("database", plugin.Placeholder("name")) + " — " +
 				nextCall(req, "mysql.database.list") + " shows what is there, and " +
 				"CREATE DATABASE makes a fresh one").WithInput("database")
 	}
@@ -164,7 +164,7 @@ func checkDumpFile(sf plugin.Surface, path string) *view.Error {
 	}
 	if err != nil {
 		return view.Errorf("mysql.restore.nofile", "no dump at %s", path).
-			WithHint("`" + sf.Call("mysql.dump", plugin.Arg{Name: "out", Value: "<path>"}) + "` writes one; this restores what that wrote").
+			WithHint("`" + sf.Call("mysql.dump", plugin.Arg{Name: "out", Value: plugin.Placeholder("path")}) + "` writes one; this restores what that wrote").
 			WithInput(plugin.PathInput("file", err))
 	}
 	if info.IsDir() {

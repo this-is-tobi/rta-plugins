@@ -169,7 +169,7 @@ func planUpload(sf plugin.Surface, root string, limit int) ([]upload, int64, *vi
 	info, err := os.Stat(root)
 	if err != nil {
 		return nil, 0, view.Errorf("s3.upload.missing", "no directory at %s", root).
-			WithHint("`" + sf.Call("s3.bucket.download", plugin.Arg{Name: "out", Value: "<dir>"}) +
+			WithHint("`" + sf.Call("s3.bucket.download", plugin.Arg{Name: "out", Value: plugin.Placeholder("dir")}) +
 				"` writes one; this uploads what that wrote").WithInput(plugin.PathInput("dir", err))
 	}
 	if !info.IsDir() {
