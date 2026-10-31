@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.8.0...plugins/redis/v0.8.1) (2026-10-31)
+
+
+### Dependencies
+
+* **deps:** update golang.org/x/net to v0.62.0 [security] ([8429cde](https://github.com/this-is-tobi/rta-plugins/commit/8429cde67c4becd869e3a0798bd5786d1226575a))
+* every plugin builds against rta v0.51.1 ([0228bdc](https://github.com/this-is-tobi/rta-plugins/commit/0228bdc53a06c1a22db66d2c50471e9fc0b9d313))
+
 ## [0.8.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.7.3...plugins/redis/v0.8.0) (2026-10-26)
 
 
