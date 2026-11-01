@@ -376,15 +376,22 @@ docs-drift: build ## Fail if a plugin's README.md is behind its binary's declara
 			|| { echo "plugins/$$p/README.md is behind its declaration; run 'make docs'"; fail=1; }; \
 	done; exit $$fail
 
+# The capabilities are counted off each plugin's README, which is its
+# declaration rendered and which docs-drift holds to the binary, rather than
+# off `ID: "..."` literals in its source: mysql and mariadb declare theirs in
+# plugins/mysql/family, as the engine's namespace joined to a name, and a
+# literal count read zero for both. A backup's receipt is looked for in the
+# plugin and in the sibling modules its go.mod requires, where its handler may
+# live instead.
 docs-check: name-check ## Fail if README's counts or a backup's receipt disagree with the declarations
 	@fail=0; for p in $(ALL_PLUGINS); do \
-		src=$$(ls plugins/$$p/*.go | grep -v '_test\.go$$'); \
-		want=$$(echo "$$src" | xargs grep -ohE '\bID:[[:space:]]*"[a-z0-9]+(\.[a-z0-9]+)+"' | sort -u | wc -l | tr -d ' '); \
+		want=$$(grep -cE "^\| $$p\.[a-z0-9.]+ +\|" plugins/$$p/README.md); \
 		got=$$(grep -E "^\| \[\`$$p\`\]" README.md | awk -F'|' '{gsub(/ /,"",$$4); print $$4}'); \
 		if [ -z "$$got" ]; then echo "README.md never lists $$p"; fail=1; \
 		elif [ "$$got" != "$$want" ]; then echo "README.md says $$p has $$got capabilities; it declares $$want"; fail=1; fi; \
-		for id in $$(echo "$$src" | xargs grep -ohE "\bID:[[:space:]]*\"$$p\.(dump|snapshot)\"" | sed -E 's/.*"([^"]+)"/\1/' | sort -u); do \
-			echo "$$src" | xargs grep -q '"does not carry"' || { echo "$$id backs up a whole datastore and its receipt has no 'does not carry' row"; fail=1; }; \
+		src="plugins/$$p $$(sed -nE 's#^[[:space:]]*(require[[:space:]]+)?github.com/this-is-tobi/rta-plugins/(plugins/[a-z0-9-]+)[[:space:]].*#\2#p' plugins/$$p/go.mod)"; \
+		for id in $$(grep -oE "^\| $$p\.(dump|snapshot) " plugins/$$p/README.md | sed -E 's/^\| ([^ ]+) $$/\1/'); do \
+			grep -rqs --include='*.go' --exclude='*_test.go' '"does not carry"' $$src || { echo "$$id backs up a whole datastore and its receipt has no 'does not carry' row"; fail=1; }; \
 		done; \
 	done; exit $$fail
 
