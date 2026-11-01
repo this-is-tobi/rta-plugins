@@ -87,8 +87,8 @@ github.com/stretchr/testify v1.7.2 h1:4jaiDzPyXQvSd7D0EjG45355tLlV3VOECpq10pLC+8
 github.com/stretchr/testify v1.7.2/go.mod h1:R6va5+xMeoiuVRoj+gSkQ7d3FALtqAAGI1FQKckRals=
 github.com/this-is-tobi/rta v0.55.0 h1:1JYjtQobb/vK1uKYVz06OyvQgA3bdrjcOuXZvCPASLI=
 github.com/this-is-tobi/rta v0.55.0/go.mod h1:HilNMkHWttBZyEs4tQUdLK+5EmfZMastcHEo2MigVKQ=
-github.com/this-is-tobi/rta-plugins/plugins/mysql v0.12.3 h1:1wlwFZr58Uz+9a8t4dH9MaG/CAR/xAgdIoeS7eiBv9I=
-github.com/this-is-tobi/rta-plugins/plugins/mysql v0.12.3/go.mod h1:l+asYDm4nYe9zTbMWioxhoeTn2gxZSgDKT2D414boUg=
+github.com/this-is-tobi/rta-plugins/plugins/mysql v0.13.0 h1:Pr020NhaDqwCl4iGZhfUKj+MaGhXAv5liGdKpfWB370=
+github.com/this-is-tobi/rta-plugins/plugins/mysql v0.13.0/go.mod h1:jM2YX0m7mCdOch8qrzUCxglRoiCzIzPnlD1gQHKz+ms=
 github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e h1:JVG44RsyaB9T2KIHavMF/ppJZNG9ZpyihvCd0w101no=
 github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e/go.mod h1:RbqR21r5mrJuqunuUZ/Dhy/avygyECGrLceyNeo4LiM=
 golang.org/x/net v0.62.0 h1:18ELalfM5+XNRwzM2nYqXsZQ9ByS1uhj2O/U7+5jqRY=
