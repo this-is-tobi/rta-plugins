@@ -142,31 +142,50 @@ func fixedClock(t *testing.T) {
 	t.Cleanup(func() { clock = was })
 }
 
-// The server the captured answers were taken from, which is the one thing the
-// two forks' tests say differently: the release, the source its replica followed,
-// the statement and the column that tell how far behind it is, and the privilege
-// the replica status takes.
-const (
-	capturedScenario      = "mysql-8.4-"
-	capturedVersion       = "8.4.3"
-	capturedServer        = "MySQL 8.4.3"
-	capturedSource        = "dbwp-my-m84-p:3306"
-	capturedReplicaStatus = "SHOW REPLICA STATUS"
-	capturedLagColumn     = "Seconds_Behind_Source"
-	capturedGrant         = "REPLICATION CLIENT"
-)
+// capture is the server an engine's answers were captured from, which is the
+// one thing the overview's tests say differently per engine: the release, the
+// source its replica followed, the statement and the column that tell how far
+// behind it is, and the privilege the replica status takes.
+type capture struct {
+	scenario, version, server, source, replicaStatus, lagColumn, grant string
+}
 
-// captured is the scenario of a state this fork was captured in.
-func captured(state string) string { return capturedScenario + state }
+var captures = map[string]capture{
+	"mysql": {
+		scenario: "mysql-8.4-", version: "8.4.3", server: "MySQL 8.4.3", source: "dbwp-my-m84-p:3306",
+		replicaStatus: "SHOW REPLICA STATUS", lagColumn: "Seconds_Behind_Source", grant: "REPLICATION CLIENT",
+	},
+	"mariadb": {
+		scenario: "mariadb-11.4-", version: "11.4.2-MariaDB", server: "11.4.2-MariaDB", source: "dbwp-my-d114-p:3306",
+		replicaStatus: "SHOW ALL REPLICAS STATUS", lagColumn: "Seconds_Behind_Master", grant: "REPLICA MONITOR",
+	},
+}
+
+// captured is the capture of the engine under test.
+func captured() capture { return captures[engine.NS] }
+
+// scenario is the name of a state the engine under test was captured in.
+func scenario(state string) string { return captured().scenario + state }
+
+// engineOf is the engine a scenario was captured from, which its name begins
+// with: a fixture replayed through another engine's dialect is asked
+// statements its server never answered.
+func engineOf(scenario string) Engine {
+	if strings.HasPrefix(scenario, MariaDB.NS+"-") {
+		return MariaDB
+	}
+	return MySQL
+}
 
 // newOverviewFake is a quiet healthy server in the named scenario.
 func newOverviewFake(t *testing.T, scenario string) *overviewFake {
 	t.Helper()
+	useEngine(t, engineOf(scenario))
 	fixture, err := loadFixture(scenario)
 	if err != nil {
 		t.Fatalf("scenario %s: %v", scenario, err)
 	}
-	return &overviewFake{scenario: scenario, version: capturedVersion, maxConns: 151, counters: quietCounters(), fixture: fixture}
+	return &overviewFake{scenario: scenario, version: captured().version, maxConns: 151, counters: quietCounters(), fixture: fixture}
 }
 
 func (f *overviewFake) open(t *testing.T) *sql.DB {
@@ -217,7 +236,7 @@ func (f *overviewFake) setCell(t *testing.T, statement, column, value string) {
 func (f *overviewFake) compact(t *testing.T) []view.Pair {
 	t.Helper()
 	fixedClock(t)
-	v, err := compactOverview(t.Context(), f.open(t), req(t, "mysql.overview", nil))
+	v, err := compactOverview(t.Context(), f.open(t), req(t, engine.NS+".overview", nil))
 	return pairRows(t, v, err)
 }
 

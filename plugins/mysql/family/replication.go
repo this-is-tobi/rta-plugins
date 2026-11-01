@@ -12,8 +12,8 @@ import (
 
 func replicationCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "mysql.replication.status",
-		Summary:    capabilitySummary,
+		ID:         engine.NS + ".replication.status",
+		Summary:    engine.replicationSummary,
 		Keywords:   []string{"slave", "master", "gtid", "binlog", "delay"},
 		Safety:     plugin.Read,
 		Idempotent: true,
@@ -34,16 +34,16 @@ func replicationCapability() plugin.Capability {
 			"read on its own: an account that may read the replica threads and not the connected " +
 			"replicas gets the first, with the privilege that adds the second named.\n\n" +
 			"Positions and states only: the text of a replication error is the failing statement with " +
-			"its row values, so only its number is returned. The message is what `mysql.query` returns " +
+			"its row values, so only its number is returned. The message is what `" + engine.NS + ".query` returns " +
 			"for SHOW REPLICA STATUS, behind its grant." +
-			clusterNote,
+			engine.clusterNote,
 		Agent: "Replication health of the one server reached: its role (replica, source, both or neither), " +
 			"each thread's state, seconds behind, the position read against the one applied, transactions " +
 			"received and not yet applied, and the connected replicas. A stopped thread fails, with the " +
 			"recorded error number; a running replica warns at a minute behind and fails at ten. Lag is " +
 			"never shown without thread states. One connection sees one server: call it on each member " +
 			"and compare. Positions and states only: an error's text is withheld because it carries row " +
-			"values." + clusterAgentNote,
+			"values." + engine.clusterAgentNote,
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withDB(ctx, req, func(ctx context.Context, db *sql.DB) (view.View, error) {
 				st, verr := readState(ctx, db, req)
@@ -190,7 +190,7 @@ func summarise(st state, channels []channelRow) facet {
 				detail: "not replicating from anything and no replica is connected"}
 		}
 		return facet{role: "standalone", status: "none",
-			detail: standaloneDetail}
+			detail: engine.standalone}
 	}
 
 	// The summary carries the word and the detail carries the reasons, so a

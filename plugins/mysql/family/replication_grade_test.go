@@ -99,7 +99,7 @@ func TestAnAccountThatSeesThreadsButNotReplicasSaysWhatItDoesKnow(t *testing.T) 
 			t.Errorf("%s: the replica threads were readable and are reported as not", name)
 		}
 		warnings := replicationView(st).Warnings
-		if len(warnings) != 1 || !warnings[0].Advisory || warnings[0].Code != "mysql.replication.denied" {
+		if len(warnings) != 1 || !warnings[0].Advisory || warnings[0].Code != engine.NS+".replication.denied" {
 			t.Errorf("%s: warnings = %+v, want the one advisory denial", name, warnings)
 		}
 	}

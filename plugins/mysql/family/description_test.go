@@ -15,23 +15,25 @@ import (
 // of this plugin's reader can follow.
 func TestWhatAnAgentReadsNamesNothingItCannotCall(t *testing.T) {
 	bareKVGet := regexp.MustCompile(`(^|[^.\w])kv\.get`)
-	for _, c := range Plugin("dev").Capabilities {
-		if c.HumanOnly {
-			continue
-		}
-		texts := []string{c.Summary, c.Description}
-		for _, f := range c.Inputs {
-			texts = append(texts, f.Help)
-		}
-		for _, s := range texts {
-			for _, bad := range []string{"grant.allow", "builtin/", "keys.backup", "kv.copy"} {
-				if strings.Contains(s, bad) {
-					t.Errorf("%s says %q — a call its reader cannot make: %.80s…", c.ID, bad, s)
+	forEachEngine(t, func(t *testing.T) {
+		for _, c := range Plugin(engine, "dev").Capabilities {
+			if c.HumanOnly {
+				continue
+			}
+			texts := []string{c.Summary, c.Description}
+			for _, f := range c.Inputs {
+				texts = append(texts, f.Help)
+			}
+			for _, s := range texts {
+				for _, bad := range []string{"grant.allow", "builtin/", "keys.backup", "kv.copy"} {
+					if strings.Contains(s, bad) {
+						t.Errorf("%s says %q — a call its reader cannot make: %.80s…", c.ID, bad, s)
+					}
+				}
+				if bareKVGet.MatchString(s) {
+					t.Errorf("%s points at rta's own kv.get — a call its reader cannot make: %.80s…", c.ID, s)
 				}
 			}
-			if bareKVGet.MatchString(s) {
-				t.Errorf("%s points at rta's own kv.get — a call its reader cannot make: %.80s…", c.ID, s)
-			}
 		}
-	}
+	})
 }

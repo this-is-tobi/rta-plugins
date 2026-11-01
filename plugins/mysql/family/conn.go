@@ -196,8 +196,8 @@ func connect(ctx context.Context, req plugin.Request) (*sql.DB, *view.Error) {
 func open(ctx context.Context, req plugin.Request, cfg *mysql.Config) (*sql.DB, *view.Error) {
 	connector, err := mysql.NewConnector(cfg)
 	if err != nil {
-		return nil, view.Errorf("mysql.conn.invalid", "%v", err).
-			WithHint(req.Surface().SettingsHint("mysql.overview"))
+		return nil, view.Errorf(engine.NS+".conn.invalid", "%v", err).
+			WithHint(req.Surface().SettingsHint(engine.NS + ".overview"))
 	}
 	db := sql.OpenDB(connector)
 	// One connection, because a capability here runs one query and exits. A
@@ -237,7 +237,7 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 			return &tls.Config{ServerName: name, MinVersion: tls.VersionTLS12}, nil
 		}
 		if mode == "verify-ca" {
-			return nil, view.Errorf("mysql.tls.ca.missing", "%s checks the server's chain against the CA %s names, "+
+			return nil, view.Errorf(engine.NS+".tls.ca.missing", "%s checks the server's chain against the CA %s names, "+
 				"and it names none", sf.SettingTo("tls", mode), sf.SettingName("ca-file")).
 				WithHint(sf.SettingName("ca-file") + " names it: the CA that issued the server's certificate, or the " +
 					"certificate itself when it is self-signed. " + sf.SettingTo("tls", "true") +
@@ -249,14 +249,14 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 	case "false":
 		return nil, nil
 	case "preferred", "skip-verify":
-		return nil, view.Errorf("mysql.tls.ca.unused", "%s names a CA, and %s never verifies against one",
+		return nil, view.Errorf(engine.NS+".tls.ca.unused", "%s names a CA, and %s never verifies against one",
 			sf.SettingName("ca-file"), sf.SettingTo("tls", mode)).
 			WithHint(sf.SettingTo("tls", "true") + " verifies the server against it, its name included, and " +
 				sf.SettingTo("tls", "verify-ca") + " its chain alone")
 	}
 	pem, err := os.ReadFile(path)
 	if err != nil {
-		return nil, view.Errorf("mysql.tls.ca.unreadable", "%v", err).
+		return nil, view.Errorf(engine.NS+".tls.ca.unreadable", "%v", err).
 			WithHint(sf.SettingName("ca-file") + " names a file on this machine, read by rta rather than " +
 				"by the server, holding the CA's certificate in PEM").WithInput(plugin.PathInput("ca-file", err))
 	}
@@ -268,7 +268,7 @@ func tlsConfig(req plugin.Request) (*tls.Config, *view.Error) {
 	// here with it.
 	pool := x509.NewCertPool()
 	if !pool.AppendCertsFromPEM(pem) {
-		return nil, view.Errorf("mysql.tls.ca.invalid", "%s holds no PEM certificate", path).
+		return nil, view.Errorf(engine.NS+".tls.ca.invalid", "%s holds no PEM certificate", path).
 			WithHint(sf.SettingName("ca-file") + " wants a PEM certificate — the CA's, or a self-signed " +
 				"server's own — and a private key or a DER-encoded certificate is not one").WithInput("ca-file")
 	}
@@ -346,16 +346,16 @@ func classify(err error, req plugin.Request) *view.Error {
 			// reader to set one: the reads here answer an agent too, which
 			// has no host environment to set and no password argument, since
 			// the bridge drops a Local input given.
-			return view.Errorf("mysql.auth.failed", "%s rejected user %q", req.Reached(where), req.String("user")).
-				WithHint("the password is read from $" + plugin.LocalEnvVar("mysql.overview", "password") + " or " +
+			return view.Errorf(engine.NS+".auth.failed", "%s rejected user %q", req.Reached(where), req.String("user")).
+				WithHint("the password is read from $" + plugin.LocalEnvVar(engine.NS+".overview", "password") + " or " +
 					req.Surface().SettingName("password") + " — check it, and " + req.Surface().SettingName("user"))
 		case 1044: // ER_DBACCESS_DENIED_ERROR
-			return view.Errorf("mysql.database.denied", "%q may not use database %q",
+			return view.Errorf(engine.NS+".database.denied", "%q may not use database %q",
 				req.String("user"), req.String("database")).
 				WithHint("the credentials are valid but not granted on this database — check SHOW GRANTS")
 		case 1049: // ER_BAD_DB_ERROR
-			return view.Errorf("mysql.database.notfound", "%s has no database %q", req.Reached(where), req.String("database")).
-				WithHint(nextCall(req, "mysql.database.list") + " shows what is there").WithInput("database")
+			return view.Errorf(engine.NS+".database.notfound", "%s has no database %q", req.Reached(where), req.String("database")).
+				WithHint(nextCall(req, engine.NS+".database.list") + " shows what is there").WithInput("database")
 		case 1046: // ER_NO_DB_ERROR
 			return noDatabase("no database is selected for this statement", req,
 				"name the table as database.table in the statement")
@@ -363,25 +363,25 @@ func classify(err error, req plugin.Request) *view.Error {
 			// Said as the design it is. This is the one refusal an agent is
 			// sure to meet, because it will try a write, and the generic
 			// answer below sent it to the operator to change a setting.
-			return view.Errorf("mysql.query.readonly", "%s", myErr.Message).
+			return view.Errorf(engine.NS+".query.readonly", "%s", myErr.Message).
 				WithHint("every statement here runs in a READ ONLY transaction, so the server refuses " +
 					"one that writes — by design, whatever the account may do")
 		case 1146: // ER_NO_SUCH_TABLE
-			return view.Errorf("mysql.table.notfound", "%s", myErr.Message).
-				WithHint(nextCall(req, "mysql.table.list") + " shows what is there")
+			return view.Errorf(engine.NS+".table.notfound", "%s", myErr.Message).
+				WithHint(nextCall(req, engine.NS+".table.list") + " shows what is there")
 		case 1142, 1143: // ER_TABLEACCESS_DENIED_ERROR, ER_COLUMNACCESS_DENIED_ERROR
-			return view.Errorf("mysql.denied", "%s", myErr.Message).
+			return view.Errorf(engine.NS+".denied", "%s", myErr.Message).
 				WithHint("the credentials are valid but not authorized for this — check SHOW GRANTS")
 		case 1130: // ER_HOST_NOT_PRIVILEGED
-			return view.Errorf("mysql.host.denied", "%s will not accept connections from this machine", req.Reached(where)).
-				WithHint("MySQL authorizes on user@host — the grant has to name where you are connecting from")
+			return view.Errorf(engine.NS+".host.denied", "%s will not accept connections from this machine", req.Reached(where)).
+				WithHint(engine.Product + " authorizes on user@host — the grant has to name where you are connecting from")
 		case 1290: // ER_OPTION_PREVENTS_STATEMENT
 			// Any server option refuses a statement with this number, and the
 			// message, in the server's language, names which: read_only is one,
 			// and inside the READ ONLY transaction a write meets 1792 first, so
 			// here it is as often secure_file_priv refusing a file a statement
 			// reads or writes. The hint said read_only whatever it was.
-			return view.Errorf("mysql.readonly", "%s", myErr.Message).
+			return view.Errorf(engine.NS+".readonly", "%s", myErr.Message).
 				WithHint("a server option prevents this statement, and the message names it: read_only on a replica, " +
 					"or secure_file_priv for a file the statement reads or writes")
 		case 3159: // ER_SECURE_TRANSPORT_REQUIRED
@@ -393,19 +393,19 @@ func classify(err error, req plugin.Request) *view.Error {
 			if req.Tunnel() != plugin.TunnelNone {
 				return tlsThroughForward(req)
 			}
-			return view.Errorf("mysql.tls.required", "%s accepts connections over TLS only", req.Reached(where)).
+			return view.Errorf(engine.NS+".tls.required", "%s accepts connections over TLS only", req.Reached(where)).
 				WithHint(req.Surface().SettingTo("tls", "true") + " connects over it, with " +
 					req.Surface().SettingName("ca-file") + " naming the CA if the server's certificate is from one of its own")
 		}
-		return view.Errorf("mysql.query.failed", "%d: %s", myErr.Number, myErr.Message).
-			WithHint(req.Surface().SettingsHint("mysql.overview"))
+		return view.Errorf(engine.NS+".query.failed", "%d: %s", myErr.Number, myErr.Message).
+			WithHint(req.Surface().SettingsHint(engine.NS + ".overview"))
 	}
 
 	// true or skip-verify against a server that offers no TLS. The driver's
 	// own sentence for it came out as "could not reach", which the server
 	// was not: it answered, without the TLS that was asked for.
 	if errors.Is(err, mysql.ErrNoTLS) {
-		return view.Errorf("mysql.tls.unsupported", "%s does not offer TLS", req.Reached(where)).
+		return view.Errorf(engine.NS+".tls.unsupported", "%s does not offer TLS", req.Reached(where)).
 			WithHint(req.Surface().SettingTo("tls", "false") + " if that is expected on this network")
 	}
 
@@ -438,7 +438,7 @@ func classify(err error, req plugin.Request) *view.Error {
 		var hostErr x509.HostnameError
 		if req.Tunnel() != plugin.TunnelNone && serverName(req) == "" && errors.As(err, &hostErr) &&
 			cert != nil && len(cert.DNSNames)+len(cert.IPAddresses) > 0 {
-			return plugin.ForwardNameRefusal(req, "mysql.tls.forward", where, "server", hostErr)
+			return plugin.ForwardNameRefusal(req, engine.NS+".tls.forward", where, "server", hostErr)
 		}
 		return nameRefusal(req.Reached(where), cert, req)
 	}
@@ -461,7 +461,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	// mysql.conn.failed, and the hint that sends somebody to name a CA says
 	// what naming one costs (CAHint).
 	if plugin.CertUntrusted(err) {
-		refused := view.Errorf("mysql.tls.untrusted", "%s presented a certificate nothing here trusts", req.Reached(where))
+		refused := view.Errorf(engine.NS+".tls.untrusted", "%s presented a certificate nothing here trusts", req.Reached(where))
 		if ca := caFile(req); ca != "" {
 			return refused.WithHint(ca + ", which " + req.Surface().SettingName("ca-file") + " names, does " +
 				"not hold the CA that issued it — a self-signed certificate is its own CA")
@@ -479,7 +479,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	// system's verifier would be.
 	var verifyErr *tls.CertificateVerificationError
 	if errors.As(err, &verifyErr) {
-		rejected := view.Errorf("mysql.tls.rejected", "%s presented a certificate that does not verify: %v",
+		rejected := view.Errorf(engine.NS+".tls.rejected", "%s presented a certificate that does not verify: %v",
 			req.Reached(where), verifyErr.Err)
 		// A rule of macOS's own, which the verdict's words do not name: a
 		// ten-year certificate, the usual one for a server of one's own, is
@@ -502,7 +502,7 @@ func classify(err error, req plugin.Request) *view.Error {
 	// what failed — rta's net.probe draws the same line.
 	var dnsErr *stdnet.DNSError
 	if errors.As(err, &dnsErr) {
-		refusal := view.Errorf("mysql.host.unknown", "no address for %q", req.String("host")).
+		refusal := view.Errorf(engine.NS+".host.unknown", "no address for %q", req.String("host")).
 			WithHint(req.Surface().DNSHint(req.String("host")))
 		if dnsErr.IsNotFound {
 			return refusal.WithInput("host")
@@ -521,26 +521,26 @@ func classify(err error, req plugin.Request) *view.Error {
 		if errors.As(err, &netErr) {
 			why = netErr.Err
 		}
-		return view.Errorf("mysql.conn.unreachable", "%s cannot be reached from this machine: %v", where, why).
+		return view.Errorf(engine.NS+".conn.unreachable", "%s cannot be reached from this machine: %v", where, why).
 			WithHint("no route leads there from here — a VPN or tunnel the server sits behind that is down " +
 				"looks exactly like this, and so does " + req.Surface().SettingName("host") + " naming an address " +
 				"on a network this machine is not on")
 	}
 	if plugin.DialRefused(err) {
-		return view.Errorf("mysql.conn.refused", "nothing is listening on %s", where).
+		return view.Errorf(engine.NS+".conn.refused", "nothing is listening on %s", where).
 			WithHint(reachHint(req.Surface()))
 	}
 	if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout()) {
-		return view.Errorf("mysql.timeout", "%s did not answer in time", where).
+		return view.Errorf(engine.NS+".timeout", "%s did not answer in time", where).
 			WithHint("a firewall that drops rather than refuses looks exactly like this")
 	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) && urlErr.Timeout() {
-		return view.Errorf("mysql.timeout", "%s did not answer in time", where).
+		return view.Errorf(engine.NS+".timeout", "%s did not answer in time", where).
 			WithHint("a firewall that drops rather than refuses looks exactly like this")
 	}
-	return view.Errorf("mysql.conn.failed", "could not reach %s: %v", where, err).
-		WithHint(req.Surface().SettingsHint("mysql.overview"))
+	return view.Errorf(engine.NS+".conn.failed", "could not reach %s: %v", where, err).
+		WithHint(req.Surface().SettingsHint(engine.NS + ".overview"))
 }
 
 // misnamed is the certificate err refused for its name — or refused for
@@ -573,19 +573,19 @@ func misnamed(err error) (*x509.Certificate, bool) {
 func nameRefusal(where string, cert *x509.Certificate, req plugin.Request) *view.Error {
 	host, sf := checkedName(req), req.Surface()
 	if cert == nil || len(cert.DNSNames)+len(cert.IPAddresses) == 0 {
-		refusal := view.Errorf("mysql.tls.name", "%s presented a certificate that names no host, %s or any other",
+		refusal := view.Errorf(engine.NS+".tls.name", "%s presented a certificate that names no host, %s or any other",
 			where, host)
 		if req.Tunnel() != plugin.TunnelNone {
-			return refusal.WithHint("a certificate with no subject alternative names, as the one MySQL generates " +
+			return refusal.WithHint("a certificate with no subject alternative names, as the one " + engine.Product + " generates " +
 				"for itself has, verifies as no host at all, and nothing a forward can be given checks a chain and " +
 				"no name — it reaches the server once it is reissued with " + host + " among them")
 		}
-		return refusal.WithHint("a certificate with no subject alternative names, as the one MySQL generates for itself " +
+		return refusal.WithHint("a certificate with no subject alternative names, as the one " + engine.Product + " generates for itself " +
 			"is, verifies as no host at all — " + sf.SettingTo("tls", "verify-ca") + " checks it against the " +
 			"CA in " + sf.SettingName("ca-file") + " without a name, and " + sf.SettingTo("tls", "true") +
 			" reaches the server once its certificate is reissued with " + host + " among them")
 	}
-	return view.Errorf("mysql.tls.name", "%s presented a certificate for %s, not %s",
+	return view.Errorf(engine.NS+".tls.name", "%s presented a certificate for %s, not %s",
 		where, plugin.CertNames(cert), host).
 		WithHint(nameSetting(req) + " is the name the certificate is checked against — reach the " +
 			"server by one it carries, or have it reissued with " + host + " among its subject alternative names")
@@ -610,7 +610,7 @@ func tlsThroughForward(req plugin.Request) *view.Error {
 	if req.Tunnel() == plugin.TunnelKube {
 		carrier = "the API server's TLS"
 	}
-	return view.Errorf("mysql.tls.required", "%s accepts connections over TLS only, and the forward "+
+	return view.Errorf(engine.NS+".tls.required", "%s accepts connections over TLS only, and the forward "+
 		"carries none", req.Reached(address(req))).
 		WithHint("a forward runs the connection in the clear, the hop off this machine inside " + carrier +
 			" — " + req.Surface().SettingName("ca-file", "tls-server-name") + " each turn TLS on over it, with " +
@@ -622,5 +622,5 @@ func tlsThroughForward(req plugin.Request) *view.Error {
 // and the port the product serves on, which is the first thing to compare an
 // address with.
 func reachHint(sf plugin.Surface) string {
-	return "is the server up, and are " + sf.SettingName("host", "port") + " right? MySQL listens on 3306 by default"
+	return "is the server up, and are " + sf.SettingName("host", "port") + " right? " + engine.Product + " listens on 3306 by default"
 }

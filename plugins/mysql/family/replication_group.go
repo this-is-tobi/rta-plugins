@@ -12,7 +12,7 @@ import (
 
 // MySQL's own clustering layer, Group Replication — what InnoDB Cluster and
 // the operators built on it run. It is part of the replication view for the
-// reason Galera is part of mariadb's: a group member is also, by the
+// reason Galera is part of MariaDB's (galera.go): a group member is also, by the
 // replication channels it keeps, a replica and a source in the ordinary sense,
 // and the answer that matters at three in the morning is whether the group
 // still has a majority, which no replica thread says. Without this a member
@@ -44,7 +44,7 @@ const (
 // something to act on. A judgement, not a value the server publishes.
 const groupQueueWarn = 1000
 
-func clusterOf(ctx context.Context, db *sql.DB) clusterPart {
+func (mysqlDialect) clusterOf(ctx context.Context, db *sql.DB) clusterPart {
 	rows, err := readRows(ctx, db, groupVariablesStatement)
 	if err != nil {
 		return clusterPart{err: err}

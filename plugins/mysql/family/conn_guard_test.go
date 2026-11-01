@@ -59,7 +59,7 @@ func TestEveryCapabilityCarriesTheConnectionInputs(t *testing.T) {
 	for _, f := range connFields() {
 		shared[f.Name] = true
 	}
-	for _, c := range Plugin("dev").Capabilities {
+	for _, c := range Plugin(engine, "dev").Capabilities {
 		got := map[string]bool{}
 		for _, f := range c.Inputs {
 			got[f.Name] = true

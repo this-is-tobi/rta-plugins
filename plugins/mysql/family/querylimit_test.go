@@ -15,7 +15,7 @@ import (
 // defaults, and a caller that had learned the one met the other.
 func TestTheQueryLimitIsTheOneEverySQLPluginDeclares(t *testing.T) {
 	var query plugin.Capability
-	for _, c := range Plugin("dev").Capabilities {
+	for _, c := range Plugin(engine, "dev").Capabilities {
 		if c.ID == "mysql.query" {
 			query = c
 		}
@@ -45,7 +45,7 @@ func TestTheQueryLimitIsTheOneEverySQLPluginDeclares(t *testing.T) {
 // for one tool result is its own and is said where the agent reads the rest of
 // what the tool does.
 func TestTheAgentIsToldWhatBecomesOfAnAnswerTooBigForOneToolResult(t *testing.T) {
-	for _, c := range Plugin("dev").Capabilities {
+	for _, c := range Plugin(engine, "dev").Capabilities {
 		if c.ID != "mysql.query" {
 			continue
 		}

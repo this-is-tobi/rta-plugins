@@ -66,11 +66,11 @@ func checkServerName(req plugin.Request) *view.Error {
 	case "true":
 		return nil
 	case "false":
-		return view.Errorf("mysql.tls.name.plaintext", "%s names a certificate to check, and this call would "+
+		return view.Errorf(engine.NS+".tls.name.plaintext", "%s names a certificate to check, and this call would "+
 			"reach the server without TLS", sf.SettingName("tls-server-name")).
 			WithHint(sf.SettingTo("tls", "true") + " checks the certificate for that name")
 	default:
-		return view.Errorf("mysql.tls.name.unchecked", "%s names a certificate to check, and %s never checks a name",
+		return view.Errorf(engine.NS+".tls.name.unchecked", "%s names a certificate to check, and %s never checks a name",
 			sf.SettingName("tls-server-name"), sf.SettingTo("tls", mode)).
 			WithHint(sf.SettingTo("tls", "true") + " checks the certificate for that name, and nothing weaker does")
 	}
@@ -95,7 +95,7 @@ func checkServerName(req plugin.Request) *view.Error {
 func checkClientTLS(req plugin.Request) *view.Error {
 	sf := req.Surface()
 	if serverName(req) != "" {
-		return view.Errorf("mysql.tls.client.name", "%s names a certificate to check, and the MySQL client a dump "+
+		return view.Errorf(engine.NS+".tls.client.name", "%s names a certificate to check, and the "+engine.Product+" client a dump "+
 			"or a restore runs checks the certificate for the host it dials and no other name",
 			sf.SettingName("tls-server-name")).
 			WithHint("reach the server by a host its certificate names, as a profile with no kube: or ssh: " +

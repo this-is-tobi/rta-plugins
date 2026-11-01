@@ -35,7 +35,7 @@ type serverVersion struct {
 }
 
 func parseVersion(raw string) serverVersion {
-	raw = versionString(raw)
+	raw = engine.versionString(raw)
 	end := 0
 	for end < len(raw) && (unicode.IsDigit(rune(raw[end])) || raw[end] == '.') {
 		end++
@@ -195,14 +195,14 @@ func unreadable(err error, which section, v serverVersion, req plugin.Request) *
 	user := req.String("user")
 	switch {
 	case isDenied(err):
-		priv := privilegeFor(which, v)
-		return view.Errorf("mysql.replication.denied", "%q may not read the %s", user, which).
-			WithHint("it needs " + priv + ": GRANT " + priv + " ON " + grantScope(which) + " TO '" + user + "'@'<host>'" +
-				privilegeNote(which) + " — or " + req.Surface().SettingName("user") + " can name an account that has it")
+		priv := engine.privilegeFor(which, v)
+		return view.Errorf(engine.NS+".replication.denied", "%q may not read the %s", user, which).
+			WithHint("it needs " + priv + ": GRANT " + priv + " ON " + engine.grantScope(which) + " TO '" + user + "'@'<host>'" +
+				engine.privilegeNote(which) + " — or " + req.Surface().SettingName("user") + " can name an account that has it")
 	case isSyntaxError(err):
-		return view.Errorf("mysql.replication.unsupported", "this server does not know how to report its %s", which).
+		return view.Errorf(engine.NS+".replication.unsupported", "this server does not know how to report its %s", which).
 			WithHint("it is older than any version this reads, or not the server it looks like; " +
-				"version in " + nextCall(req, "mysql.status") + " says which")
+				"version in " + nextCall(req, engine.NS+".status") + " says which")
 	}
 	return classify(err, req)
 }
@@ -220,7 +220,7 @@ func readState(ctx context.Context, db *sql.DB, req plugin.Request) (state, *vie
 	} else {
 		st.vars = vars
 	}
-	if rows, err := firstSupported(ctx, db, replicaStatusStatements(st.version)); err != nil {
+	if rows, err := firstSupported(ctx, db, engine.replicaStatusStatements(st.version)); err != nil {
 		st.unread[sectionReplica] = unreadable(err, sectionReplica, st.version, req)
 	} else {
 		st.channels = rows
@@ -233,12 +233,12 @@ func readState(ctx context.Context, db *sql.DB, req plugin.Request) (state, *vie
 	if logging := st.vars["log_bin"]; logging != "" && !isOn(logging) {
 		return finish(ctx, db, req, st), nil
 	}
-	if rows, err := firstSupported(ctx, db, binlogStatusStatements(st.version)); err != nil {
+	if rows, err := firstSupported(ctx, db, engine.binlogStatusStatements(st.version)); err != nil {
 		st.unread[sectionBinlog] = unreadable(err, sectionBinlog, st.version, req)
 	} else if len(rows) > 0 {
 		st.binlog = rows[0]
 	}
-	if rows, err := firstSupported(ctx, db, replicaHostsStatements(st.version)); err != nil {
+	if rows, err := firstSupported(ctx, db, engine.replicaHostsStatements(st.version)); err != nil {
 		// Advisory, and kept out of the summary's gaps: the list says who is
 		// connected and nothing about how they are doing — each replica's own
 		// answer is where that is read — and its privilege is not one a
@@ -255,7 +255,7 @@ func readState(ctx context.Context, db *sql.DB, req plugin.Request) (state, *vie
 }
 
 func finish(ctx context.Context, db *sql.DB, req plugin.Request, st state) state {
-	st.cluster = clusterOf(ctx, db)
+	st.cluster = engine.clusterOf(ctx, db)
 	if st.cluster.err != nil {
 		st.unread[sectionCluster] = unreadable(st.cluster.err, sectionCluster, st.version, req)
 	}
@@ -271,7 +271,7 @@ func isOn(v string) bool {
 }
 
 func readVariables(ctx context.Context, db *sql.DB) (map[string]string, error) {
-	rows, err := readRows(ctx, db, variablesStatement())
+	rows, err := readRows(ctx, db, engine.variablesStatement())
 	if err != nil {
 		return nil, err
 	}

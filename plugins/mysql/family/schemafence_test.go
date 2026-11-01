@@ -15,7 +15,7 @@ import (
 func TestASchemaFenceRefusesEveryOtherDatabaseAndFillsTheOneItAllows(t *testing.T) {
 	for _, id := range []string{"mysql.schema", "mysql.table.list"} {
 		var c *plugin.Capability
-		for _, p := range Plugin("dev").Capabilities {
+		for _, p := range Plugin(engine, "dev").Capabilities {
 			if p.ID == id {
 				cp := p
 				c = &cp

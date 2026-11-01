@@ -71,7 +71,7 @@ func assessChannel(row map[string]string) channelRow {
 		behind:  "-",
 		read:    position(row["source_log_file"], row["read_source_log_pos"]),
 		applied: position(row["relay_source_log_file"], row["exec_source_log_pos"]),
-		gtid:    gtidOf(row),
+		gtid:    engine.gtidOf(row),
 	}
 	c.backlog = backlog(row)
 	if delay > 0 {
