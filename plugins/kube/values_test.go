@@ -28,6 +28,10 @@ func TestTheCellsCarryWhatTheirTextWasMadeFrom(t *testing.T) {
 		{"no pressure", pctCell(0, false), view.KindPercent, "", ""},
 		{"an init crash", podStatusCell("Init:CrashLoopBackOff"), view.KindStatus, "Init:CrashLoopBackOff", "crashloopbackoff"},
 		{"an init wait", podStatusCell("Init:0/1"), view.KindStatus, "Init:0/1", "init"},
+		{"an init exit", podStatusCell("Init:ExitCode:1"), view.KindStatus, "Init:ExitCode:1", "exitcode"},
+		{"a cordoned node", nodeStatusCell(nodeHealth{status: "Ready,SchedulingDisabled", condition: "Ready", cordoned: true}),
+			view.KindStatus, "Ready,SchedulingDisabled", "ready schedulingdisabled"},
+		{"a schedulable node", nodeStatusCell(nodeHealth{status: "Ready", condition: "Ready"}), view.KindStatus, "Ready", ""},
 		{"a running pod", podStatusCell("Running"), view.KindStatus, "Running", ""},
 		{"no age", ageCell(time.Time{}), view.KindDuration, "", ""},
 	} {

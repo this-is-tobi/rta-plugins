@@ -506,10 +506,13 @@ func runServiceAccountList(ctx context.Context, req plugin.Request) (view.View, 
 		if ttlStr != "" && issuedStr != "" {
 			if ttl, err := time.ParseDuration(ttlStr); err == nil {
 				if issued, err := time.Parse(time.RFC3339, issuedStr); err == nil {
+					// The state first and the doubt after it: a status is graded
+					// and read by the word it leads with, and "likely" was both
+					// states' word, drawn in neither's colour.
 					if time.Now().After(issued.Add(ttl)) {
-						status = "likely expired"
+						status = "expired (likely)"
 					} else {
-						status = "likely active"
+						status = "active (likely)"
 					}
 				}
 			}

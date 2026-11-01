@@ -370,7 +370,7 @@ func TestACertificateIsJudgedAtTheTimeOfTheAnswerNotOfTheRead(t *testing.T) {
 	if got := c.status(now.Add(15 * time.Minute)); got != "expired" {
 		t.Errorf("status 15 minutes on = %q, want expired", got)
 	}
-	if got := (tlsCert{Problem: "tls.crt is not valid base64"}).status(now); got != "tls.crt is not valid base64" {
+	if got := (tlsCert{Problem: "tls.crt is not valid base64"}).status(now); got != "invalid — tls.crt is not valid base64" {
 		t.Errorf("a certificate that did not parse reads %q", got)
 	}
 }

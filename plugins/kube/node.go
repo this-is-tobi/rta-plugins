@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
@@ -221,6 +222,17 @@ func runNodeList(ctx context.Context, req plugin.Request) (view.View, error) {
 	return withEmpty(nodeTable(nodes.Items), "no nodes"), nil
 }
 
+// nodeStatusCell is a node's status valued as both its facts. kubectl writes
+// a cordoned node as "Ready,SchedulingDisabled", and read by its first word
+// that is "ready", the same as a node taking pods: the cordon never reached a
+// program.
+func nodeStatusCell(h nodeHealth) view.Cell {
+	if !h.cordoned {
+		return view.Plain(h.status)
+	}
+	return view.Status(h.status, strings.ToLower(h.condition)+" schedulingdisabled")
+}
+
 func nodeTable(nodes []nodeItem) view.Table {
 	cols := []view.Column{
 		{Name: "node"},
@@ -238,7 +250,7 @@ func nodeTable(nodes []nodeItem) view.Table {
 			pressure = truncate(h.pressures, 3)
 		}
 		t.Add(
-			view.Plain(n.Metadata.Name), view.Plain(h.status), view.Plain(pressure),
+			view.Plain(n.Metadata.Name), nodeStatusCell(h), view.Plain(pressure),
 			view.Plain(n.Status.Allocatable.Pods), view.Plain(n.Status.NodeInfo.KubeletVersion),
 			ageCell(n.Metadata.CreationTimestamp),
 		)

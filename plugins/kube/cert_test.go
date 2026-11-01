@@ -78,7 +78,7 @@ func TestCertRow(t *testing.T) {
 
 	t.Run("not base64", func(t *testing.T) {
 		_, status := certRowOf("not valid base64!!!")
-		if status != "tls.crt is not valid base64" {
+		if status != "invalid — tls.crt is not valid base64" {
 			t.Errorf("certRow status = %q, want the base64 diagnosis", status)
 		}
 	})
@@ -86,7 +86,7 @@ func TestCertRow(t *testing.T) {
 	t.Run("not a certificate", func(t *testing.T) {
 		garbage := base64.StdEncoding.EncodeToString([]byte("hello"))
 		_, status := certRowOf(garbage)
-		if status != "tls.crt has no parseable certificate" {
+		if status != "invalid — tls.crt has no parseable certificate" {
 			t.Errorf("certRow status = %q, want the no-certificate diagnosis", status)
 		}
 	})
