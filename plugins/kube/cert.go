@@ -366,7 +366,10 @@ func parseCert(b64PEM string) (subject string, notAfter time.Time, problem strin
 func (c tlsCert) status(now time.Time) string {
 	switch {
 	case c.Problem != "":
-		return c.Problem
+		// Led by the grade: "tls.crt is not valid base64" leads with a name,
+		// which the renderer draws plain and a program reads as no state at
+		// all, on the one row that says the certificate cannot be checked.
+		return "invalid — " + c.Problem
 	case c.NotAfter.Before(now):
 		return "expired"
 	case c.NotAfter.Sub(now) < warnDays*24*time.Hour:

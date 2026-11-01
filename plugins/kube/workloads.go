@@ -444,7 +444,11 @@ func podStatusCell(status string) view.Cell {
 	if !ok {
 		return view.Plain(status)
 	}
-	if word := strings.ToLower(stage); word != "" && strings.Trim(word, "abcdefghijklmnopqrstuvwxyz") == "" {
+	// Up to a colon of its own: the runtime writes ExitCode:1 or Signal:9 for a
+	// container that ended without a reason, the exit code the detail and the
+	// state the word before it.
+	word, _, _ := strings.Cut(strings.ToLower(stage), ":")
+	if word != "" && strings.Trim(word, "abcdefghijklmnopqrstuvwxyz") == "" {
 		return view.Status(status, word)
 	}
 	return view.Status(status, "init")
