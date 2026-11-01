@@ -311,7 +311,7 @@ func (c clusterState) selfHealth() string {
 	switch c.info.Consensus.State {
 	case "", "working":
 	case "stopped_with_err":
-		return "fail — the consensus thread stopped: " + truncate(c.info.Consensus.Err, 120)
+		return "fail — the consensus thread stopped: " + format.Clip(c.info.Consensus.Err, 120)
 	default:
 		return "fail — the consensus thread is " + strings.ReplaceAll(c.info.Consensus.State, "_", " ")
 	}
@@ -403,7 +403,7 @@ func (c clusterState) peerHealth(id uint64, uri string, now time.Time) string {
 		return "ok"
 	}
 	at, err := time.Parse(time.RFC3339Nano, f.At)
-	text := failedMessages(f.Count) + " to it, the last: " + truncate(sendError(f.LatestError, uri), 90)
+	text := failedMessages(f.Count) + " to it, the last: " + format.Clip(sendError(f.LatestError, uri), 90)
 	switch {
 	case err != nil:
 		// A server that does not date its failures leaves no way to tell a

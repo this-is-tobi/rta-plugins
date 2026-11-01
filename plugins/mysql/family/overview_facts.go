@@ -18,30 +18,13 @@ import (
 // can say what time it is.
 var clock = time.Now
 
-// uptime is how long a server has been up, in the two units that matter at its
-// size: days and hours, hours and minutes inside a day, minutes inside an
-// hour. The same spelling in every plugin that says one, so an on-call person
-// reads "14d 2h" the same on a database as on a cache; it is written once here
-// until the SDK has a helper for it.
-func uptime(d time.Duration) string {
-	switch {
-	case d >= 24*time.Hour:
-		return fmt.Sprintf("%dd %dh", int(d/(24*time.Hour)), int(d%(24*time.Hour)/time.Hour))
-	case d >= time.Hour:
-		return fmt.Sprintf("%dh %dm", int(d/time.Hour), int(d%time.Hour/time.Minute))
-	case d >= time.Minute:
-		return fmt.Sprintf("%dm", int(d/time.Minute))
-	}
-	return "<1m"
-}
-
 // upSince is when a server started and how long ago that was, the pair a
 // reader wants from "what changed": a restart or a failover is the first
 // answer, and it is the date that matches it to a log. The server says how long
 // it has been up and not when it started, so the start is that far back from
 // now, to the minute: to the second it moved on every refresh of a tile.
 func upSince(up time.Duration) string {
-	return clock().Add(-up).UTC().Truncate(time.Minute).Format("2006-01-02 15:04 UTC") + " (" + uptime(up) + ")"
+	return clock().Add(-up).UTC().Truncate(time.Minute).Format("2006-01-02 15:04 UTC") + " (" + format.Uptime(up) + ")"
 }
 
 // connectionsWarn and connectionsFail are the shares of max_connections taken
@@ -227,7 +210,7 @@ func gradedFacet(key string, f facet, okBody string) row {
 
 // unreadRow is a row whose part the account cannot read, with the reason.
 func unreadRow(key, why string) row {
-	return row{pair: view.Pair{Key: key, Value: "could not be read — " + why}, unreadable: key}
+	return row{pair: view.Pair{Key: key, Value: view.CouldNotRead(why)}, unreadable: key}
 }
 
 // withoutCluster is the state as the replication row reads it: the clustering

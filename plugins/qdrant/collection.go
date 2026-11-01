@@ -260,7 +260,7 @@ func runOverview(ctx context.Context, req plugin.Request) (view.View, error) {
 	collections := strconv.Itoa(len(table.Rows))
 	switch {
 	case unlisted != "":
-		collections = unreadText(unlisted)
+		collections = view.CouldNotRead(unlisted)
 	case table.Total > len(table.Rows):
 		collections = collections + " of " + strconv.Itoa(table.Total) + " — the first " +
 			strconv.Itoa(len(table.Rows)) + " by name; " + req.Surface().CapabilityName("qdrant.collection.list") + " reads every one"
@@ -319,8 +319,6 @@ func verdict(found []finding) string {
 	return "warn — " + worst.text
 }
 
-func unreadText(why string) string { return "could not be read — " + why }
-
 // compactOverview is the answer a tile and an agent read by default: the verdict,
 // the collections counted by status, the cluster, and the version last, which is
 // what a healthy instance and a dying one have in common. A tile is cut from the
@@ -336,7 +334,7 @@ func compactOverview(version string, cs clusterState, table view.Table, unread [
 	cluster, clusterFound := clusterRow(cs, now)
 	collections, collectionFound := collectionsRow(table, unread)
 	if unlisted != "" {
-		collections, collectionFound = unreadText(unlisted), []finding{{gradeWarn, "collections could not be read"}}
+		collections, collectionFound = view.CouldNotRead(unlisted), []finding{{gradeWarn, "collections could not be read"}}
 	}
 	return view.KeyValue{Pairs: []view.Pair{
 		{Key: "status", Value: verdict(append(clusterFound, collectionFound...))},
@@ -523,7 +521,7 @@ func clusterRow(cs clusterState, now time.Time) (string, []finding) {
 		return distributedRow(cs, now)
 	}
 	if cs.note != "" {
-		return unreadText("this credential reads collections only"), []finding{{gradeWarn, "cluster state could not be read"}}
+		return view.CouldNotRead("this credential reads collections only"), []finding{{gradeWarn, "cluster state could not be read"}}
 	}
 	return "not reported by this server", nil
 }

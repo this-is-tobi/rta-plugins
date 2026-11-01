@@ -100,7 +100,7 @@ func overviewView(ctx context.Context, c *clientv3.Client, req plugin.Request) (
 		{Key: "revision", Value: strconv.FormatInt(st.Header.Revision, 10)},
 	}
 	if unread != "" {
-		pairs = append(pairs, view.Pair{Key: "quorum", Value: unreadText(unread)})
+		pairs = append(pairs, view.Pair{Key: "quorum", Value: view.CouldNotRead(unread)})
 	} else if text, ok := quorumText(rows, st.Leader); ok {
 		pairs = append(pairs, view.Pair{Key: "quorum", Value: text})
 	}
@@ -125,7 +125,7 @@ func overviewView(ctx context.Context, c *clientv3.Client, req plugin.Request) (
 	p.Put("storage", storageTable(st))
 
 	if unread != "" {
-		p.Put("members", view.Text{Body: unreadText(unread)})
+		p.Put("members", view.Text{Body: view.CouldNotRead(unread)})
 	} else {
 		p.Put("members", membersTable(rows, lead))
 	}
@@ -144,8 +144,6 @@ func memberListWhy(verr *view.Error) string {
 	}
 	return "the member list failed (" + verr.Code + ")"
 }
-
-func unreadText(why string) string { return "could not be read — " + why }
 
 // leaderOf is the leader as the endpoint named it, with its status when the
 // leader was among the members asked: the figure every other member's distance
@@ -235,7 +233,7 @@ func compactOverview(st *clientv3.StatusResponse, rows []memberRow, lead leaderV
 	alarms, alarmFound := alarmsRow(st, name)
 	quorum, memberFound := quorumRow(rows, lead, name)
 	if unread != "" {
-		quorum, memberFound = unreadText(unread), []finding{{gradeWarn, "quorum could not be read"}}
+		quorum, memberFound = view.CouldNotRead(unread), []finding{{gradeWarn, "quorum could not be read"}}
 	}
 	leader, leaderFound := leaderRow(st, name)
 	storage, storageFound := storageRow(st)
@@ -611,7 +609,7 @@ func leaseTable(ctx context.Context, c *clientv3.Client, req plugin.Request) (vi
 			// cost being bounded here is the one TimeToLive round trip each
 			// row needs — so the honest thing is to say how many were not
 			// asked about.
-			t.Add(plain(leasesLeftOut(req.Surface(), len(resp.Leases)-i)...)...)
+			t.Add(view.PlainRow(leasesLeftOut(req.Surface(), len(resp.Leases)-i)...)...)
 			break
 		}
 		// TimeToLive with WithAttachedKeys returns the count without the key
@@ -643,13 +641,4 @@ func leaseRow(id, grantedSeconds, remainingSeconds int64, keys int) []view.Cell 
 		view.Duration(remaining, time.Duration(max(remainingSeconds, 0))*time.Second),
 		view.Plain(strconv.Itoa(keys)),
 	}
-}
-
-// plain is a row of cells with no value of their own.
-func plain(row ...string) []view.Cell {
-	cells := make([]view.Cell, len(row))
-	for i, text := range row {
-		cells[i] = view.Plain(text)
-	}
-	return cells
 }

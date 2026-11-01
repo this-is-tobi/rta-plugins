@@ -94,14 +94,14 @@ func (p pvc) bound() bool { return strings.EqualFold(p.Status.Phase, "bound") }
 // is what an unfinished expansion looks like from here — the spec says the new
 // size and the status still says the old one.
 //
-// Compared in bytes (parseBytes). It was compared as strings, to carry no
+// Compared in bytes (sizeBytes). It was compared as strings, to carry no
 // quantity grammar for one check, and two spellings of one size read as short:
 // a 10G claim on a provisioner that rounds up to 10Gi was a warning that an
 // expansion had not finished, on a volume larger than asked. The table now
 // shows and values both sizes in bytes, so the parse is there anyway.
 func (p pvc) short() bool {
-	req, okReq := parseBytes(p.requested())
-	got, okGot := parseBytes(p.actual())
+	req, okReq := sizeBytes(p.requested())
+	got, okGot := sizeBytes(p.actual())
 	return p.bound() && okReq && okGot && got < req
 }
 

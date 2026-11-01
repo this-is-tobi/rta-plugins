@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -120,7 +119,7 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 				"something to read in a terminal").
 			WithInput("out")
 	}
-	path, err := expandHome(out)
+	path, err := plugin.AbsPath(out)
 	if err != nil {
 		return nil, view.Errorf("qdrant.dump.path", "resolving %s: %v", req.Surface().InputName("out"), err)
 	}
@@ -340,20 +339,4 @@ func alreadyThere(path string) *view.Error {
 		WithHint("a snapshot is never written over an existing file — name a new one, or " +
 			"move that one aside").
 		WithInput("out")
-}
-
-// expandHome makes a Local path input absolute, with a leading ~ resolved.
-//
-// The tilde rule is plugin.ExpandHome now. This was a copy of it, as were seven
-// others across these plugins, because the host's own lives in an internal
-// package no plugin can import — and copies of this exact rule had already
-// drifted twice inside rta itself, handling "~/x" and not a bare "~", which is
-// what made the SDK export it in v0.26.0.
-//
-// filepath.Abs stays this function's own work, and is why the call site does not
-// simply call the SDK: the resolved path is stat'd before anything connects, and
-// it is what the dry run and the receipt name back to the operator, where a
-// relative "." answers nothing.
-func expandHome(p string) (string, error) {
-	return filepath.Abs(plugin.ExpandHome(p))
 }

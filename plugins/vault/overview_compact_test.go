@@ -420,19 +420,3 @@ func TestTheOverviewDeclaresADetailedPageAndSaysSoToAgents(t *testing.T) {
 	}
 	t.Fatal("no vault.overview")
 }
-
-func TestUptimeIsSpelledOneWay(t *testing.T) {
-	for d, want := range map[time.Duration]string{
-		26*time.Hour + 10*time.Minute:   "1d 2h",
-		14*24*time.Hour + 2*time.Hour:   "14d 2h",
-		5*time.Hour + 30*time.Minute:    "5h 30m",
-		14*time.Minute + 20*time.Second: "14m",
-		42 * time.Second:                "42s",
-		23*time.Hour + 59*time.Minute:   "23h 59m",
-		24 * time.Hour:                  "1d 0h",
-	} {
-		if got := uptime(d); got != want {
-			t.Errorf("uptime(%s) = %q, want %q", d, got, want)
-		}
-	}
-}

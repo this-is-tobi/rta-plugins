@@ -206,7 +206,7 @@ type outcome[T any] struct {
 }
 
 // reason is why a scope is not on the page, in the words of its row.
-func (o outcome[T]) reason() string { return "could not be read — " + firstLine(o.err.Message) }
+func (o outcome[T]) reason() string { return view.CouldNotRead(firstLine(o.err.Message)) }
 
 // clusterWide reports whether a failure is about the connection and not about
 // the namespace that met it: the same call in another namespace fails the same

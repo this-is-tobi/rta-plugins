@@ -256,7 +256,7 @@ func membersTable(rows []memberRow, lead leaderView) view.Table {
 		{Name: "Health", Kind: view.KindStatus},
 	}}
 	for _, r := range rows {
-		cells := plain(hexID(r.id), memberName(r.name), roleOf(r, lead), "-", "-", "-", "-", "-", "-", "-")
+		cells := view.PlainRow(hexID(r.id), memberName(r.name), roleOf(r, lead), "-", "-", "-", "-", "-", "-", "-")
 		if r.st != nil {
 			cells[3] = view.Plain(r.st.Version)
 			cells[4] = view.Plain(strconv.FormatUint(r.st.RaftTerm, 10))

@@ -416,27 +416,6 @@ func TestTheHitRatioSaysSinceWhen(t *testing.T) {
 	}
 }
 
-// One way to spell how long a server has been up: days and hours, then hours
-// and minutes, then minutes, so that 14d 2h on one plugin's tile is 14d 2h on
-// the next.
-func TestUptimeIsSpelledOneWay(t *testing.T) {
-	for in, want := range map[time.Duration]string{
-		3 * time.Second:                 "3s",
-		59 * time.Second:                "59s",
-		time.Minute:                     "1m",
-		14*time.Minute + 59*time.Second: "14m",
-		time.Hour:                       "1h 0m",
-		5*time.Hour + 30*time.Minute:    "5h 30m",
-		23*time.Hour + 59*time.Minute:   "23h 59m",
-		24 * time.Hour:                  "1d 0h",
-		14*24*time.Hour + 2*time.Hour + 5*time.Minute: "14d 2h",
-	} {
-		if got := uptime(in); got != want {
-			t.Errorf("uptime(%s) = %q, want %q", in, got, want)
-		}
-	}
-}
-
 func TestTheOverviewDeclaresADetailedPageAndSaysSoToAgents(t *testing.T) {
 	for _, c := range Plugin().Capabilities {
 		if c.ID != "redis.overview" {

@@ -89,7 +89,7 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 				nextCall(req, engine.NS+".database.list") + " shows what is there, and " +
 				"CREATE DATABASE makes a fresh one").WithInput("database")
 	}
-	path, err := expandHome(strings.TrimSpace(req.String("file")))
+	path, err := plugin.AbsPath(strings.TrimSpace(req.String("file")))
 	if err != nil {
 		return nil, view.Errorf(engine.NS+".restore.path", "resolving the dump path: %v", err).WithInput("file")
 	}

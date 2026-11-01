@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -388,9 +389,9 @@ func unanswered(sf plugin.Surface, id identity, names []string, e *view.Error, d
 	}
 	return view.KeyValue{Pairs: []view.Pair{
 		status,
-		{Key: "cluster", Value: clip(oneLine(answer+" — "+e.Message), lineRoom)},
+		{Key: "cluster", Value: format.Clip(oneLine(answer+" — "+e.Message), lineRoom)},
 		hint,
-		{Key: "context", Value: clip(contextRow(id.context, names, nil), lineRoom)},
+		{Key: "context", Value: format.Clip(contextRow(id.context, names, nil), lineRoom)},
 	}}
 }
 
@@ -495,7 +496,7 @@ func (p overviewPage) clusterRows(id identity) []view.Pair {
 	// identity there is. Quotas and certificates are already treated this way;
 	// this is the same rule.
 	if p.f.nodeErr != nil {
-		pairs = append(pairs, view.Pair{Key: "nodes", Value: "could not be read — " + p.f.nodeErr.Message})
+		pairs = append(pairs, view.Pair{Key: "nodes", Value: view.CouldNotRead(p.f.nodeErr.Message)})
 	} else {
 		notReady, cordoned, pressured := nodeTrouble(p.f.nodes.Items)
 		pairs = append(pairs, view.Pair{Key: "nodes",
@@ -511,7 +512,7 @@ func (p overviewPage) clusterRows(id identity) []view.Pair {
 		}
 	}
 	if p.f.podErr != nil {
-		pairs = append(pairs, view.Pair{Key: "pods", Value: "could not be read — " + p.f.podErr.Message})
+		pairs = append(pairs, view.Pair{Key: "pods", Value: view.CouldNotRead(p.f.podErr.Message)})
 	} else {
 		pairs = append(pairs, view.Pair{Key: "pods",
 			Value: fmt.Sprintf("%d, %d not ready", len(p.f.pods), len(p.notReady))})
@@ -532,7 +533,7 @@ func (p overviewPage) clusterRows(id identity) []view.Pair {
 	// no certificate lines — which is also what a healthy cluster with
 	// neither under pressure looks like.
 	if p.f.depErr != nil {
-		pairs = append(pairs, view.Pair{Key: "deployments", Value: "could not be read — " + p.f.depErr.Message})
+		pairs = append(pairs, view.Pair{Key: "deployments", Value: view.CouldNotRead(p.f.depErr.Message)})
 	} else if len(p.short) > 0 {
 		names := make([]string, len(p.short))
 		for i, d := range p.short {
@@ -549,11 +550,11 @@ func (p overviewPage) clusterRows(id identity) []view.Pair {
 	}
 	pairs = append(pairs, unreadRows("deployments", p.f.depMiss, p.f.depErr)...)
 	if p.f.quotaErr != nil {
-		pairs = append(pairs, view.Pair{Key: "quotas", Value: "could not be read — " + p.f.quotaErr.Message})
+		pairs = append(pairs, view.Pair{Key: "quotas", Value: view.CouldNotRead(p.f.quotaErr.Message)})
 	}
 	pairs = append(pairs, unreadRows("quotas", p.f.quotaMiss, p.f.quotaErr)...)
 	if p.f.certErr != nil {
-		pairs = append(pairs, view.Pair{Key: "certificates", Value: "could not be read — " + p.f.certErr.Message})
+		pairs = append(pairs, view.Pair{Key: "certificates", Value: view.CouldNotRead(p.f.certErr.Message)})
 	}
 	pairs = append(pairs, unreadRows("certificates", p.f.certMiss, p.f.certErr)...)
 	if len(p.pressure) > 0 {

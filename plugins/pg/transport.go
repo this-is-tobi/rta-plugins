@@ -126,7 +126,7 @@ func resolvedPath(p string) string {
 	if p == "" {
 		return ""
 	}
-	if abs, err := expandHome(p); err == nil {
+	if abs, err := plugin.AbsPath(p); err == nil {
 		return abs
 	}
 	return plugin.ExpandHome(p)

@@ -476,30 +476,6 @@ func TestAServerTooOldForReplicationSaysSoInsteadOfLeavingTheRowOut(t *testing.T
 	}
 }
 
-func TestUptimeIsDaysAndHoursThenHoursAndMinutesThenMinutes(t *testing.T) {
-	for _, tc := range []struct {
-		d    time.Duration
-		want string
-	}{
-		{14*24*time.Hour + 2*time.Hour + 59*time.Minute, "14d 2h"},
-		{24 * time.Hour, "1d 0h"},
-		{25 * time.Hour, "1d 1h"},
-		{23*time.Hour + 59*time.Minute, "23h 59m"},
-		{5*time.Hour + 12*time.Minute, "5h 12m"},
-		{time.Hour, "1h 0m"},
-		{59*time.Minute + 59*time.Second, "59m"},
-		{90 * time.Second, "1m"},
-		{42 * time.Minute, "42m"},
-		{30 * time.Second, "<1m"},
-		{0, "<1m"},
-		{-time.Minute, "<1m"},
-	} {
-		if got := uptime(tc.d); got != tc.want {
-			t.Errorf("uptime(%v) = %q, want %q", tc.d, got, tc.want)
-		}
-	}
-}
-
 // Everything the glance used to say is still said by the page that
 // `detail` asks for, together with the figures the glance now leads with.
 func TestTheDetailedOverviewKeepsThePositionAndAddsTheSessionsAndTheArchiver(t *testing.T) {

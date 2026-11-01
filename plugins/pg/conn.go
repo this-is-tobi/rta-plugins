@@ -268,7 +268,7 @@ func rootCert(req plugin.Request) string {
 	if ca == "" || ca == "system" {
 		return ca
 	}
-	if abs, err := expandHome(ca); err == nil {
+	if abs, err := plugin.AbsPath(ca); err == nil {
 		return abs
 	}
 	return plugin.ExpandHome(ca)

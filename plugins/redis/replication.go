@@ -64,7 +64,7 @@ func replicationTable(in info) view.Table {
 	}
 	downstream := downstreamRows(in)
 	if role == "primary" && len(downstream) == 0 {
-		t.Add(plain("primary", "no replicas", "-", in.get("master_repl_offset"), "-", "-", "-")...)
+		t.Add(view.PlainRow("primary", "no replicas", "-", in.get("master_repl_offset"), "-", "-", "-")...)
 	}
 	for _, row := range downstream {
 		if role == "replica" {
@@ -77,7 +77,7 @@ func replicationTable(in info) view.Table {
 }
 
 func upstreamRow(in info) []view.Cell {
-	return plain("replica", stdnet.JoinHostPort(in.get("master_host"), in.get("master_port")),
+	return view.PlainRow("replica", stdnet.JoinHostPort(in.get("master_host"), in.get("master_port")),
 		upstreamLink(in), in.get("slave_repl_offset"), "-", upstreamContact(in), "-")
 }
 
@@ -132,7 +132,7 @@ func downstreamRows(in info) [][]view.Cell {
 			behind = view.Bytes(max(0, in.int("master_repl_offset")-offset))
 			resync = backlog.resync(offset)
 		}
-		row := plain("primary", stdnet.JoinHostPort(f["ip"], f["port"]),
+		row := view.PlainRow("primary", stdnet.JoinHostPort(f["ip"], f["port"]),
 			downstreamLink(f, resync, backlog), f["offset"], "", contactText(f["lag"]), resync)
 		row[4] = behind
 		rows = append(rows, row)

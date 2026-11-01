@@ -8,6 +8,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -88,7 +89,7 @@ func unanswered(e *view.Error, c connection) view.View {
 	answer := daemonAnswer(e.Code)
 	return view.KeyValue{Pairs: []view.Pair{
 		{Key: "status", Value: "fail — the daemon " + answer},
-		{Key: "daemon", Value: clip(oneLine(answer+" — "+e.Message), unansweredRoom)},
+		{Key: "daemon", Value: format.Clip(oneLine(answer+" — "+e.Message), unansweredRoom)},
 		{Key: "what to check", Value: hintOf(e, c)},
 	}}
 }
@@ -225,8 +226,7 @@ func (p overviewPage) compact() []view.Pair {
 // like here. The reason is one line: the whole of it is on the detailed page's
 // warnings.
 func unreadable(e *view.Error) string {
-	const lead = "could not be read — "
-	return lead + clip(oneLine(e.Message), rowRoom-utf8.RuneCountInString(lead))
+	return format.Clip(view.CouldNotRead(oneLine(e.Message)), rowRoom)
 }
 
 // detail is the whole page: the rows of the compact one beside the daemon's own
@@ -356,15 +356,6 @@ func fitList(items []string, room, most int, more string) string {
 		}
 	}
 	return items[0] + tail(len(items)-1)
-}
-
-// clip cuts text to max columns, with an ellipsis where it was cut.
-func clip(s string, max int) string {
-	if utf8.RuneCountInString(s) <= max {
-		return s
-	}
-	runes := []rune(s)
-	return string(runes[:max-1]) + "…"
 }
 
 // oneLine is text on a single line, whatever the daemon wrote.

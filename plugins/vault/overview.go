@@ -304,8 +304,6 @@ func verdict(found []finding) string {
 	return word + " — " + strings.Join(rows, ", ") + " could not be read"
 }
 
-func unreadText(why string) string { return "could not be read — " + why }
-
 // unreadWhy is why a read failed, short enough for a row. A refusal by the
 // token's policy and a Vault that does not answer say the same in every place
 // they happen, and the rest is the classified message, which is one line.
@@ -342,7 +340,7 @@ func (r vaultRead) rows(now time.Time) view.KeyValue {
 		found = append(found, fs...)
 	}
 	unread := func(key string, verr *view.Error) (string, []finding) {
-		return unreadText(unreadWhy(verr)), []finding{{gradeWarn, key + " could not be read", key}}
+		return view.CouldNotRead(unreadWhy(verr)), []finding{{gradeWarn, key + " could not be read", key}}
 	}
 
 	if r.leaderErr != nil {
@@ -424,7 +422,7 @@ func nodeRow(l *vaultapi.LeaderResponse, now time.Time) (string, []finding) {
 		if l.ActiveTime.IsZero() || l.ActiveTime.After(now) {
 			return "active", nil
 		}
-		return "active for " + uptime(now.Sub(l.ActiveTime)), nil
+		return "active for " + format.Uptime(now.Sub(l.ActiveTime)), nil
 	case l.LeaderAddress == "":
 		return "standby, no active node", []finding{{grade: gradeFail, text: "no active node"}}
 	}
@@ -498,29 +496,13 @@ func (r vaultRead) mountsRow() (string, []finding) {
 	unread := []finding{{gradeWarn, "mounts could not be read", "mounts"}}
 	switch {
 	case r.enginesErr != nil && r.authsErr != nil:
-		return unreadText(unreadWhy(r.enginesErr)), unread
+		return view.CouldNotRead(unreadWhy(r.enginesErr)), unread
 	case r.enginesErr != nil:
-		return auths + "; secret engines " + unreadText(unreadWhy(r.enginesErr)), unread
+		return auths + "; secret engines " + view.CouldNotRead(unreadWhy(r.enginesErr)), unread
 	case r.authsErr != nil:
-		return engines + "; auth methods " + unreadText(unreadWhy(r.authsErr)), unread
+		return engines + "; auth methods " + view.CouldNotRead(unreadWhy(r.authsErr)), unread
 	}
 	return engines + ", " + auths, nil
-}
-
-// uptime renders how long something has been up as days and hours, then hours
-// and minutes, then minutes: "14d 2h", "5h 30m", "14m". The same spelling in
-// every plugin that shows one, so that a tile of one reads like a tile of the
-// next.
-func uptime(d time.Duration) string {
-	switch {
-	case d >= 24*time.Hour:
-		return fmt.Sprintf("%dd %dh", int(d/(24*time.Hour)), int(d%(24*time.Hour)/time.Hour))
-	case d >= time.Hour:
-		return fmt.Sprintf("%dh %dm", int(d/time.Hour), int(d%time.Hour/time.Minute))
-	case d >= time.Minute:
-		return fmt.Sprintf("%dm", int(d/time.Minute))
-	}
-	return fmt.Sprintf("%ds", int(d/time.Second))
 }
 
 // wholeNumber reads the integer Vault's JSON decoded into whichever type the

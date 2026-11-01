@@ -175,8 +175,6 @@ func verdict(found []finding) string {
 	return "warn — " + strings.Join(rows, ", ") + " could not be read"
 }
 
-func unreadText(why string) string { return "could not be read — " + why }
-
 // unreadWhy is why a read failed, short enough for a row: a refusal by the
 // credentials' policy and a service that does not answer say the same everywhere
 // they happen, and the rest is the classified message, cut to one line of a tile.
@@ -382,7 +380,7 @@ func compactBucket(bucket, prefix string, head bucketHead, page firstPage) view.
 	var rows []view.Pair
 	add := func(key, value string) { rows = append(rows, view.Pair{Key: key, Value: value}) }
 	unread := func(key string, verr *view.Error) {
-		add(key, unreadText(unreadWhy(verr)))
+		add(key, view.CouldNotRead(unreadWhy(verr)))
 		found = append(found, finding{gradeWarn, key})
 	}
 
@@ -457,7 +455,7 @@ func detailContents(ctx context.Context, req plugin.Request, client *minio.Clien
 	if verr.Code == "s3.timeout" || verr.Code == "s3.cancelled" {
 		return view.KeyValue{}, nil, verr
 	}
-	return view.KeyValue{Pairs: []view.Pair{{Key: "objects", Value: unreadText(unreadWhy(verr))}}},
+	return view.KeyValue{Pairs: []view.Pair{{Key: "objects", Value: view.CouldNotRead(unreadWhy(verr))}}},
 		[]finding{{gradeWarn, "objects"}}, nil
 }
 
@@ -471,13 +469,13 @@ func (h bucketHead) rows() ([]view.Pair, []finding) {
 		pairs = append(pairs, view.Pair{Key: "created", Value: h.created})
 	}
 	if h.versioningErr != nil {
-		pairs = append(pairs, view.Pair{Key: "versioning", Value: unreadText(unreadWhy(h.versioningErr))})
+		pairs = append(pairs, view.Pair{Key: "versioning", Value: view.CouldNotRead(unreadWhy(h.versioningErr))})
 		found = append(found, finding{gradeWarn, "versioning"})
 	} else {
 		pairs = append(pairs, view.Pair{Key: "versioning", Value: h.versioning})
 	}
 	if h.retentionErr != nil {
-		pairs = append(pairs, view.Pair{Key: "retention", Value: unreadText(unreadWhy(h.retentionErr))})
+		pairs = append(pairs, view.Pair{Key: "retention", Value: view.CouldNotRead(unreadWhy(h.retentionErr))})
 		found = append(found, finding{gradeWarn, "retention"})
 	} else {
 		pairs = append(pairs, view.Pair{Key: "retention", Value: h.retention})

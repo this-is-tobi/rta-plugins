@@ -117,9 +117,6 @@ func readListing[T any](ctx context.Context, l listing, read func(context.Contex
 	return items, unread, err
 }
 
-// unreadLead is how a row says the namespace it stands for could not be read.
-const unreadLead = "could not be read — "
-
 // withUnread marks a table partial: a row after the rows that were read for each
 // namespace that could not be, naming it and the reason in the column at (the one
 // that names the row's object, where a row of the others has its name), and a
@@ -137,8 +134,8 @@ func withUnread(t view.Table, unread []unreadNS, at int) view.Table {
 	names := make([]string, len(unread))
 	for i, u := range unread {
 		row := make([]string, len(t.Columns))
-		row[0], row[at] = u.namespace, unreadLead+oneLine(u.err.Message)
-		t.Add(plain(row...)...)
+		row[0], row[at] = u.namespace, view.CouldNotRead(oneLine(u.err.Message))
+		t.Add(view.PlainRow(row...)...)
 		names[i] = u.namespace
 	}
 	t.Empty = ""

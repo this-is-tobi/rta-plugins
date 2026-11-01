@@ -84,7 +84,7 @@ func runRestoreSnapshot(ctx context.Context, req plugin.Request) (view.View, err
 		return nil, verr
 	}
 
-	path, err := expandHome(strings.TrimSpace(req.String("file")))
+	path, err := plugin.AbsPath(strings.TrimSpace(req.String("file")))
 	if err != nil {
 		return nil, view.Errorf("vault.restore.path", "resolving the snapshot path: %v", err)
 	}

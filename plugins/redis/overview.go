@@ -172,7 +172,7 @@ func overviewView(ctx context.Context, c *client, req plugin.Request) (view.View
 		{Key: "address", Value: req.Reached(c.addr)},
 		{Key: "version", Value: versionText(in)},
 		{Key: "mode", Value: modeText(in)},
-		{Key: "uptime", Value: uptime(serverUptime(in))},
+		{Key: "uptime", Value: format.Uptime(serverUptime(in))},
 		{Key: "clients", Value: in.get("connected_clients") + " connected, " + in.get("blocked_clients") + " blocked"},
 		{Key: "ops/s", Value: in.get("instantaneous_ops_per_sec")},
 		{Key: "hit ratio", Value: hitRatio(in.int("keyspace_hits"), in.int("keyspace_misses")) + countingSince(in, now)},
@@ -312,7 +312,7 @@ func compactOverview(in info, now time.Time, slow slowLog) view.KeyValue {
 	pressure, unread := pressureRows(in, slow)
 	add("pressure", pressure)
 	if unread != "" {
-		add("slow log", "could not be read — "+unread, finding{gradeWarn, "slow log could not be read"})
+		add("slow log", view.CouldNotRead(unread), finding{gradeWarn, "slow log could not be read"})
 	}
 	add("state", stateRow(in))
 
@@ -466,7 +466,7 @@ func stateRow(in info) string {
 	if v := in.get("valkey_version"); v != "" {
 		version = "valkey " + v
 	}
-	return role + " · " + version + " · up " + uptime(serverUptime(in))
+	return role + " · " + version + " · up " + format.Uptime(serverUptime(in))
 }
 
 func serverUptime(in info) time.Duration {
@@ -482,22 +482,6 @@ func countingSince(in info, now time.Time) string {
 		return ""
 	}
 	return " since " + now.Add(-serverUptime(in)).Format("2006-01-02") + " (server start; CONFIG RESETSTAT restarts the count)"
-}
-
-// uptime renders how long a server has been up as days and hours, then hours
-// and minutes, then minutes: "14d 2h", "5h 30m", "14m". The same spelling in
-// every plugin that shows one, so that a tile of one reads like a tile of the
-// next.
-func uptime(d time.Duration) string {
-	switch {
-	case d >= 24*time.Hour:
-		return fmt.Sprintf("%dd %dh", int(d/(24*time.Hour)), int(d%(24*time.Hour)/time.Hour))
-	case d >= time.Hour:
-		return fmt.Sprintf("%dh %dm", int(d/time.Hour), int(d%time.Hour/time.Minute))
-	case d >= time.Minute:
-		return fmt.Sprintf("%dm", int(d/time.Minute))
-	}
-	return fmt.Sprintf("%ds", int(d/time.Second))
 }
 
 // memoryTable grades used memory against maxmemory, and says what the server
@@ -748,15 +732,6 @@ func secondsCell(s string) view.Cell {
 	return view.Duration(span(d), d)
 }
 
-// plain is a row of cells with no value of their own.
-func plain(row ...string) []view.Cell {
-	cells := make([]view.Cell, len(row))
-	for i, text := range row {
-		cells[i] = view.Plain(text)
-	}
-	return cells
-}
-
 func clusterCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:         "redis.cluster",
@@ -897,7 +872,7 @@ func nodesTable(raw string, positions map[string]position) view.Table {
 			slots = strings.Join(f[8:], " ")
 		}
 		addr, _, _ := strings.Cut(f[1], "@")
-		row := plain(f[0][:min(8, len(f[0]))], addr, role, health, replicaOf, offset, "", slots)
+		row := view.PlainRow(f[0][:min(8, len(f[0]))], addr, role, health, replicaOf, offset, "", slots)
 		row[6] = behind
 		t.Add(row...)
 	}

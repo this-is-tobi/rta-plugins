@@ -408,7 +408,7 @@ func compactBuckets(req plugin.Request, scope readScope, reads []bucketRead, pre
 // bucket's own: the row says it is of the page.
 func bucketValue(r bucketRead) string {
 	if r.unread != nil {
-		return unreadText(unreadWhy(r.unread))
+		return view.CouldNotRead(unreadWhy(r.unread))
 	}
 	p := r.page
 	count := format.CountOf(p.objects, "object")
@@ -522,7 +522,7 @@ func detailedBuckets(ctx context.Context, req plugin.Request, scope readScope, r
 	for _, r := range reads {
 		section := view.KeyValue{Pairs: r.rows}
 		if r.unread != nil {
-			section.Pairs = []view.Pair{{Key: "status", Value: unreadText(unreadWhy(r.unread))}}
+			section.Pairs = []view.Pair{{Key: "status", Value: view.CouldNotRead(unreadWhy(r.unread))}}
 		}
 		p.Put(titles.claim(plugin.ListedName(r.name)), section)
 	}

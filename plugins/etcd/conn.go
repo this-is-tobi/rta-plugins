@@ -360,7 +360,7 @@ func (to target) dial(ctx context.Context) error {
 	}
 	cfg := to.tls.Clone()
 	if cfg.ServerName == "" {
-		cfg.ServerName = hostOnly(to.addr)
+		cfg.ServerName = plugin.HostOf(to.addr)
 	}
 	if err := tls.Client(raw, cfg).HandshakeContext(ctx); err != nil {
 		return handshakeError{err}
@@ -539,8 +539,8 @@ func classify(err error, req plugin.Request) *view.Error {
 	// quoting the port beside it names something no lookup was ever made for.
 	var dnsErr *stdnet.DNSError
 	if errors.As(err, &dnsErr) {
-		unknown := view.Errorf("etcd.host.unknown", "no address for %q", hostOnly(where)).
-			WithHint(sf.DNSHint(hostOnly(where)))
+		unknown := view.Errorf("etcd.host.unknown", "no address for %q", plugin.HostOf(where)).
+			WithHint(sf.DNSHint(where))
 		// The address is the box that holds the fix only when the resolver
 		// answered that the name does not exist (view.Error.Input). One that
 		// could not be asked, or failed, said nothing of the name, which may
@@ -717,19 +717,4 @@ func nextCall(req plugin.Request, id string, args ...plugin.Arg) string {
 		return sf.CapabilityName(id)
 	}
 	return "`" + sf.Call(id, args...) + "`"
-}
-
-func hostOnly(endpoint string) string {
-	// An http:// or https:// endpoint is one etcd's client takes as readily
-	// as a bare host:port, and split as host:port whole it is not one: a name
-	// DNS did not know behind https:// was quoted scheme, port and all, with
-	// a lookup for the whole URL offered as the next step.
-	if _, rest, ok := strings.Cut(endpoint, "://"); ok {
-		endpoint, _, _ = strings.Cut(rest, "/")
-	}
-	host, _, err := stdnet.SplitHostPort(endpoint)
-	if err != nil {
-		return endpoint
-	}
-	return host
 }

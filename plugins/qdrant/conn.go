@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -465,20 +466,13 @@ func qdrantErrorText(body []byte) string {
 		} `json:"status"`
 	}
 	if err := json.Unmarshal(body, &envelope); err == nil && envelope.Status.Error != "" {
-		return truncate(envelope.Status.Error, 300)
+		return format.Clip(envelope.Status.Error, 300)
 	}
 	text := strings.TrimSpace(string(body))
 	if text == "" {
 		return "no detail given"
 	}
-	return truncate(text, 300)
-}
-
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "…"
+	return format.Clip(text, 300)
 }
 
 // classify turns a transport failure into something an operator can act on.
@@ -508,8 +502,8 @@ func classify(err error, req plugin.Request) *view.Error {
 	// every name nothing resolves was reported as a port nothing listens on.
 	var dnsErr *stdnet.DNSError
 	if errors.As(err, &dnsErr) {
-		return view.Errorf("qdrant.host.unknown", "no address for %q", hostOnly(where)).
-			WithHint(req.Surface().DNSHint(hostOnly(where)))
+		return view.Errorf("qdrant.host.unknown", "no address for %q", plugin.HostOf(where)).
+			WithHint(req.Surface().DNSHint(where))
 	}
 	sf := req.Surface()
 	// The certificate before the dial. A verdict on one is typed, so read
@@ -611,14 +605,6 @@ func classify(err error, req plugin.Request) *view.Error {
 	}
 	return view.Errorf("qdrant.conn.failed", "could not reach %s: %v", where, err).
 		WithHint(sf.SettingsHint("qdrant.overview"))
-}
-
-func hostOnly(endpoint string) string {
-	host, _, err := stdnet.SplitHostPort(endpoint)
-	if err != nil {
-		return endpoint
-	}
-	return host
 }
 
 // ofCollection is verr naming the collection input when it is the instance's

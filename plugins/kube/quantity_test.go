@@ -1,8 +1,14 @@
 package main
 
-import "testing"
+import (
+	"testing"
 
-func TestParseCPU(t *testing.T) {
+	"github.com/this-is-tobi/rta/pkg/format"
+)
+
+// A CPU quantity reads in cores in the forms kube meets: millicores in a spec
+// and nanocores in what metrics-server reports.
+func TestACPUQuantityReadsInCores(t *testing.T) {
 	cases := []struct {
 		in   string
 		want float64
@@ -20,9 +26,9 @@ func TestParseCPU(t *testing.T) {
 		{"n", 0, false},
 	}
 	for _, c := range cases {
-		got, ok := parseCPU(c.in)
+		got, ok := format.ParseQuantity(c.in)
 		if ok != c.ok || (ok && got != c.want) {
-			t.Errorf("parseCPU(%q) = %v, %v; want %v, %v", c.in, got, ok, c.want, c.ok)
+			t.Errorf("ParseQuantity(%q) = %v, %v; want %v, %v", c.in, got, ok, c.want, c.ok)
 		}
 	}
 }

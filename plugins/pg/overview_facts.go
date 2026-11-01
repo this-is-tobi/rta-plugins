@@ -20,28 +20,11 @@ import (
 // can say what time it is.
 var clock = time.Now
 
-// uptime is how long a server has been up, in the two units that matter at its
-// size: days and hours, hours and minutes inside a day, minutes inside an
-// hour. The same spelling in every plugin that says one, so an on-call person
-// reads "14d 2h" the same on a database as on a cache; it is written once here
-// until the SDK has a helper for it.
-func uptime(d time.Duration) string {
-	switch {
-	case d >= 24*time.Hour:
-		return fmt.Sprintf("%dd %dh", int(d/(24*time.Hour)), int(d%(24*time.Hour)/time.Hour))
-	case d >= time.Hour:
-		return fmt.Sprintf("%dh %dm", int(d/time.Hour), int(d%time.Hour/time.Minute))
-	case d >= time.Minute:
-		return fmt.Sprintf("%dm", int(d/time.Minute))
-	}
-	return "<1m"
-}
-
 // upSince is when a server started and how long ago that was, the pair a
 // reader wants from "what changed": a restart or a failover is the first
 // answer, and it is the date that matches it to a log.
 func upSince(started time.Time) string {
-	return started.UTC().Format("2006-01-02 15:04 UTC") + " (" + uptime(clock().Sub(started)) + ")"
+	return started.UTC().Format("2006-01-02 15:04 UTC") + " (" + format.Uptime(clock().Sub(started)) + ")"
 }
 
 // connectionsWarn and connectionsFail are the shares of max_connections taken
@@ -141,7 +124,7 @@ const noStatsRole = "role sees only its own (no pg_read_all_stats)"
 
 func (s sessionFacts) text() string {
 	if !s.seesAll {
-		return "could not be read — " + noStatsRole
+		return view.CouldNotRead(noStatsRole)
 	}
 	line := fmt.Sprintf("%d of %d", s.total, s.max)
 	parts := []string{fmt.Sprintf("%d active", s.active)}
@@ -156,7 +139,7 @@ func (s sessionFacts) text() string {
 
 func (s sessionFacts) oldestText() string {
 	if !s.seesAll {
-		return "could not be read — " + noStatsRole
+		return view.CouldNotRead(noStatsRole)
 	}
 	if s.oldest == nil {
 		return "none"
@@ -310,7 +293,7 @@ func statusText(findings []finding, unreadable []string) string {
 // whyUnread is the reason a row could not be read, in the words the
 // capabilities beside it would have refused with.
 func whyUnread(err error, req plugin.Request) string {
-	return "could not be read — " + classify(err, req).Message
+	return view.CouldNotRead(classify(err, req).Message)
 }
 
 func sessionPairs(s sessionFacts) []view.Pair {
