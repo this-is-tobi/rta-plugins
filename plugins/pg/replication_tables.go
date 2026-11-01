@@ -5,7 +5,6 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
@@ -43,13 +42,13 @@ func standbysTable(f replicationFacts) view.Table {
 		if !s.hidden() {
 			state = *s.state
 		}
-		t.Rows = append(t.Rows, []string{
-			s.name, orDash(s.client), state, syncText(s), orDash(s.slot),
-			orDash(s.sent), orDash(s.write), orDash(s.flush), orDash(s.replay),
-			bytesOrDash(s.behind),
-			lagOrDash(s.writeLag), lagOrDash(s.flushLag), lagOrDash(s.replLag),
-			gradeStandby(s).status,
-		})
+		t.Add(
+			view.Plain(s.name), view.Plain(orDash(s.client)), view.Plain(state), view.Plain(syncText(s)), view.Plain(orDash(s.slot)),
+			view.Plain(orDash(s.sent)), view.Plain(orDash(s.write)), view.Plain(orDash(s.flush)), view.Plain(orDash(s.replay)),
+			bytesCell(s.behind),
+			lagCell(s.writeLag), lagCell(s.flushLag), lagCell(s.replLag),
+			view.Plain(gradeStandby(s).status),
+		)
 	}
 	t.Total = len(t.Rows)
 	return t
@@ -74,11 +73,11 @@ func slotsTable(f replicationFacts) view.Table {
 		if s.active {
 			active = "yes"
 		}
-		t.Rows = append(t.Rows, []string{
-			s.name, s.kind, listedOrDash(s.database), active, orDash(s.holder),
-			orDash(s.restart), bytesOrDash(s.retained), untilLost(s),
-			orDash(s.status), gradeSlot(s).status,
-		})
+		t.Add(
+			view.Plain(s.name), view.Plain(s.kind), view.Plain(listedOrDash(s.database)), view.Plain(active), view.Plain(orDash(s.holder)),
+			view.Plain(orDash(s.restart)), bytesCell(s.retained), untilLost(s),
+			view.Plain(orDash(s.status)), view.Plain(gradeSlot(s).status),
+		)
 	}
 	t.Total = len(t.Rows)
 	return t
@@ -98,14 +97,14 @@ func syncText(s standbyRow) string {
 	return *s.syncKind + " (priority " + strconv.Itoa(int(*s.priority)) + ")"
 }
 
-func untilLost(s slotRow) string {
+func untilLost(s slotRow) view.Cell {
 	switch {
 	case s.safeLeft != nil:
-		return format.Bytes(*s.safeLeft)
+		return view.Bytes(*s.safeLeft)
 	case s.status == nil || *s.status == "lost":
-		return "-"
+		return view.Plain("-")
 	}
-	return "unlimited"
+	return view.Plain("unlimited")
 }
 
 // attentionTable is everything worth acting on, across the server, the
@@ -120,7 +119,7 @@ func attentionTable(f replicationFacts) view.Table {
 		if severity(g.status) < 2 || len(g.reasons) == 0 {
 			return
 		}
-		t.Rows = append(t.Rows, []string{what, g.status, g.detail()})
+		t.Add(view.Plain(what), view.Plain(g.status), view.Plain(g.detail()))
 	}
 	for _, s := range f.standbys {
 		add(fmt.Sprintf("standby %s", s.name), gradeStandby(s))

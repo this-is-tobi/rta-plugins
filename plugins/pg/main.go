@@ -68,6 +68,7 @@ package main
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -199,19 +200,60 @@ func listed(rows pgx.Rows, limit int, noun string, say bool, sf plugin.Surface) 
 	return t, nil
 }
 
+// typed fills t's values by the kind of each column, once its columns are
+// declared, rebuilding every row through Table.Add: a size is the byte count
+// the query returned, shown as rta shows one, and a status is every word it is
+// shown in, in lower case. A cell the server left empty — a NULL — has no
+// value, rather than reading as zero to a program.
+//
+// A count is left to rta, which values one written as a number from its text,
+// as it values a status by the word the status leads with. A session's state
+// is the one status here that word would not do for: "idle", "idle in
+// transaction" and "idle in transaction (aborted)" all lead with it, and the
+// second is the one holding its locks.
+func typed(t *view.Table) {
+	rows := t.Rows
+	t.Rows, t.Values = nil, nil
+	for _, row := range rows {
+		cells := make([]view.Cell, len(row))
+		for i, text := range row {
+			cells[i] = typedCell(t.Columns[i].Kind, text)
+		}
+		t.Add(cells...)
+	}
+}
+
+func typedCell(kind view.ColumnKind, text string) view.Cell {
+	switch kind {
+	case view.KindBytes:
+		if n, err := strconv.ParseInt(text, 10, 64); err == nil {
+			return view.Bytes(n)
+		}
+	case view.KindStatus:
+		return view.Status(text, statusWord(text))
+	}
+	return view.Plain(text)
+}
+
+// statusWord is a status the server words as it likes — "idle in transaction
+// (aborted)", "Lock" — as the lower-case words a status is valued in.
+func statusWord(text string) string {
+	return strings.Join(strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
+		return (r < 'a' || r > 'z') && (r < '0' || r > '9') && r != '-' && r != '_'
+	}), " ")
+}
+
 // tableListView lists tables with their row estimates and sizes — pg.table.list
 // and a "largest tables" section of pg.overview at a tighter limit, which is
 // why say is a parameter: see listed.
 func tableListView(ctx context.Context, conn querier, req plugin.Request, say bool) (view.View, error) {
-	// pg_size_pretty, not the raw count: a view carries pre-formatted strings
-	// and view.ColumnKind selects alignment, not rendering — so declaring
-	// KindBytes and handing over an integer prints the integer. Ordering
-	// still uses the number, which is the reason to format here rather than
-	// in SQL's order by.
+	// The raw count, which typed shows as rta shows a size and carries as the
+	// size's value; pg_size_pretty's "16 kB" was one more spelling of a size
+	// beside rta's own, and a program reading it had a string to parse.
 	rows, err := conn.Query(ctx, `
 		select schemaname, relname,
 		       n_live_tup,
-		       pg_size_pretty(pg_total_relation_size(relid))
+		       pg_total_relation_size(relid)
 		from pg_stat_user_tables
 		where ($1 = '' or schemaname = $1)
 		order by pg_total_relation_size(relid) desc
@@ -239,6 +281,7 @@ func tableListView(ctx context.Context, conn querier, req plugin.Request, say bo
 		{Name: "Rows", Kind: view.KindNumber},
 		{Name: "Size", Kind: view.KindBytes},
 	}
+	typed(&t)
 	t.Empty = "no tables"
 	if schema := strings.TrimSpace(req.String("schema")); schema != "" {
 		t.Empty += " in " + plugin.ListedName(schema)
@@ -249,7 +292,7 @@ func tableListView(ctx context.Context, conn querier, req plugin.Request, say bo
 // databaseListView lists databases on this server, with their sizes.
 func databaseListView(ctx context.Context, conn querier, req plugin.Request) (view.View, error) {
 	rows, err := conn.Query(ctx, `
-		select datname, pg_size_pretty(pg_database_size(datname)),
+		select datname, pg_database_size(datname),
 		       pg_get_userbyid(datdba)
 		from pg_database
 		where not datistemplate
@@ -264,7 +307,8 @@ func databaseListView(ctx context.Context, conn querier, req plugin.Request) (vi
 		return nil, classify(err, req)
 	}
 	listNames(&t, 0, 2)
-	t.Columns = []view.Column{{Name: "Database"}, {Name: "Size"}, {Name: "Owner"}}
+	t.Columns = []view.Column{{Name: "Database"}, {Name: "Size", Kind: view.KindBytes}, {Name: "Owner"}}
+	typed(&t)
 	t.Empty = "no databases"
 	return t, nil
 }
@@ -342,6 +386,7 @@ func activityView(ctx context.Context, conn querier, req plugin.Request, withQue
 		{Name: "Application"}, {Name: "State", Kind: view.KindStatus},
 		{Name: "Seconds", Kind: view.KindNumber}, tail,
 	}
+	typed(&t)
 	t.Empty = "no other sessions"
 	return t, nil
 }
