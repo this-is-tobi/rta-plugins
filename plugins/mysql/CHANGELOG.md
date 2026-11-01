@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.13.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.13.0...plugins/mysql/v0.13.1) (2026-11-01)
+
+
+### Code Refactoring
+
+* the plugins use the SDK's helpers in place of their own copies ([951cfbd](https://github.com/this-is-tobi/rta-plugins/commit/951cfbdaf691588cf9627196aa1a918468ec0ec2))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.56.0 ([ffc64b3](https://github.com/this-is-tobi/rta-plugins/commit/ffc64b3b09408d628f22a71fda56a89bb99841c7))
+
 ## [0.13.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.12.3...plugins/mysql/v0.13.0) (2026-11-01)
 
 
