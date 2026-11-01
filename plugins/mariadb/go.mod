@@ -9,7 +9,7 @@ go 1.26.10
 
 require (
 	github.com/this-is-tobi/rta v0.55.0
-	github.com/this-is-tobi/rta-plugins/plugins/mysql v0.12.3
+	github.com/this-is-tobi/rta-plugins/plugins/mysql v0.13.0
 )
 
 require (
