@@ -7,21 +7,20 @@
 //
 // MariaDB answers the MySQL wire protocol and carries the same
 // INFORMATION_SCHEMA, so the connection handling, the row bounds and the
-// schema queries here are the same work. They are duplicated rather than
-// shared, and that is deliberate rather than an oversight.
-//
-// A plugin is the unit rta approves, and it approves an artifact's content
-// digest rather than its name. Two plugins that shared a library would be two
-// artifacts whose behaviour moves together while their approvals do not — so
-// approving one would be partly approving the other, which is exactly the
-// property digest-pinned trust exists to prevent. Every plugin in this
-// repository carries its own connection handling for the same reason.
-//
-// What is actually different is what MariaDB has that MySQL does not: a Galera
+// schema queries are the same work, and both plugins are served from one
+// package for it: plugins/mysql/family, at the version this module's go.mod
+// requires. What differs is held on the package's MariaDB engine: a Galera
 // cluster's state, which the replication view carries beside the replica and
-// source state both servers have, and MariaDB's own spelling of positions and
-// privileges. They are the reason somebody running MariaDB wants this
-// artifact rather than that one.
+// source state both servers have, MariaDB's own spelling of positions,
+// privileges and client flags, and its client's verify-ca pinning.
+//
+// It is still an artifact of its own, for the reason every plugin is: rta
+// approves an artifact's content digest, not its name, and approving one
+// binary is not approving another. Sharing the package changes nothing about
+// that. This binary is built from a pinned version of it, so its behaviour
+// and its digest move only when this module is rebuilt against a new one —
+// a release of its own, approved on its own, as every plugin's dependency on
+// rta's SDK already is.
 //
 // Build it and put it on your $PATH as `rta-plugin-mariadb`:
 //
@@ -39,8 +38,8 @@
 //
 // and export RTA_MARIADB_PASSWORD. Every capability here reaches off the box,
 // so none of them — including mariadb.overview — appear on the automatic
-// dashboard on their own (see cap's comment); add one explicitly once you
-// have decided polling it is fine:
+// dashboard on their own (see cap's comment in the family package); add one
+// explicitly once you have decided polling it is fine:
 //
 //	dashboard:
 //	  tiles:
@@ -48,49 +47,11 @@
 package main
 
 import (
-	"context"
-	"database/sql"
-
-	_ "github.com/go-sql-driver/mysql"
-
-	"github.com/this-is-tobi/rta/pkg/plugin"
+	"github.com/this-is-tobi/rta-plugins/plugins/mysql/family"
 	"github.com/this-is-tobi/rta/pkg/sdk"
-	"github.com/this-is-tobi/rta/pkg/view"
 )
 
-func main() { sdk.Serve(Plugin()) }
-
-// withDB is the shape every capability here has: connect, or return the
-// classified error; run; close.
-//
-// The close is deferred here rather than left to each handler because there
-// are nine of them and the one that forgot would leak a connection against
-// somebody else's server, which is the kind of bug that only shows up under
-// load somebody else is carrying.
-func withDB(ctx context.Context, req plugin.Request, fn func(context.Context, *sql.DB) (view.View, error)) (view.View, error) {
-	db, verr := connect(ctx, req)
-	if verr != nil {
-		return nil, verr
-	}
-	defer func() { _ = db.Close() }()
-	return fn(ctx, db)
-}
-
-// cap builds a capability with the shared connection inputs appended, so no
-// declaration here can forget one and no two can disagree about a default.
-//
-// Every capability here is NoPreview because every one reaches off the box:
-// the automatic dashboard runs Read capabilities unasked, and a live database
-// somebody else depends on is not something this plugin gets to decide, on
-// its own, is fine to poll every few seconds. An operator who has looked at
-// their own deployment and decided otherwise still can — dashboard.tiles
-// accepts any capability regardless of NoPreview, because naming one in a
-// config file is the asking.
-func cap(c plugin.Capability, own ...plugin.Field) plugin.Capability {
-	c.Inputs = append(own, connFields()...)
-	c.NoPreview = true
-	return c
-}
+func main() { sdk.Serve(family.Plugin(family.MariaDB, version)) }
 
 // version is what this build claims to be, stamped by whatever built it:
 // `-X main.version=`, which is the Makefile's flag and GoReleaser's own
@@ -98,23 +59,3 @@ func cap(c plugin.Capability, own ...plugin.Field) plugin.Capability {
 // number that was never cut — an index entry carries this verbatim, and a
 // version is a fact about a release, not about the source it came from.
 var version = "dev"
-
-func Plugin() plugin.Plugin {
-	return plugin.Plugin{
-		Name:    "mariadb",
-		Summary: "MariaDB: connection health, schema, rows, activity, replication and cluster state",
-		Version: version,
-		Capabilities: []plugin.Capability{
-			dumpCapability(),
-			restoreCapability(),
-			overviewCapability(),
-			statusCapability(),
-			databaseListCapability(),
-			tableListCapability(),
-			schemaCapability(),
-			queryCapability(),
-			activityCapability(),
-			replicationCapability(),
-		},
-	}
-}
