@@ -365,21 +365,25 @@ func storageRow(st *clientv3.StatusResponse) (string, []finding) {
 // then refuses every write while still answering reads, and that is the
 // failure that looks like a healthy cluster from everywhere except here.
 func storageTable(st *clientv3.StatusResponse) view.Table {
-	return view.Table{
+	t := view.Table{
 		Columns: []view.Column{
 			{Name: "Size", Kind: view.KindBytes},
 			{Name: "In use", Kind: view.KindBytes},
 			{Name: "Quota", Kind: view.KindBytes},
 			{Name: "Use %", Kind: view.KindUsage},
 		},
-		Rows: [][]string{{
-			format.Bytes(st.DbSize),
-			format.Bytes(st.DbSizeInUse),
-			quotaBytes(st.DbSizeQuota),
-			quotaCell(st.DbSize, st.DbSizeQuota),
-		}},
 		Total: 1,
 	}
+	quota := view.Plain(quotaBytes(st.DbSizeQuota))
+	if st.DbSizeQuota > 0 {
+		quota = view.Bytes(st.DbSizeQuota)
+	}
+	use := view.Plain(quotaCell(st.DbSize, st.DbSizeQuota))
+	if share, ok := quotaShare(st.DbSize, st.DbSizeQuota); ok {
+		use = view.Number(use.Text, share)
+	}
+	t.Add(view.Bytes(st.DbSize), view.Bytes(st.DbSizeInUse), quota, use)
+	return t
 }
 
 // quotaShare is how much of its backend quota a member's database file takes,
@@ -607,7 +611,7 @@ func leaseTable(ctx context.Context, c *clientv3.Client, req plugin.Request) (vi
 			// cost being bounded here is the one TimeToLive round trip each
 			// row needs — so the honest thing is to say how many were not
 			// asked about.
-			t.Rows = append(t.Rows, leasesLeftOut(req.Surface(), len(resp.Leases)-i))
+			t.Add(plain(leasesLeftOut(req.Surface(), len(resp.Leases)-i)...)...)
 			break
 		}
 		// TimeToLive with WithAttachedKeys returns the count without the key
@@ -618,15 +622,32 @@ func leaseTable(ctx context.Context, c *clientv3.Client, req plugin.Request) (vi
 		if err != nil {
 			return nil, classify(err, req)
 		}
-		granted, remaining := leaseTimes(ttl.GrantedTTL, ttl.TTL)
-		t.Rows = append(t.Rows, []string{
-			leaseID(int64(l.ID)),
-			granted,
-			remaining,
-			strconv.Itoa(len(ttl.Keys)),
-		})
+		t.Add(leaseRow(int64(l.ID), ttl.GrantedTTL, ttl.TTL, len(ttl.Keys))...)
 	}
 	t.Total = len(t.Rows)
 	t.Empty = "no leases"
 	return t, nil
+}
+
+// leaseRow is one lease's row, its two times valued in seconds, and an
+// expired lease's time left as zero: the server reports -1 for it, which is
+// no length of time, and a program asking which leases end within a minute
+// should find the ones that already have.
+func leaseRow(id, grantedSeconds, remainingSeconds int64, keys int) []view.Cell {
+	granted, remaining := leaseTimes(grantedSeconds, remainingSeconds)
+	return []view.Cell{
+		view.Plain(leaseID(id)),
+		view.Duration(granted, time.Duration(grantedSeconds)*time.Second),
+		view.Duration(remaining, time.Duration(max(remainingSeconds, 0))*time.Second),
+		view.Plain(strconv.Itoa(keys)),
+	}
+}
+
+// plain is a row of cells with no value of their own.
+func plain(row ...string) []view.Cell {
+	cells := make([]view.Cell, len(row))
+	for i, text := range row {
+		cells[i] = view.Plain(text)
+	}
+	return cells
 }
