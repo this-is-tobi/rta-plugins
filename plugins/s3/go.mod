@@ -7,7 +7,7 @@ go 1.26.10
 
 require (
 	github.com/minio/minio-go/v7 v7.3.0
-	github.com/this-is-tobi/rta v0.55.0
+	github.com/this-is-tobi/rta v0.56.0
 )
 
 require (
