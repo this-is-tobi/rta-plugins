@@ -138,7 +138,7 @@ func withUnread(t view.Table, unread []unreadNS, at int) view.Table {
 	for i, u := range unread {
 		row := make([]string, len(t.Columns))
 		row[0], row[at] = u.namespace, unreadLead+oneLine(u.err.Message)
-		t.Rows = append(t.Rows, row)
+		t.Add(plain(row...)...)
 		names[i] = u.namespace
 	}
 	t.Empty = ""

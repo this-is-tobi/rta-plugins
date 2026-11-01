@@ -195,6 +195,31 @@ func (lc listCase) mustRead(t *testing.T, values map[string]any) view.Table {
 	return table
 }
 
+// withoutTimes is t with the values of its lengths of time and its moments
+// taken out. An age is valued from the moment it is read, and the scripted
+// cluster mints its certificates at each read, so two reads of one list a
+// moment apart can differ in those, a second apart, and in nothing else.
+func withoutTimes(t view.Table) view.Table {
+	if t.Values == nil {
+		return t
+	}
+	values := make([][]string, len(t.Values))
+	for i, row := range t.Values {
+		if row == nil {
+			continue
+		}
+		kept := append([]string(nil), row...)
+		for j, c := range t.Columns {
+			if (c.Kind == view.KindDuration || c.Kind == view.KindTimestamp) && j < len(kept) {
+				kept[j] = ""
+			}
+		}
+		values[i] = kept
+	}
+	t.Values = values
+	return t
+}
+
 // kubectlCalls is the lines of `get` the cluster was asked, raw reads included.
 func kubectlCalls(t *testing.T, c *scriptedCluster) []string {
 	t.Helper()
@@ -345,7 +370,7 @@ func TestAListOfOneNamespaceIsExactlyTheSingleReadItWas(t *testing.T) {
 					first, firstCalls = table, calls
 					continue
 				}
-				if fmt.Sprint(table) != fmt.Sprint(first) || fmt.Sprint(calls) != fmt.Sprint(firstCalls) {
+				if fmt.Sprint(withoutTimes(table)) != fmt.Sprint(withoutTimes(first)) || fmt.Sprint(calls) != fmt.Sprint(firstCalls) {
 					t.Errorf("%s was read differently from the other spellings:\n%v\n%v", name, table, first)
 				}
 			}
@@ -575,7 +600,7 @@ func TestThePageOfSeveralNamespacesIsTheSameWhicheverWayTheListIsWritten(t *test
 					first = table
 					continue
 				}
-				if fmt.Sprintf("%#v", table) != fmt.Sprintf("%#v", first) {
+				if fmt.Sprintf("%#v", withoutTimes(table)) != fmt.Sprintf("%#v", withoutTimes(first)) {
 					t.Errorf("%s: the page is not the one of the sorted list:\n%#v\n%#v", sp.name, table, first)
 				}
 			}

@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -257,15 +256,19 @@ func runMetricsPod(ctx context.Context, req plugin.Request) (view.View, error) {
 	})
 
 	cols := podMetricColumns(l.wide())
-	out := make([][]string, 0, len(rows))
+	out := view.Table{Columns: cols}
 	for _, r := range rows {
-		line := []string{}
+		var line []view.Cell
 		if l.wide() {
-			line = append(line, r.ns)
+			line = append(line, view.Plain(r.ns))
 		}
-		out = append(out, append(line, r.name, cpuCores(r.cpu), r.cpuPct, format.Bytes(r.mem), r.memPct))
+		// The cores valued as cores whichever way they are written: 250m and
+		// 1.25 are a quarter of a core and a core and a quarter.
+		out.Add(append(line, view.Plain(r.name), view.Number(cpuCores(r.cpu), r.cpu), shareCell(r.cpuPct, r.cpuPctN),
+			view.Bytes(r.mem), shareCell(r.memPct, r.memPctN))...)
 	}
-	t := withEmpty(view.Table{Columns: cols, Rows: out, Total: len(out)},
+	out.Total = len(out.Rows)
+	t := withEmpty(out,
 		"no pod metrics in "+l.scopeWords())
 	return withUnread(t, unread, 1), nil
 }
@@ -328,20 +331,21 @@ func runMetricsNode(ctx context.Context, req plugin.Request) (view.View, error) 
 		return metrics.Items[i].Metadata.Name < metrics.Items[j].Metadata.Name
 	})
 	cols := nodeMetricColumns()
-	rows := make([][]string, 0, len(metrics.Items))
+	t := view.Table{Columns: cols}
 	for _, m := range metrics.Items {
 		cpu, _ := parseCPU(m.Usage.CPU)
 		mem, _ := parseBytes(m.Usage.Memory)
-		var cpuPct, memPct string
+		cpuPct, memPct := view.Plain(""), view.Plain("")
 		if n, ok := allocatable[m.Metadata.Name]; ok {
 			if allocCPU, ok := parseCPU(n.Status.Allocatable.CPU); ok {
-				cpuPct = percentOf(cpu, allocCPU)
+				cpuPct = shareCell(percentOf(cpu, allocCPU), cpu/allocCPU)
 			}
 			if allocMem, ok := parseBytes(n.Status.Allocatable.Memory); ok {
-				memPct = percentOf(float64(mem), float64(allocMem))
+				memPct = shareCell(percentOf(float64(mem), float64(allocMem)), float64(mem)/float64(allocMem))
 			}
 		}
-		rows = append(rows, []string{m.Metadata.Name, cpuCores(cpu), cpuPct, format.Bytes(mem), memPct})
+		t.Add(view.Plain(m.Metadata.Name), view.Number(cpuCores(cpu), cpu), cpuPct, view.Bytes(mem), memPct)
 	}
-	return withEmpty(view.Table{Columns: cols, Rows: rows, Total: len(rows)}, "no node metrics"), nil
+	t.Total = len(t.Rows)
+	return withEmpty(t, "no node metrics"), nil
 }

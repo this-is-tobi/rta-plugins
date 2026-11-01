@@ -8,7 +8,6 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -279,7 +278,7 @@ func pressureOf(p *psi) (avg10, avg300 float64, ok bool) {
 // ordering and the unsupported/failed split can be tested without a cluster.
 type pressureRow struct {
 	node   string
-	cells  []string
+	cells  []view.Cell
 	worst  float64
 	failed string
 }
@@ -307,10 +306,10 @@ func pressureRows(summaries []nodeSummary) (rows []pressureRow, unsupported []st
 		rows = append(rows, pressureRow{
 			node:  sum.node,
 			worst: maxOf(cpu10, mem10, io10),
-			cells: []string{
-				pct(cpu10, cpuOK), pct(cpu300, cpuOK),
-				pct(mem10, memOK), pct(mem300, memOK),
-				pct(io10, ioOK), pct(io300, ioOK),
+			cells: []view.Cell{
+				pctCell(cpu10, cpuOK), pctCell(cpu300, cpuOK),
+				pctCell(mem10, memOK), pctCell(mem300, memOK),
+				pctCell(io10, ioOK), pctCell(io300, ioOK),
 			},
 		})
 	}
@@ -334,15 +333,16 @@ func runMetricsPressure(ctx context.Context, req plugin.Request) (view.View, err
 	rows, unsupported := pressureRows(summaries)
 
 	cols := pressureColumns()
-	out := make([][]string, 0, len(rows))
+	out := view.Table{Columns: cols}
 	for _, r := range rows {
 		if r.failed != "" {
-			out = append(out, []string{r.node, "could not be read — " + r.failed, "", "", "", "", ""})
+			out.Add(plain(r.node, "could not be read — "+r.failed, "", "", "", "", "")...)
 			continue
 		}
-		out = append(out, append([]string{r.node}, r.cells...))
+		out.Add(append([]view.Cell{view.Plain(r.node)}, r.cells...)...)
 	}
-	table := withEmpty(view.Table{Columns: cols, Rows: out, Total: len(out)}, "no nodes")
+	out.Total = len(out.Rows)
+	table := withEmpty(out, "no nodes")
 	if len(unsupported) == 0 {
 		return table, nil
 	}
@@ -398,6 +398,14 @@ func pressureColumns() []view.Column {
 		{Name: "io 10s", Kind: view.KindPercent},
 		{Name: "io 5m", Kind: view.KindPercent},
 	}
+}
+
+// pctCell is pct as a table's cell, valued in percent as the kernel reports it.
+func pctCell(v float64, ok bool) view.Cell {
+	if !ok {
+		return view.Plain("")
+	}
+	return view.Number(pct(v, ok), v)
 }
 
 // pct renders a PSI average, which the kernel already reports as a percentage
@@ -504,16 +512,17 @@ func runPVCUsage(ctx context.Context, req plugin.Request) (view.View, error) {
 	rows = claimsIn(rows, names)
 
 	cols := pvcUsageColumns()
-	out := make([][]string, 0, len(rows))
+	out := view.Table{Columns: cols}
 	for _, u := range rows {
-		out = append(out, []string{u.ns, u.name, format.Bytes(u.used), format.Bytes(u.capacity),
-			percentOf(float64(u.used), float64(u.capacity))})
+		out.Add(view.Plain(u.ns), view.Plain(u.name), view.Bytes(u.used), view.Bytes(u.capacity),
+			shareCell(percentOf(float64(u.used), float64(u.capacity)), float64(u.used)/float64(u.capacity)))
 	}
+	out.Total = len(out.Rows)
 	empty := "no volume claims are mounted"
 	if len(names) > 0 {
 		empty += " in " + keptWords(names)
 	}
-	table := withEmpty(view.Table{Columns: cols, Rows: out, Total: len(out)}, empty)
+	table := withEmpty(out, empty)
 	if len(failed) == 0 {
 		return table, nil
 	}

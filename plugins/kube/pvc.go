@@ -75,19 +75,20 @@ func runPVCList(ctx context.Context, req plugin.Request) (view.View, error) {
 		view.Column{Name: "storage class"},
 		view.Column{Name: "age", Kind: view.KindDuration},
 	)
-	rows := make([][]string, 0, len(pvcs))
+	claims := view.Table{Columns: cols}
 	for _, p := range pvcs {
-		row := []string{}
+		var row []view.Cell
 		if l.wide() {
-			row = append(row, p.Metadata.Namespace)
+			row = append(row, view.Plain(p.Metadata.Namespace))
 		}
-		rows = append(rows, append(row,
-			p.Metadata.Name, p.Status.Phase,
-			quantityBytes(p.Status.Capacity.Storage),
-			quantityBytes(p.Spec.Resources.Requests.Storage),
-			p.Spec.StorageClassName, age(p.Metadata.CreationTimestamp)))
+		claims.Add(append(row,
+			view.Plain(p.Metadata.Name), view.Plain(p.Status.Phase),
+			quantityCell(p.Status.Capacity.Storage),
+			quantityCell(p.Spec.Resources.Requests.Storage),
+			view.Plain(p.Spec.StorageClassName), ageCell(p.Metadata.CreationTimestamp))...)
 	}
-	t := withEmpty(view.Table{Columns: cols, Rows: rows, Total: len(rows)},
+	claims.Total = len(claims.Rows)
+	t := withEmpty(claims,
 		"no persistent volume claims in "+l.scopeWords())
 	return withUnread(t, unread, 1), nil
 }
@@ -105,4 +106,13 @@ func quantityBytes(q string) string {
 		return ""
 	}
 	return format.Bytes(b)
+}
+
+// quantityCell is quantityBytes as a table's cell, valued in bytes.
+func quantityCell(q string) view.Cell {
+	b, ok := parseBytes(q)
+	if !ok {
+		return view.Plain("")
+	}
+	return view.Bytes(b)
 }

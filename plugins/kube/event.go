@@ -190,15 +190,16 @@ func eventTable(events []eventItem, withNS bool) view.Table {
 		view.Column{Name: "reason"},
 		view.Column{Name: "message"},
 	)
-	rows := make([][]string, 0, len(events))
+	t := view.Table{Columns: cols}
 	for _, e := range events {
-		row := []string{}
+		var row []view.Cell
 		if withNS {
-			row = append(row, e.Metadata.Namespace)
+			row = append(row, view.Plain(e.Metadata.Namespace))
 		}
-		rows = append(rows, append(row,
-			age(e.lastAt()), age(e.firstAt()), fmt.Sprintf("%d", e.occurrences()),
-			e.Type, e.object(), e.Reason, oneLine(e.Message)))
+		t.Add(append(row,
+			ageCell(e.lastAt()), ageCell(e.firstAt()), view.Plain(fmt.Sprintf("%d", e.occurrences())),
+			view.Plain(e.Type), view.Plain(e.object()), view.Plain(e.Reason), view.Plain(oneLine(e.Message)))...)
 	}
-	return view.Table{Columns: cols, Rows: rows, Total: len(rows)}
+	t.Total = len(t.Rows)
+	return t
 }
