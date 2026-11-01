@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.12.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.11.2...plugins/kube/v0.12.0) (2026-11-01)
+
+
+### Features
+
+* **kube:** ages, sizes, shares and pressure carry their values ([af2f4e5](https://github.com/this-is-tobi/rta-plugins/commit/af2f4e50deb122b3919e9e09742fe1e037eaeabf))
+
+
+### Bug Fixes
+
+* **kube:** a certificate that does not parse fails the overview ([ef2f9f0](https://github.com/this-is-tobi/rta-plugins/commit/ef2f9f052066dd9da66f3c9cbe638fc46d778da4))
+* **kube:** a status leads with the word it is graded and read by ([4686cd7](https://github.com/this-is-tobi/rta-plugins/commit/4686cd76bf4e39b233787f7bf95b130a7b603fda))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.55.0 ([fc99005](https://github.com/this-is-tobi/rta-plugins/commit/fc990055df29227268e6b92d9798cfc2158ed4d8))
+
 ## [0.11.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.11.1...plugins/kube/v0.11.2) (2026-11-01)
 
 

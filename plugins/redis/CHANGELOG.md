@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.9.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.8.2...plugins/redis/v0.9.0) (2026-11-01)
+
+
+### Features
+
+* **redis:** memory, the slow log, client times and replica distances carry their values ([6794e56](https://github.com/this-is-tobi/rta-plugins/commit/6794e5620333f4401f6d5e0fd1126a0c4e4998ad))
+
+
+### Bug Fixes
+
+* **redis:** a save in progress reads "saving" ([ed2c5e5](https://github.com/this-is-tobi/rta-plugins/commit/ed2c5e50ed9703b2545624f38d98a5ef819bc8b9))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.55.0 ([fc99005](https://github.com/this-is-tobi/rta-plugins/commit/fc990055df29227268e6b92d9798cfc2158ed4d8))
+
 ## [0.8.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.8.1...plugins/redis/v0.8.2) (2026-11-01)
 
 

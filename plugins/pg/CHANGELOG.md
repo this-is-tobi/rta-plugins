@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.15.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.14.2...plugins/pg/v0.15.0) (2026-11-01)
+
+
+### Features
+
+* **pg:** a table's sizes, lags and session states carry their values ([e1955e4](https://github.com/this-is-tobi/rta-plugins/commit/e1955e45651e39a20c5eb3c4eb0fcc59121cee85))
+
+
+### Code Refactoring
+
+* **pg:** the attention table is sorted before it is filled ([6d3217e](https://github.com/this-is-tobi/rta-plugins/commit/6d3217e1dacf2dcad1b45b7ebfe2ad19f3f1f1a1))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.55.0 ([fc99005](https://github.com/this-is-tobi/rta-plugins/commit/fc990055df29227268e6b92d9798cfc2158ed4d8))
+
 ## [0.14.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.14.1...plugins/pg/v0.14.2) (2026-11-01)
 
 

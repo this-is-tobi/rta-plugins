@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.6.2...plugins/docker/v0.7.0) (2026-11-01)
+
+
+### Features
+
+* **docker:** an image's and a disk kind's size carry their bytes ([5b294da](https://github.com/this-is-tobi/rta-plugins/commit/5b294dac3d11a4faa0a46930a978c8d16ff12507))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.55.0 ([fc99005](https://github.com/this-is-tobi/rta-plugins/commit/fc990055df29227268e6b92d9798cfc2158ed4d8))
+
 ## [0.6.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.6.1...plugins/docker/v0.6.2) (2026-11-01)
 
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.11.2...plugins/qdrant/v0.11.3) (2026-11-01)
+
+
+### Bug Fixes
+
+* **qdrant:** a named collection that is not there reads "missing" ([a332ae2](https://github.com/this-is-tobi/rta-plugins/commit/a332ae237ec0c559b3096804b9babf011288795d))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.55.0 ([fc99005](https://github.com/this-is-tobi/rta-plugins/commit/fc990055df29227268e6b92d9798cfc2158ed4d8))
+
 ## [0.11.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.11.1...plugins/qdrant/v0.11.2) (2026-11-01)
 
 
