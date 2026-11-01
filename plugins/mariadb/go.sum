@@ -85,8 +85,8 @@ github.com/spf13/pflag v1.0.10/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3A
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.7.2 h1:4jaiDzPyXQvSd7D0EjG45355tLlV3VOECpq10pLC+8s=
 github.com/stretchr/testify v1.7.2/go.mod h1:R6va5+xMeoiuVRoj+gSkQ7d3FALtqAAGI1FQKckRals=
-github.com/this-is-tobi/rta v0.55.0 h1:1JYjtQobb/vK1uKYVz06OyvQgA3bdrjcOuXZvCPASLI=
-github.com/this-is-tobi/rta v0.55.0/go.mod h1:HilNMkHWttBZyEs4tQUdLK+5EmfZMastcHEo2MigVKQ=
+github.com/this-is-tobi/rta v0.56.0 h1:2B3Q1Rf8D3hjm2NIBXqY1k54612BS6Pws7gmyFVWsMo=
+github.com/this-is-tobi/rta v0.56.0/go.mod h1:HilNMkHWttBZyEs4tQUdLK+5EmfZMastcHEo2MigVKQ=
 github.com/this-is-tobi/rta-plugins/plugins/mysql v0.13.0 h1:Pr020NhaDqwCl4iGZhfUKj+MaGhXAv5liGdKpfWB370=
 github.com/this-is-tobi/rta-plugins/plugins/mysql v0.13.0/go.mod h1:jM2YX0m7mCdOch8qrzUCxglRoiCzIzPnlD1gQHKz+ms=
 github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e h1:JVG44RsyaB9T2KIHavMF/ppJZNG9ZpyihvCd0w101no=
