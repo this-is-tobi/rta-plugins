@@ -119,15 +119,13 @@ func decimalSize(n int64) string {
 }
 
 func diskTable(rows []diskRow) view.Table {
-	out := make([][]string, 0, len(rows))
+	t := view.Table{Columns: []view.Column{
+		{Name: "kind"}, {Name: "total", Kind: view.KindNumber}, {Name: "active", Kind: view.KindNumber},
+		{Name: "size", Kind: view.KindBytes}, {Name: "reclaimable"},
+	}}
 	for _, r := range rows {
-		out = append(out, []string{r.Type, r.TotalCount, r.Active, r.Size, r.Reclaimable})
+		t.Add(view.Plain(r.Type), view.Plain(r.TotalCount), view.Plain(r.Active), sizeCell(r.Size), view.Plain(r.Reclaimable))
 	}
-	return view.Table{
-		Columns: []view.Column{
-			{Name: "kind"}, {Name: "total", Kind: view.KindNumber}, {Name: "active", Kind: view.KindNumber},
-			{Name: "size", Kind: view.KindBytes}, {Name: "reclaimable"},
-		},
-		Rows: out, Total: len(out),
-	}
+	t.Total = len(t.Rows)
+	return t
 }

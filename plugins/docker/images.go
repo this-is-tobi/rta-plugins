@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -44,10 +45,16 @@ func (r imageRow) name() string {
 // An unparseable value yields 0 rather than an error: a size that could not
 // be read must not fail a listing that is otherwise correct.
 func parseSize(s string) int64 {
+	n, _ := sizeBytes(s)
+	return n
+}
+
+// sizeBytes is parseSize and whether s was a size at all, which a cell's
+// value needs: a size that could not be read has no value, where a sort
+// orders it as nothing. Rounded to the byte, since 4.35 × 10^9 is a hair
+// under 4350000000 in floating point.
+func sizeBytes(s string) (int64, bool) {
 	s = strings.TrimSpace(s)
-	if s == "" {
-		return 0
-	}
 	units := []struct {
 		suffix string
 		mul    float64
@@ -59,12 +66,25 @@ func parseSize(s string) int64 {
 			continue
 		}
 		n, err := strconv.ParseFloat(strings.TrimSpace(strings.TrimSuffix(s, u.suffix)), 64)
-		if err != nil {
-			return 0
+		if err != nil || math.IsNaN(n) || math.IsInf(n, 0) {
+			return 0, false
 		}
-		return int64(n * u.mul)
+		return int64(math.Round(n * u.mul)), true
 	}
-	return 0
+	return 0, false
+}
+
+// sizeCell is a size shown as the CLI wrote it and valued as the bytes that
+// text says. The CLI rounds to three significant digits before it prints, and
+// hands over nothing finer, so the value is as round as the text: what a
+// program compares is the figure docker reported, in bytes rather than in a
+// string to take apart.
+func sizeCell(s string) view.Cell {
+	n, ok := sizeBytes(s)
+	if !ok {
+		return view.Plain(s)
+	}
+	return view.Cell{Text: s, Value: strconv.FormatInt(n, 10)}
 }
 
 func fetchImages(ctx context.Context, c connection) ([]imageRow, *view.Error) {
@@ -83,16 +103,14 @@ func fetchImages(ctx context.Context, c connection) ([]imageRow, *view.Error) {
 }
 
 func imageTable(rows []imageRow) view.Table {
-	out := make([][]string, 0, len(rows))
+	t := view.Table{Columns: []view.Column{
+		{Name: "image"}, {Name: "id"}, {Name: "size", Kind: view.KindBytes}, {Name: "created"},
+	}}
 	for _, r := range rows {
-		out = append(out, []string{r.name(), short(r.ID), r.Size, r.CreatedSince})
+		t.Add(view.Plain(r.name()), view.Plain(short(r.ID)), sizeCell(r.Size), view.Plain(r.CreatedSince))
 	}
-	return view.Table{
-		Columns: []view.Column{
-			{Name: "image"}, {Name: "id"}, {Name: "size", Kind: view.KindBytes}, {Name: "created"},
-		},
-		Rows: out, Total: len(out),
-	}
+	t.Total = len(t.Rows)
+	return t
 }
 
 func runImageList(ctx context.Context, req plugin.Request) (view.View, error) {
