@@ -18,7 +18,7 @@ Redis: health, memory, persistence, replication, the keyspace and the slow log
 
 ## Configuration
 
-Under `plugins: redis:` in rta's configuration, or in a profile's `set:`. An installed plugin's section is pinned to the artifact — `plugins: redis@<digest>:` — and `rta doctor` prints the exact line. The caller always wins, so a configured value is a default, never a lock. A profile can state a lock where it matters: its `only:` list fences an input to the values that connection reaches, and a call outside it is refused.
+Under `plugins: redis@<digest>:` in rta's configuration, or in a profile's `set:`. An installed plugin's section is pinned to the artifact it is for, and `rta doctor` prints the exact line; `plugins: redis:`, with no digest, is for a build that is not installed, such as one `rta plugin dev` runs. The caller always wins, so a configured value is a default, never a lock. A profile can state a lock where it matters: its `only:` list fences an input to the values that connection reaches, and a call outside it is refused.
 
 | Key             | Read By                                                                                                                                        | Help                                                                       |
 |-----------------|------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------|
