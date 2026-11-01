@@ -15,6 +15,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
@@ -864,8 +865,15 @@ func rowsToTable(rows pgx.Rows, bound int) (view.Table, error) {
 	// A heading is a name too: a result's columns are the columns of a table
 	// somebody else created, and the cells under them are the data, which is
 	// the difference names.go draws.
-	for _, fd := range rows.FieldDescriptions() {
-		t.Columns = append(t.Columns, view.Column{Name: plugin.ListedName(fd.Name)})
+	fields := rows.FieldDescriptions()
+	for _, fd := range fields {
+		t.Columns = append(t.Columns, view.Column{Name: plugin.ListedName(fd.Name), Kind: kindOf(fd.DataTypeOID)})
+	}
+	typeOf := func(i int) uint32 {
+		if i < len(fields) {
+			return fields[i].DataTypeOID
+		}
+		return 0
 	}
 	if bound <= 0 {
 		bound = maxRows
@@ -881,7 +889,7 @@ func rowsToTable(rows pgx.Rows, bound int) (view.Table, error) {
 		}
 		row := make([]string, len(vals))
 		for i, v := range vals {
-			row[i] = cell(v)
+			row[i] = cell(v, typeOf(i))
 			size += len(row[i])
 		}
 		// Checked after the row is built rather than before, so the refusal
@@ -895,14 +903,34 @@ func rowsToTable(rows pgx.Rows, bound int) (view.Table, error) {
 	return t, rows.Err()
 }
 
-// cell renders one value as text.
+// kindOf maps a result column's type onto the view kind that decides its
+// alignment, its order and its value, as mysql's does from the type it was
+// declared with: the numbers as numbers, the three times as times. Taken
+// from the type rather than from the values, so a numeric column of NULLs
+// still aligns right. Every column was text before, so a count sorted as a
+// word (10 before 9) and nothing carried a value. Everything else stays
+// text, money and interval among them: `$1.00` and `1 day 02:03:04` are
+// spelled for a person, and reading one back would be the guess a value
+// exists to replace.
+func kindOf(oid uint32) view.ColumnKind {
+	switch oid {
+	case pgtype.Int2OID, pgtype.Int4OID, pgtype.Int8OID, pgtype.NumericOID, pgtype.Float4OID, pgtype.Float8OID:
+		return view.KindNumber
+	case pgtype.TimestamptzOID, pgtype.TimestampOID, pgtype.DateOID:
+		return view.KindTimestamp
+	}
+	return ""
+}
+
+// cell renders one value as text, a time as its column's type holds it
+// (timeCell).
 //
 // fmt.Sprint alone is wrong here and the failure is loud: pgx decodes
 // `numeric` into a pgtype.Numeric struct, so `select total from orders`
 // printed `{5 3 false finite true}` — the struct's fields — in the first
 // version of this. Every pgtype scalar implements driver.Valuer and knows how
 // to render itself, so ask it before falling back.
-func cell(v any) string {
+func cell(v any, oid uint32) string {
 	if v == nil {
 		// NULL is not the empty string, but a table cell has nowhere to say
 		// so; empty at least reads as absent rather than as a value.
@@ -920,7 +948,24 @@ func cell(v any) string {
 		}
 	}
 	if t, ok := v.(time.Time); ok {
-		return t.Format(time.RFC3339)
+		return timeCell(t, oid)
 	}
 	return fmt.Sprint(v)
+}
+
+// timeCell writes a time as its column's type holds it. A timestamptz is an
+// instant, written in RFC 3339 with the offset pgx read it in. A timestamp
+// and a date carry no zone, and pgx hands both back in UTC, so RFC 3339 wrote
+// them with a Z the database never gave: 2026-10-31T14:02:05Z for a
+// timestamp, 2026-10-31T00:00:00Z for a date. They are written as psql writes
+// them, which rta values with no zone. Each keeps the fraction of a second the
+// database holds, which RFC 3339 without one cut off.
+func timeCell(t time.Time, oid uint32) string {
+	switch oid {
+	case pgtype.TimestampOID:
+		return t.Format("2006-01-02 15:04:05.999999")
+	case pgtype.DateOID:
+		return t.Format("2006-01-02")
+	}
+	return t.Format(time.RFC3339Nano)
 }
