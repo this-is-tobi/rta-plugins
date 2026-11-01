@@ -164,20 +164,20 @@ func TestACollectionThatIsNotThereIsARowAndAWarningWhenSeveralAreNamed(t *testin
 	v := overviewOf(t, f, map[string]any{"collection": []string{"docs", "ghost"}, "detail": true})
 
 	table := section(t, v, "collections").(view.Table)
-	if len(table.Rows) != 2 || table.Rows[0][0] != "ghost" || table.Rows[0][4] != "not found" || table.Rows[1][0] != "docs" {
-		t.Fatalf("rows = %v, want ghost, not found, ahead of docs", table.Rows)
+	if len(table.Rows) != 2 || table.Rows[0][0] != "ghost" || table.Rows[0][4] != "missing" || table.Rows[1][0] != "docs" {
+		t.Fatalf("rows = %v, want ghost, missing, ahead of docs", table.Rows)
 	}
 	summary := section(t, v, "summary").(view.KeyValue)
-	if got, want := pair(summary, "collections"), "2, 1 not found, 1 green"; got != want {
+	if got, want := pair(summary, "collections"), "2, 1 missing, 1 green"; got != want {
 		t.Errorf("collections = %q, want %q", got, want)
 	}
-	if got, want := pair(summary, "status"), "warn — ghost is not found"; got != want {
+	if got, want := pair(summary, "status"), "warn — ghost is missing"; got != want {
 		t.Errorf("status = %q, want %q", got, want)
 	}
 
 	// Every one missing is still a page, with a verdict that says so.
 	kv := compactOf(t, newFakeQdrant(t, instanceRoutes()), map[string]any{"collection": []string{"ghost", "phantom"}})
-	if got, want := pair(kv, "status"), "warn — 2 collections not found, first ghost"; got != want {
+	if got, want := pair(kv, "status"), "warn — 2 collections missing, first ghost"; got != want {
 		t.Errorf("status = %q, want %q", got, want)
 	}
 
@@ -407,7 +407,7 @@ func TestTheCollectionListOfSeveralNamedCollectionsHoldsThoseInNameOrder(t *test
 	for _, row := range table.Rows {
 		rows = append(rows, row[0]+":"+row[4])
 	}
-	if got, want := strings.Join(rows, " "), "docs:green ghost:not found images:red"; got != want {
+	if got, want := strings.Join(rows, " "), "docs:green ghost:missing images:red"; got != want {
 		t.Errorf("rows = %s, want %s", got, want)
 	}
 	if table.Total != 3 || len(table.Warnings) != 0 {

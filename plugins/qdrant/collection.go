@@ -210,7 +210,7 @@ func overviewCapability() plugin.Capability {
 			"worst fact (a red collection, a peer that does not answer, a part this key cannot read). " +
 			"Then the collections by status, the cluster and the version. `collection` is an array: " +
 			"none reads every collection the key can see, inside the profile's fence when it has one, " +
-			"some read exactly those, at most 100 in all. One not there is a `not found` row, one " +
+			"some read exactly those, at most 100 in all. One not there is a `missing` row, one " +
 			"it cannot read is named in the verdict. `yellow` is a partly built index, so results are " +
 			"quietly incomplete. `detail` adds the collections' points, indexed vectors and segments, " +
 			"and on a distributed instance the peers and each collection's replicas. Ask the leader: a " +
@@ -593,7 +593,7 @@ func collectionListCapability() plugin.Capability {
 			"`collection` is a list: a single name reads that collection alone, none reads every " +
 			"collection the key can see, inside the profile's fence when it has one, and several read " +
 			"exactly those, at most 100, a request each and without listing the instance. One that is " +
-			"not there is a `not found` row, and one the key may not read is a row with the reason in " +
+			"not there is a `missing` row, and one the key may not read is a row with the reason in " +
 			"a warning. A list goes in a tile's `with:`, in the call or in a profile's `only:` fence; " +
 			"in the config or a profile's `set:` it stays one name, because the other capabilities " +
 			"that share the key take text.\n\n" +
@@ -601,7 +601,7 @@ func collectionListCapability() plugin.Capability {
 		Agent: "Each collection's points, indexed vectors and status, and in a cluster whether its replicas " +
 			"serve. `collection` is an array: none reads every collection the key can see, inside the " +
 			"profile's fence when it has one, some read exactly those, at most 100, and one not there is " +
-			"a `not found` row. Indexed below points is a collection still building its index, which " +
+			"a `missing` row. Indexed below points is a collection still building its index, which " +
 			"answers from what it has. Returns no point.",
 		// Not `return collectionTable(ctx, req)`, which reads the same and
 		// is not: the *view.Error comes back inside Run's error interface,
@@ -652,7 +652,7 @@ func collectionTable(ctx context.Context, req plugin.Request) (view.Table, *view
 // collection that is not there is the finding, as the bucket is in plugins/s3's
 // overview, and not a row of "unreadable" that reads as one the key may not see.
 // Of several, a page about the rest is still the answer: a name that is not
-// there is a row that says "not found", which the verdict counts as a warning,
+// there is a row that says "missing", which the verdict counts as a warning,
 // and one that could not be read, for whatever reason, is an "unreadable" row
 // with a warning that names it and says why. The warning is the named ones'
 // only: the collections of a blank call are the instance's to name, and the
@@ -729,7 +729,10 @@ func collectionTableIn(ctx context.Context, req plugin.Request, cs clusterState,
 			status := statusUnreadable
 			switch {
 			case len(named) > 1 && r.err.Code == "qdrant.notfound":
-				status = "not found"
+				// One word, as every status here is: a program reads a status
+				// by the word it leads with, and "not found" read that way
+				// was "not".
+				status = "missing"
 			default:
 				unread = append(unread, unreadCollection{listed, whyUnread(r.err)})
 				if len(named) > 1 {

@@ -41,7 +41,7 @@ Indexed against total is the number worth watching: a collection still building 
 
 In a cluster a replicas column says whether every replica of the collection is serving, as the overview does.
 
-`collection` is a list: a single name reads that collection alone, none reads every collection the key can see, inside the profile's fence when it has one, and several read exactly those, at most 100, a request each and without listing the instance. One that is not there is a `not found` row, and one the key may not read is a row with the reason in a warning. A list goes in a tile's `with:`, in the call or in a profile's `only:` fence; in the config or a profile's `set:` it stays one name, because the other capabilities that share the key take text.
+`collection` is a list: a single name reads that collection alone, none reads every collection the key can see, inside the profile's fence when it has one, and several read exactly those, at most 100, a request each and without listing the instance. One that is not there is a `missing` row, and one the key may not read is a row with the reason in a warning. A list goes in a tile's `with:`, in the call or in a profile's `only:` fence; in the config or a profile's `set:` it stays one name, because the other capabilities that share the key take text.
 
 Names and counts only, never a point.
 
