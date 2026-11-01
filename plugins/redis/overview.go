@@ -406,11 +406,11 @@ func replicationRow(in info) (string, []finding) {
 		if lag, ok := parseInt(fieldsOf(in.get("slave" + strconv.Itoa(i)))["lag"]); ok {
 			worstLag = max(worstLag, lag)
 		}
-		if row[2] == "ok" {
+		if row[2].Text == "ok" {
 			continue
 		}
 		attention++
-		_, why, _ := strings.Cut(row[2], " — ")
+		_, why, _ := strings.Cut(row[2].Text, " — ")
 		found = append(found, finding{gradeWarn, "a replica: " + why})
 	}
 	text := "primary, " + format.CountOf(n, "replica")
@@ -510,19 +510,19 @@ func uptime(d time.Duration) string {
 // it, on exactly the server whose memory nobody is watching.
 func memoryTable(in info) view.Table {
 	used, max := in.int("used_memory"), in.int("maxmemory")
-	use := "-"
+	use := view.Plain("-")
 	if share, ok := usageShare(used, max); ok {
-		use = strconv.FormatFloat(share, 'f', 1, 64) + "%"
+		use = view.Number(strconv.FormatFloat(share, 'f', 1, 64)+"%", share)
 	}
-	maxText := "not set"
+	maxCell := view.Plain("not set")
 	if max > 0 {
-		maxText = format.Bytes(max)
+		maxCell = view.Bytes(max)
 	}
 	policy := in.get("maxmemory_policy")
 	if max == 0 {
 		policy += " (no ceiling to apply it at)"
 	}
-	return view.Table{
+	t := view.Table{
 		Columns: []view.Column{
 			{Name: "Used", Kind: view.KindBytes},
 			{Name: "Max", Kind: view.KindBytes},
@@ -532,15 +532,12 @@ func memoryTable(in info) view.Table {
 			{Name: "At the ceiling"},
 			{Name: "Evicted", Kind: view.KindNumber},
 		},
-		Rows: [][]string{{
-			format.Bytes(used), maxText, use,
-			format.Bytes(in.int("used_memory_rss")),
-			strconv.FormatFloat(in.float("mem_fragmentation_ratio"), 'f', 2, 64),
-			policy,
-			in.get("evicted_keys"),
-		}},
 		Total: 1,
 	}
+	t.Add(view.Bytes(used), maxCell, use, view.Bytes(in.int("used_memory_rss")),
+		view.Plain(strconv.FormatFloat(in.float("mem_fragmentation_ratio"), 'f', 2, 64)),
+		view.Plain(policy), view.Plain(in.get("evicted_keys")))
+	return t
 }
 
 // usageShare rounds once so the number printed is the number graded.
@@ -730,19 +727,32 @@ func clientTable(raw string) view.Table {
 		if f["name"] != "" {
 			name = plugin.ListedName(f["name"])
 		}
-		t.Rows = append(t.Rows, []string{f["id"], f["addr"], name,
-			seconds(f["age"]), seconds(f["idle"]), f["db"], f["cmd"]})
+		t.Add(view.Plain(f["id"]), view.Plain(f["addr"]), view.Plain(name),
+			secondsCell(f["age"]), secondsCell(f["idle"]), view.Plain(f["db"]), view.Plain(f["cmd"]))
 	}
 	t.Total = len(t.Rows)
 	return t
 }
 
-func seconds(s string) string {
+// secondsCell is a count of seconds as CLIENT LIST gives one, shown as span
+// writes a length of time and valued in seconds; anything else is shown as it
+// came, with no value.
+func secondsCell(s string) view.Cell {
 	n, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		return s
+		return view.Plain(s)
 	}
-	return span(time.Duration(n) * time.Second)
+	d := time.Duration(n) * time.Second
+	return view.Duration(span(d), d)
+}
+
+// plain is a row of cells with no value of their own.
+func plain(row ...string) []view.Cell {
+	cells := make([]view.Cell, len(row))
+	for i, text := range row {
+		cells[i] = view.Plain(text)
+	}
+	return cells
 }
 
 func clusterCapability() plugin.Capability {
@@ -866,11 +876,11 @@ func nodesTable(raw string, positions map[string]position) view.Table {
 		if f[7] != "connected" {
 			health = "down — link " + f[7]
 		}
-		offset, behind := "-", "-"
+		offset, behind := "-", view.Plain("-")
 		if pos, ok := positions[f[0]]; ok {
 			offset = strconv.FormatInt(pos.offset, 10)
 			if pos.replica && pos.behind >= 0 {
-				behind = format.Bytes(pos.behind)
+				behind = view.Bytes(pos.behind)
 			}
 			if health == "ok" && pos.health == "loading" {
 				health = "pending — loading its dataset"
@@ -885,7 +895,9 @@ func nodesTable(raw string, positions map[string]position) view.Table {
 			slots = strings.Join(f[8:], " ")
 		}
 		addr, _, _ := strings.Cut(f[1], "@")
-		t.Rows = append(t.Rows, []string{f[0][:min(8, len(f[0]))], addr, role, health, replicaOf, offset, behind, slots})
+		row := plain(f[0][:min(8, len(f[0]))], addr, role, health, replicaOf, offset, "", slots)
+		row[6] = behind
+		t.Add(row...)
 	}
 	t.Total = len(t.Rows)
 	return t
