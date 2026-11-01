@@ -290,7 +290,7 @@ func Plugin() plugin.Plugin {
 		// Everything this plugin does is a kubectl call, and kubectl cannot
 		// make one without the kubeconfig. Declaring it is a request, not a
 		// grant: rta denies credential locations to every plugin by default,
-		// and `rta plugin allow cnpg` is where an operator decides — against
+		// and `rta plugin access add cnpg` is where an operator decides — against
 		// this artifact's digest, so a rebuild asks again.
 		Needs: []plugin.Need{plugin.NeedKubeconfig},
 		Capabilities: []plugin.Capability{
