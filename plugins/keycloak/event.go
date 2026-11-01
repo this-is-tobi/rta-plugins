@@ -68,8 +68,8 @@ func runEventList(ctx context.Context, req plugin.Request) (view.View, error) {
 		t := columns(view.Column{Name: "Time", Kind: view.KindTimestamp}, col("Type"), col("User"),
 			col("Client"), col("Address"), col("Error"))
 		for _, e := range events {
-			t.Rows = append(t.Rows, []string{stamp(e.Time), e.Type, listed(firstOf(e.Details["username"], e.UserID)),
-				listed(e.ClientID), listed(e.IPAddress), e.Error})
+			t.Add(stampCell(e.Time), view.Plain(e.Type), view.Plain(listed(firstOf(e.Details["username"], e.UserID))),
+				view.Plain(listed(e.ClientID)), view.Plain(listed(e.IPAddress)), view.Plain(e.Error))
 		}
 		if more {
 			sf := req.Surface()
@@ -120,8 +120,8 @@ func runEventAdmin(ctx context.Context, req plugin.Request) (view.View, error) {
 		t := columns(view.Column{Name: "Time", Kind: view.KindTimestamp}, col("Operation"), col("Resource"),
 			col("Path"), col("By"), col("Address"), col("Error"))
 		for _, e := range events {
-			t.Rows = append(t.Rows, []string{stamp(e.Time), e.OperationType, e.ResourceType, listed(e.ResourcePath),
-				e.AuthDetails.UserID, listed(e.AuthDetails.IPAddress), e.Error})
+			t.Add(stampCell(e.Time), view.Plain(e.OperationType), view.Plain(e.ResourceType), view.Plain(listed(e.ResourcePath)),
+				view.Plain(e.AuthDetails.UserID), view.Plain(listed(e.AuthDetails.IPAddress)), view.Plain(e.Error))
 		}
 		if more {
 			t = stoppedAt(t, limit, "event", req.Surface(), "")

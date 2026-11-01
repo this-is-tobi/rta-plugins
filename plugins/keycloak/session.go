@@ -124,8 +124,8 @@ func sessionTable(sessions []userSessionRep) view.Table {
 			clients = append(clients, c)
 		}
 		sort.Strings(clients)
-		t.Rows = append(t.Rows, []string{listed(se.Username), listed(se.IPAddress), stamp(se.Start), stamp(se.LastAccess),
-			listedAll(clients)})
+		t.Add(view.Plain(listed(se.Username)), view.Plain(listed(se.IPAddress)), stampCell(se.Start), stampCell(se.LastAccess),
+			view.Plain(listedAll(clients)))
 	}
 	return finish(withEmpty(t, "no sessions"))
 }

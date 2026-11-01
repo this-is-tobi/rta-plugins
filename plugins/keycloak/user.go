@@ -71,8 +71,8 @@ func runUserList(ctx context.Context, req plugin.Request) (view.View, error) {
 		t := columns(col("Username"), col("Email"), col("Enabled"), col("Verified"), col("OTP"),
 			view.Column{Name: "Created", Kind: view.KindTimestamp})
 		for _, u := range users {
-			t.Rows = append(t.Rows, []string{listed(u.Username), listed(u.Email), yesNo(u.Enabled), yesNo(u.EmailVerified),
-				yesNo(u.TOTP), stamp(u.CreatedTimestamp)})
+			t.Add(view.Plain(listed(u.Username)), view.Plain(listed(u.Email)), view.Plain(yesNo(u.Enabled)), view.Plain(yesNo(u.EmailVerified)),
+				view.Plain(yesNo(u.TOTP)), stampCell(u.CreatedTimestamp))
 		}
 		if more {
 			t = stoppedAt(t, limit, "user", req.Surface(), ", or narrow it with "+req.Surface().ArgumentName("search"))
@@ -224,7 +224,7 @@ func userProfile(u userRep) view.View {
 func credentialTable(creds []credentialRep) view.View {
 	t := columns(col("Type"), col("Label"), view.Column{Name: "Created", Kind: view.KindTimestamp})
 	for _, c := range creds {
-		t.Rows = append(t.Rows, []string{c.Type, listed(c.UserLabel), stamp(c.CreatedDate)})
+		t.Add(view.Plain(c.Type), view.Plain(listed(c.UserLabel)), stampCell(c.CreatedDate))
 	}
 	return finish(t)
 }
