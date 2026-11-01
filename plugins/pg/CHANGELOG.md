@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.16.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.15.1...plugins/pg/v0.16.0) (2026-11-01)
+
+
+### Features
+
+* **pg:** a result column has its type's kind, and a time its type's form ([1c99951](https://github.com/this-is-tobi/rta-plugins/commit/1c99951f1a07fd3b50a33ba023038fb097ec6061))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.57.0 ([ffb1432](https://github.com/this-is-tobi/rta-plugins/commit/ffb143249bfffce70bd520bedd489d36f3ba1486))
+
 ## [0.15.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.15.0...plugins/pg/v0.15.1) (2026-11-01)
 
 

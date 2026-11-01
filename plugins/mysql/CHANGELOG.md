@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.13.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.13.1...plugins/mysql/v0.13.2) (2026-11-01)
+
+
+### Bug Fixes
+
+* **mysql:** a DATE result is written as the day, and a DATETIME keeps its fraction ([fb786a0](https://github.com/this-is-tobi/rta-plugins/commit/fb786a0b8fda256cbb91731866e93c189f3ca3ef))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.57.0 ([ffb1432](https://github.com/this-is-tobi/rta-plugins/commit/ffb143249bfffce70bd520bedd489d36f3ba1486))
+
 ## [0.13.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.13.0...plugins/mysql/v0.13.1) (2026-11-01)
 
 
