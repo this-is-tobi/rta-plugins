@@ -13,7 +13,7 @@ func TestMovingTheWholeDatabaseIsNeverATool(t *testing.T) {
 		"mysql.restore": true,
 	}
 	seen := 0
-	for _, c := range Plugin("dev").Capabilities {
+	for _, c := range Plugin(engine, "dev").Capabilities {
 		if c.HumanOnly != want[c.ID] {
 			t.Errorf("%s: HumanOnly = %v, want %v", c.ID, c.HumanOnly, want[c.ID])
 		}

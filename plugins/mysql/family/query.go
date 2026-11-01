@@ -18,7 +18,7 @@ import (
 
 func queryCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:       "mysql.query",
+		ID:       engine.NS + ".query",
 		Summary:  "Run a read-only query",
 		Keywords: []string{"sql", "select", "statement", "rows"},
 		Examples: []plugin.Example{
@@ -42,7 +42,7 @@ func queryCapability() plugin.Capability {
 		Safety:     plugin.Write,
 		Idempotent: true,
 		Description: "Runs inside a READ ONLY transaction, so the server refuses any statement " +
-			"that would write. rta does not inspect the SQL and does not try to — MySQL enforces " +
+			"that would write. rta does not inspect the SQL and does not try to — " + engine.Product + " enforces " +
 			"it, which is the only place the enforcement is worth trusting.\n\n" +
 			"**Classified write for what it discloses, not what it changes.** It returns rows, and " +
 			"there is no table it may read by default because there is no table known to be safe. " +
@@ -112,13 +112,13 @@ func queryView(ctx context.Context, db *sql.DB, req plugin.Request) (view.View, 
 	t, err := rowsToTable(rows, limit)
 	switch {
 	case errors.Is(err, ErrTooManyRows):
-		return nil, view.Errorf("mysql.query.toomany",
+		return nil, view.Errorf(engine.NS+".query.toomany",
 			"the query returned more than %s", format.CountOf(limit, "row")).
 			WithHint("add a LIMIT to the query, or raise " + req.Surface().InputName("limit") + " — refused rather than " +
 				"shortened, because a truncated result set is a different answer wearing " +
 				"the right shape")
 	case errors.Is(err, ErrTooLarge):
-		return nil, view.Errorf("mysql.query.toolarge",
+		return nil, view.Errorf(engine.NS+".query.toolarge",
 			"the query returned more than %s", format.Bytes(maxBytes)).
 			WithHint("select fewer columns, or fewer rows — a row bound is not a size bound, " +
 				"and one wide TEXT or BLOB column is usually what does this").WithInput("sql")
@@ -151,16 +151,16 @@ func statementFailure(err error, req plugin.Request) *view.Error {
 	// no database <the connection's>", which was there. The server's own words
 	// name the one that is not.
 	var myErr *mysql.MySQLError
-	if verr.Code == "mysql.database.notfound" && errors.As(err, &myErr) {
+	if verr.Code == engine.NS+".database.notfound" && errors.As(err, &myErr) {
 		verr = view.Errorf(verr.Code, "%s", myErr.Message).WithHint(verr.Hint)
 	}
-	if verr.Code == "mysql.query.failed" {
+	if verr.Code == engine.NS+".query.failed" {
 		verr.Hint = "the server rejected the statement as written, not the connection — what it says above is " +
 			"what to fix, and then the statement can be run again"
 	}
 	switch verr.Code {
-	case "mysql.query.failed", "mysql.query.readonly", "mysql.table.notfound",
-		"mysql.database.notfound", "mysql.schema.unset":
+	case engine.NS + ".query.failed", engine.NS + ".query.readonly", engine.NS + ".table.notfound",
+		engine.NS + ".database.notfound", engine.NS + ".schema.unset":
 		return verr.WithInput("sql")
 	}
 	return verr
@@ -168,7 +168,7 @@ func statementFailure(err error, req plugin.Request) *view.Error {
 
 func activityCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:       "mysql.activity",
+		ID:       engine.NS + ".activity",
 		Summary:  "What every connected session is doing right now",
 		Keywords: []string{"processlist", "processes", "locks", "blocking", "connections", "queries"},
 		Examples: []plugin.Example{
@@ -187,7 +187,7 @@ func activityCapability() plugin.Capability {
 		Idempotent: true,
 		Description: "Classified write for what it discloses rather than what it changes: the info " +
 			"column carries whatever literals are in the statements currently running.\n\n" +
-			"`mysql.overview` with `detail` keeps the same rows without that column — state, time and " +
+			"`" + engine.NS + ".overview` with `detail` keeps the same rows without that column — state, time and " +
 			"command — which answers \"is anything stuck\" without handing back anything anybody " +
 			"stored, so the glanceable form stays in the read tier.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
@@ -261,7 +261,7 @@ func activityView(ctx context.Context, db *sql.DB, req plugin.Request, withState
 	t.Empty = "no active sessions"
 	if hidden := hiddenSessions(ctx, db); hidden > 0 {
 		t.Warnings = append(t.Warnings, view.Error{
-			Code: "mysql.activity.partial",
+			Code: engine.NS + ".activity.partial",
 			Message: fmt.Sprintf("at least %s on this server are not visible to this account, "+
 				"so they are missing from this table", format.CountOf(hidden, "session")),
 			Hint: "INFORMATION_SCHEMA.PROCESSLIST shows only this connection's own thread to an " +
@@ -288,7 +288,7 @@ func cutAtLimit(t view.Table, limit int, noun string, say bool, sf plugin.Surfac
 	t.Rows = t.Rows[:limit]
 	if say {
 		t.Warnings = append(t.Warnings, view.Error{
-			Code:    "mysql.list.partial",
+			Code:    engine.NS + ".list.partial",
 			Message: "stopped at " + format.CountOf(limit, noun) + "; there are more",
 			Hint:    "raise " + sf.InputName("limit"),
 		})

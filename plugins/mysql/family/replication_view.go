@@ -92,7 +92,7 @@ func serverPairs(st state) []view.Pair {
 		pairs = append(pairs, view.Pair{Key: "read only", Value: v})
 	}
 	pairs = append(pairs, view.Pair{Key: "binary log", Value: binlogText(st)})
-	return append(pairs, vendorPairs(st.vars)...)
+	return append(pairs, engine.vendorPairs(st.vars)...)
 }
 
 func binlogText(st state) string {

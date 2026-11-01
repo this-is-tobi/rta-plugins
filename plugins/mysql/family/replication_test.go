@@ -197,7 +197,7 @@ func TestAnAccountWithoutTheGrantIsNeverToldTheServerIsStandalone(t *testing.T) 
 			t.Errorf("%s: no warnings for an account that may read nothing", name)
 		}
 		for _, w := range replicationView(st).Warnings {
-			if w.Code != "mysql.replication.denied" || !strings.Contains(w.Hint, "GRANT ") {
+			if w.Code != engine.NS+".replication.denied" || !strings.Contains(w.Hint, "GRANT ") {
 				t.Errorf("%s: warning = %+v, want the denial with the grant that fixes it", name, w)
 			}
 		}

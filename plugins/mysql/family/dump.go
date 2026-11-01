@@ -19,15 +19,18 @@ import (
 )
 
 // The whole database, for a person, as a file — pg.dump's posture, with the
-// differences MySQL itself imposes rather than ones this plugin invented.
+// differences each server itself imposes rather than ones this plugin
+// invented. Engine holds them: the client's names, the flags only one of the
+// two clients has, and the words for what each file can promise.
 //
-// **It shells out to mysqldump rather than reimplementing it**, pg.dump's
-// most important decision repeated: a restorable dump has to get character
-// sets, generated columns, triggers, routines and quoting right, and a file
-// that will not restore is worse than no capability at all. builtin/kv sets
-// the precedent for depending on a tool that is simply present or simply not.
+// **It shells out to the server's own dump client rather than reimplementing
+// it**, pg.dump's most important decision repeated: a restorable dump has to
+// get character sets, generated columns, triggers, routines and quoting
+// right, and a file that will not restore is worse than no capability at all.
+// builtin/kv sets the precedent for depending on a tool that is simply
+// present or simply not.
 //
-// **There is one format and no --jobs.** mysqldump writes SQL and nothing
+// **There is one format and no --jobs.** The client writes SQL and nothing
 // else — pg's custom/directory formats and parallel workers have no
 // equivalent here, so the flags do not exist rather than existing and being
 // refused.
@@ -35,20 +38,16 @@ import (
 // **The consistency guarantee is real for transactional tables and absent
 // for the rest**, and the receipt says which is which. --single-transaction
 // opens one REPEATABLE READ snapshot, so every InnoDB table is read from a
-// single instant — but a MyISAM table has no transactions to join and is
-// read live, mid-write if a write is happening. Claiming "one snapshot" over
-// a database with MyISAM tables would be the working-but-wrong receipt this
-// family refuses to print, so the source is asked first and the caveat is
-// counted, not assumed either way.
+// single instant — but MyISAM, and on MariaDB Aria, have no transactions to
+// join and are read live, mid-write if a write is happening. Claiming "one
+// snapshot" over a database holding either would be the working-but-wrong
+// receipt this family refuses to print, so the source is asked first and the
+// caveat is counted, not assumed either way.
 //
 // It refuses MCP outright for pg.dump's reason: a whole database has no
 // blast radius a grant could name. NeedsGrant stays unset — keys.backup's
 // rule, that a grant which can never be exercised is an entry in
 // `grant list` meaning nothing.
-
-// dumpTools are tried in order; the list exists so the "not installed"
-// refusal can name what it looked for.
-var dumpTools = []string{"mysqldump"}
 
 // humanOnly is the handler's half of the HumanOnly the dump and the restore
 // declare. The declaration is what keeps them out of an agent's tool list; the
@@ -62,13 +61,13 @@ func humanOnly(req plugin.Request, id, hint string) *view.Error {
 	if req.Surface() != plugin.SurfaceMCP {
 		return nil
 	}
-	return view.Refusef("mysql.human", "%s can only be run by a person at a terminal", id).
+	return view.Refusef(engine.NS+".human", "%s can only be run by a person at a terminal", id).
 		WithHint(hint)
 }
 
 func dumpCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:        "mysql.dump",
+		ID:        engine.NS + ".dump",
 		HumanOnly: true,
 		Summary:   "Back up one database to a SQL file, for a person at a terminal",
 		Examples: []plugin.Example{
@@ -80,21 +79,16 @@ func dumpCapability() plugin.Capability {
 		Idempotent: false,
 		Description: "The whole database as a SQL file you can restore. **Refuses MCP outright " +
 			"rather than asking for a grant** — pg.dump's line: a full dump's one authorized use " +
-			"is everything, and an agent that needs rows asks for mysql.query, which is bounded " +
+			"is everything, and an agent that needs rows asks for " + engine.NS + ".query, which is bounded " +
 			"per call.\n\n" +
-			"Runs `mysqldump` rather than reimplementing it: a restorable dump has to get " +
+			"Runs `" + engine.dumpTools[0] + "` rather than reimplementing it: a restorable dump has to get " +
 			"character sets, triggers, routines and quoting right, and a file that will not " +
 			"restore is worse than no capability at all. Routines, events and triggers are " +
-			"included — mysqldump omits routines and events by default, which is how dumps " +
+			"included — " + engine.dumpTools[0] + " omits routines and events by default, which is how dumps " +
 			"quietly stop round-tripping. The password reaches the child through its " +
-			"environment, never argv; option files are ignored (`mysqldump --no-defaults`), so an ambient " +
+			"environment, never argv; option files are ignored (`" + engine.dumpTools[0] + " --no-defaults`), so an ambient " +
 			"~/.my.cnf credential is never silently spent.\n\n" +
-			"Consistent for what can be: `mysqldump --single-transaction` reads every InnoDB table from one " +
-			"snapshot, and the receipt counts the non-transactional tables that are read live " +
-			"outside it rather than claiming a guarantee they cannot have. GTID state is not " +
-			"carried (`mysqldump --set-gtid-purged=OFF`): this file seeds a database, not a replica — " +
-			"carrying it makes the restore demand SUPER and fail on any server that is not " +
-			"brand new.\n\n" +
+			engine.dumpConsistency +
 			"Created with O_EXCL at 0600, never over an existing file; a failed run takes its " +
 			"half-written file with it. The receipt names the restore command.",
 		Run: runDump,
@@ -111,28 +105,28 @@ func dumpCapability() plugin.Capability {
 }
 
 func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
-	if verr := humanOnly(req, "mysql.dump",
+	if verr := humanOnly(req, engine.NS+".dump",
 		"a whole-database dump has no blast radius a grant could name — its one authorized "+
-			"use is everything. Ask for the rows you need with "+req.Surface().CapabilityName("mysql.query")+
+			"use is everything. Ask for the rows you need with "+req.Surface().CapabilityName(engine.NS+".query")+
 			", which is bounded per call"); verr != nil {
 		return nil, verr
 	}
 
 	database := req.String("database")
 	if database == "" {
-		return nil, view.Errorf("mysql.dump.nodatabase", "say which database to dump").
+		return nil, view.Errorf(engine.NS+".dump.nodatabase", "say which database to dump").
 			WithHint(req.Surface().SettingTo("database", plugin.Placeholder("name")) + " — " +
-				nextCall(req, "mysql.database.list") + " shows what is there").WithInput("database")
+				nextCall(req, engine.NS+".database.list") + " shows what is there").WithInput("database")
 	}
 	out := strings.TrimSpace(req.String("out"))
 	if out == "" {
-		return nil, view.Errorf("mysql.dump.nooutput", "say where the dump should be written").
+		return nil, view.Errorf(engine.NS+".dump.nooutput", "say where the dump should be written").
 			WithHint(req.Surface().SettingTo("out", "./"+database+".sql") + " — a whole database is a file, not something " +
 				"to read in a terminal").WithInput("out")
 	}
 	path, err := expandHome(out)
 	if err != nil {
-		return nil, view.Errorf("mysql.dump.path", "resolving %s: %v", req.Surface().InputName("out"), err).
+		return nil, view.Errorf(engine.NS+".dump.path", "resolving %s: %v", req.Surface().InputName("out"), err).
 			WithInput("out")
 	}
 	// Here and not only in connect, so the dry run, which connects to
@@ -145,14 +139,13 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 		return nil, verr
 	}
 
-	tool, err := lookupTool(dumpTools)
+	tool, err := lookupTool(engine.dumpTools)
 	if err != nil {
-		return nil, view.Errorf("mysql.dump.missing", "no %s on $PATH",
-			strings.Join(dumpTools, " or ")).
+		return nil, view.Errorf(engine.NS+".dump.missing", "no %s on $PATH",
+			strings.Join(engine.dumpTools, " or ")).
 			WithHint("rta does not reimplement it: a dump has to get character sets, triggers, " +
 				"routines and quoting right, and one that will not restore is worse than none. " +
-				"Install the MySQL client tools — `brew install mysql-client` or " +
-				"`apt install mysql-client`")
+				"Install " + engine.clientInstall)
 	}
 	// A friendly early refusal, before anything opens a connection to say the
 	// same thing more slowly. Not the guarantee — O_EXCL in writeDump is, and
@@ -162,7 +155,11 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	}
 
 	args := dumpArgs(req)
+	pinning := engine.pinsTLS && req.String("tls") == "verify-ca" && takesPin(ctx, tool)
 	if req.DryRun {
+		if pinning {
+			args = pinned(args, pinPending)
+		}
 		return view.Text{Body: fmt.Sprintf("would run %s %s\nand write %s",
 			filepath.Base(tool), strings.Join(args, " "), path)}, nil
 	}
@@ -174,6 +171,9 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 	src, verr := describeSource(ctx, req, database)
 	if verr != nil {
 		return nil, verr
+	}
+	if pinning {
+		args = pinned(args, src.pin)
 	}
 
 	started := time.Now()
@@ -196,19 +196,11 @@ func runDump(ctx context.Context, req plugin.Request) (view.View, error) {
 		// **The half of the restore that is not in this file.** This dumps one
 		// database, and users and grants live in another — the server's own
 		// `mysql` database — so a restore onto a fresh server lands the data
-		// and nobody who can reach it.
-		//
-		// **The other half is spelled differently per fork, and only one of
-		// them has a flag for it.** Checked against both clients rather than
-		// assumed: mariadb-dump 11.4 has `--system=name` ("Any combination of:
-		// all, users, plugins, udfs, servers, stats, timezones"), and
-		// mysqldump 8.4 has no --system at all — its usage line is
-		// `mysqldump [OPTIONS] database [tables]` and the accounts are reached
-		// by naming the `mysql` database like any other.
+		// and nobody who can reach it. The other half is spelled differently
+		// per fork (Engine.otherHalf).
 		{Key: "does not carry", Value: "users or grants — those are rows in the server's " +
 			"own `mysql` database, not in this one, so a restore elsewhere arrives with the " +
-			"data and no account able to read it. mysqldump has no system-tables option for them: " +
-			"`mysqldump mysql` is the other half"},
+			"data and no account able to read it. " + engine.otherHalf},
 		{Key: "restore with", Value: restoreCommand(req, path)},
 	}}, nil
 }
@@ -221,6 +213,12 @@ type source struct {
 	// transactional — MyISAM and friends — and therefore read live, outside
 	// the snapshot --single-transaction opens.
 	liveTables int
+	// note is what the engine adds about the source (dialect.sourceNote).
+	note string
+	// pin is the SHA-256 fingerprint of the certificate a verify-ca
+	// connection verified against ca-file, which pin.go hands a child that
+	// takes one.
+	pin string
 }
 
 func (s source) describe() string {
@@ -231,11 +229,11 @@ func (s source) describe() string {
 		// changes what the backup means.
 		where += " — read-only, likely a replica: the dump is as current as its replication lag"
 	}
-	return where
+	return where + s.note
 }
 
 func (s source) consistency() string {
-	base := "one REPEATABLE READ snapshot (`mysqldump --single-transaction`) for transactional tables"
+	base := "one REPEATABLE READ snapshot (`" + engine.dumpTools[0] + " --single-transaction`) for transactional tables"
 	if s.liveTables > 0 {
 		return fmt.Sprintf("%s — but %s %s read live, outside it",
 			base, format.CountOf(s.liveTables, "non-transactional table"), format.Plural(s.liveTables, "was", "were"))
@@ -244,13 +242,13 @@ func (s source) consistency() string {
 }
 
 func describeSource(ctx context.Context, req plugin.Request, database string) (source, *view.Error) {
-	db, verr := connect(ctx, req)
+	db, pin, verr := connectPinned(ctx, req)
 	if verr != nil {
 		return source{}, verr
 	}
 	defer func() { _ = db.Close() }()
 
-	var s source
+	s := source{pin: pin}
 	if err := db.QueryRowContext(ctx, "select version()").Scan(&s.version); err != nil {
 		return source{}, classify(err, req)
 	}
@@ -259,6 +257,12 @@ func describeSource(ctx context.Context, req plugin.Request, database string) (s
 		return source{}, classify(err, req)
 	}
 	s.readOnly = ro != 0
+	// Only InnoDB sits inside --single-transaction's snapshot. Aria is
+	// MariaDB's own crash-safe engine and the default for system tables, but
+	// crash-safe is not transactional, so an Aria table is read live and
+	// outside the snapshot exactly as MyISAM is — and excluding InnoDB alone,
+	// rather than listing the engines that are not it, is what counts Aria
+	// without naming it, on the one server that has it.
 	if err := db.QueryRowContext(ctx, `
 		select count(*) from information_schema.tables
 		where table_schema = ? and table_type = 'BASE TABLE'
@@ -266,14 +270,15 @@ func describeSource(ctx context.Context, req plugin.Request, database string) (s
 		database).Scan(&s.liveTables); err != nil {
 		return source{}, classify(err, req)
 	}
+	s.note = engine.sourceNote(ctx, db, req.Surface())
 	return s, nil
 }
 
-// dumpArgs builds mysqldump's argv.
+// dumpArgs builds the dump client's argv.
 //
 // **Never a shell string, and never the password.** argv is world-readable
 // through `ps`, so the credential goes to the child through MYSQL_PWD and
-// nowhere else. --no-defaults comes first because that is where mysqldump
+// nowhere else. --no-defaults comes first because that is where the client
 // requires it, and it is the argv half of the ambient-credential rule: the
 // operator's ~/.my.cnf is not silently read, the same closure childEnv's
 // PGPASSFILE line makes for pg.
@@ -289,8 +294,8 @@ func dumpArgs(req plugin.Request) []string {
 		// a local mysqld, where the one checked was a container's port — so
 		// the receipt would describe a server this file never came from.
 		"--protocol=TCP",
-		// No --connect-timeout, unlike the restore's client: mysqldump has
-		// none, and refuses one as an unknown variable. What bounds its
+		// No --connect-timeout, unlike the restore's client: the dump client
+		// has none, and refuses one as an unknown variable. What bounds its
 		// connect is the operating system's own connect timeout, a minute or
 		// more, and what keeps that rare is the pre-flight describeSource
 		// makes a moment before, under connectTimeout: only a server gone in
@@ -300,17 +305,9 @@ func dumpArgs(req plugin.Request) []string {
 		// One snapshot for everything transactional; describeSource counts
 		// what falls outside it for the receipt.
 		"--single-transaction",
-		// mysqldump 8 asks the server for tablespace DDL, which needs the
-		// PROCESS privilege — a wall every application-level user hits for a
-		// feature (NDB/general tablespaces) their database does not use.
-		// Skipped so a user who can read the database can dump the database.
-		"--no-tablespaces",
-		// Portable seed, not replica state: with GTID carried, the restore
-		// demands SUPER and refuses any server that is not brand new. A
-		// replica is built with replication tooling, not with this file.
-		"--set-gtid-purged=OFF",
 	}
-	args = append(args, tlsArgs(req)...)
+	args = append(args, engine.dumpFlags...)
+	args = append(args, engine.tlsArgs(req)...)
 	switch req.String("include") {
 	case "schema":
 		args = append(args, "--no-data", "--routines", "--events", "--triggers")
@@ -327,35 +324,6 @@ func dumpArgs(req plugin.Request) []string {
 	return append(args, req.String("database"))
 }
 
-// tlsArgs maps the plugin's tls input — go-sql-driver's vocabulary, shared
-// with every in-process capability here — onto mysqldump/mysql's --ssl-mode.
-// The mapping is by *meaning*: "true" verifies the server is who it claims
-// (VERIFY_IDENTITY, the driver's own behaviour for true), "verify-ca" its
-// chain alone (VERIFY_CA, which is where the name came from), "skip-verify"
-// encrypts without verifying (REQUIRED), "preferred" is the client default
-// and passes nothing.
-//
-// ca-file goes with true and verify-ca as --ssl-ca, the CA the child verifies
-// against, so the dump verifies the server the pre-flight connection did. It
-// is only ever beside those two: tlsConfig refuses it beside the two modes
-// that never verify, and verify-ca without it, before any child is described.
-func tlsArgs(req plugin.Request) []string {
-	switch tlsMode(req) {
-	case "false":
-		return []string{"--ssl-mode=DISABLED"}
-	case "true":
-		if ca := caFile(req); ca != "" {
-			return []string{"--ssl-mode=VERIFY_IDENTITY", "--ssl-ca=" + ca}
-		}
-		return []string{"--ssl-mode=VERIFY_IDENTITY"}
-	case "verify-ca":
-		return []string{"--ssl-mode=VERIFY_CA", "--ssl-ca=" + caFile(req)}
-	case "skip-verify":
-		return []string{"--ssl-mode=REQUIRED"}
-	}
-	return nil
-}
-
 // writeDump creates the destination, runs the tool with its stdout handed
 // the destination descriptor directly — no pipe, no copy through this
 // process — and reports how much landed, removing whatever it made if the
@@ -368,7 +336,7 @@ func writeDump(ctx context.Context, tool string, args []string,
 		return 0, alreadyThere(path)
 	}
 	if err != nil {
-		return 0, view.Errorf("mysql.dump.create", "creating %s: %v", path, err).WithInput("out")
+		return 0, view.Errorf(engine.NS+".dump.create", "creating %s: %v", path, err).WithInput("out")
 	}
 
 	cmd := exec.CommandContext(ctx, tool, args...)
@@ -385,7 +353,7 @@ func writeDump(ctx context.Context, tool string, args []string,
 		return 0, classifyDump(runErr, stderr.String(), req)
 	case closeErr != nil:
 		_ = os.Remove(path)
-		return 0, view.Errorf("mysql.dump.write", "finishing %s: %v", path, closeErr).WithInput("out")
+		return 0, view.Errorf(engine.NS+".dump.write", "finishing %s: %v", path, closeErr).WithInput("out")
 	}
 
 	var size int64
@@ -396,7 +364,7 @@ func writeDump(ctx context.Context, tool string, args []string,
 }
 
 // childEnv is exactly what the child needs and nothing else — an unrelated
-// token in the operator's shell is not something mysqldump could ever have
+// token in the operator's shell is not something the client could ever have
 // printed.
 func childEnv(req plugin.Request) []string {
 	// LC_ALL=C because rta reads the child's stderr to classify it, and a
@@ -431,36 +399,37 @@ func classifyDump(err error, stderr string, req plugin.Request) *view.Error {
 
 	switch {
 	case strings.Contains(stderr, "Access denied") && strings.Contains(stderr, "PROCESS"):
-		return view.Errorf("mysql.denied", "%s", msg("PROCESS")).
-			WithHint("this is the server refusing a privilege, not rta — and not the tablespace " +
-				"wall, which `mysqldump --no-tablespaces` already avoids. Check SHOW GRANTS")
+		return view.Errorf(engine.NS+".denied", "%s", msg("PROCESS")).
+			WithHint(engine.processHint)
 	case strings.Contains(stderr, "Access denied"):
-		return view.Errorf("mysql.auth.failed", "%s", msg("Access denied")).
-			WithHint("set $" + plugin.LocalEnvVar("mysql.dump", "password") + ", or check " + req.Surface().SettingName("user"))
+		return view.Errorf(engine.NS+".auth.failed", "%s", msg("Access denied")).
+			WithHint("set $" + plugin.LocalEnvVar(engine.NS+".dump", "password") + ", or check " + req.Surface().SettingName("user"))
 	case strings.Contains(stderr, "Unknown database"):
-		return view.Errorf("mysql.database.notfound", "%s", msg("Unknown database")).
-			WithHint(nextCall(req, "mysql.database.list") + " shows what is there").WithInput("database")
+		return view.Errorf(engine.NS+".database.notfound", "%s", msg("Unknown database")).
+			WithHint(nextCall(req, engine.NS+".database.list") + " shows what is there").WithInput("database")
 	case strings.Contains(stderr, "Unknown MySQL server host"):
-		return view.Errorf("mysql.host.unknown", "%s", msg("Unknown MySQL server host")).
+		return view.Errorf(engine.NS+".host.unknown", "%s", msg("Unknown MySQL server host")).
 			WithHint(req.Surface().DNSHint(req.String("host")))
+	// Each client's own refusal of the certificate it was told to check:
+	// MySQL's for want of a CA, MariaDB's for one other than it was pinned to.
 	case strings.Contains(stderr, "CA certificate is required"):
 		return noCA(req.Surface(), msg("CA certificate is required"))
+	case strings.Contains(stderr, "Fingerprint validation"):
+		return pinRefusal(req.Surface(), msg("Fingerprint validation"))
 	case strings.Contains(stderr, "Can't connect"):
 		return unreached(req.Surface(), msg("Can't connect"))
 	case strings.Contains(stderr, "unknown variable") || strings.Contains(stderr, "unknown option"):
 		// The version-skew failure: a flag this plugin passes that the
-		// installed client does not know — most often a MariaDB client
-		// answering to the mysqldump name.
-		return view.Errorf("mysql.dump.toolskew", "%s", msg("unknown")).
-			WithHint("the installed client does not speak this flag — `mysqldump --version` " +
-				"says what it really is. For a MariaDB server, the mariadb plugin drives " +
-				"mariadb-dump with the flags that client actually has")
+		// installed client does not know — the other fork's client
+		// answering to this one's name.
+		return view.Errorf(engine.NS+".dump.toolskew", "%s", msg("unknown")).
+			WithHint(engine.toolSkewHint)
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
-		return view.Errorf("mysql.dump.cancelled", "the dump was interrupted").
+		return view.Errorf(engine.NS+".dump.cancelled", "the dump was interrupted").
 			WithHint("the partial file has been removed")
 	}
-	return view.Errorf("mysql.dump.failed", "%s", msg("error:", "Error:")).
-		WithHint("`" + filepath.Base(dumpTools[0]) + "` reported this; rta passed it through unchanged")
+	return view.Errorf(engine.NS+".dump.failed", "%s", msg("error:", "Error:")).
+		WithHint("`" + filepath.Base(engine.dumpTools[0]) + "` reported this; rta passed it through unchanged")
 }
 
 // unreached answers a child that could not connect, from the client's own
@@ -485,15 +454,15 @@ func unreached(sf plugin.Surface, line string) *view.Error {
 	errno, numbered := childErrno(line)
 	switch {
 	case numbered && errno == syscall.ETIMEDOUT:
-		return view.Errorf("mysql.timeout", "%s", line).
+		return view.Errorf(engine.NS+".timeout", "%s", line).
 			WithHint("rta's own connection reached the server a moment before — a failover, a port-forward " +
 				"that exited, or a firewall that began dropping rather than refusing looks exactly like this")
 	case numbered && plugin.DialUnroutable(errno):
-		return view.Errorf("mysql.conn.unreachable", "%s", line).
+		return view.Errorf(engine.NS+".conn.unreachable", "%s", line).
 			WithHint("rta's own connection reached the server a moment before, and now no route leads " +
 				"there — a VPN or tunnel that went down in between looks exactly like this")
 	}
-	return view.Errorf("mysql.conn.refused", "%s", line).WithHint(reachHint(sf))
+	return view.Errorf(engine.NS+".conn.refused", "%s", line).WithHint(reachHint(sf))
 }
 
 // childErrno is the errno a client's line gives in parentheses, the last
@@ -511,20 +480,6 @@ func childErrno(line string) (syscall.Errno, bool) {
 }
 
 var errnoInLine = regexp.MustCompile(`\((\d+)\)`)
-
-// noCA answers the client refusing tls=true for want of a CA. true is
-// VERIFY_IDENTITY to the child, and the MySQL client, unlike the driver, never
-// reads the machine's own trust store: with no --ssl-ca it will not connect at
-// all. The pre-flight connection verified against that store and passed — a
-// certificate nothing here trusts is refused there, naming ca-file — so this
-// is a server the machine already vouches for, and the CA that does so is
-// what the child needs named.
-func noCA(sf plugin.Surface, line string) *view.Error {
-	return view.Errorf("mysql.tls.ca.required", "%s", line).
-		WithHint("the MySQL client verifies only against a CA it is given, never the store this machine " +
-			"trusted the server through — " + sf.SettingName("ca-file") + " names one: the CA that issued " +
-			"the server's certificate, or the machine's CA bundle")
-}
 
 // restoreCommand names the other half. A backup capability that does not say
 // how to restore is the shape of every backup that turned out not to be one.
@@ -553,7 +508,7 @@ func noCA(sf plugin.Surface, line string) *view.Error {
 // since it may be one the caller typed over the profile's (Request.Profile).
 func restoreCommand(req plugin.Request, path string) string {
 	args := append([]plugin.Arg{{Name: "file", Value: path, Positional: true}}, reachArgs(req)...)
-	return req.Surface().Call("mysql.restore", args...)
+	return req.Surface().Call(engine.NS+".restore", args...)
 }
 
 // reachArgs points a call this one hands its reader at the server it reached
@@ -607,7 +562,7 @@ func nextCall(req plugin.Request, id string, args ...plugin.Arg) string {
 }
 
 func alreadyThere(path string) *view.Error {
-	return view.Errorf("mysql.dump.exists", "%s already exists", path).
+	return view.Errorf(engine.NS+".dump.exists", "%s already exists", path).
 		WithHint("a dump is never written over an existing file — name a new one, or move " +
 			"that one aside").WithInput("out")
 }

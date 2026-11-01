@@ -1,8 +1,11 @@
 package family
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
-func TestEachVersionAsksForTheStatementItsServerKnows(t *testing.T) {
+func TestEachMySQLVersionAsksForTheStatementItsServerKnows(t *testing.T) {
 	for _, tc := range []struct {
 		version, replica, binlog, hosts string
 	}{
@@ -16,13 +19,13 @@ func TestEachVersionAsksForTheStatementItsServerKnows(t *testing.T) {
 		{"", "SHOW REPLICA STATUS", "SHOW BINARY LOG STATUS", "SHOW REPLICAS"},
 	} {
 		v := parseVersion(tc.version)
-		if got := replicaStatusStatements(v)[0]; got != tc.replica {
+		if got := MySQL.replicaStatusStatements(v)[0]; got != tc.replica {
 			t.Errorf("%q: replica status = %q, want %q", tc.version, got, tc.replica)
 		}
-		if got := binlogStatusStatements(v)[0]; got != tc.binlog {
+		if got := MySQL.binlogStatusStatements(v)[0]; got != tc.binlog {
 			t.Errorf("%q: binary log status = %q, want %q", tc.version, got, tc.binlog)
 		}
-		if got := replicaHostsStatements(v)[0]; got != tc.hosts {
+		if got := MySQL.replicaHostsStatements(v)[0]; got != tc.hosts {
 			t.Errorf("%q: replicas = %q, want %q", tc.version, got, tc.hosts)
 		}
 	}
@@ -55,5 +58,32 @@ func TestTransactionSetsSubtractAcrossIdentitiesAndTags(t *testing.T) {
 	}
 	if _, ok := parseGTIDSet(":1-5"); ok {
 		t.Error("a set with no identifier parsed")
+	}
+}
+
+// The tls input speaks go-sql-driver's vocabulary everywhere in this plugin;
+// the child speaks --ssl-mode. The mapping is by meaning, and "preferred"
+// passes nothing because it is the client's own default.
+func TestMySQLTLSModesMapByMeaning(t *testing.T) {
+	for tls, want := range map[string]string{
+		"false":       "--ssl-mode=DISABLED",
+		"true":        "--ssl-mode=VERIFY_IDENTITY",
+		"skip-verify": "--ssl-mode=REQUIRED",
+		"verify-ca":   "--ssl-mode=VERIFY_CA --ssl-ca=/etc/mysql/ca.pem",
+	} {
+		values := map[string]any{"database": "app", "tls": tls}
+		if tls == "verify-ca" {
+			values["ca-file"] = "/etc/mysql/ca.pem"
+		}
+		args := strings.Join(dumpArgs(req(t, "mysql.dump", values)), " ")
+		if !strings.Contains(args, want) {
+			t.Errorf("tls=%s: missing %q in %q", tls, want, args)
+		}
+	}
+	preferred := strings.Join(dumpArgs(req(t, "mysql.dump", map[string]any{
+		"database": "app", "tls": "preferred",
+	})), " ")
+	if strings.Contains(preferred, "--ssl-mode") {
+		t.Errorf("tls=preferred passes a flag where the client default is the meaning: %q", preferred)
 	}
 }

@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-// The mysql and mariadb plugins are one source tree twice over, and a
-// declaration copied from the other fork keeps reading naturally right up to
+// The mysql and mariadb plugins are served from one source tree, and a
+// declaration worded for the other engine keeps reading naturally right up to
 // the moment somebody follows it. One fork's activity capability shipped,
 // release after release, telling the caller to run the other fork's overview
 // command: a capability in a namespace an operator of this database has no
@@ -21,29 +21,31 @@ import (
 // "<namespace> <verb>" line is an instruction the reader will act on.
 func TestNoDeclaredCommandNamesTheOtherFork(t *testing.T) {
 	forks := map[string]string{"mysql": "mariadb", "mariadb": "mysql"}
-	other, ok := forks[Plugin("dev").Name]
-	if !ok {
-		// Without a counterpart the patterns below degrade into matchers of
-		// ordinary prose, and a test that fails on every sentence proves
-		// nothing about commands.
-		t.Fatalf("%q is not a fork this test knows a counterpart for", Plugin("dev").Name)
-	}
-	bad := []*regexp.Regexp{
-		regexp.MustCompile(`\brta ` + other + `\b`),
-		regexp.MustCompile(`\b` + other + `\.[a-z]`),
-		regexp.MustCompile("`" + other + ` (overview|status|query|activity|schema|table|database|dump|restore)\b`),
-	}
-	for _, c := range Plugin("dev").Capabilities {
-		texts := []string{c.Summary, c.Description}
-		for _, f := range c.Inputs {
-			texts = append(texts, f.Help)
+	forEachEngine(t, func(t *testing.T) {
+		other, ok := forks[engine.NS]
+		if !ok {
+			// Without a counterpart the patterns below degrade into matchers of
+			// ordinary prose, and a test that fails on every sentence proves
+			// nothing about commands.
+			t.Fatalf("%q is not a fork this test knows a counterpart for", engine.NS)
 		}
-		for _, s := range texts {
-			for _, re := range bad {
-				if m := re.FindString(s); m != "" {
-					t.Errorf("%s declares %q — a command in the other fork's namespace", c.ID, m)
+		bad := []*regexp.Regexp{
+			regexp.MustCompile(`\brta ` + other + `\b`),
+			regexp.MustCompile(`\b` + other + `\.[a-z]`),
+			regexp.MustCompile("`" + other + ` (overview|status|query|activity|schema|table|database|dump|restore)\b`),
+		}
+		for _, c := range Plugin(engine, "dev").Capabilities {
+			texts := []string{c.Summary, c.Description}
+			for _, f := range c.Inputs {
+				texts = append(texts, f.Help)
+			}
+			for _, s := range texts {
+				for _, re := range bad {
+					if m := re.FindString(s); m != "" {
+						t.Errorf("%s declares %q — a command in the other fork's namespace", c.ID, m)
+					}
 				}
 			}
 		}
-	}
+	})
 }

@@ -18,7 +18,7 @@ import (
 // server, and beside a direct address it says whose credentials were used.
 func TestARestoreNamesTheServerAsTheReaderReachesItAgain(t *testing.T) {
 	dir := t.TempDir()
-	for _, tool := range restoreTools {
+	for _, tool := range engine.restoreTools {
 		if err := os.WriteFile(filepath.Join(dir, tool), []byte("#!/bin/sh\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}

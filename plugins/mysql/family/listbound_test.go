@@ -16,7 +16,7 @@ func TestTheListingsOfWhatIsOnAServerShareOneBound(t *testing.T) {
 		"mysql.database.list": "how many databases to show",
 	} {
 		var limit *plugin.Field
-		for _, c := range Plugin("dev").Capabilities {
+		for _, c := range Plugin(engine, "dev").Capabilities {
 			if c.ID != id {
 				continue
 			}

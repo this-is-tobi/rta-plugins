@@ -15,7 +15,7 @@ import (
 
 func statusCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "mysql.status",
+		ID:         engine.NS + ".status",
 		Summary:    "Whether the database answers, and what it is",
 		Keywords:   []string{"ping", "alive", "version", "connection"},
 		Safety:     plugin.Read,
@@ -152,7 +152,7 @@ func statusPairs(info serverInfo, req plugin.Request) []view.Pair {
 
 func overviewCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "mysql.overview",
+		ID:         engine.NS + ".overview",
 		Summary:    "Everything about this connection at a glance",
 		Keywords:   []string{"summary", "health", "dashboard"},
 		Safety:     plugin.Read,
@@ -161,24 +161,24 @@ func overviewCapability() plugin.Capability {
 		Description: "The compact form is what a dashboard tile shows and what an agent reads by default, " +
 			"ordered for five seconds: `status` first (ok, or warn or fail and the worst fact in a few " +
 			"words), then `up since`, `replication` (led by ok, warn or fail, with the thread that " +
-			"stopped or how far behind a replica is; mysql.replication.status has the rest), " +
+			"stopped or how far behind a replica is; " + engine.NS + ".replication.status has the rest), " +
 			"`connections` (of max_connections, led by warn past 85% and fail past 95%), `lock waits` " +
 			"(transactions waiting on an InnoDB row lock), `running` (the other threads running a " +
 			"statement and the slow queries since the server started, when there are any), `cluster` " +
-			"(a Group Replication member's state, only where one is configured) and `server` (the " +
+			"(" + engine.Cluster + ") and `server` (the " +
 			"address and the version). A row the account cannot read says so, and the status names " +
 			"it.\n\n" +
 			"The full page (`detail`) is everything the compact form holds and what it leaves out: the " +
 			"server's status, one line on replication, the largest databases on it, and what every " +
 			"session is doing, without the statement text — state, time and command, which answers " +
 			"\"is anything stuck\" and hands back nothing anybody stored. The statement text is " +
-			"mysql.activity, and it is a write for exactly that reason. The databases are an " +
+			engine.NS + ".activity, and it is a write for exactly that reason. The databases are an " +
 			"aggregation over INFORMATION_SCHEMA that the compact form never runs.",
 		Agent: "A status row first (ok, or warn or fail and the worst fact), then up since, replication " +
 			"(led by ok, warn or fail, with the stopped thread or the lag), connections of " +
 			"max_connections (warn past 85%, fail past 95%), InnoDB row lock waits, the other threads " +
-			"running and the slow queries since start when there are any, the Group Replication " +
-			"member's state where one is configured, and the address and version. A row the account " +
+			"running and the slow queries since start when there are any, " + engine.ClusterAgent + ", " +
+			"and the address and version. A row the account " +
 			"cannot read says so and the status names it. `detail` adds the largest databases and " +
 			"what every session is doing, without statement text. States and counts only, never " +
 			"stored values.",
@@ -326,7 +326,7 @@ func detailedOverview(ctx context.Context, db *sql.DB, req plugin.Request) (view
 
 func databaseListCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:         "mysql.database.list",
+		ID:         engine.NS + ".database.list",
 		Summary:    "List databases on this server, with their sizes",
 		Keywords:   []string{"db", "catalog", "schemas"},
 		Safety:     plugin.Read,
@@ -334,7 +334,7 @@ func databaseListCapability() plugin.Capability {
 		Description: "Names, table counts and on-disk sizes. Sizes come from INFORMATION_SCHEMA " +
 			"and are what the storage engine last reported rather than a live measurement — " +
 			"close enough to find the big one, not close enough to bill on.\n\n" +
-			"Only the databases this user may see: MySQL filters INFORMATION_SCHEMA by grant, so " +
+			"Only the databases this user may see: " + engine.Product + " filters INFORMATION_SCHEMA by grant, so " +
 			"a short list here means a narrow grant and not an empty server.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withDB(ctx, req, func(ctx context.Context, db *sql.DB) (view.View, error) {

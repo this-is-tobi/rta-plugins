@@ -22,7 +22,7 @@ import (
 // rather than a hand-made map.
 func req(t *testing.T, capID string, values map[string]any) plugin.Request {
 	t.Helper()
-	for _, c := range Plugin("dev").Capabilities {
+	for _, c := range Plugin(engine, "dev").Capabilities {
 		if c.ID == capID {
 			return plugin.NewRequest(plugin.Resolve(c, plugin.Inputs{Caller: values}), false, false)
 		}
@@ -31,7 +31,7 @@ func req(t *testing.T, capID string, values map[string]any) plugin.Request {
 	return plugin.Request{}
 }
 
-// sdktest is the definition of "a correct plugin", and mysql gets no
+// sdktest is the definition of "a correct plugin", and neither engine gets an
 // exemption from it — the spelling rule among the others, which holds what
 // every capability declares to the SDK's speller.
 //
@@ -40,9 +40,11 @@ func req(t *testing.T, capID string, values map[string]any) plugin.Request {
 // no default supplies: without one the suite fails rather than report a
 // pass for a capability it never ran.
 func TestConformance(t *testing.T) {
-	sdktest.Check(t, Plugin("dev"), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."),
-		sdktest.Skip(sdktest.RuleDryRunOffline, "mysql.query", disclosed),
-		sdktest.Skip(sdktest.RuleDryRunOffline, "mysql.activity", disclosed))
+	forEachEngine(t, func(t *testing.T) {
+		sdktest.Check(t, Plugin(engine, "dev"), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."),
+			sdktest.Skip(sdktest.RuleDryRunOffline, engine.NS+".query", disclosed),
+			sdktest.Skip(sdktest.RuleDryRunOffline, engine.NS+".activity", disclosed))
+	})
 }
 
 // disclosed is why a capability classified write for what it discloses
@@ -73,10 +75,10 @@ func conformanceInputs(dir string) map[string]map[string]any {
 	fixture := filepath.Join(dir, "conformance.sql")
 	_ = os.WriteFile(fixture, []byte("select 1;\n"), 0o600)
 	return map[string]map[string]any{
-		"mysql.query":    conn(map[string]any{"sql": "select 1"}),
-		"mysql.activity": conn(map[string]any{}),
-		"mysql.dump":     conn(map[string]any{"out": filepath.Join(dir, "mysql.sql")}),
-		"mysql.restore":  conn(map[string]any{"file": fixture}),
+		engine.NS + ".query":    conn(map[string]any{"sql": "select 1"}),
+		engine.NS + ".activity": conn(map[string]any{}),
+		engine.NS + ".dump":     conn(map[string]any{"out": filepath.Join(dir, engine.NS+".sql")}),
+		engine.NS + ".restore":  conn(map[string]any{"file": fixture}),
 	}
 }
 
@@ -153,11 +155,13 @@ func TestAnIPv6HostIsAnAddressNotAName(t *testing.T) {
 // deciding, on its own, that somebody else's production database is worth
 // polling every few seconds.
 func TestEveryCapabilityIsNoPreview(t *testing.T) {
-	for _, c := range Plugin("dev").Capabilities {
-		if !c.NoPreview {
-			t.Errorf("%s: NoPreview = false, want true — every capability here reaches off the box", c.ID)
+	forEachEngine(t, func(t *testing.T) {
+		for _, c := range Plugin(engine, "dev").Capabilities {
+			if !c.NoPreview {
+				t.Errorf("%s: NoPreview = false, want true — every capability here reaches off the box", c.ID)
+			}
 		}
-	}
+	})
 }
 
 // The safety split is the whole argument of this plugin, so it is pinned
@@ -170,64 +174,74 @@ func TestEveryCapabilityIsNoPreview(t *testing.T) {
 // which is what stops this from rotting into a list of things that used to be
 // true.
 func TestSafetyClassesMatchWhatEachCapabilityDiscloses(t *testing.T) {
+	// Each capability by its name under the engine's namespace, which both
+	// engines declare alike.
 	want := map[string]plugin.Safety{
 		// Read: everything here is something somebody declared, not something
 		// somebody entered.
-		"mysql.status":        plugin.Read,
-		"mysql.overview":      plugin.Read,
-		"mysql.database.list": plugin.Read,
-		"mysql.table.list":    plugin.Read,
-		"mysql.schema":        plugin.Read,
-		// Positions and states the server publishes about itself; the text of
-		// a replication error, which carries the failing statement, is not
-		// returned (see replication_test.go).
-		"mysql.replication.status": plugin.Read,
+		"status":        plugin.Read,
+		"overview":      plugin.Read,
+		"database.list": plugin.Read,
+		"table.list":    plugin.Read,
+		"schema":        plugin.Read,
+		// Positions and states the server publishes about itself — replication
+		// and cluster health are not a value anybody stored, and an operator
+		// who cannot see them is an operator who finds out about a split brain
+		// from their users. The text of a replication error, which carries the
+		// failing statement, is not returned (see replication_test.go).
+		"replication.status": plugin.Read,
 		// Write: both return values stored by somebody. query returns rows;
 		// activity returns the statement text of everything running, and a
 		// WHERE clause is a place a value hides.
-		"mysql.query":    plugin.Write,
-		"mysql.activity": plugin.Write,
+		"query":    plugin.Write,
+		"activity": plugin.Write,
 		// The dump/restore pair refuses MCP outright instead of taking a
 		// grant (a whole database has no blast radius a grant could name);
-		// the restore is Destructive besides — mysqldump's own DROP TABLE
+		// the restore is Destructive besides — the dump's own DROP TABLE
 		// statements run first, and the class buys the --yes gate.
-		"mysql.dump":    plugin.Write,
-		"mysql.restore": plugin.Destructive,
+		"dump":    plugin.Write,
+		"restore": plugin.Destructive,
 	}
-	seen := map[string]bool{}
-	for _, c := range Plugin("dev").Capabilities {
-		seen[c.ID] = true
-		expect, ok := want[c.ID]
-		if !ok {
-			t.Errorf("%s: not accounted for in this test's table", c.ID)
-			continue
+	forEachEngine(t, func(t *testing.T) {
+		seen := map[string]bool{}
+		for _, c := range Plugin(engine, "dev").Capabilities {
+			name := strings.TrimPrefix(c.ID, engine.NS+".")
+			seen[name] = true
+			expect, ok := want[name]
+			if !ok {
+				t.Errorf("%s: not accounted for in this test's table", c.ID)
+				continue
+			}
+			if c.Safety != expect {
+				t.Errorf("%s: Safety = %s, want %s", c.ID, c.Safety, expect)
+			}
 		}
-		if c.Safety != expect {
-			t.Errorf("%s: Safety = %s, want %s", c.ID, c.Safety, expect)
+		for name := range want {
+			if !seen[name] {
+				t.Errorf("%s.%s: declared in this test's table but not in Plugin", engine.NS, name)
+			}
 		}
-	}
-	for id := range want {
-		if !seen[id] {
-			t.Errorf("%s: declared in this test's table but not in Plugin", id)
-		}
-	}
+	})
 }
 
 // Every capability must be reachable and describable. A capability with no
 // Run ships as dead weight in the MCP schema; one with no Description is one
 // `rta explain` cannot answer for.
 func TestEveryCapabilityIsRunnableAndDescribed(t *testing.T) {
-	for _, c := range Plugin("dev").Capabilities {
-		if c.Run == nil {
-			t.Errorf("%s: no Run", c.ID)
+	forEachEngine(t, func(t *testing.T) {
+		p := Plugin(engine, "dev")
+		for _, c := range p.Capabilities {
+			if c.Run == nil {
+				t.Errorf("%s: no Run", c.ID)
+			}
+			if strings.TrimSpace(c.Description) == "" {
+				t.Errorf("%s: no Description — `rta explain` has nothing to print", c.ID)
+			}
+			if !strings.HasPrefix(c.ID, p.Name+".") {
+				t.Errorf("%s: capability IDs must be namespaced by %q", c.ID, p.Name)
+			}
 		}
-		if strings.TrimSpace(c.Description) == "" {
-			t.Errorf("%s: no Description — `rta explain` has nothing to print", c.ID)
-		}
-		if !strings.HasPrefix(c.ID, Plugin("dev").Name+".") {
-			t.Errorf("%s: capability IDs must be namespaced by %q", c.ID, Plugin("dev").Name)
-		}
-	}
+	})
 }
 
 // The fork is only stated in the version string, and somebody debugging needs

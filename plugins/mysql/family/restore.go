@@ -17,16 +17,16 @@ import (
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
-// The other half of mysql.dump — the file back into a database.
+// The other half of the dump — the file back into a database.
 //
 // **It refuses MCP for the dump's reason run in reverse**, and it is
 // Destructive besides: whatever the file says is written into a live
-// database, and mysqldump's default output drops and recreates every table
+// database, and the dump client's default output drops and recreates every table
 // it carries on the way in (--add-drop-table is part of --opt). The --yes
 // gate is what a person should type through before that happens.
 //
-// **The guarantee is honest and weaker than pg's, because MySQL's is.**
-// psql can replay a plain dump inside one transaction; MySQL cannot — DDL
+// **The guarantee is honest and weaker than pg's, because the server's is.**
+// psql can replay a plain dump inside one transaction; neither fork can — DDL
 // commits implicitly, so there is no transaction to roll a failed restore
 // back with. What remains is stop-at-first-error, and the load-bearing
 // choice here is an *absence*: --force is never passed, because it is the
@@ -35,38 +35,34 @@ import (
 //
 // **A non-empty target is refused**, the dump's O_EXCL pointing the other
 // way — and with no --clean to offer: whether this dump drops objects first
-// was decided when mysqldump wrote it, exactly like a plain pg dump, so the
+// was decided when the dump client wrote it, exactly like a plain pg dump, so the
 // path through is a fresh database and the refusal says how to make one.
 // rta does not create it: a typo'd name becoming a new database is worse
 // than this refusal.
 
-// restoreTools are tried in order; the list exists so the "not installed"
-// refusal can name what it looked for.
-var restoreTools = []string{"mysql"}
-
 func restoreCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:        "mysql.restore",
+		ID:        engine.NS + ".restore",
 		HumanOnly: true,
-		Summary:   "Restore a mysql.dump file into a database, for a person at a terminal",
+		Summary:   "Restore a " + engine.NS + ".dump file into a database, for a person at a terminal",
 		Keywords:  []string{"import", "recover", "load", "source"},
 		// Destructive, because that is what it is: the dump's SQL drops and
 		// recreates the tables it carries. The class buys the --yes gate.
 		Safety:     plugin.Destructive,
 		Idempotent: false,
-		Description: "The other half of mysql.dump — the file back into a database. **Refuses MCP " +
+		Description: "The other half of " + engine.NS + ".dump — the file back into a database. **Refuses MCP " +
 			"outright** for the dump's reason run in reverse: the dump refuses because everything " +
 			"would leave, and a restore is everything arriving, written into a live database — " +
-			"with mysqldump's own DROP TABLE statements running first. Neither direction has a " +
+			"with " + engine.dumpTools[0] + "'s own DROP TABLE statements running first. Neither direction has a " +
 			"blast radius a grant could name, so both belong to the person at the keyboard.\n\n" +
 			"**A database already holding tables is refused.** Whether a dump drops objects " +
-			"first was decided when mysqldump wrote it, so there is no `clean` to offer — restore " +
+			"first was decided when " + engine.dumpTools[0] + " wrote it, so there is no `clean` to offer — restore " +
 			"into a fresh database, which stays one CREATE DATABASE away. rta does not create it: " +
 			"a typo'd name becoming a new database is worse than the refusal. A read-only server " +
 			"— a replica, usually — is refused before anything runs; restore on the primary, " +
 			"which is the only path that keeps the two the same database.\n\n" +
-			"Stops at the first error, which is the strongest guarantee MySQL allows: DDL commits " +
-			"implicitly, so a failed restore cannot roll back and the receipt says so. `mysql --force` " +
+			"Stops at the first error, which is the strongest guarantee " + engine.Product + " allows: DDL commits " +
+			"implicitly, so a failed restore cannot roll back and the receipt says so. `" + engine.restoreTools[0] + " --force` " +
 			"— the client's flag that counts errors quietly and calls the survivor a restore — is never " +
 			"passed. LOAD DATA LOCAL is disabled, so a dump file cannot direct the client to " +
 			"read this machine's own files into the server.",
@@ -74,11 +70,11 @@ func restoreCapability() plugin.Capability {
 	},
 		plugin.Field{Name: "file", Type: plugin.Path, Local: true, Positional: true,
 			Required: true,
-			Help:     "the dump to restore — what mysql.dump wrote"})
+			Help:     "the dump to restore — what " + engine.NS + ".dump wrote"})
 }
 
 func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
-	if verr := humanOnly(req, "mysql.restore",
+	if verr := humanOnly(req, engine.NS+".restore",
 		"a restore writes a file's whole contents into a live database, dropping tables on "+
 			"the way in — a blast radius no grant could name, in the direction that overwrites. "+
 			"The dump this file came from was made by a person at a terminal, and it goes back "+
@@ -88,14 +84,14 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 
 	database := req.String("database")
 	if database == "" {
-		return nil, view.Errorf("mysql.restore.nodatabase", "say which database to restore into").
+		return nil, view.Errorf(engine.NS+".restore.nodatabase", "say which database to restore into").
 			WithHint(req.Surface().SettingTo("database", plugin.Placeholder("name")) + " — " +
-				nextCall(req, "mysql.database.list") + " shows what is there, and " +
+				nextCall(req, engine.NS+".database.list") + " shows what is there, and " +
 				"CREATE DATABASE makes a fresh one").WithInput("database")
 	}
 	path, err := expandHome(strings.TrimSpace(req.String("file")))
 	if err != nil {
-		return nil, view.Errorf("mysql.restore.path", "resolving the dump path: %v", err).WithInput("file")
+		return nil, view.Errorf(engine.NS+".restore.path", "resolving the dump path: %v", err).WithInput("file")
 	}
 	if verr := checkDumpFile(req.Surface(), path); verr != nil {
 		return nil, verr
@@ -108,17 +104,20 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 	if verr := checkClientTLS(req); verr != nil {
 		return nil, verr
 	}
-	tool, err := lookupTool(restoreTools)
+	tool, err := lookupTool(engine.restoreTools)
 	if err != nil {
-		return nil, view.Errorf("mysql.restore.missing", "no %s on $PATH",
-			strings.Join(restoreTools, " or ")).
-			WithHint("rta does not reimplement it, for mysql.dump's reason run in reverse. " +
-				"Install the MySQL client tools — `brew install mysql-client` or " +
-				"`apt install mysql-client`")
+		return nil, view.Errorf(engine.NS+".restore.missing", "no %s on $PATH",
+			strings.Join(engine.restoreTools, " or ")).
+			WithHint("rta does not reimplement it, for " + engine.NS + ".dump's reason run in reverse. " +
+				"Install " + engine.clientInstall)
 	}
 
 	args := restoreArgs(req)
+	pinning := engine.pinsTLS && req.String("tls") == "verify-ca" && takesPin(ctx, tool)
 	if req.DryRun {
+		if pinning {
+			args = pinned(args, pinPending)
+		}
 		return view.Text{Body: fmt.Sprintf("would run %s %s\nfeeding it %s, restoring into %s on %s",
 			filepath.Base(tool), strings.Join(args, " "), path, database, req.Reached(address(req)))}, nil
 	}
@@ -127,8 +126,12 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 	// describeSource discipline, with the two questions only a restore has to
 	// ask: a read-only server cannot be written, and a database already
 	// holding tables is refused.
-	if verr := checkTarget(ctx, req, database); verr != nil {
+	pin, verr := checkTarget(ctx, req, database)
+	if verr != nil {
 		return nil, verr
+	}
+	if pinning {
+		args = pinned(args, pin)
 	}
 
 	started := time.Now()
@@ -143,7 +146,7 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 		// pg's restore can promise a rollback; this one cannot, and saying so
 		// here is what keeps the difference from being discovered during an
 		// incident.
-		{Key: "guarantee", Value: "stopped at the first error — MySQL DDL commits implicitly, " +
+		{Key: "guarantee", Value: "stopped at the first error — " + engine.Product + " DDL commits implicitly, " +
 			"so a failure leaves a partial restore, and a fresh database is the clean way back"},
 	}}, nil
 }
@@ -159,27 +162,27 @@ func checkDumpFile(sf plugin.Surface, path string) *view.Error {
 		// look at, behind a directory it may not enter, was said not to be
 		// there, about a file that may well be; it names no input, since the
 		// path can be right.
-		return view.Errorf("mysql.restore.unreadable", "cannot look at %s: %v", path, err).
+		return view.Errorf(engine.NS+".restore.unreadable", "cannot look at %s: %v", path, err).
 			WithHint("the dump may be there: check that this account can read it and enter every directory above it")
 	}
 	if err != nil {
-		return view.Errorf("mysql.restore.nofile", "no dump at %s", path).
-			WithHint("`" + sf.Call("mysql.dump", plugin.Arg{Name: "out", Value: plugin.Placeholder("path")}) + "` writes one; this restores what that wrote").
+		return view.Errorf(engine.NS+".restore.nofile", "no dump at %s", path).
+			WithHint("`" + sf.Call(engine.NS+".dump", plugin.Arg{Name: "out", Value: plugin.Placeholder("path")}) + "` writes one; this restores what that wrote").
 			WithInput(plugin.PathInput("file", err))
 	}
 	if info.IsDir() {
-		return view.Errorf("mysql.restore.notafile", "%s is a directory", path).
-			WithHint("a mysql.dump file is a single SQL file").WithInput("file")
+		return view.Errorf(engine.NS+".restore.notafile", "%s is a directory", path).
+			WithHint("a " + engine.NS + ".dump file is a single SQL file").WithInput("file")
 	}
 	if info.Size() == 0 {
-		return view.Errorf("mysql.restore.empty", "%s is empty", path).
+		return view.Errorf(engine.NS+".restore.empty", "%s is empty", path).
 			WithHint("an empty file restores as nothing and reports success — if this was a " +
 				"dump, it did not finish").WithInput("file")
 	}
 	return nil
 }
 
-// restoreArgs builds the mysql client's argv — never a shell string, never
+// restoreArgs builds the restore client's argv — never a shell string, never
 // the password (childEnv's MYSQL_PWD), option files ignored for the dump's
 // ambient-credential reason.
 func restoreArgs(req plugin.Request) []string {
@@ -211,18 +214,18 @@ func restoreArgs(req plugin.Request) []string {
 		// the whole guarantee this direction has.
 		"--batch",
 	}
-	args = append(args, tlsArgs(req)...)
+	args = append(args, engine.tlsArgs(req)...)
 	return append(args, req.String("database"))
 }
 
-// plainIdentifier is a name MySQL reads as an identifier without quotes.
+// plainIdentifier is a name the server reads as an identifier without quotes.
 var plainIdentifier = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_$]*$`)
 
 // createDatabase is the statement that makes database, for a hint to print
-// and a reader to paste. The name is the caller's, and MySQL reads a bare
+// and a reader to paste. The name is the caller's, and the server reads a bare
 // `my-app` as a subtraction and `orders 2024` as two words: a name that is
 // not a plain identifier is quoted in backticks, one inside it doubled, which
-// is how MySQL quotes an identifier whatever the SQL mode.
+// is how both forks quote an identifier whatever the SQL mode.
 func createDatabase(database string) string {
 	if !plainIdentifier.MatchString(database) {
 		database = "`" + strings.ReplaceAll(database, "`", "``") + "`"
@@ -231,31 +234,32 @@ func createDatabase(database string) string {
 }
 
 // checkTarget asks the server what it is before anything writes into it, on
-// one connection.
-func checkTarget(ctx context.Context, req plugin.Request, database string) *view.Error {
-	db, verr := connect(ctx, req)
+// one connection, and answers with the certificate pin.go hands the child
+// when tls is verify-ca.
+func checkTarget(ctx context.Context, req plugin.Request, database string) (string, *view.Error) {
+	db, pin, verr := connectPinned(ctx, req)
 	if verr != nil {
 		// The driver has already classified an absent database (1049), but
 		// its hint points at `mysql database list` — the right next step for
 		// a typo in mysql.status and the wrong one here: half the time the
 		// missing database is the fresh target somebody has not created yet.
 		// Same fact, restore's advice.
-		if verr.Code == "mysql.database.notfound" {
-			return view.Errorf("mysql.restore.notarget", "%s", verr.Message).
+		if verr.Code == engine.NS+".database.notfound" {
+			return "", view.Errorf(engine.NS+".restore.notarget", "%s", verr.Message).
 				WithHint("rta does not create databases on its own — a typo'd name becoming a " +
 					"new database is worse than this refusal. `" + createDatabase(database) +
 					"` makes it, then restore again").WithInput("database")
 		}
-		return verr
+		return "", verr
 	}
 	defer func() { _ = db.Close() }()
 
 	var ro int
 	if err := db.QueryRowContext(ctx, "select @@read_only").Scan(&ro); err != nil {
-		return classify(err, req)
+		return "", classify(err, req)
 	}
 	if ro != 0 {
-		return view.Errorf("mysql.restore.readonly",
+		return "", view.Errorf(engine.NS+".restore.readonly",
 			"%s is read-only, and a read-only server cannot be written", req.Reached(address(req))).
 			WithHint("usually a replica — restore on the primary, which the replica then " +
 				"replays; that is the only path that keeps the two the same database")
@@ -265,16 +269,16 @@ func checkTarget(ctx context.Context, req plugin.Request, database string) *view
 	if err := db.QueryRowContext(ctx, `
 		select count(*) from information_schema.tables where table_schema = ?`,
 		database).Scan(&tables); err != nil {
-		return classify(err, req)
+		return "", classify(err, req)
 	}
 	if tables > 0 {
-		return view.Errorf("mysql.restore.notempty",
+		return "", view.Errorf(engine.NS+".restore.notempty",
 			"%s already holds %s", database, format.CountOf(tables, "table")).
 			WithHint("restore into a fresh database — CREATE DATABASE is one command, and " +
-				"whether this dump drops objects first was decided when mysqldump wrote it, " +
+				"whether this dump drops objects first was decided when " + engine.dumpTools[0] + " wrote it, " +
 				"so rta will not guess on its behalf").WithInput("database")
 	}
-	return nil
+	return pin, nil
 }
 
 // runRestoreTool runs the child with the dump on its stdin — the descriptor
@@ -285,7 +289,7 @@ func runRestoreTool(ctx context.Context, tool string, args []string,
 	req plugin.Request, path string) *view.Error {
 	f, err := os.Open(path)
 	if err != nil {
-		return view.Errorf("mysql.restore.unreadable", "opening %s: %v", path, err).WithInput(plugin.PathInput("file", err))
+		return view.Errorf(engine.NS+".restore.unreadable", "opening %s: %v", path, err).WithInput(plugin.PathInput("file", err))
 	}
 	defer func() { _ = f.Close() }()
 
@@ -317,33 +321,35 @@ func classifyRestore(err error, stderr string, req plugin.Request) *view.Error {
 
 	switch {
 	case strings.Contains(stderr, "Unknown database"):
-		return view.Errorf("mysql.restore.notarget", "%s", msg("Unknown database")).
+		return view.Errorf(engine.NS+".restore.notarget", "%s", msg("Unknown database")).
 			WithHint("rta does not create databases on its own — CREATE DATABASE makes it, " +
 				"then restore again").WithInput("database")
 	case strings.Contains(stderr, "Access denied"):
-		return view.Errorf("mysql.auth.failed", "%s", msg("Access denied")).
-			WithHint("set $" + plugin.LocalEnvVar("mysql.restore", "password") + ", or check " + req.Surface().SettingName("user"))
+		return view.Errorf(engine.NS+".auth.failed", "%s", msg("Access denied")).
+			WithHint("set $" + plugin.LocalEnvVar(engine.NS+".restore", "password") + ", or check " + req.Surface().SettingName("user"))
 	case strings.Contains(stderr, "read-only") || strings.Contains(stderr, "read only"):
-		return view.Errorf("mysql.restore.readonly", "%s", msg("read")).
+		return view.Errorf(engine.NS+".restore.readonly", "%s", msg("read")).
 			WithHint("the target became read-only after the pre-flight check — a promoted " +
 				"replica, usually. Restore on the primary")
 	case strings.Contains(stderr, "CA certificate is required"):
 		return noCA(req.Surface(), msg("CA certificate is required"))
+	case strings.Contains(stderr, "Fingerprint validation"):
+		return pinRefusal(req.Surface(), msg("Fingerprint validation"))
 	case strings.Contains(stderr, "Can't connect"):
 		return unreached(req.Surface(), msg("Can't connect"))
 	case strings.Contains(stderr, "at line"):
 		// The client names the statement that failed and its line in the
 		// file — the one detail worth surfacing verbatim, because it is where
 		// the operator's investigation starts.
-		return view.Errorf("mysql.restore.failed", "%s", msg("at line")).
-			WithHint("the restore stopped there; everything before it is applied — MySQL " +
+		return view.Errorf(engine.NS+".restore.failed", "%s", msg("at line")).
+			WithHint("the restore stopped there; everything before it is applied — " + engine.Product + " " +
 				"cannot roll a restore back. A fresh database and a fresh run is the clean " +
 				"way back")
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
-		return view.Errorf("mysql.restore.cancelled", "the restore was interrupted").
+		return view.Errorf(engine.NS+".restore.cancelled", "the restore was interrupted").
 			WithHint("everything up to the interruption is applied — a fresh database and a " +
 				"fresh run is the clean way back")
 	}
-	return view.Errorf("mysql.restore.failed", "%s", msg("ERROR")).
+	return view.Errorf(engine.NS+".restore.failed", "%s", msg("ERROR")).
 		WithHint("the tool reported this; rta passed it through unchanged")
 }

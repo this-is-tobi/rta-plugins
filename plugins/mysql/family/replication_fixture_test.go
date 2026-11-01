@@ -142,8 +142,9 @@ func fixtureOpen(t *testing.T, name string) *sql.DB {
 // connection would be, as the account the capture was made with.
 func stateFrom(t *testing.T, name, user string) state {
 	t.Helper()
+	useEngine(t, engineOf(name))
 	db := fixtureOpen(t, name)
-	st, verr := readState(context.Background(), db, req(t, "mysql.replication.status", map[string]any{"user": user}))
+	st, verr := readState(context.Background(), db, req(t, engine.NS+".replication.status", map[string]any{"user": user}))
 	if verr != nil {
 		t.Fatalf("%s: %v", name, verr)
 	}

@@ -40,12 +40,13 @@ func cap(c plugin.Capability, own ...plugin.Field) plugin.Capability {
 	return c
 }
 
-// Plugin is the plugin a binary serves, at the version that build was stamped
-// with (main.version).
-func Plugin(version string) plugin.Plugin {
+// Plugin is the plugin a binary serves: e, at the version that build was
+// stamped with (main.version). It sets the engine this process serves.
+func Plugin(e Engine, version string) plugin.Plugin {
+	engine = e
 	return plugin.Plugin{
-		Name:    "mysql",
-		Summary: "MySQL: connection health, schema, rows, activity and replication",
+		Name:    e.NS,
+		Summary: e.Summary,
 		Version: version,
 		Capabilities: []plugin.Capability{
 			overviewCapability(),

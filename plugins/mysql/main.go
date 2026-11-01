@@ -38,7 +38,7 @@ import (
 	"github.com/this-is-tobi/rta/pkg/sdk"
 )
 
-func main() { sdk.Serve(family.Plugin(version)) }
+func main() { sdk.Serve(family.Plugin(family.MySQL, version)) }
 
 // version is what this build claims to be, stamped by whatever built it:
 // `-X main.version=`, which is the Makefile's flag and GoReleaser's own

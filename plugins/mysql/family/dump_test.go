@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -68,7 +67,7 @@ func TestDumpArgsCarryTheDecidedFlags(t *testing.T) {
 		}
 	}
 	if !strings.HasPrefix(args, "--no-defaults") {
-		t.Errorf("--no-defaults is not first, where mysqldump requires it: %q", args)
+		t.Errorf("--no-defaults is not first, where the client requires it: %q", args)
 	}
 	if strings.Contains(args, "password") {
 		t.Errorf("a password reached argv, which `ps` shows to everyone: %q", args)
@@ -93,33 +92,6 @@ func TestDumpArgsIncludeNarrowsWhatTheFileHolds(t *testing.T) {
 	}
 	if strings.Contains(data, "--routines") {
 		t.Errorf("include=data still dumps routines: %q", data)
-	}
-}
-
-// The tls input speaks go-sql-driver's vocabulary everywhere in this plugin;
-// the child speaks --ssl-mode. The mapping is by meaning, and "preferred"
-// passes nothing because it is the client's own default.
-func TestTLSModesMapByMeaning(t *testing.T) {
-	for tls, want := range map[string]string{
-		"false":       "--ssl-mode=DISABLED",
-		"true":        "--ssl-mode=VERIFY_IDENTITY",
-		"skip-verify": "--ssl-mode=REQUIRED",
-		"verify-ca":   "--ssl-mode=VERIFY_CA --ssl-ca=/etc/mysql/ca.pem",
-	} {
-		values := map[string]any{"database": "app", "tls": tls}
-		if tls == "verify-ca" {
-			values["ca-file"] = "/etc/mysql/ca.pem"
-		}
-		args := strings.Join(dumpArgs(req(t, "mysql.dump", values)), " ")
-		if !strings.Contains(args, want) {
-			t.Errorf("tls=%s: missing %q in %q", tls, want, args)
-		}
-	}
-	preferred := strings.Join(dumpArgs(req(t, "mysql.dump", map[string]any{
-		"database": "app", "tls": "preferred",
-	})), " ")
-	if strings.Contains(preferred, "--ssl-mode") {
-		t.Errorf("tls=preferred passes a flag where the client default is the meaning: %q", preferred)
 	}
 }
 
@@ -206,18 +178,21 @@ func TestChildEnvCarriesThePasswordAndNothingElse(t *testing.T) {
 	}
 }
 
-// needsMysqldump skips a test that cannot reach its subject without the tool
+// needsDumpTool skips a test that cannot reach its subject without a client
 // on $PATH — pg's needsPgDump pattern, same reasoning: the lookup comes
-// before the check under test, and that order is right for the operator.
-func needsMysqldump(t *testing.T) {
+// before the check under test, and that order is right for the operator. It
+// walks the engine's dump tools rather than naming one binary, so a host
+// carrying only the legacy mysqldump symlink runs these rather than skipping.
+func needsDumpTool(t *testing.T) {
 	t.Helper()
-	if _, err := exec.LookPath("mysqldump"); err != nil {
-		t.Skip("mysqldump is not on $PATH, and this test's subject is only reachable past the lookup")
+	if _, err := lookupTool(engine.dumpTools); err != nil {
+		t.Skipf("none of %v is on $PATH, and this test's subject is only reachable past the lookup",
+			engine.dumpTools)
 	}
 }
 
 func TestAnExistingFileIsNeverOverwritten(t *testing.T) {
-	needsMysqldump(t)
+	needsDumpTool(t)
 	path := filepath.Join(t.TempDir(), "app.sql")
 	if err := os.WriteFile(path, []byte("the backup that already existed"), 0o600); err != nil {
 		t.Fatal(err)
@@ -253,7 +228,7 @@ func TestAFailedDumpLeavesNoFileBehind(t *testing.T) {
 }
 
 func TestDumpDryRunDescribesWithoutConnecting(t *testing.T) {
-	needsMysqldump(t)
+	needsDumpTool(t)
 	path := filepath.Join(t.TempDir(), "app.sql")
 	c := capabilityByID(t, "mysql.dump")
 	dry := plugin.NewRequest(plugin.Resolve(c, plugin.Inputs{Caller: map[string]any{
@@ -268,7 +243,8 @@ func TestDumpDryRunDescribesWithoutConnecting(t *testing.T) {
 	if !ok {
 		t.Fatalf("want Text, got %T", v)
 	}
-	if !strings.Contains(text.Body, "mysqldump") || !strings.Contains(text.Body, path) {
+	tool, _ := lookupTool(engine.dumpTools)
+	if !strings.Contains(text.Body, filepath.Base(tool)) || !strings.Contains(text.Body, path) {
 		t.Errorf("dry run = %q, want the command and the destination", text.Body)
 	}
 	if _, statErr := os.Stat(path); statErr == nil {
@@ -314,10 +290,11 @@ func TestClassifyDumpNamesTheFailure(t *testing.T) {
 	}
 }
 
-// MyISAM is not transactional: a MyISAM table is read live, outside
-// --single-transaction's snapshot, while the InnoDB tables beside it are
-// read from inside it. The receipt counts them rather than claiming a
-// guarantee they cannot have.
+// MyISAM is not transactional, and neither is Aria, MariaDB's own crash-safe
+// engine and the default for its system tables: a table of either is read
+// live, outside --single-transaction's snapshot, while the InnoDB tables
+// beside it are read from inside it. The receipt counts them rather than
+// claiming a guarantee they cannot have.
 func TestTheReceiptCountsTablesOutsideTheSnapshot(t *testing.T) {
 	c := source{liveTables: 3}.consistency()
 	if !strings.Contains(c, "3 non-transactional") {
@@ -334,7 +311,7 @@ func TestTheReceiptCountsTablesOutsideTheSnapshot(t *testing.T) {
 
 func capabilityByID(t *testing.T, id string) plugin.Capability {
 	t.Helper()
-	for _, c := range Plugin("dev").Capabilities {
+	for _, c := range Plugin(engine, "dev").Capabilities {
 		if c.ID == id {
 			return c
 		}

@@ -251,7 +251,7 @@ func (st state) withoutCluster() state {
 func whyUnread(st state, s section) string {
 	e := st.unread[s]
 	if strings.HasSuffix(e.Code, ".replication.denied") {
-		return "needs " + privilegeFor(s, st.version)
+		return "needs " + engine.privilegeFor(s, st.version)
 	}
 	return e.Message
 }

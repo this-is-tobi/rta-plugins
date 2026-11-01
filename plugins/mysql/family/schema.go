@@ -75,14 +75,14 @@ func schemaInput(req plugin.Request) string {
 // is an input no caller may give, and a hint naming it as one is an argument
 // the bridge drops.
 func noDatabase(message string, req plugin.Request, how string) *view.Error {
-	return view.Errorf("mysql.schema.unset", "%s", message).
-		WithHint(how + " — " + nextCall(req, "mysql.database.list") + " shows what is there, and " +
+	return view.Errorf(engine.NS+".schema.unset", "%s", message).
+		WithHint(how + " — " + nextCall(req, engine.NS+".database.list") + " shows what is there, and " +
 			req.Surface().SettingName("database") + " selects one for every call")
 }
 
 func tableListCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:       "mysql.table.list",
+		ID:       engine.NS + ".table.list",
 		Summary:  "List tables with their row estimates and sizes",
 		Keywords: []string{"relations", "disk", "space"},
 		Examples: []plugin.Example{
@@ -93,7 +93,7 @@ func tableListCapability() plugin.Capability {
 		Description: "Names, engines, row estimates and on-disk sizes for one database.\n\n" +
 			"The row counts are estimates the storage engine keeps, not COUNT(*). InnoDB's can " +
 			"be off by a wide margin on a busy table — they are for finding the big one, and a " +
-			"number that has to be right needs mysql.query.",
+			"number that has to be right needs " + engine.NS + ".query.",
 		Run: func(ctx context.Context, req plugin.Request) (view.View, error) {
 			return withDB(ctx, req, func(ctx context.Context, db *sql.DB) (view.View, error) {
 				return tableTable(ctx, db, req)
@@ -159,7 +159,7 @@ func tableTable(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 	t.Total = len(t.Rows)
 	t.Empty = "no tables in " + listed(schema)
 	if t.Total > 0 && !schemaFullyVisible(ctx, db, schema) {
-		t.Warnings = append(t.Warnings, partialListing("mysql.table.partial", schema, "this list"))
+		t.Warnings = append(t.Warnings, partialListing(engine.NS+".table.partial", schema, "this list"))
 	}
 	if t.Total == 0 {
 		// An empty result is ambiguous between "no such database" and "a
@@ -168,8 +168,8 @@ func tableTable(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 		if err := db.QueryRowContext(ctx,
 			`SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?`, schema).
 			Scan(&exists); err == nil && exists == 0 {
-			return nil, view.Errorf("mysql.database.notfound", "no database %q, or none this user may see", schema).
-				WithHint(nextCall(req, "mysql.database.list") + " shows what is there").WithInput(schemaInput(req))
+			return nil, view.Errorf(engine.NS+".database.notfound", "no database %q, or none this user may see", schema).
+				WithHint(nextCall(req, engine.NS+".database.list") + " shows what is there").WithInput(schemaInput(req))
 		}
 	}
 	return t, nil
@@ -182,7 +182,7 @@ const maxSchemaTables = 500
 
 func schemaCapability() plugin.Capability {
 	return cap(plugin.Capability{
-		ID:       "mysql.schema",
+		ID:       engine.NS + ".schema",
 		Summary:  "Describe a database's tables, columns and keys — no values",
 		Keywords: []string{"ddl", "structure", "erd", "indexes"},
 		Examples: []plugin.Example{
@@ -194,7 +194,7 @@ func schemaCapability() plugin.Capability {
 		Description: "The shape of a database as a tree: every table, its columns with their " +
 			"types and nullability, and which of them are keys.\n\n" +
 			"Names and types only, never a value. That is what keeps it in the read tier — an " +
-			"agent that can describe a database still cannot read one row of it, and mysql.query " +
+			"agent that can describe a database still cannot read one row of it, and " + engine.NS + ".query " +
 			"is where rows live.\n\n" +
 			"Name one table to expand only that one, which is also how to see a database too " +
 			"large to draw whole.",
@@ -293,7 +293,7 @@ func partialListing(code, schema, what string) view.Error {
 			"tables it holds one on — there may be tables in " + listed(schema) + " missing from " + what,
 		// The statement is SQL for a reader to run, so it names the database as
 		// it is: a list's quoting would be a different identifier.
-		Hint: "MySQL offers no way to count what it filtered out; a schema-wide grant " +
+		Hint: engine.Product + " offers no way to count what it filtered out; a schema-wide grant " +
 			"(GRANT SELECT ON `" + schema + "`.*) makes the listing complete",
 	}
 }
@@ -349,12 +349,12 @@ func schemaTree(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 
 	if len(order) == 0 {
 		if only := req.String("table"); only != "" {
-			return nil, view.Errorf("mysql.table.notfound", "no table %q in %q", only, schema).
-				WithHint(nextCall(req, "mysql.table.list", plugin.Arg{Name: "schema", Value: schema}) +
+			return nil, view.Errorf(engine.NS+".table.notfound", "no table %q in %q", only, schema).
+				WithHint(nextCall(req, engine.NS+".table.list", plugin.Arg{Name: "schema", Value: schema}) +
 					" shows what is there").WithInput("table")
 		}
-		return nil, view.Errorf("mysql.database.empty", "%q has no tables, or none this user may see", schema).
-			WithHint(nextCall(req, "mysql.database.list") + " shows what is there").WithInput(schemaInput(req))
+		return nil, view.Errorf(engine.NS+".database.empty", "%q has no tables, or none this user may see", schema).
+			WithHint(nextCall(req, engine.NS+".database.list") + " shows what is there").WithInput(schemaInput(req))
 	}
 
 	limit := req.Int("limit")
@@ -389,7 +389,7 @@ func schemaTree(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 	if req.String("table") == "" && !schemaFullyVisible(ctx, db, schema) {
 		return view.Sections{
 			Items:    []view.Section{{ID: "schema", Title: listed(schema), View: tree}},
-			Warnings: []view.Error{partialListing("mysql.schema.partial", schema, "this shape")},
+			Warnings: []view.Error{partialListing(engine.NS+".schema.partial", schema, "this shape")},
 		}, nil
 	}
 	return tree, nil

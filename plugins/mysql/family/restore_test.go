@@ -119,7 +119,7 @@ func TestTheRestoreChildConnectsWithinThePluginsBound(t *testing.T) {
 // and a port.
 func TestTheRestoreNamesAnIPv6ServerBracketed(t *testing.T) {
 	dir := t.TempDir()
-	for _, tool := range restoreTools {
+	for _, tool := range engine.restoreTools {
 		if err := os.WriteFile(filepath.Join(dir, tool), []byte("#!/bin/sh\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
