@@ -111,11 +111,21 @@ func bytesOrDash(n *int64) string {
 	return format.Bytes(*n)
 }
 
-func lagOrDash(l *float64) string {
-	if l == nil {
-		return "-"
+// bytesCell is bytesOrDash as a table's cell, valued in bytes, and lagCell a
+// lag's, valued in seconds: the dash a measurement nobody took reads as has
+// no value, which is what keeps it from reading as zero to a program.
+func bytesCell(n *int64) view.Cell {
+	if n == nil {
+		return view.Plain("-")
 	}
-	return lagText(*l)
+	return view.Bytes(*n)
+}
+
+func lagCell(l *float64) view.Cell {
+	if l == nil {
+		return view.Plain("-")
+	}
+	return view.Duration(lagText(*l), time.Duration(*l*float64(time.Second)))
 }
 
 // sinceText is a moment and how long ago it was, the pair a reader wants
