@@ -153,7 +153,7 @@ func cell(v any) string {
 func kindOf(ct *sql.ColumnType) view.ColumnKind {
 	switch name := strings.ToUpper(ct.DatabaseTypeName()); name {
 	case "TINYINT", "SMALLINT", "MEDIUMINT", "INT", "INTEGER", "BIGINT",
-		"UNSIGNED TINYINT", "UNSIGNED SMALLINT", "UNSIGNED INT", "UNSIGNED BIGINT",
+		"UNSIGNED TINYINT", "UNSIGNED SMALLINT", "UNSIGNED MEDIUMINT", "UNSIGNED INT", "UNSIGNED BIGINT",
 		"DECIMAL", "FLOAT", "DOUBLE", "NEWDECIMAL":
 		return view.KindNumber
 	case "DATE", "DATETIME", "TIMESTAMP":
