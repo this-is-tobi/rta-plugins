@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.12.2...plugins/mysql/v0.12.3) (2026-11-01)
+
+
+### Code Refactoring
+
+* **mysql:** the family package serves MySQL and MariaDB, each through its Engine ([4e8a529](https://github.com/this-is-tobi/rta-plugins/commit/4e8a52916a52309657f17fc083ca05d168252f18))
+* **mysql:** the plugin's code moves into a family package, unchanged ([923beda](https://github.com/this-is-tobi/rta-plugins/commit/923beda9b102872dd5ac56ee54ce53d7ab428174))
+
 ## [0.12.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.12.1...plugins/mysql/v0.12.2) (2026-11-01)
 
 
