@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.14.1...plugins/pg/v0.14.2) (2026-11-01)
+
+
+### Dependencies
+
+* every plugin builds against rta v0.53.0 ([86f761f](https://github.com/this-is-tobi/rta-plugins/commit/86f761f8fc4b0c4a687c64e8fe776b6e93417249))
+* every plugin builds against rta v0.54.0 ([ca6f44d](https://github.com/this-is-tobi/rta-plugins/commit/ca6f44dfc2dcb7fa3c50eed26f91e2957fde7621))
+
 ## [0.14.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.14.0...plugins/pg/v0.14.1) (2026-10-31)
 
 
