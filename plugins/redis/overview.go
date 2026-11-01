@@ -559,7 +559,9 @@ func persistenceTable(in info, now time.Time) view.Table {
 	}
 	rdbStatus := in.get("rdb_last_bgsave_status")
 	if in.get("rdb_bgsave_in_progress") == "1" {
-		rdbStatus = "in progress"
+		// One word, as the ok and err beside it are: a status is read by
+		// the word it leads with, and "in progress" read that way was "in".
+		rdbStatus = "saving"
 	}
 	aof := "off"
 	aofStatus := "-"
