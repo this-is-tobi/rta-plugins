@@ -225,12 +225,13 @@ func (s selection) leading(cols ...view.Column) []view.Column {
 	return append([]view.Column{{Name: "Namespace"}}, cols...)
 }
 
-// lead is leading for a row: the namespace ahead of cells, in the wide read.
-func (s selection) lead(namespace string, cells ...string) []string {
+// lead is leading for a row, of text or of cells that carry their values: the
+// namespace ahead of cells, in the wide read.
+func lead[T any](s selection, namespace T, cells ...T) []T {
 	if !s.wide() {
 		return cells
 	}
-	return append([]string{namespace}, cells...)
+	return append([]T{namespace}, cells...)
 }
 
 // cap assembles a capability's inputs in the order a person reads them, and

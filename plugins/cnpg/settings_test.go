@@ -228,8 +228,37 @@ func TestAVolumeSmallerThanItWasAskedForIsReported(t *testing.T) {
 			detail = s.View.(view.Table).Rows[0][2]
 		}
 	}
-	if !strings.Contains(detail, "20Gi") || !strings.Contains(detail, "7Gi") {
+	if !strings.Contains(detail, "20.0 GiB") || !strings.Contains(detail, "7.0 GiB") {
 		t.Errorf("the finding says %q, and does not print both numbers", detail)
+	}
+}
+
+// A volume larger than its claim is not short however the two are spelled: a
+// provisioner that rounds a 10G claim up to whole GiB answers 10Gi, which as
+// text was not the size asked for and read as an expansion that had not
+// finished. Both sizes are valued in bytes.
+func TestAVolumeRoundedUpByItsProvisionerIsNotShort(t *testing.T) {
+	servesPVCs(t, aPVC("shop-1", "shop-1", pvcRoleData, "10G", "10Gi", "Bound"))
+	v, err := runStorage(context.Background(), req(map[string]any{"cluster": "shop"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tbl, ok := v.(view.Table)
+	if !ok {
+		t.Fatalf("a volume as large as asked answers %T, want the table alone", v)
+	}
+	at := map[string]int{}
+	for i, c := range tbl.Columns {
+		at[c.Name] = i
+	}
+	if got := tbl.Rows[0][at["Status"]]; got != "ok" {
+		t.Errorf("status = %q, want ok", got)
+	}
+	if got, want := tbl.Values[0][at["Requested"]], "10000000000"; got != want {
+		t.Errorf("requested is valued %q, want %s bytes", got, want)
+	}
+	if got, want := tbl.Values[0][at["Capacity"]], "10737418240"; got != want {
+		t.Errorf("capacity is valued %q, want %s bytes", got, want)
 	}
 }
 
