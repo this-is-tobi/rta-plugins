@@ -71,6 +71,10 @@ jobs:
         ["README.md", "AGENTS.md", "CLAUDE.md", "SECURITY.md", "plugins/*/CHANGELOG.md",
         "LICENSE", "NOTICE", ".release-please-manifest.json"]
       MODULE_ROOT: plugins/
+      # Everything zizmor reads here, for scan-workflows. The repository
+      # holds no composite action and no dependabot config, the other two
+      # things it would.
+      GROUPS: '{"workflows": [".github/workflows/*", ".github/zizmor.yml"]}'
 
   # Which modules the gates below check: the ones a pull request's code
   # touched, or every one when it touched something they share. A name the
@@ -343,6 +347,21 @@ jobs:
             >/dev/null || echo "::warning::could not upload the $m scan to the Security tab"
         done
 
+  # The pipeline that publishes the plugins and writes the index is part of
+  # what a release can be compromised through. zizmor audits these workflows
+  # when one changes: a checkout that leaves its token in .git/config, an
+  # expression pasted into a script, an action on a tag someone can move, an
+  # action with a published advisory. A finding fails the pull request that
+  # brings it in, and .github/zizmor.yml says what it is told to accept, and
+  # why.
+  scan-workflows:
+    name: Scan workflows
+    needs: changes
+    if: ${{ fromJSON(needs.changes.outputs.groups).workflows }}
+    uses: this-is-tobi/github-workflows/.github/workflows/scan-zizmor.yml@v0
+    permissions:
+      contents: read
+
   # One required check to protect the branch with. A skipped job is a pass;
   # anything else is not.
   all-jobs-passed:
@@ -359,6 +378,7 @@ jobs:
     - cross
     - scan-secrets
     - scan-deps
+    - scan-workflows
     steps:
     # The context arrives through env rather than pasted into the script
     # between single quotes: it carries every job's outputs, and one quote in
