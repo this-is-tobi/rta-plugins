@@ -725,6 +725,36 @@ type meta struct {
 	Labels            map[string]string `json:"labels,omitempty"`
 }
 
+// ageCell is age as a table's cell, valued in whole seconds: the text rounds
+// down to its largest unit, "3d", and the value is the time it rounds, to the
+// second, since an age read to the microsecond is noise in every answer it is
+// in.
+func ageCell(t time.Time) view.Cell {
+	if t.IsZero() {
+		return view.Plain("")
+	}
+	return view.Duration(age(t), max(time.Since(t), 0).Round(time.Second))
+}
+
+// shareCell is a share shown as text says, valued in percent from the fraction
+// it was worked out from, which the text rounds: no text is no share, and has
+// no value.
+func shareCell(text string, fraction float64) view.Cell {
+	if text == "" {
+		return view.Plain("")
+	}
+	return view.Number(text, fraction*100)
+}
+
+// plain is a row of cells with no value of their own.
+func plain(row ...string) []view.Cell {
+	cells := make([]view.Cell, len(row))
+	for i, text := range row {
+		cells[i] = view.Plain(text)
+	}
+	return cells
+}
+
 // age renders a creation timestamp the way kubectl does.
 func age(t time.Time) string {
 	if t.IsZero() {

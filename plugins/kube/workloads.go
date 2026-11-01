@@ -103,21 +103,26 @@ func runNamespaceList(ctx context.Context, req plugin.Request) (view.View, error
 		named[name] = true
 	}
 	exists := make(map[string]bool, len(out.Items))
-	rows := make([][]string, 0, len(out.Items))
+	rows := make([][]view.Cell, 0, len(out.Items))
 	for _, n := range out.Items {
 		exists[n.Metadata.Name] = true
 		if len(names) > 0 && !named[n.Metadata.Name] {
 			continue
 		}
-		rows = append(rows, []string{n.Metadata.Name, n.Status.Phase, age(n.Metadata.CreationTimestamp)})
+		rows = append(rows, []view.Cell{view.Plain(n.Metadata.Name), view.Plain(n.Status.Phase), ageCell(n.Metadata.CreationTimestamp)})
 	}
-	sort.Slice(rows, func(i, j int) bool { return rows[i][0] < rows[j][0] })
+	// Sorted before the table is filled, since a value is kept beside the row
+	// it was added with.
+	sort.Slice(rows, func(i, j int) bool { return rows[i][0].Text < rows[j][0].Text })
 	t := view.Table{
 		Columns: []view.Column{
 			{Name: "namespace"}, {Name: "status", Kind: view.KindStatus}, {Name: "age", Kind: view.KindDuration},
 		},
-		Rows: rows, Total: len(rows),
 	}
+	for _, row := range rows {
+		t.Add(row...)
+	}
+	t.Total = len(t.Rows)
 	empty := "no namespaces"
 	if len(names) > 0 {
 		empty = "no namespace called " + truncate(names, 4)
@@ -414,18 +419,35 @@ func podTable(pods []podItem, withNS bool) view.Table {
 		view.Column{Name: "age", Kind: view.KindDuration},
 		view.Column{Name: "node"},
 	)
-	rows := make([][]string, 0, len(pods))
+	t := view.Table{Columns: cols}
 	for _, p := range pods {
 		h := healthOf(p)
-		row := []string{}
+		var row []view.Cell
 		if withNS {
-			row = append(row, p.Metadata.Namespace)
+			row = append(row, view.Plain(p.Metadata.Namespace))
 		}
-		rows = append(rows, append(row,
-			p.Metadata.Name, h.ready, h.status,
-			fmt.Sprintf("%d", h.restarts), age(p.Metadata.CreationTimestamp), p.Spec.NodeName))
+		t.Add(append(row,
+			view.Plain(p.Metadata.Name), view.Plain(h.ready), podStatusCell(h.status),
+			view.Plain(fmt.Sprintf("%d", h.restarts)), ageCell(p.Metadata.CreationTimestamp), view.Plain(p.Spec.NodeName))...)
 	}
-	return view.Table{Columns: cols, Rows: rows, Total: len(rows)}
+	t.Total = len(t.Rows)
+	return t
+}
+
+// podStatusCell is a pod's status valued as the state it names. kubectl puts
+// the stage of a pod stuck in an init container in front of that state,
+// Init:CrashLoopBackOff, and read by its first word every one of them would be
+// valued "init" — the crash, the pull that failed and the ordinary wait alike.
+// The ordinary wait, Init:0/1, has no state to name and is valued "init".
+func podStatusCell(status string) view.Cell {
+	stage, ok := strings.CutPrefix(status, "Init:")
+	if !ok {
+		return view.Plain(status)
+	}
+	if word := strings.ToLower(stage); word != "" && strings.Trim(word, "abcdefghijklmnopqrstuvwxyz") == "" {
+		return view.Status(status, word)
+	}
+	return view.Status(status, "init")
 }
 
 func fetchDeployments(ctx context.Context, s selection) ([]deploymentItem, *view.Error) {
@@ -477,20 +499,21 @@ func deploymentTable(deps []deploymentItem, withNS bool) view.Table {
 		view.Column{Name: "available", Kind: view.KindNumber},
 		view.Column{Name: "age", Kind: view.KindDuration},
 	)
-	rows := make([][]string, 0, len(deps))
+	t := view.Table{Columns: cols}
 	for _, d := range deps {
-		row := []string{}
+		var row []view.Cell
 		if withNS {
-			row = append(row, d.Metadata.Namespace)
+			row = append(row, view.Plain(d.Metadata.Namespace))
 		}
-		rows = append(rows, append(row,
-			d.Metadata.Name,
-			fmt.Sprintf("%d/%d", d.Status.ReadyReplicas, desired(d)),
-			fmt.Sprintf("%d", d.Status.UpdatedReplicas),
-			fmt.Sprintf("%d", d.Status.AvailableReplicas),
-			age(d.Metadata.CreationTimestamp)))
+		t.Add(append(row,
+			view.Plain(d.Metadata.Name),
+			view.Plain(fmt.Sprintf("%d/%d", d.Status.ReadyReplicas, desired(d))),
+			view.Plain(fmt.Sprintf("%d", d.Status.UpdatedReplicas)),
+			view.Plain(fmt.Sprintf("%d", d.Status.AvailableReplicas)),
+			ageCell(d.Metadata.CreationTimestamp))...)
 	}
-	return view.Table{Columns: cols, Rows: rows, Total: len(rows)}
+	t.Total = len(t.Rows)
+	return t
 }
 
 // suggestNamespaces completes a namespace name, or the one element of a list of

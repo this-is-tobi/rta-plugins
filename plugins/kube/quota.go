@@ -108,7 +108,7 @@ func runQuotaList(ctx context.Context, req plugin.Request) (view.View, error) {
 		return a.Name < b.Name
 	})
 
-	rows := make([][]string, 0, len(quotas.Items))
+	t := view.Table{Columns: cols}
 	for _, q := range quotas.Items {
 		resources := make([]string, 0, len(q.Status.Hard))
 		for r := range q.Status.Hard {
@@ -118,15 +118,18 @@ func runQuotaList(ctx context.Context, req plugin.Request) (view.View, error) {
 		for _, r := range resources {
 			hard := q.Status.Hard[r]
 			used := q.Status.Used[r]
-			row := []string{}
+			var row []view.Cell
 			if l.wide() {
-				row = append(row, q.Metadata.Namespace)
+				row = append(row, view.Plain(q.Metadata.Namespace))
 			}
-			rows = append(rows, append(row, q.Metadata.Name, r, used, hard, quotaPercent(used, hard)))
+			v, _ := quotaPercentValue(used, hard)
+			t.Add(append(row, view.Plain(q.Metadata.Name), view.Plain(r), view.Plain(used), view.Plain(hard),
+				shareCell(quotaPercent(used, hard), v))...)
 		}
 	}
+	t.Total = len(t.Rows)
 
-	t := withEmpty(view.Table{Columns: cols, Rows: rows, Total: len(rows)},
+	t = withEmpty(t,
 		"no resource quotas in "+l.scopeWords())
 	return quotaView(withUnread(t, unread, 1), limits, limitErrs...), nil
 }

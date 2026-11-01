@@ -230,18 +230,19 @@ func nodeTable(nodes []nodeItem) view.Table {
 		{Name: "version"},
 		{Name: "age", Kind: view.KindDuration},
 	}
-	rows := make([][]string, 0, len(nodes))
+	t := view.Table{Columns: cols}
 	for _, n := range nodes {
 		h := healthOfNode(n)
 		pressure := ""
 		if len(h.pressures) > 0 {
 			pressure = truncate(h.pressures, 3)
 		}
-		rows = append(rows, []string{
-			n.Metadata.Name, h.status, pressure,
-			n.Status.Allocatable.Pods, n.Status.NodeInfo.KubeletVersion,
-			age(n.Metadata.CreationTimestamp),
-		})
+		t.Add(
+			view.Plain(n.Metadata.Name), view.Plain(h.status), view.Plain(pressure),
+			view.Plain(n.Status.Allocatable.Pods), view.Plain(n.Status.NodeInfo.KubeletVersion),
+			ageCell(n.Metadata.CreationTimestamp),
+		)
 	}
-	return view.Table{Columns: cols, Rows: rows, Total: len(rows)}
+	t.Total = len(t.Rows)
+	return t
 }

@@ -308,15 +308,16 @@ func runCertList(ctx context.Context, req plugin.Request) (view.View, error) {
 		view.Column{Name: "status", Kind: view.KindStatus},
 	)
 	now := time.Now()
-	rows := make([][]string, 0, len(read.certs))
+	certs := view.Table{Columns: cols}
 	for _, c := range read.certs {
-		row := []string{}
+		var row []view.Cell
 		if l.wide() {
-			row = append(row, c.Namespace)
+			row = append(row, view.Plain(c.Namespace))
 		}
-		rows = append(rows, append(row, c.Name, c.Subject, c.expiry(), c.status(now)))
+		certs.Add(append(row, view.Plain(c.Name), view.Plain(c.Subject), view.Time(c.expiry(), c.NotAfter), view.Plain(c.status(now)))...)
 	}
-	t := withUnread(withEmpty(view.Table{Columns: cols, Rows: rows, Total: len(rows)},
+	certs.Total = len(certs.Rows)
+	t := withUnread(withEmpty(certs,
 		"no TLS Secrets in "+l.scopeWords()), unread, 1)
 	// Said once the read is old enough to matter: the overview's own tile
 	// reads a moment before a listing of the same Secrets, and "read 0s ago"
