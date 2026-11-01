@@ -624,7 +624,9 @@ func leaseTable(ctx context.Context, c *clientv3.Client, req plugin.Request) (vi
 		}
 		t.Add(leaseRow(int64(l.ID), ttl.GrantedTTL, ttl.TTL, len(ttl.Keys))...)
 	}
-	t.Total = len(t.Rows)
+	// The leases there are, not the rows: past the limit, the row standing in
+	// for the rest is no lease, and counting it said there was one more.
+	t.Total = len(resp.Leases)
 	t.Empty = "no leases"
 	return t, nil
 }
