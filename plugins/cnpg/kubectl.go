@@ -627,6 +627,16 @@ func age(t time.Time) string {
 	return span(time.Since(t))
 }
 
+// ageCell is age as a table's cell, valued in whole seconds: a fraction of a
+// second is noise beside a text that counts in minutes, and two reads of one
+// listing would never value the same backup alike.
+func ageCell(t time.Time) view.Cell {
+	if t.IsZero() {
+		return view.Plain("—")
+	}
+	return view.Duration(age(t), time.Since(t).Round(time.Second))
+}
+
 // until is age pointed forward, for the certificate expiries: "in how long"
 // with the same buckets, so the two directions read alike.
 func until(t time.Time) string {

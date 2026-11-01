@@ -69,7 +69,7 @@ func TestBackupsOfOneNamespaceInAListAreTheSinglePageItAlwaysWas(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		raw, err := view.Marshal(view.Envelope{View: v})
+		raw, err := view.Marshal(view.Envelope{View: withoutTimes(v)})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -81,6 +81,36 @@ func TestBackupsOfOneNamespaceInAListAreTheSinglePageItAlwaysWas(t *testing.T) {
 	if strings.Contains(pages[0], `"Namespace"`) {
 		t.Error("one namespace led with a Namespace column")
 	}
+}
+
+// withoutTimes is v with the values of its time columns left out: two reads
+// moments apart value an age a second apart whenever they straddle one, and
+// nothing else about the two pages may differ.
+func withoutTimes(v view.View) view.View {
+	switch t := v.(type) {
+	case view.Sections:
+		items := make([]view.Section, len(t.Items))
+		for i, s := range t.Items {
+			s.View = withoutTimes(s.View)
+			items[i] = s
+		}
+		t.Items = items
+		return t
+	case view.Table:
+		values := make([][]string, len(t.Values))
+		for i, row := range t.Values {
+			kept := append([]string(nil), row...)
+			for j, c := range t.Columns {
+				if (c.Kind == view.KindDuration || c.Kind == view.KindTimestamp) && j < len(kept) {
+					kept[j] = ""
+				}
+			}
+			values[i] = kept
+		}
+		t.Values = values
+		return t
+	}
+	return v
 }
 
 func TestTheBackupLimitCutsTheMergedListAndKeepsTheExactTotal(t *testing.T) {

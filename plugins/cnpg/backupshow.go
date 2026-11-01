@@ -254,6 +254,16 @@ func stampAt(t time.Time) string {
 	return t.UTC().Format("2006-01-02 15:04") + " UTC (" + age(t) + " ago)"
 }
 
+// stampCell is stamp as a table's cell, valued at the instant to the second
+// the resource recorded, where its text stops at the minute.
+func stampCell(raw string) view.Cell {
+	t, ok := parseWhen(raw)
+	if !ok {
+		return view.Plain("—")
+	}
+	return view.Time(stampAt(t), t)
+}
+
 func backupShowCapability() plugin.Capability {
 	return cap(plugin.Capability{
 		ID:       "cnpg.backup.show",
@@ -497,8 +507,13 @@ func readObjectStore(ctx context.Context, s selection, c cluster, ref string) (o
 // in-tree mechanisms, and absent where neither was read.
 func (p *showPage) recovery(c cluster, s selection, store *objectStore) {
 	const id, title = "recovery", "Recovery window"
-	columns := []view.Column{{Name: "Server"}, {Name: "First recoverable point"},
-		{Name: "Last successful backup"}, {Name: "Last failed backup"}}
+	columns := []view.Column{{Name: "Server"}, {Name: "First recoverable point", Kind: view.KindTimestamp},
+		{Name: "Last successful backup", Kind: view.KindTimestamp}, {Name: "Last failed backup", Kind: view.KindTimestamp}}
+	windowOf := func(cells ...view.Cell) view.Table {
+		t := view.Table{Columns: columns, Total: 1}
+		t.Add(cells...)
+		return t
+	}
 	server := c.archiveServerName()
 
 	switch {
@@ -522,9 +537,8 @@ func (p *showPage) recovery(c cluster, s selection, store *objectStore) {
 				"differs from the one the cluster files its backups under shows the same.")
 			return
 		}
-		p.add(id, title, view.Table{Columns: columns, Total: 1, Rows: [][]string{{
-			server, stamp(window.FirstRecoverabilityPoint),
-			stamp(window.LastSuccessfulBackupTime), stamp(window.LastFailedBackupTime)}}})
+		p.add(id, title, windowOf(view.Plain(server), stampCell(window.FirstRecoverabilityPoint),
+			stampCell(window.LastSuccessfulBackupTime), stampCell(window.LastFailedBackupTime)))
 	case c.Spec.Backup != nil:
 		last, ever := c.lastSuccess()
 		from, failed := c.recoverableFrom(), c.Status.LastFailedBackup
@@ -533,12 +547,11 @@ func (p *showPage) recovery(c cluster, s selection, store *objectStore) {
 				" lists the Backup objects, which say whether one was ever asked for.")
 			return
 		}
-		success := "—"
+		success := view.Plain("—")
 		if ever {
-			success = stampAt(last.at)
+			success = view.Time(stampAt(last.at), last.at)
 		}
-		p.add(id, title, view.Table{Columns: columns, Total: 1, Rows: [][]string{{
-			server, stamp(from), success, stamp(failed)}}})
+		p.add(id, title, windowOf(view.Plain(server), stampCell(from), success, stampCell(failed)))
 	}
 }
 
@@ -612,23 +625,21 @@ func (p *showPage) schedules(ctx context.Context, s selection, c cluster) {
 	}
 	t := view.Table{Columns: []view.Column{
 		{Name: "Schedule"}, {Name: "Status", Kind: view.KindStatus}, {Name: "Cron"}, {Name: "Method"},
-		{Name: "Last ran"}, {Name: "Next runs"}, {Name: "Error"},
+		{Name: "Last ran", Kind: view.KindTimestamp}, {Name: "Next runs", Kind: view.KindTimestamp}, {Name: "Error"},
 	}}
 	for _, sb := range mine {
-		last, next := "never", "—"
+		last, next := view.Plain("never"), view.Plain("—")
 		if at, ok := parseWhen(sb.Status.LastScheduleTime); ok {
-			last = age(at) + " ago"
+			last = view.Time(age(at)+" ago", at)
 		}
 		switch at, ok := parseWhen(sb.Status.NextScheduleTime); {
 		case sb.Spec.Suspend:
-			next = "suspended"
+			next = view.Plain("suspended")
 		case ok:
-			next = "in " + until(at)
+			next = view.Time("in "+until(at), at)
 		}
-		t.Rows = append(t.Rows, []string{
-			sb.Metadata.Name, sb.status(), orDash(sb.Spec.Schedule), sb.method(), last, next,
-			orDash(firstLine(sb.Status.Error)),
-		})
+		t.Add(view.Plain(sb.Metadata.Name), view.Plain(sb.status()), view.Plain(orDash(sb.Spec.Schedule)),
+			view.Plain(sb.method()), last, next, view.Plain(orDash(firstLine(sb.Status.Error))))
 	}
 	t.Total = len(t.Rows)
 	p.add(id, title, t)
