@@ -173,8 +173,8 @@ github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
-github.com/this-is-tobi/rta v0.56.0 h1:2B3Q1Rf8D3hjm2NIBXqY1k54612BS6Pws7gmyFVWsMo=
-github.com/this-is-tobi/rta v0.56.0/go.mod h1:HilNMkHWttBZyEs4tQUdLK+5EmfZMastcHEo2MigVKQ=
+github.com/this-is-tobi/rta v0.57.0 h1:dwq2EYGdksD9pVOOudDFvDkQvMr2k2IGsElZrBQm6MA=
+github.com/this-is-tobi/rta v0.57.0/go.mod h1:HilNMkHWttBZyEs4tQUdLK+5EmfZMastcHEo2MigVKQ=
 github.com/tinylib/msgp v1.6.4 h1:mOwYbyYDLPj35mkA2BjjYejgJk9BuHxDdvRnb6v2ZcQ=
 github.com/tinylib/msgp v1.6.4/go.mod h1:RSp0LW9oSxFut3KzESt5Voq4GVWyS+PSulT77roAqEA=
 github.com/tklauser/go-sysconf v0.4.0 h1:7H0uAN+7RkwWRaxhYXDLqa5V3LPrJeV8wmD9dRUgPQU=
