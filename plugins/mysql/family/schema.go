@@ -150,7 +150,7 @@ func tableTable(ctx context.Context, db *sql.DB, req plugin.Request) (view.View,
 		} else {
 			typ = strings.ToLower(typ)
 		}
-		t.Rows = append(t.Rows, []string{listed(name), typ, engine, strconv.FormatInt(estRows, 10), bytesCell(size)})
+		t.Add(view.Plain(listed(name)), view.Plain(typ), view.Plain(engine), view.Plain(strconv.FormatInt(estRows, 10)), bytesCell(size))
 	}
 	if err := rows.Err(); err != nil {
 		return nil, classify(err, req)

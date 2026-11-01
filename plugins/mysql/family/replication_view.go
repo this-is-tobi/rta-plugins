@@ -28,7 +28,8 @@ func sourcesTable(channels []channelRow) view.Table {
 		{Name: "Status", Kind: view.KindStatus},
 	}}
 	for _, c := range channels {
-		t.Rows = append(t.Rows, []string{c.name, c.source, c.io, c.sql, c.behind, c.read, c.applied, c.backlog, c.status})
+		t.Add(view.Plain(c.name), view.Plain(c.source), view.Plain(c.io), view.Plain(c.sql), c.behind,
+			view.Plain(c.read), view.Plain(c.applied), c.backlog, view.Plain(c.status))
 	}
 	t.Total = len(t.Rows)
 	return t

@@ -288,12 +288,12 @@ func TestBytesColumnsBecomeText(t *testing.T) {
 // a glance is a column that gets piped into another tool instead of read.
 func TestSizesRenderAsBytesWhateverTypeTheyArriveAs(t *testing.T) {
 	for _, v := range []any{int64(1048576), uint64(1048576), []byte("1048576"), float64(1048576)} {
-		if got := bytesCell(v); got != "1.0 MiB" {
-			t.Errorf("bytesCell(%T) = %q, want 1.0 MiB", v, got)
+		if got := bytesCell(v); got.Text != "1.0 MiB" || got.Value != "1048576" {
+			t.Errorf("bytesCell(%T) = %q valued %q, want 1.0 MiB valued 1048576", v, got.Text, got.Value)
 		}
 	}
-	if got := bytesCell(nil); got != "-" {
-		t.Errorf("bytesCell(nil) = %q, want -", got)
+	if got := bytesCell(nil); got.Text != "-" || got.Value != "" {
+		t.Errorf("bytesCell(nil) = %q valued %q, want - with no value", got.Text, got.Value)
 	}
 }
 

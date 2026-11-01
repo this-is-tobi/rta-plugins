@@ -232,8 +232,8 @@ func replicaFacet(channels []channelRow) facet {
 		c := channels[0]
 		detail, brief := reason(c.status), ""
 		if c.status == "ok" {
-			detail = "IO and SQL threads running, " + c.behind + " behind"
-			brief = c.behind + " behind"
+			detail = "IO and SQL threads running, " + c.behind.Text + " behind"
+			brief = c.behind.Text + " behind"
 			if c.delay != "" {
 				detail += ", keeping a " + c.delay + " delay"
 				brief += ", " + c.delay + " delay"
