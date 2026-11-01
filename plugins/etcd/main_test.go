@@ -57,21 +57,22 @@ func req(t *testing.T, capID string, values map[string]any) plugin.Request {
 // file, and without one its dry run stops at the refusal asking for it,
 // short of the description the rule is there to reach.
 func TestConformance(t *testing.T) {
-	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."))
+	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."),
+		sdktest.Skip(sdktest.RuleDryRunOffline, "etcd.kv.get",
+			"classified write for what it discloses, so its dry run is the read"))
 }
 
-// conformanceInputs points both writes at a port nothing listens on, so
-// neither reaches a cluster. etcd.kv.get has no dry run of its own — it
-// changes nothing, and reads under --dry-run as it does without — so left
-// at its default endpoint it would read a key out of whatever etcd the
-// machine running the tests has. The snapshot's file is inside dir, the
+// conformanceInputs points both writes at sdktest.Nowhere, so neither
+// reaches a cluster. etcd.kv.get has no dry run of its own — it changes
+// nothing, and reads under --dry-run as it does without — so left at its
+// default endpoint it would read a key out of whatever etcd the machine
+// running the tests has; it connects to Nowhere instead, and is waived from
+// RuleDryRunOffline for it. A snapshot's dry run that stopped being dry would
+// connect there too, and fail. The snapshot's file is inside dir, the
 // directory the suite watches, so a dry run that wrote it would be caught
 // where it landed.
-//
-// etcd.kv.get meets the closed port and is refused at once, as a port
-// nothing listens on; so would a snapshot's dry run that stopped being dry.
 func conformanceInputs(dir string) map[string]map[string]any {
-	const endpoint = "127.0.0.1:1"
+	endpoint := sdktest.Nowhere(dir)
 	return map[string]map[string]any{
 		"etcd.kv.get":   {"address": endpoint, "key": "/conformance"},
 		"etcd.snapshot": {"address": endpoint, "out": filepath.Join(dir, "etcd.snap")},

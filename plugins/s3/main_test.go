@@ -33,21 +33,26 @@ import (
 func TestConformance(t *testing.T) {
 	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."),
 		sdktest.Skip(sdktest.RuleRedaction, "s3.object.presign",
-			"the URL is the answer, and the grant naming the key is the consent to be handed it"))
+			"the URL is the answer, and the grant naming the key is the consent to be handed it"),
+		sdktest.Skip(sdktest.RuleDryRunOffline, "s3.bucket.download", "lists the bucket to say what a copy would move"),
+		sdktest.Skip(sdktest.RuleDryRunOffline, "s3.bucket.upload", "checks the bucket an upload would land in"))
 }
 
 // conformanceInputs points every mutating capability at a bucket and key that
-// do not exist, on an endpoint nothing is listening on.
+// do not exist, on sdktest.Nowhere.
 //
-// The dead endpoint is the load-bearing half, copied from the built-ins' own
-// fixture: a dry run that stops being dry fails here as a refused connection
-// to 127.0.0.1:1 rather than as a request against somebody's real storage.
+// The endpoint is the load-bearing half: a dry run that stops being dry
+// connects to Nowhere and fails, rather than sending a request to somebody's
+// real storage. At a port nothing listened on, the refused connection was a
+// coded error, which the rule took for the dry run's answer. The bucket
+// transfers do connect, to list what they would copy and to check where they
+// would land, and are waived from RuleDryRunOffline for it.
 // Paths land inside dir, which is the directory the dry-run rule watches, so
 // a write that should not have happened is a test failure rather than a file
 // in a temp directory nobody looks at.
 func conformanceInputs(dir string) map[string]map[string]any {
 	conn := func(m map[string]any) map[string]any {
-		m["address"] = "127.0.0.1:1"
+		m["address"] = sdktest.Nowhere(dir)
 		m["access-key"], m["secret-key"] = "conformance", "conformance"
 		return m
 	}

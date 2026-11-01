@@ -5,6 +5,7 @@ import (
 	stdnet "net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -39,15 +40,22 @@ func req(t *testing.T, capID string, values map[string]any) plugin.Request {
 // no default supplies: without one the suite fails rather than report a
 // pass for a capability it never ran.
 func TestConformance(t *testing.T) {
-	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."))
+	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."),
+		sdktest.Skip(sdktest.RuleDryRunOffline, "mariadb.query", disclosed),
+		sdktest.Skip(sdktest.RuleDryRunOffline, "mariadb.activity", disclosed))
 }
 
-// conformanceInputs points every write at a port nothing listens on, so none
-// of them reaches a server. mariadb.query and mariadb.activity have no dry run
-// of their own — they change nothing, and read under --dry-run as they do
-// without — so left at the default host they would read whatever server the
-// machine running the tests has. A dump's or a restore's dry run that
-// stopped being dry fails as a refused connection.
+// disclosed is why a capability classified write for what it discloses
+// connects under --dry-run.
+const disclosed = "classified write for what it discloses, so its dry run is the read"
+
+// conformanceInputs points every write at sdktest.Nowhere, so none of them
+// reaches a server. mariadb.query and mariadb.activity have no dry run of their
+// own — they change nothing, and read under --dry-run as they do without —
+// so left at the default host they would read whatever server the machine
+// running the tests has; they connect to Nowhere instead, and are waived
+// from RuleDryRunOffline for it. A dump's or a restore's dry run that
+// stopped being dry would connect there too, and fail.
 //
 // The dump's file and the restore's fixture are inside dir, the directory
 // the suite watches: a dry run that wrote the one or touched the other is
@@ -58,7 +66,7 @@ func TestConformance(t *testing.T) {
 // naming the missing tool — and both leave dir as it was.
 func conformanceInputs(dir string) map[string]map[string]any {
 	conn := func(m map[string]any) map[string]any {
-		m["host"], m["port"] = "127.0.0.1", 1
+		m["host"], m["port"] = nowhere(dir)
 		m["user"], m["database"] = "conformance", "conformance"
 		return m
 	}
@@ -70,6 +78,20 @@ func conformanceInputs(dir string) map[string]map[string]any {
 		"mariadb.dump":     conn(map[string]any{"out": filepath.Join(dir, "mariadb.sql")}),
 		"mariadb.restore":  conn(map[string]any{"file": fixture}),
 	}
+}
+
+// nowhere is sdktest.Nowhere(dir) as the host and the port this plugin takes
+// separately.
+func nowhere(dir string) (string, int) {
+	host, port, err := stdnet.SplitHostPort(sdktest.Nowhere(dir))
+	if err != nil {
+		panic(err)
+	}
+	n, err := strconv.Atoi(port)
+	if err != nil {
+		panic(err)
+	}
+	return host, n
 }
 
 // A password containing '@' or '/' once had to survive a DSN, where hand

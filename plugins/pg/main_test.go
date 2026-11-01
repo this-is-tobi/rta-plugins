@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -35,15 +36,23 @@ import (
 // without them two of pg's four mutating capabilities were never driven at
 // all — the suite reported a pass for capabilities it had not run.
 func TestConformance(t *testing.T) {
-	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."))
+	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."),
+		sdktest.Skip(sdktest.RuleDryRunOffline, "pg.query", disclosed),
+		sdktest.Skip(sdktest.RuleDryRunOffline, "pg.table.rows", disclosed))
 }
 
-// conformanceInputs points the mutating capabilities at a port nothing is
-// listening on, so a dry run that stops being dry fails as a refused
-// connection rather than as a query against somebody's database.
+// disclosed is why a capability classified write for what it discloses
+// connects under --dry-run.
+const disclosed = "classified write for what it discloses, so its dry run is the read"
+
+// conformanceInputs points the mutating capabilities at sdktest.Nowhere, so
+// a dry run that stops being dry connects there and fails, rather than
+// running against somebody's database. pg.query and pg.table.rows have no
+// dry run of their own — they change nothing, and read under --dry-run as
+// they do without — and are waived from RuleDryRunOffline for it.
 func conformanceInputs(dir string) map[string]map[string]any {
 	conn := func(m map[string]any) map[string]any {
-		m["host"], m["port"] = "127.0.0.1", 1
+		m["host"], m["port"] = nowhere(dir)
 		m["user"], m["database"] = "conformance", "conformance"
 		return m
 	}
@@ -59,6 +68,20 @@ func conformanceInputs(dir string) map[string]map[string]any {
 		"pg.dump":       conn(map[string]any{"out": filepath.Join(dir, "pg.dump")}),
 		"pg.restore":    conn(map[string]any{"file": fixture}),
 	}
+}
+
+// nowhere is sdktest.Nowhere(dir) as the host and the port this plugin takes
+// separately.
+func nowhere(dir string) (string, int) {
+	host, port, err := net.SplitHostPort(sdktest.Nowhere(dir))
+	if err != nil {
+		panic(err)
+	}
+	n, err := strconv.Atoi(port)
+	if err != nil {
+		panic(err)
+	}
+	return host, n
 }
 
 // req builds a resolved request the way the host would, so these test the

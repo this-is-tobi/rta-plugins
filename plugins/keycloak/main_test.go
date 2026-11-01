@@ -31,12 +31,12 @@ func TestConformance(t *testing.T) {
 	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."))
 }
 
-// conformanceInputs points every capability at an address nothing is
-// listening on, and gives the ones with a required selector something to
-// select.
-func conformanceInputs(string) map[string]map[string]any {
+// conformanceInputs points every capability at sdktest.Nowhere, and gives the
+// ones with a required selector something to select. None of the five dry
+// runs connects there, and one that came to ask Keycloak would fail.
+func conformanceInputs(dir string) map[string]map[string]any {
 	conn := func(m map[string]any) map[string]any {
-		m["url"] = "http://127.0.0.1:1"
+		m["url"] = "http://" + sdktest.Nowhere(dir)
 		m["client-secret"] = "conformance"
 		return m
 	}
