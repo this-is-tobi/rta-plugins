@@ -142,16 +142,17 @@ func (b backupObject) status() string {
 	return "info"
 }
 
-// took is how long the backup ran, or how long it has been running.
-func (b backupObject) took() string {
+// took is how long the backup ran, valued in seconds, or how long it has been
+// running, which is not yet how long it took and has no value.
+func (b backupObject) took() view.Cell {
 	start, ok := parseWhen(b.Status.StartedAt)
 	if !ok {
-		return "—"
+		return view.Plain("—")
 	}
 	if stop, ended := parseWhen(b.Status.StoppedAt); ended {
-		return span(stop.Sub(start))
+		return view.Duration(span(stop.Sub(start)), stop.Sub(start))
 	}
-	return span(time.Since(start)) + " so far"
+	return view.Plain(span(time.Since(start)) + " so far")
 }
 
 // where names the destination, and says who chose it.
@@ -294,14 +295,15 @@ func runBackupList(ctx context.Context, req plugin.Request) (view.View, error) {
 
 	t := view.Table{Columns: s.leading(
 		view.Column{Name: "Backup"}, view.Column{Name: "Cluster"}, view.Column{Name: "Status", Kind: view.KindStatus},
-		view.Column{Name: "Phase"}, view.Column{Name: "Method"}, view.Column{Name: "Took"},
-		view.Column{Name: "Age"}, view.Column{Name: "Where"},
+		view.Column{Name: "Phase"}, view.Column{Name: "Method"}, view.Column{Name: "Took", Kind: view.KindDuration},
+		view.Column{Name: "Age", Kind: view.KindDuration}, view.Column{Name: "Where"},
 	)}
 	for _, b := range rows {
-		t.Rows = append(t.Rows, lead(s, b.Metadata.Namespace,
-			b.Metadata.Name, b.Spec.Cluster.Name, b.status(), orDash(b.Status.Phase),
-			orDash(b.resolvedMethod()), b.took(), age(b.Metadata.CreationTimestamp), b.where(),
-		))
+		t.Add(lead(s, view.Plain(b.Metadata.Namespace),
+			view.Plain(b.Metadata.Name), view.Plain(b.Spec.Cluster.Name), view.Plain(b.status()),
+			view.Plain(orDash(b.Status.Phase)), view.Plain(orDash(b.resolvedMethod())), b.took(),
+			ageCell(b.Metadata.CreationTimestamp), view.Plain(b.where()),
+		)...)
 	}
 	// The total is every backup there is, not the rows on hand, so a cut list
 	// says how much of the whole it is.
