@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.9.2...plugins/keycloak/v0.10.0) (2026-11-01)
+
+
+### Features
+
+* **keycloak:** a time keeps the milliseconds Keycloak records ([0740bcb](https://github.com/this-is-tobi/rta-plugins/commit/0740bcbc23dfafa145853da43bae6f7ac87fa29c))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.55.0 ([fc99005](https://github.com/this-is-tobi/rta-plugins/commit/fc990055df29227268e6b92d9798cfc2158ed4d8))
+
 ## [0.9.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/keycloak/v0.9.1...plugins/keycloak/v0.9.2) (2026-11-01)
 
 

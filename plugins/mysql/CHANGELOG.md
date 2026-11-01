@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.13.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.12.3...plugins/mysql/v0.13.0) (2026-11-01)
+
+
+### Features
+
+* **mysql:** sizes, a session's time and a replica's lag and backlog carry their values ([13ea819](https://github.com/this-is-tobi/rta-plugins/commit/13ea8194587a2e761ff099795365eaf0c22d36ea))
+
+
+### Bug Fixes
+
+* **mysql:** an UNSIGNED MEDIUMINT result column is a number ([2dbec41](https://github.com/this-is-tobi/rta-plugins/commit/2dbec41d3b5f1e678bb1570841981f9c7d31a989))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.55.0 ([fc99005](https://github.com/this-is-tobi/rta-plugins/commit/fc990055df29227268e6b92d9798cfc2158ed4d8))
+
 ## [0.12.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.12.2...plugins/mysql/v0.12.3) (2026-11-01)
 
 

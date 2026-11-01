@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.12.2...plugins/mariadb/v0.12.3) (2026-11-01)
+
+
+### Dependencies
+
+* every plugin builds against rta v0.55.0 ([fc99005](https://github.com/this-is-tobi/rta-plugins/commit/fc990055df29227268e6b92d9798cfc2158ed4d8))
+* **mariadb:** the plugin serves the family package's MariaDB engine ([5254385](https://github.com/this-is-tobi/rta-plugins/commit/5254385138fab110fb5cb53929411c0287ed1955))
+
 ## [0.12.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.12.1...plugins/mariadb/v0.12.2) (2026-11-01)
 
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.10.2...plugins/vault/v0.10.3) (2026-11-01)
+
+
+### Bug Fixes
+
+* **vault:** a version's number, time and state are valued ([63aeab6](https://github.com/this-is-tobi/rta-plugins/commit/63aeab6530159e9c4f0b49d34000d1a7a69e5075))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.55.0 ([fc99005](https://github.com/this-is-tobi/rta-plugins/commit/fc990055df29227268e6b92d9798cfc2158ed4d8))
+
 ## [0.10.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.10.1...plugins/vault/v0.10.2) (2026-11-01)
 
 

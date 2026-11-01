@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.10.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.9.2...plugins/etcd/v0.10.0) (2026-11-01)
+
+
+### Features
+
+* **etcd:** the backend's sizes, its quota share and lease times carry their values ([39885f4](https://github.com/this-is-tobi/rta-plugins/commit/39885f49f5d724345ccd29574f5d21f19b6f82a4))
+
+
+### Bug Fixes
+
+* **etcd:** the lease list counts its leases, not the row standing in for the rest ([59f6380](https://github.com/this-is-tobi/rta-plugins/commit/59f638089087766ae9084653ff234c307f74ad19))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.55.0 ([fc99005](https://github.com/this-is-tobi/rta-plugins/commit/fc990055df29227268e6b92d9798cfc2158ed4d8))
+
 ## [0.9.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.9.1...plugins/etcd/v0.9.2) (2026-11-01)
 
 

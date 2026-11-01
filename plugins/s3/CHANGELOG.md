@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.14.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.13.2...plugins/s3/v0.14.0) (2026-11-01)
+
+
+### Features
+
+* **s3:** an object's size and time and a bucket's creation carry their values ([9596064](https://github.com/this-is-tobi/rta-plugins/commit/95960647a8f59da10e1d225f616c5fb721300631))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.55.0 ([fc99005](https://github.com/this-is-tobi/rta-plugins/commit/fc990055df29227268e6b92d9798cfc2158ed4d8))
+
 ## [0.13.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.13.1...plugins/s3/v0.13.2) (2026-11-01)
 
 

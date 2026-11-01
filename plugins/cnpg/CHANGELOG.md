@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.14.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.13.2...plugins/cnpg/v0.14.0) (2026-11-01)
+
+
+### Features
+
+* **cnpg:** a backup's durations and times carry their values ([f90ba92](https://github.com/this-is-tobi/rta-plugins/commit/f90ba92d764599715156b581a602e54ab1a7a60e))
+
+
+### Bug Fixes
+
+* **cnpg:** a volume's sizes are compared and shown in bytes ([6183d9b](https://github.com/this-is-tobi/rta-plugins/commit/6183d9b66a463a194e9dcb1d1c366d70a0f704ed))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.55.0 ([fc99005](https://github.com/this-is-tobi/rta-plugins/commit/fc990055df29227268e6b92d9798cfc2158ed4d8))
+
 ## [0.13.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.13.1...plugins/cnpg/v0.13.2) (2026-11-01)
 
 
