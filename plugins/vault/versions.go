@@ -131,7 +131,14 @@ func runKVHistory(ctx context.Context, req plugin.Request) (view.View, error) {
 			versions = append(versions, v)
 		}
 		sort.Slice(versions, func(i, j int) bool { return versions[i].Version < versions[j].Version })
-		t := view.Table{Columns: []view.Column{{Name: "Version"}, {Name: "Created"}, {Name: "State"}}}
+		// Each column is a kind whose cells' text is already their value — a
+		// number, an RFC 3339 time and a state that leads with its word — so
+		// the host values all three from the rows.
+		t := view.Table{Columns: []view.Column{
+			{Name: "Version", Kind: view.KindNumber},
+			{Name: "Created", Kind: view.KindTimestamp},
+			{Name: "State", Kind: view.KindStatus},
+		}}
 		for _, v := range versions {
 			t.Rows = append(t.Rows, []string{strconv.Itoa(v.Version), versionTime(v.CreatedTime), versionState(v, meta.CurrentVersion)})
 		}

@@ -59,6 +59,14 @@ func TestHistoryListsEveryVersionWithItsState(t *testing.T) {
 			t.Errorf("row %d = %v, want version %s %s", i, tbl.Rows[i], w[0], w[1])
 		}
 	}
+	// The kinds are what a host values the cells by: without them a program
+	// reads the version as a string and the time as text it has to parse.
+	kinds := []view.ColumnKind{view.KindNumber, view.KindTimestamp, view.KindStatus}
+	for i, c := range tbl.Columns {
+		if c.Kind != kinds[i] {
+			t.Errorf("column %s is %q, want %q", c.Name, c.Kind, kinds[i])
+		}
+	}
 	about, ok := s.Items[1].View.(view.KeyValue)
 	if !ok || metaPair(about, "versions") != "3" || metaPair(about, "current") != "3" {
 		t.Errorf("metadata = %+v, want 3 versions with 3 current", s.Items[1].View)
