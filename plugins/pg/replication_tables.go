@@ -112,14 +112,16 @@ func untilLost(s slotRow) view.Cell {
 // whether to worry reads one place. Empty on a replication that is fine, and
 // then left off the page entirely.
 func attentionTable(f replicationFacts) view.Table {
-	t := view.Table{Columns: []view.Column{
-		{Name: "What"}, {Name: "Status", Kind: view.KindStatus}, {Name: "Detail"},
-	}}
+	type attention struct {
+		what string
+		g    verdict
+	}
+	var rows []attention
 	add := func(what string, g verdict) {
 		if severity(g.status) < 2 || len(g.reasons) == 0 {
 			return
 		}
-		t.Add(view.Plain(what), view.Plain(g.status), view.Plain(g.detail()))
+		rows = append(rows, attention{what, g})
 	}
 	for _, s := range f.standbys {
 		add(fmt.Sprintf("standby %s", s.name), gradeStandby(s))
@@ -129,7 +131,16 @@ func attentionTable(f replicationFacts) view.Table {
 	}
 	add("this standby", gradeReceiver(f))
 	add("synchronous commit", gradeSynchronous(f))
-	slices.SortStableFunc(t.Rows, func(a, b []string) int { return severity(b[1]) - severity(a[1]) })
+	// Sorted before the table is filled, not after: a value is kept beside
+	// the row it was added with, and sorting the rows alone would leave every
+	// value on whichever row moved into its place.
+	slices.SortStableFunc(rows, func(a, b attention) int { return severity(b.g.status) - severity(a.g.status) })
+	t := view.Table{Columns: []view.Column{
+		{Name: "What"}, {Name: "Status", Kind: view.KindStatus}, {Name: "Detail"},
+	}}
+	for _, r := range rows {
+		t.Add(view.Plain(r.what), view.Plain(r.g.status), view.Plain(r.g.detail()))
+	}
 	t.Total = len(t.Rows)
 	return t
 }
