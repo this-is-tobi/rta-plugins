@@ -9,6 +9,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -120,8 +121,7 @@ func (s *session) glance(ctx context.Context, detail bool) (view.KeyValue, glanc
 	}
 	var fails, warns, unread []string
 	unreadRow := func(key, why string) {
-		const lead = "could not be read — "
-		add(key, lead+clip(why, valueRoom-utf8.RuneCountInString(lead)))
+		add(key, format.Clip(view.CouldNotRead(why), valueRoom))
 		unread = append(unread, key)
 	}
 
@@ -222,14 +222,6 @@ func glanceVerdict(fails, warns, unread []string) string {
 		}
 	}
 	return lead + texts[0] + " +" + strconv.Itoa(len(texts)-1)
-}
-
-// clip cuts text to max columns, with an ellipsis where it was cut.
-func clip(s string, max int) string {
-	if utf8.RuneCountInString(s) <= max {
-		return s
-	}
-	return string([]rune(s)[:max-1]) + "…"
 }
 
 func detailedOverview(ctx context.Context, req plugin.Request, s *session, glance view.KeyValue, reads glanceReads) (view.View, error) {

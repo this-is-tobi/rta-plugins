@@ -746,15 +746,6 @@ func shareCell(text string, fraction float64) view.Cell {
 	return view.Number(text, fraction*100)
 }
 
-// plain is a row of cells with no value of their own.
-func plain(row ...string) []view.Cell {
-	cells := make([]view.Cell, len(row))
-	for i, text := range row {
-		cells[i] = view.Plain(text)
-	}
-	return cells
-}
-
 // age renders a creation timestamp the way kubectl does.
 func age(t time.Time) string {
 	if t.IsZero() {

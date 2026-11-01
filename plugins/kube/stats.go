@@ -336,7 +336,7 @@ func runMetricsPressure(ctx context.Context, req plugin.Request) (view.View, err
 	out := view.Table{Columns: cols}
 	for _, r := range rows {
 		if r.failed != "" {
-			out.Add(plain(r.node, "could not be read — "+r.failed, "", "", "", "", "")...)
+			out.Add(view.PlainRow(r.node, view.CouldNotRead(r.failed), "", "", "", "", "")...)
 			continue
 		}
 		out.Add(append([]view.Cell{view.Plain(r.node)}, r.cells...)...)

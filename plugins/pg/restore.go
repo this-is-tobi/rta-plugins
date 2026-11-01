@@ -65,7 +65,7 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 		return nil, verr
 	}
 
-	path, err := expandHome(strings.TrimSpace(req.String("file")))
+	path, err := plugin.AbsPath(strings.TrimSpace(req.String("file")))
 	if err != nil {
 		return nil, view.Errorf("pg.restore.path", "resolving the dump path: %v", err)
 	}

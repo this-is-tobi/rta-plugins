@@ -84,7 +84,7 @@ func sizeCell(s string) view.Cell {
 	if !ok {
 		return view.Plain(s)
 	}
-	return view.Cell{Text: s, Value: strconv.FormatInt(n, 10)}
+	return view.Size(s, n)
 }
 
 func fetchImages(ctx context.Context, c connection) ([]imageRow, *view.Error) {

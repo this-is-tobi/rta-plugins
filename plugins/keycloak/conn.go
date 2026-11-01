@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -731,14 +732,14 @@ func adminError(body []byte) string {
 	}
 	if err := json.Unmarshal(body, &envelope); err == nil {
 		if msg := firstOf(envelope.ErrorMessage, envelope.Error); msg != "" {
-			return truncate(msg, 300)
+			return format.Clip(msg, 300)
 		}
 	}
 	text := strings.TrimSpace(string(body))
 	if text == "" {
 		return "no detail given"
 	}
-	return truncate(text, 300)
+	return format.Clip(text, 300)
 }
 
 func oauthError(body []byte) (code, description string) {
@@ -757,11 +758,4 @@ func firstOf(candidates ...string) string {
 		}
 	}
 	return ""
-}
-
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "…"
 }

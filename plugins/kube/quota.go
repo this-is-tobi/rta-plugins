@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -180,8 +181,8 @@ func quotaPercentValue(used, hard string) (float64, bool) {
 	// storage, ephemeral-storage) and unitless counts (pods, count/things)
 	// parse the same way as bytes because a bare integer is valid input to
 	// both parsers.
-	if u, uok := parseCPU(used); uok {
-		if h, hok := parseCPU(hard); hok && h > 0 {
+	if u, uok := format.ParseQuantity(used); uok {
+		if h, hok := format.ParseQuantity(hard); hok && h > 0 {
 			return u / h, true
 		}
 	}

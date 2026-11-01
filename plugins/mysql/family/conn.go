@@ -315,7 +315,7 @@ func caFile(req plugin.Request) string {
 	if ca == "" {
 		return ""
 	}
-	if abs, err := expandHome(ca); err == nil {
+	if abs, err := plugin.AbsPath(ca); err == nil {
 		return abs
 	}
 	return plugin.ExpandHome(ca)

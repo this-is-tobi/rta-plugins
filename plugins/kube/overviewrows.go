@@ -9,6 +9,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
 
@@ -116,7 +117,7 @@ func (p *overviewPage) readNamespaces() {
 func (p *overviewPage) namespaceRows() []view.Pair {
 	switch {
 	case p.f.nsErr != nil:
-		return []view.Pair{{Key: "namespaces", Value: "could not be read — " + p.f.nsErr.Message}}
+		return []view.Pair{{Key: "namespaces", Value: view.CouldNotRead(p.f.nsErr.Message)}}
 	case !p.several():
 		return []view.Pair{{Key: "namespaces", Value: strconv.Itoa(len(p.f.namespaces.Items))}}
 	}
@@ -208,7 +209,7 @@ func contextRow(context string, names []string, versions []string) string {
 	// The namespaces are said whatever the room: a short list of pods answers a
 	// different question than the cluster's, and a page that did not say which is
 	// read as the cluster's. The names of several are the detailed page's.
-	return rowOf(clip(context, rowRoom),
+	return rowOf(format.Clip(context, rowRoom),
 		func(int) string { return only },
 		func(room int) string {
 			switch len(versions) {
@@ -231,8 +232,7 @@ func contextRow(context string, names []string, versions []string) string {
 // cut at the width of a healthy row is cut before it names what was refused.
 // The whole of it is on the detailed page.
 func unreadable(e *view.Error) string {
-	const lead = "could not be read — "
-	return lead + clip(oneLine(e.Message), lineRoom-utf8.RuneCountInString(lead))
+	return format.Clip(view.CouldNotRead(oneLine(e.Message)), lineRoom)
 }
 
 func unreadClause(what string) []clause {
@@ -251,7 +251,7 @@ func (p *overviewPage) unreadKind(what string, e *view.Error, miss []unreadNS) r
 	const lead = "could not be read in "
 	room := lineRoom - utf8.RuneCountInString(lead+where) - utf8.RuneCountInString(whyLead)
 	return rowFacts{
-		value:   lead + where + whyLead + clip(oneLine(e.Message), room),
+		value:   lead + where + whyLead + format.Clip(oneLine(e.Message), room),
 		clauses: []clause{{rank: rankUnread, text: what + " could not be read in " + where}},
 	}
 }
@@ -305,12 +305,12 @@ func rowWith(miss []unreadNS, first string, rest ...func(room int) string) strin
 	out := rowIn(rowRoom-missWidth(miss), first, rest...)
 	phrase := missPhrase(miss, lineRoom-utf8.RuneCountInString(out)-sepWidth)
 	if over := utf8.RuneCountInString(out) + sepWidth + utf8.RuneCountInString(phrase) - lineRoom; over > 0 {
-		out = clip(out, utf8.RuneCountInString(out)-over)
+		out = format.Clip(out, utf8.RuneCountInString(out)-over)
 	}
 	out += " · " + phrase
 	const shortest = 16
 	if room := lineRoom - utf8.RuneCountInString(out) - utf8.RuneCountInString(whyLead); room >= shortest {
-		out += whyLead + clip(oneLine(miss[0].err.Message), room)
+		out += whyLead + format.Clip(oneLine(miss[0].err.Message), room)
 	}
 	return out
 }
@@ -688,10 +688,10 @@ func (p *overviewPage) readSlots() {
 		p.slots = rowFacts{value: fmt.Sprintf("not counted — %d namespaces are read", len(p.names))}
 		return
 	case p.f.nodeErr != nil:
-		p.slots = rowFacts{value: "could not be read — needs the nodes"}
+		p.slots = rowFacts{value: view.CouldNotRead("needs the nodes")}
 		return
 	case p.f.podErr != nil:
-		p.slots = rowFacts{value: "could not be read — needs the pods"}
+		p.slots = rowFacts{value: view.CouldNotRead("needs the pods")}
 		return
 	}
 	slots := podSlots(p.f.nodes.Items)
@@ -774,13 +774,4 @@ func fitList(items []string, room int, more string, must bool) string {
 		return items[0] + tail(len(items)-1)
 	}
 	return ""
-}
-
-// clip cuts text to max columns, with an ellipsis where it was cut.
-func clip(s string, max int) string {
-	if utf8.RuneCountInString(s) <= max {
-		return s
-	}
-	runes := []rune(s)
-	return string(runes[:max-1]) + "…"
 }

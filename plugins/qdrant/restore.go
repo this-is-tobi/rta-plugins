@@ -90,7 +90,7 @@ func runRestore(ctx context.Context, req plugin.Request) (view.View, error) {
 	}
 	collection := req.String("collection")
 
-	path, err := expandHome(strings.TrimSpace(req.String("file")))
+	path, err := plugin.AbsPath(strings.TrimSpace(req.String("file")))
 	if err != nil {
 		return nil, view.Errorf("qdrant.restore.path", "resolving the snapshot path: %v", err)
 	}

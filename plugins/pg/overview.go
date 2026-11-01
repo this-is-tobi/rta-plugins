@@ -108,7 +108,7 @@ func compactOverview(ctx context.Context, conn querier, req plugin.Request) (vie
 		read++
 		unreadable = append(unreadable, "replication")
 		rows = append(rows,
-			view.Pair{Key: "replication", Value: "could not be read — replication is read from PostgreSQL 14 and newer"},
+			view.Pair{Key: "replication", Value: view.CouldNotRead("replication is read from PostgreSQL 14 and newer")},
 			view.Pair{Key: "up since", Value: upSince(f.server.started)})
 	case replErr != nil:
 		read++

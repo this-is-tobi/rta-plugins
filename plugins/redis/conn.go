@@ -513,8 +513,8 @@ func classify(err error, addr string, req plugin.Request) *view.Error {
 		return view.Errorf("redis.timeout", "%s did not answer in time", addr).
 			WithHint("a server blocked on a long command, or a firewall that drops rather than refuses, looks exactly like this")
 	case errors.As(err, &dnsErr):
-		unknown := view.Errorf("redis.host.unknown", "no address for %q", hostOnly(addr)).
-			WithHint(sf.DNSHint(hostOnly(addr)))
+		unknown := view.Errorf("redis.host.unknown", "no address for %q", plugin.HostOf(addr)).
+			WithHint(sf.DNSHint(addr))
 		// The address's own refusal only when the resolver answered that the
 		// name does not exist, which is what a mistyped one gets. A resolver
 		// that did not answer, or failed, says nothing of the name: the network
@@ -603,7 +603,7 @@ func classifyDial(err error, addr string, req plugin.Request) *view.Error {
 			WithHint("a TLS server answers a plaintext client by hanging up, and plaintext is what " +
 				"this call asks for — " +
 				req.Surface().SettingName("ca-file", "tls-server-name") + " each turn TLS on over the forward, " +
-				"and the name is the one the certificate is checked for, since the forward ends at " + hostOnly(addr))
+				"and the name is the one the certificate is checked for, since the forward ends at " + plugin.HostOf(addr))
 	}
 	// **A port on this machine with nothing on it is a forward that exited**
 	// far more often than a server that is down, and "a server bound to
@@ -624,7 +624,7 @@ func classifyDial(err error, addr string, req plugin.Request) *view.Error {
 				addr, req.Reached(addr)).
 				WithHint("a local port with nothing on it is a port-forward that exited — this one was opened for " +
 					"this call and was gone before the call reached it, as a forward is when " + behind)
-		case loopback(hostOnly(addr)):
+		case loopback(plugin.HostOf(addr)):
 			return view.Errorf("redis.conn.refused", "nothing is listening on %s", addr).
 				WithHint("redis listens on 6379 by default, and a local port with nothing on it is a server not " +
 					"running on this machine or a port-forward that exited — check the terminal running it, and that " +
@@ -675,7 +675,7 @@ func nameRefusal(addr string, nameErr x509.HostnameError, req plugin.Request) *v
 	sf := req.Surface()
 	checked := nameErr.Host
 	if checked == "" {
-		checked = hostOnly(addr)
+		checked = plugin.HostOf(addr)
 	}
 	cert := nameErr.Certificate
 	if cert == nil || len(cert.DNSNames)+len(cert.IPAddresses) == 0 {
@@ -757,12 +757,4 @@ func loopback(host string) bool {
 	}
 	ip := stdnet.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
-}
-
-func hostOnly(addr string) string {
-	host, _, err := stdnet.SplitHostPort(addr)
-	if err != nil {
-		return addr
-	}
-	return host
 }

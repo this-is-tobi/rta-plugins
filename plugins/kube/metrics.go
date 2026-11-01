@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -194,7 +195,7 @@ func fetchPodUsage(ctx context.Context, s selection) ([]podUsage, *view.Error) {
 		var cpu float64
 		var mem uint64
 		for _, c := range m.Containers {
-			if v, ok := parseCPU(c.Usage.CPU); ok {
+			if v, ok := format.ParseQuantity(c.Usage.CPU); ok {
 				cpu += v
 			}
 			if v, ok := parseBytes(c.Usage.Memory); ok {
@@ -282,7 +283,7 @@ type podBudget struct {
 func budgetOf(p podSpecItem) podBudget {
 	var b podBudget
 	for _, c := range p.Spec.Containers {
-		if v, ok := parseCPU(c.Resources.Limits["cpu"]); ok {
+		if v, ok := format.ParseQuantity(c.Resources.Limits["cpu"]); ok {
 			b.cpuLimit += v
 		}
 		if v, ok := parseBytes(c.Resources.Limits["memory"]); ok {
@@ -333,11 +334,11 @@ func runMetricsNode(ctx context.Context, req plugin.Request) (view.View, error) 
 	cols := nodeMetricColumns()
 	t := view.Table{Columns: cols}
 	for _, m := range metrics.Items {
-		cpu, _ := parseCPU(m.Usage.CPU)
+		cpu, _ := format.ParseQuantity(m.Usage.CPU)
 		mem, _ := parseBytes(m.Usage.Memory)
 		cpuPct, memPct := view.Plain(""), view.Plain("")
 		if n, ok := allocatable[m.Metadata.Name]; ok {
-			if allocCPU, ok := parseCPU(n.Status.Allocatable.CPU); ok {
+			if allocCPU, ok := format.ParseQuantity(n.Status.Allocatable.CPU); ok {
 				cpuPct = shareCell(percentOf(cpu, allocCPU), cpu/allocCPU)
 			}
 			if allocMem, ok := parseBytes(n.Status.Allocatable.Memory); ok {

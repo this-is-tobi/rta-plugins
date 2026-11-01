@@ -308,8 +308,8 @@ func classify(err error, req plugin.Request) *view.Error {
 	// every name nothing resolves was reported as a port nothing listens on.
 	var dnsErr *stdnet.DNSError
 	if errors.As(err, &dnsErr) {
-		return view.Errorf("s3.host.unknown", "no address for %q", hostOnly(where)).
-			WithHint(sf.DNSHint(hostOnly(where)))
+		return view.Errorf("s3.host.unknown", "no address for %q", plugin.HostOf(where)).
+			WithHint(sf.DNSHint(where))
 	}
 	// The certificate before the dial. A verdict on one is typed, so read
 	// first it answers for nothing else; the dial's questions
@@ -549,14 +549,6 @@ func outHint(req plugin.Request, bucket, key string) string {
 				plugin.Arg{Name: "out", Value: plugin.Placeholder("file")}), "rta "))
 	}
 	return "use " + sf.InputName("out") + " to write it to a file instead of printing it"
-}
-
-func hostOnly(endpoint string) string {
-	host, _, err := stdnet.SplitHostPort(endpoint)
-	if err != nil {
-		return endpoint
-	}
-	return host
 }
 
 // withClient is the shape every capability here has: connect, or return the

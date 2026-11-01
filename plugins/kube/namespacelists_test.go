@@ -276,7 +276,7 @@ func namespacesOnPage(t *testing.T, table view.Table) (namespaces []string, read
 			seen[row[col]] = true
 			namespaces = append(namespaces, row[col])
 		}
-		if !strings.Contains(strings.Join(row, "|"), unreadLead) {
+		if !strings.Contains(strings.Join(row, "|"), view.CouldNotRead("")) {
 			read++
 		}
 	}
@@ -287,7 +287,7 @@ func namespacesOnPage(t *testing.T, table view.Table) (namespaces []string, read
 func unreadRowsOf(table view.Table) [][]string {
 	var out [][]string
 	for _, row := range table.Rows {
-		if strings.Contains(strings.Join(row, "|"), unreadLead) {
+		if strings.Contains(strings.Join(row, "|"), view.CouldNotRead("")) {
 			out = append(out, row)
 		}
 	}
@@ -526,7 +526,7 @@ func TestANamespaceThatCannotBeReadIsARowAndTheOthersStillAnswer(t *testing.T) {
 						t.Errorf("the namespace cell is %q, want gitea", cell)
 					}
 				case reasonAt:
-					if !strings.HasPrefix(cell, unreadLead) || !strings.Contains(cell, "forbidden") {
+					if !strings.HasPrefix(cell, view.CouldNotRead("")) || !strings.Contains(cell, "forbidden") {
 						t.Errorf("the %q cell is %q, want the reason a namespace could not be read", lc.reason, cell)
 					}
 				default:
