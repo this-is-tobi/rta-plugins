@@ -32,11 +32,11 @@ type overviewPage struct {
 	missing []string
 
 	// What the tables of `detail` list, found on the way to the rows.
-	notReady      []podItem
-	storm         []podItem
-	short         []deploymentItem
-	pressure      []string
-	expired, soon []string
+	notReady               []podItem
+	storm                  []podItem
+	short                  []deploymentItem
+	pressure               []string
+	expired, invalid, soon []string
 }
 
 // rowFacts is a row's value and the clauses it adds to the verdict.
@@ -594,16 +594,20 @@ func (p *overviewPage) readCerts() {
 		p.certs = rowFacts{rowWith(miss, "none"), missClauses("certs", miss)}
 		return
 	}
-	p.expired, p.soon = certPressure(certs, p.now)
+	p.expired, p.invalid, p.soon = certPressure(certs, p.now)
 	var clauses []clause
 	if n := len(p.expired); n > 0 {
 		clauses = append(clauses, clause{rankFail, fmt.Sprintf("%d %s expired", n, plural(n, "cert", "certs"))})
+	}
+	if n := len(p.invalid); n > 0 {
+		clauses = append(clauses, clause{rankFail, fmt.Sprintf("%d %s invalid", n, plural(n, "cert", "certs"))})
 	}
 	if n := len(p.soon); n > 0 {
 		clauses = append(clauses, clause{rankWarn, fmt.Sprintf("%d %s expiring soon", n, plural(n, "cert", "certs"))})
 	}
 	value := rowWith(miss, strconv.Itoa(len(certs)),
 		func(room int) string { return p.lapsed("expired", p.expired, room, true) },
+		func(room int) string { return p.lapsed("invalid", p.invalid, room, true) },
 		func(room int) string { return p.lapsed("soon", p.soon, room, false) })
 	p.certs = rowFacts{value, append(clauses, missClauses("certs", miss)...)}
 }

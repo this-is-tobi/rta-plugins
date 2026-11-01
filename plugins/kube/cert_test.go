@@ -100,11 +100,17 @@ func TestCertPressure(t *testing.T) {
 		cert("web-tls", time.Now().Add(-time.Hour)),
 		cert("api-tls", time.Now().Add(5*24*time.Hour)),
 		cert("fine-tls", time.Now().Add(365*24*time.Hour)),
+		// No expiry to compare: the zero time is long past, and an invalid
+		// certificate counted as expired would say the wrong thing about it.
+		{Namespace: "prod", Name: "bad-tls", Problem: "tls.crt is not valid base64"},
 	}
 
-	expired, soon := certPressure(certs, time.Now())
+	expired, invalid, soon := certPressure(certs, time.Now())
 	if len(expired) != 1 || expired[0] != "prod/web-tls" {
 		t.Errorf("expired = %v, want [prod/web-tls]", expired)
+	}
+	if len(invalid) != 1 || invalid[0] != "prod/bad-tls" {
+		t.Errorf("invalid = %v, want [prod/bad-tls]", invalid)
 	}
 	if len(soon) != 1 || soon[0] != "prod/api-tls" {
 		t.Errorf("expiringSoon = %v, want [prod/api-tls]", soon)

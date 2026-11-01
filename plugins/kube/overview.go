@@ -445,10 +445,13 @@ func (p overviewPage) detail(id identity) view.View {
 			ID: "quotas", Title: "Resource quotas over 80%",
 			View: view.Text{Body: strings.Join(p.pressure, "\n")}})
 	}
-	if len(p.expired)+len(p.soon) > 0 {
-		lines := make([]string, 0, len(p.expired)+len(p.soon))
+	if len(p.expired)+len(p.invalid)+len(p.soon) > 0 {
+		lines := make([]string, 0, len(p.expired)+len(p.invalid)+len(p.soon))
 		for _, l := range p.expired {
 			lines = append(lines, l+": expired")
+		}
+		for _, l := range p.invalid {
+			lines = append(lines, l+": invalid, its tls.crt holds no certificate that parses")
 		}
 		for _, l := range p.soon {
 			lines = append(lines, fmt.Sprintf("%s: expiring within %d days", l, warnDays))
@@ -562,6 +565,11 @@ func (p overviewPage) clusterRows(id identity) []view.Pair {
 		pairs = append(pairs, view.Pair{
 			Key:   plural(len(p.expired), "cert expired", "certs expired"),
 			Value: truncate(p.expired, 6)})
+	}
+	if len(p.invalid) > 0 {
+		pairs = append(pairs, view.Pair{
+			Key:   plural(len(p.invalid), "cert invalid", "certs invalid"),
+			Value: truncate(p.invalid, 6)})
 	}
 	if len(p.soon) > 0 {
 		pairs = append(pairs, view.Pair{

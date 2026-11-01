@@ -373,6 +373,41 @@ func TestACertificateInsideItsWindowAndAFullQuotaAreWarnedByName(t *testing.T) {
 	}
 }
 
+// A TLS secret whose tls.crt is not a certificate fails the overview by name,
+// as an expired one does: it was red in kube.cert.list and in no count here.
+func TestACertificateThatDoesNotParseFailsTheOverviewByName(t *testing.T) {
+	c := aHealthyCluster(t)
+	c.secrets([]string{secretItem("apps", "web-tls", "not valid base64!!!", "KEY")})
+	rows := rowsOf(compactOf(t, map[string]any{}))
+	if want := "fail — 1 cert invalid"; rows["status"] != want {
+		t.Errorf("status = %q, want %q", rows["status"], want)
+	}
+	if !strings.Contains(rows["certs"], "1 invalid: apps/web-tls") {
+		t.Errorf("certs = %q", rows["certs"])
+	}
+
+	v, err := runOverview(context.Background(), saReq(plugin.SurfaceCLI, false, map[string]any{"detail": true}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	secs, ok := v.(view.Sections)
+	if !ok {
+		t.Fatalf("detail is %T, want sections", v)
+	}
+	if got := keyValues(t, secs.Items[0].View)["cert invalid"]; got != "apps/web-tls" {
+		t.Errorf("the cluster section's cert invalid = %q, want apps/web-tls", got)
+	}
+	named := false
+	for _, s := range secs.Items {
+		if text, ok := s.View.(view.Text); ok && s.ID == "certs" {
+			named = strings.Contains(text.Body, "apps/web-tls: invalid")
+		}
+	}
+	if !named {
+		t.Errorf("no certs section names apps/web-tls as invalid in %+v", secs.Items)
+	}
+}
+
 func TestPodSlotsNearlyFullAreWarned(t *testing.T) {
 	c := aHealthyCluster(t)
 	pods := []string{}
