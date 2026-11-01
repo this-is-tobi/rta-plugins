@@ -388,21 +388,30 @@ func (c tlsCert) expiry() string {
 }
 
 // certPressure is kube.overview's own summary: which secrets are already
-// past their certificate's expiry, and which are inside the warning window
-// but not yet there. "secret/namespace" rather than the certificate's
-// subject, because the subject is what the object is *for* and the secret
-// name is what an operator runs `kubectl describe secret` against next.
-func certPressure(certs []tlsCert, now time.Time) (expired, expiringSoon []string) {
+// past their certificate's expiry, which hold no certificate that parses, and
+// which are inside the warning window but not yet there. "secret/namespace"
+// rather than the certificate's subject, because the subject is what the
+// object is *for* and the secret name is what an operator runs `kubectl
+// describe secret` against next.
+//
+// An invalid one is as broken as an expired one, and was in neither count: a
+// TLS secret whose tls.crt is not a certificate is red in kube.cert.list and
+// was nowhere in the overview whose job is to say a certificate needs looking
+// at.
+func certPressure(certs []tlsCert, now time.Time) (expired, invalid, expiringSoon []string) {
 	for _, c := range certs {
 		label := c.Namespace + "/" + c.Name
-		switch c.status(now) {
-		case "expired":
+		switch {
+		case c.Problem != "":
+			invalid = append(invalid, label)
+		case c.status(now) == "expired":
 			expired = append(expired, label)
-		case "expiring soon":
+		case c.status(now) == "expiring soon":
 			expiringSoon = append(expiringSoon, label)
 		}
 	}
 	sort.Strings(expired)
+	sort.Strings(invalid)
 	sort.Strings(expiringSoon)
-	return expired, expiringSoon
+	return expired, invalid, expiringSoon
 }
