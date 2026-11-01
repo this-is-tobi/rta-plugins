@@ -126,7 +126,7 @@ func runBucketList(ctx context.Context, req plugin.Request) (view.View, error) {
 		}
 		for _, name := range named {
 			if !slices.ContainsFunc(buckets, func(b minio.BucketInfo) bool { return b.Name == name }) {
-				t.Rows = append(t.Rows, notFoundRow(t.Columns, name))
+				t.Add(notFoundRow(t.Columns, name)...)
 			}
 		}
 		t.Total = len(t.Rows)
@@ -138,9 +138,9 @@ func runBucketList(ctx context.Context, req plugin.Request) (view.View, error) {
 // the credentials see: its name, and in the last column, which is the date the
 // others have, that it was not found. A listing that quietly left it out reads
 // as a smaller account, and not as a name that matched nothing.
-func notFoundRow(columns []view.Column, name string) []string {
-	row := make([]string, len(columns))
-	row[0], row[len(row)-1] = plugin.ListedName(name), "not found"
+func notFoundRow(columns []view.Column, name string) []view.Cell {
+	row := make([]view.Cell, len(columns))
+	row[0], row[len(row)-1] = view.Plain(plugin.ListedName(name)), view.Plain("not found")
 	return row
 }
 
@@ -158,13 +158,13 @@ func bucketTable(buckets []minio.BucketInfo) view.Table {
 	if withRegion {
 		t.Columns = append(t.Columns, view.Column{Name: "Region"})
 	}
-	t.Columns = append(t.Columns, view.Column{Name: "Created"})
+	t.Columns = append(t.Columns, view.Column{Name: "Created", Kind: view.KindTimestamp})
 	for _, b := range buckets {
-		row := []string{plugin.ListedName(b.Name)}
+		row := []view.Cell{view.Plain(plugin.ListedName(b.Name))}
 		if withRegion {
-			row = append(row, b.BucketRegion)
+			row = append(row, view.Plain(b.BucketRegion))
 		}
-		t.Rows = append(t.Rows, append(row, b.CreationDate.Format("2006-01-02")))
+		t.Add(append(row, view.Time(b.CreationDate.Format("2006-01-02"), b.CreationDate))...)
 	}
 	t.Total = len(t.Rows)
 	t.Empty = "no buckets"

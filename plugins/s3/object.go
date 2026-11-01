@@ -63,7 +63,7 @@ func runObjectList(ctx context.Context, req plugin.Request) (view.View, error) {
 	return withClient(ctx, req, func(ctx context.Context, client *minio.Client) (view.View, error) {
 		bucket := req.String("bucket")
 		limit := req.Int("limit")
-		t := view.Table{Columns: []view.Column{{Name: "Key"}, {Name: "Size", Kind: view.KindNumber}, {Name: "Modified", Kind: view.KindTimestamp}}}
+		t := view.Table{Columns: []view.Column{{Name: "Key"}, {Name: "Size", Kind: view.KindBytes}, {Name: "Modified", Kind: view.KindTimestamp}}}
 		last := ""
 		for obj := range listObjects(ctx, client, bucket, minio.ListObjectsOptions{
 			Prefix:     req.String("prefix"),
@@ -96,14 +96,17 @@ func runObjectList(ctx context.Context, req plugin.Request) (view.View, error) {
 				// A common-prefix "directory" marker under a non-recursive
 				// listing, not a real object — shown as a folder, not a
 				// zero-byte file nobody wrote.
-				t.Rows = append(t.Rows, []string{plugin.ListedName(obj.Key), "", ""})
+				t.Add(view.Plain(plugin.ListedName(obj.Key)), view.Plain(""), view.Plain(""))
 				continue
 			}
-			// format.Bytes, not the integer. pkg/format exists because "the
-			// first one to show a byte count showed 1392640", and this was it:
-			// a size column nobody can read at a glance is a column that gets
-			// piped into another tool instead of being looked at.
-			t.Rows = append(t.Rows, []string{plugin.ListedName(obj.Key), format.Bytes(obj.Size), obj.LastModified.Format("2006-01-02 15:04")})
+			// Shown as format.Bytes writes a size, not the integer. pkg/format
+			// exists because "the first one to show a byte count showed
+			// 1392640", and this was it: a size column nobody can read at a
+			// glance is a column that gets piped into another tool instead of
+			// being looked at. The integer is the cell's value, which is what
+			// a program reading it wants instead.
+			t.Add(view.Plain(plugin.ListedName(obj.Key)), view.Bytes(obj.Size),
+				view.Time(obj.LastModified.Format("2006-01-02 15:04"), obj.LastModified))
 		}
 		if verr := ctxErr(ctx, req); verr != nil {
 			return nil, verr
