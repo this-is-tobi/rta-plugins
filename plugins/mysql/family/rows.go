@@ -84,7 +84,7 @@ func rowsToTable(rows *sql.Rows, limit int) (view.Table, error) {
 		}
 		row := make([]string, len(names))
 		for i, v := range scan {
-			row[i] = cell(v)
+			row[i] = cellOf(v, types[i].DatabaseTypeName())
 			size += len(row[i])
 		}
 		if size > maxBytes {
@@ -135,7 +135,10 @@ func cell(v any) string {
 	case string:
 		return x
 	case time.Time:
-		return x.Format("2006-01-02 15:04:05")
+		// With the fraction of a second a DATETIME(6) or a TIMESTAMP(6) holds,
+		// which the seconds alone cut off; none is written for a time that
+		// has none.
+		return x.Format("2006-01-02 15:04:05.999999")
 	case bool:
 		return strconv.FormatBool(x)
 	case int64:
@@ -145,6 +148,18 @@ func cell(v any) string {
 	default:
 		return fmt.Sprint(x)
 	}
+}
+
+// cellOf is cell for a result column whose type the server declared: a DATE
+// is written as the day. The driver hands one back as a time at midnight,
+// which came out as 2026-10-31 00:00:00 and read as a time of day the column
+// does not hold. Neither a DATE nor a DATETIME carries a zone, and rta values
+// both with none.
+func cellOf(v any, typeName string) string {
+	if t, ok := v.(time.Time); ok && strings.EqualFold(typeName, "DATE") {
+		return t.Format("2006-01-02")
+	}
+	return cell(v)
 }
 
 // kindOf maps a column's declared database type onto the view kind that
