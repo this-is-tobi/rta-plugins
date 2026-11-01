@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -164,38 +163,40 @@ func kindOf(ct *sql.ColumnType) view.ColumnKind {
 	}
 }
 
-// bytesCell renders a byte count that arrived as an untyped scan value, which
-// is what INFORMATION_SCHEMA size expressions produce. A size column nobody
-// can read at a glance is a column that gets piped into another tool instead
-// of being looked at.
-func bytesCell(v any) string {
+// bytesCell is a byte count that arrived as an untyped scan value, which is
+// what INFORMATION_SCHEMA size expressions produce, shown as format.Bytes
+// writes one and valued as the count. A size column nobody can read at a
+// glance is a column that gets piped into another tool instead of being looked
+// at, and the count beside it is what that tool wanted. A NULL or a negative
+// count is "-", with no value.
+func bytesCell(v any) view.Cell {
 	switch x := v.(type) {
 	case nil:
-		return "-"
+		return view.Plain("-")
 	case int64:
 		if x < 0 {
-			return "-"
+			return view.Plain("-")
 		}
-		return format.Bytes(x)
+		return view.Bytes(x)
 	case uint64:
 		// An UNSIGNED BIGINT, such as DATA_LENGTH + INDEX_LENGTH, as the text
 		// protocol hands it over. No size query here travels that way today:
 		// each takes arguments, so the driver prepares it and the binary
 		// protocol answers with an int64. A query written without them would,
 		// and its sizes would print as bare digits.
-		return format.Bytes(x)
+		return view.Bytes(x)
 	case []byte:
 		n, err := strconv.ParseInt(string(x), 10, 64)
 		if err != nil || n < 0 {
-			return "-"
+			return view.Plain("-")
 		}
-		return format.Bytes(n)
+		return view.Bytes(n)
 	case float64:
 		if x < 0 {
-			return "-"
+			return view.Plain("-")
 		}
-		return format.Bytes(uint64(x))
+		return view.Bytes(uint64(x))
 	default:
-		return fmt.Sprint(x)
+		return view.Plain(fmt.Sprint(x))
 	}
 }

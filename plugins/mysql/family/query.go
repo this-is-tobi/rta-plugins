@@ -244,14 +244,15 @@ func activityView(ctx context.Context, db *sql.DB, req plugin.Request, withState
 		if err := rows.Scan(&id, &user, &host, &dbName, &command, &seconds, &state, &info); err != nil {
 			return nil, classify(err, req)
 		}
-		row := []string{
-			strconv.FormatInt(id, 10), listed(user), listed(host), listed(dbName), command,
-			format.Duration(time.Duration(seconds) * time.Second), state,
+		took := time.Duration(seconds) * time.Second
+		row := []view.Cell{
+			view.Plain(strconv.FormatInt(id, 10)), view.Plain(listed(user)), view.Plain(listed(host)), view.Plain(listed(dbName)),
+			view.Plain(command), view.Duration(format.Duration(took), took), view.Plain(state),
 		}
 		if withStatements {
-			row = append(row, truncateStatement(info))
+			row = append(row, view.Plain(truncateStatement(info)))
 		}
-		t.Rows = append(t.Rows, row)
+		t.Add(row...)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, classify(err, req)
@@ -285,7 +286,12 @@ func cutAtLimit(t view.Table, limit int, noun string, say bool, sf plugin.Surfac
 	if len(t.Rows) <= limit {
 		return t
 	}
+	// The values with the rows they stand beside, or the one past the bound
+	// would be a value with no row, which a program reads as the last row's.
 	t.Rows = t.Rows[:limit]
+	if len(t.Values) > limit {
+		t.Values = t.Values[:limit]
+	}
 	if say {
 		t.Warnings = append(t.Warnings, view.Error{
 			Code:    engine.NS + ".list.partial",

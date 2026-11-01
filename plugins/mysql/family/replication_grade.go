@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/this-is-tobi/rta/pkg/format"
+	"github.com/this-is-tobi/rta/pkg/view"
 )
 
 // The rules that turn one replica status row into a graded line, kept apart
@@ -42,9 +43,9 @@ type facet struct {
 // channelRow is one replication source as the table shows it.
 type channelRow struct {
 	name, source, io, sql string
-	behind                string
+	behind                view.Cell
 	read, applied         string
-	backlog               string
+	backlog               view.Cell
 	delay                 string
 	status                string
 	gtid                  gtidState
@@ -68,7 +69,7 @@ func assessChannel(row map[string]string) channelRow {
 		source:  hostPort(row["source_host"], row["source_port"]),
 		io:      io,
 		sql:     sqlThread,
-		behind:  "-",
+		behind:  view.Plain("-"),
 		read:    position(row["source_log_file"], row["read_source_log_pos"]),
 		applied: position(row["relay_source_log_file"], row["exec_source_log_pos"]),
 		gtid:    engine.gtidOf(row),
@@ -78,7 +79,8 @@ func assessChannel(row map[string]string) channelRow {
 		c.delay = format.Duration(time.Duration(delay) * time.Second)
 	}
 	if lagKnown {
-		c.behind = format.Duration(time.Duration(lag) * time.Second)
+		d := time.Duration(lag) * time.Second
+		c.behind = view.Duration(format.Duration(d), d)
 	}
 
 	ioErr, sqlErr := errorOf("IO", row["last_io_errno"]), errorOf("SQL", firstSet(row["last_sql_errno"], row["last_errno"]))
@@ -219,27 +221,29 @@ var logSequence = regexp.MustCompile(`\.(\d+)$`)
 // Within one binary log file it is bytes. Across files the sizes of the files
 // in between are not known here, so it says how many files instead of
 // inventing a byte count.
-func backlog(row map[string]string) string {
+func backlog(row map[string]string) view.Cell {
 	readFile, execFile := row["source_log_file"], row["relay_source_log_file"]
 	if readFile == "" || execFile == "" {
-		return "-"
+		return view.Plain("-")
 	}
 	if readFile == execFile {
 		read, ok1 := atoi(row["read_source_log_pos"])
 		exec, ok2 := atoi(row["exec_source_log_pos"])
 		if !ok1 || !ok2 || read < exec {
-			return "-"
+			return view.Plain("-")
 		}
-		return format.Bytes(read - exec)
+		return view.Bytes(read - exec)
 	}
+	// Across files the distance is a count of files, not of bytes: the sizes of
+	// the files between are the source's, which this connection does not see.
 	a, b := logSequence.FindStringSubmatch(readFile), logSequence.FindStringSubmatch(execFile)
 	if a == nil || b == nil {
-		return "-"
+		return view.Plain("-")
 	}
 	x, _ := strconv.Atoi(a[1])
 	y, _ := strconv.Atoi(b[1])
 	if x <= y {
-		return "-"
+		return view.Plain("-")
 	}
-	return "across " + format.CountOf(x-y+1, "binary log file")
+	return view.Plain("across " + format.CountOf(x-y+1, "binary log file"))
 }

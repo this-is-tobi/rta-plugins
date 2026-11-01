@@ -52,8 +52,8 @@ func TestHowFarBehindDecidesTheGradeBeyondAnyDelay(t *testing.T) {
 func TestNoLagFigureIsAWarningNotACaughtUpReplica(t *testing.T) {
 	base := fixtureNames(t, "replica")[0]
 	c := assessChannel(replicaRow(t, base, map[string]string{"seconds_behind_source": ""}))
-	if !strings.HasPrefix(c.status, "warn") || c.behind != "-" {
-		t.Errorf("status = %q, behind = %q, want a warning and no figure", c.status, c.behind)
+	if !strings.HasPrefix(c.status, "warn") || c.behind.Text != "-" || c.behind.Value != "" {
+		t.Errorf("status = %q, behind = %q, want a warning and no figure", c.status, c.behind.Text)
 	}
 }
 
@@ -120,7 +120,7 @@ func TestBacklogIsBytesWithinOneFileAndFilesAcrossThem(t *testing.T) {
 		{"a name with no sequence", map[string]string{"source_log_file": "a", "relay_source_log_file": "b"}, "-"},
 		{"not reported", map[string]string{}, "-"},
 	} {
-		if got := backlog(tc.row); got != tc.want {
+		if got := backlog(tc.row).Text; got != tc.want {
 			t.Errorf("%s: backlog = %q, want %q", tc.name, got, tc.want)
 		}
 	}
