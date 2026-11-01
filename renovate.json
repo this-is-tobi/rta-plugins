@@ -32,10 +32,16 @@
       "groupName": "Go toolchain"
     },
     {
-      "description": "Non-major Go module bumps across the plugins land together: one commit and one round of patch releases a week rather than one per module per plugin. A vulnerable module skips both the grouping and the schedule through the OSV alerts above.",
+      "description": "Non-major Go module bumps across the plugins land together: one commit and one round of patch releases a week rather than one per module per plugin. A vulnerable module skips both the grouping and the schedule through the OSV alerts above. This repository's own modules are left out, for the rule below.",
       "matchManagers": ["gomod"],
       "matchUpdateTypes": ["minor", "patch", "digest"],
+      "matchDepNames": ["!github.com/this-is-tobi/rta-plugins/**"],
       "groupName": "Go modules"
+    },
+    {
+      "description": "A plugin that serves another plugin's package, as mariadb serves the family package of plugins/mysql, pins that plugin's release, so a release of it reaches the other plugin only through this bump: on its own, and as soon as the release exists rather than the next Monday beside unrelated modules.",
+      "matchDepNames": ["github.com/this-is-tobi/rta-plugins/**"],
+      "schedule": ["at any time"]
     },
     {
       "description": "The SDK is compiled into every binary and every plugin follows an rta release: bump-rta.yml opens that pull request from the release itself, carrying its notes, and it has to be the only thing that does.",
