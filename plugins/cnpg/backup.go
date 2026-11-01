@@ -298,7 +298,7 @@ func runBackupList(ctx context.Context, req plugin.Request) (view.View, error) {
 		view.Column{Name: "Age"}, view.Column{Name: "Where"},
 	)}
 	for _, b := range rows {
-		t.Rows = append(t.Rows, s.lead(b.Metadata.Namespace,
+		t.Rows = append(t.Rows, lead(s, b.Metadata.Namespace,
 			b.Metadata.Name, b.Spec.Cluster.Name, b.status(), orDash(b.Status.Phase),
 			orDash(b.resolvedMethod()), b.took(), age(b.Metadata.CreationTimestamp), b.where(),
 		))
@@ -385,11 +385,11 @@ func backupErrors(s selection, rows []backupObject, unread []outcome[backupList]
 		view.Column{Name: "Backup"}, view.Column{Name: "Status", Kind: view.KindStatus}, view.Column{Name: "Error"},
 	)}
 	for _, o := range unread {
-		t.Rows = append(t.Rows, s.lead(o.scope.namespace, "—", "fail", o.reason()))
+		t.Rows = append(t.Rows, lead(s, o.scope.namespace, "—", "fail", o.reason()))
 	}
 	for _, b := range rows {
 		if msg := strings.TrimSpace(b.Status.Error); msg != "" {
-			t.Rows = append(t.Rows, s.lead(b.Metadata.Namespace, b.Metadata.Name, "fail", firstLine(msg)))
+			t.Rows = append(t.Rows, lead(s, b.Metadata.Namespace, b.Metadata.Name, "fail", firstLine(msg)))
 		}
 	}
 	t.Total = len(t.Rows)

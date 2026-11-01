@@ -69,8 +69,8 @@ type pvc struct {
 	} `json:"status"`
 }
 
-func (p pvc) requested() string { return orDash(p.Spec.Resources.Requests["storage"]) }
-func (p pvc) actual() string    { return orDash(p.Status.Capacity["storage"]) }
+func (p pvc) requested() string { return p.Spec.Resources.Requests["storage"] }
+func (p pvc) actual() string    { return p.Status.Capacity["storage"] }
 func (p pvc) instance() string  { return orDash(p.Metadata.Labels[pvcInstanceLabel]) }
 func (p pvc) owner() string     { return orDash(p.Metadata.Labels[pvcSelector]) }
 
@@ -94,16 +94,15 @@ func (p pvc) bound() bool { return strings.EqualFold(p.Status.Phase, "bound") }
 // is what an unfinished expansion looks like from here — the spec says the new
 // size and the status still says the old one.
 //
-// Compared as strings, deliberately. Kubernetes quantities are a grammar of
-// their own ("7Gi", "7000M", "7e9") and parsing them to compare would mean
-// carrying that grammar, for a check whose whole job is to notice that two
-// values a controller normally keeps identical have stopped being identical.
-// Two spellings of one size read as short here; that is a visible, harmless
-// false positive on a page that also prints both numbers, and the alternative
-// is a quantity parser nobody asked for.
+// Compared in bytes (parseBytes). It was compared as strings, to carry no
+// quantity grammar for one check, and two spellings of one size read as short:
+// a 10G claim on a provisioner that rounds up to 10Gi was a warning that an
+// expansion had not finished, on a volume larger than asked. The table now
+// shows and values both sizes in bytes, so the parse is there anyway.
 func (p pvc) short() bool {
-	req, got := p.requested(), p.actual()
-	return p.bound() && req != "—" && got != "—" && req != got
+	req, okReq := parseBytes(p.requested())
+	got, okGot := parseBytes(p.actual())
+	return p.bound() && okReq && okGot && got < req
 }
 
 func (p pvc) status() string {
@@ -212,21 +211,23 @@ func runStorage(ctx context.Context, req plugin.Request) (view.View, error) {
 	// name it would say the same thing on every row.
 	cols := []view.Column{{Name: "Volume"}, {Name: "Instance"}, {Name: "Holds"},
 		{Name: "Status", Kind: view.KindStatus},
-		{Name: "Requested"}, {Name: "Capacity"}, {Name: "Class"}, {Name: "Phase"}}
+		{Name: "Requested", Kind: view.KindBytes}, {Name: "Capacity", Kind: view.KindBytes},
+		{Name: "Class"}, {Name: "Phase"}}
 	showCluster := len(names) != 1
 	if showCluster {
 		cols = append([]view.Column{{Name: "Cluster"}}, cols...)
 	}
 	t := view.Table{Columns: s.leading(cols...)}
 	for _, p := range pvcsFor(items) {
-		cells := []string{
-			p.Metadata.Name, p.instance(), p.holds(), p.status(),
-			p.requested(), p.actual(), orDash(p.Spec.StorageClassName), orDash(p.Status.Phase),
+		cells := []view.Cell{
+			view.Plain(p.Metadata.Name), view.Plain(p.instance()), view.Plain(p.holds()), view.Plain(p.status()),
+			sizeCell(p.requested()), sizeCell(p.actual()),
+			view.Plain(orDash(p.Spec.StorageClassName)), view.Plain(orDash(p.Status.Phase)),
 		}
 		if showCluster {
-			cells = append([]string{p.owner()}, cells...)
+			cells = append([]view.Cell{view.Plain(p.owner())}, cells...)
 		}
-		t.Rows = append(t.Rows, s.lead(p.Metadata.Namespace, cells...))
+		t.Add(lead(s, view.Plain(p.Metadata.Namespace), cells...)...)
 	}
 	t.Total = len(t.Rows)
 	if len(t.Rows) == 0 && r.answered() {
@@ -270,17 +271,17 @@ func storageProblems(s selection, items []pvc, unread []outcome[pvcList]) view.T
 		view.Column{Name: "Volume"}, view.Column{Name: "Status", Kind: view.KindStatus}, view.Column{Name: "Detail"},
 	)}
 	for _, o := range unread {
-		t.Rows = append(t.Rows, s.lead(o.scope.namespace, "—", "fail", o.reason()))
+		t.Rows = append(t.Rows, lead(s, o.scope.namespace, "—", "fail", o.reason()))
 	}
 	for _, p := range pvcsFor(items) {
 		switch {
 		case !p.bound():
-			t.Rows = append(t.Rows, s.lead(p.Metadata.Namespace, p.Metadata.Name, "fail",
+			t.Rows = append(t.Rows, lead(s, p.Metadata.Namespace, p.Metadata.Name, "fail",
 				"phase "+orDash(p.Status.Phase)+" — nothing is behind this claim, so the "+
 					"instance it belongs to cannot start"))
 		case p.short():
-			t.Rows = append(t.Rows, s.lead(p.Metadata.Namespace, p.Metadata.Name, "warn",
-				"asked for "+p.requested()+" and has "+p.actual()+
+			t.Rows = append(t.Rows, lead(s, p.Metadata.Namespace, p.Metadata.Name, "warn",
+				"asked for "+sizeText(p.requested())+" and has "+sizeText(p.actual())+
 					" — an expansion that has not finished, or a class that will not resize"))
 		}
 	}
