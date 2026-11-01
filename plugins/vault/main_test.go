@@ -27,15 +27,23 @@ import (
 // vault.wrap.set really minted a live single-use token and printed it, and
 // vault.transit.encrypt really used the key.
 func TestConformance(t *testing.T) {
-	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."))
+	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."),
+		sdktest.Skip(sdktest.RuleDryRunOffline, "vault.kv.get", disclosed),
+		sdktest.Skip(sdktest.RuleDryRunOffline, "vault.transit.decrypt", disclosed),
+		sdktest.Skip(sdktest.RuleDryRunOffline, "vault.wrap.get",
+			"looks the token up, without unwrapping it, to say what an unwrap would hand over"))
 }
 
-// conformanceInputs points every mutating capability at an address nothing is
-// listening on, so a dry run that stops being dry fails here as a refused
-// connection rather than as a write to somebody's Vault.
+// disclosed is why a capability classified write for what it discloses
+// connects under --dry-run.
+const disclosed = "classified write for what it discloses, so its dry run is the read"
+
+// conformanceInputs points every mutating capability at sdktest.Nowhere, so a
+// dry run that stops being dry connects there and fails, rather than writing
+// to somebody's Vault.
 func conformanceInputs(dir string) map[string]map[string]any {
 	conn := func(m map[string]any) map[string]any {
-		m["url"] = "http://127.0.0.1:1"
+		m["url"] = "http://" + sdktest.Nowhere(dir)
 		m["token"] = "conformance"
 		return m
 	}

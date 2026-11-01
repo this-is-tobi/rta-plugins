@@ -109,15 +109,18 @@ func reqAt(t *testing.T, f *fakeQdrant, capID string, values map[string]any) plu
 // no default supplies: without one the suite fails rather than report a
 // pass for a capability it never ran.
 func TestConformance(t *testing.T) {
-	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."))
+	sdktest.Check(t, Plugin(), sdktest.WithInputs(conformanceInputs), sdktest.WithSource("."),
+		sdktest.Skip(sdktest.RuleDryRunOffline, "qdrant.points.scroll",
+			"classified write for what it discloses, so its dry run is the read"))
 }
 
-// conformanceInputs points every write at a port nothing listens on, so none
-// of them reaches an instance. qdrant.points.scroll has no dry run of its
-// own — it changes nothing, and reads under --dry-run as it does without —
-// so left at the default endpoint it would read points out of whatever
-// Qdrant the machine running the tests has. A dump's or a restore's dry run
-// that stopped being dry fails as a refused connection.
+// conformanceInputs points every write at sdktest.Nowhere, so none of them
+// reaches an instance. qdrant.points.scroll has no dry run of its own — it
+// changes nothing, and reads under --dry-run as it does without — so left at
+// the default endpoint it would read points out of whatever Qdrant the
+// machine running the tests has; it connects to Nowhere instead, and is
+// waived from RuleDryRunOffline for it. A dump's or a restore's dry run that
+// stopped being dry would connect there too, and fail.
 //
 // The dump's file and the restore's fixture are inside dir, the directory
 // the suite watches: a dry run that wrote the one or touched the other is
@@ -126,7 +129,7 @@ func TestConformance(t *testing.T) {
 // one that is not there or is empty.
 func conformanceInputs(dir string) map[string]map[string]any {
 	conn := func(m map[string]any) map[string]any {
-		m["address"] = "127.0.0.1:1"
+		m["address"] = sdktest.Nowhere(dir)
 		m["collection"] = "conformance"
 		return m
 	}
