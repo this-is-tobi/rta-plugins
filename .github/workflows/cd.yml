@@ -147,6 +147,10 @@ jobs:
       with:
         ref: main
         token: ${{ steps.app-token.outputs.token }}
+        # Kept, unlike every other checkout here: the commit step pushes with
+        # it. Said outright because the default reads as an oversight, to a
+        # reviewer and to zizmor's artipacked audit alike.
+        persist-credentials: true
 
     - name: Setup Go
       uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
