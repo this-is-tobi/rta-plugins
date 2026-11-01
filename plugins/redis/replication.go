@@ -60,25 +60,25 @@ func replicationTable(in info) view.Table {
 	role := "primary"
 	if r := in.get("role"); r == "slave" || r == "replica" {
 		role = "replica"
-		t.Rows = append(t.Rows, upstreamRow(in))
+		t.Add(upstreamRow(in)...)
 	}
 	downstream := downstreamRows(in)
 	if role == "primary" && len(downstream) == 0 {
-		t.Rows = append(t.Rows, []string{"primary", "no replicas", "-", in.get("master_repl_offset"), "-", "-", "-"})
+		t.Add(plain("primary", "no replicas", "-", in.get("master_repl_offset"), "-", "-", "-")...)
 	}
 	for _, row := range downstream {
 		if role == "replica" {
-			row[0] = "replica (relay)"
+			row[0] = view.Plain("replica (relay)")
 		}
-		t.Rows = append(t.Rows, row)
+		t.Add(row...)
 	}
 	t.Total = len(t.Rows)
 	return t
 }
 
-func upstreamRow(in info) []string {
-	return []string{"replica", stdnet.JoinHostPort(in.get("master_host"), in.get("master_port")),
-		upstreamLink(in), in.get("slave_repl_offset"), "-", upstreamContact(in), "-"}
+func upstreamRow(in info) []view.Cell {
+	return plain("replica", stdnet.JoinHostPort(in.get("master_host"), in.get("master_port")),
+		upstreamLink(in), in.get("slave_repl_offset"), "-", upstreamContact(in), "-")
 }
 
 // upstreamLink grades the link a replica holds to its primary.
@@ -121,19 +121,21 @@ func upstreamContact(in info) string {
 // downstreamRows are the replicas this node feeds, from the slaveN lines of
 // its own INFO. A replica with replicas of its own — a relay — reports them
 // the same way, so the loop does not ask which role it is on.
-func downstreamRows(in info) [][]string {
-	var rows [][]string
+func downstreamRows(in info) [][]view.Cell {
+	var rows [][]view.Cell
 	backlog := backlogOf(in)
 	for i, n := 0, int(in.int("connected_slaves")); i < n; i++ {
 		f := fieldsOf(in.get("slave" + strconv.Itoa(i)))
 		offset, haveOffset := parseInt(f["offset"])
-		behind, resync := "-", "-"
+		behind, resync := view.Plain("-"), "-"
 		if haveOffset && f["state"] == "online" {
-			behind = format.Bytes(max(0, in.int("master_repl_offset")-offset))
+			behind = view.Bytes(max(0, in.int("master_repl_offset")-offset))
 			resync = backlog.resync(offset)
 		}
-		rows = append(rows, []string{"primary", stdnet.JoinHostPort(f["ip"], f["port"]),
-			downstreamLink(f, resync, backlog), f["offset"], behind, contactText(f["lag"]), resync})
+		row := plain("primary", stdnet.JoinHostPort(f["ip"], f["port"]),
+			downstreamLink(f, resync, backlog), f["offset"], "", contactText(f["lag"]), resync)
+		row[4] = behind
+		rows = append(rows, row)
 	}
 	return rows
 }
