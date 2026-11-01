@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/this-is-tobi/rta/pkg/plugin"
+	"github.com/this-is-tobi/rta/pkg/view"
 )
 
 // The Admin REST representations this plugin reads, each declaring only the
@@ -283,6 +284,17 @@ func stamp(ms int64) string {
 		return ""
 	}
 	return time.UnixMilli(ms).UTC().Format(time.RFC3339)
+}
+
+// stampCell is stamp as a table's cell, valued to the millisecond Keycloak
+// keeps. The text is written to the second, and read back as the value it
+// would lose the milliseconds two events in one second differ by, and with
+// them their order.
+func stampCell(ms int64) view.Cell {
+	if ms == 0 {
+		return view.Plain("")
+	}
+	return view.Time(stamp(ms), time.UnixMilli(ms))
 }
 
 // yesNo is the cell for a boolean setting.
