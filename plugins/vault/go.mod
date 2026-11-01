@@ -7,7 +7,7 @@ go 1.26.10
 
 require (
 	github.com/hashicorp/vault/api v1.23.0
-	github.com/this-is-tobi/rta v0.52.0
+	github.com/this-is-tobi/rta v0.53.0
 )
 
 require (
