@@ -256,18 +256,17 @@ func membersTable(rows []memberRow, lead leaderView) view.Table {
 		{Name: "Health", Kind: view.KindStatus},
 	}}
 	for _, r := range rows {
-		cells := make([]string, 0, len(t.Columns))
-		cells = append(cells, hexID(r.id), memberName(r.name), roleOf(r, lead), "-", "-", "-", "-", "-", "-", "-")
+		cells := plain(hexID(r.id), memberName(r.name), roleOf(r, lead), "-", "-", "-", "-", "-", "-", "-")
 		if r.st != nil {
-			cells[3] = r.st.Version
-			cells[4] = strconv.FormatUint(r.st.RaftTerm, 10)
-			cells[5] = strconv.FormatUint(r.st.RaftIndex, 10)
-			cells[6] = appliedText(r.st)
-			cells[7] = behindText(r, lead)
-			cells[8] = strconv.FormatInt(r.st.Header.Revision, 10)
-			cells[9] = format.Bytes(r.st.DbSize)
+			cells[3] = view.Plain(r.st.Version)
+			cells[4] = view.Plain(strconv.FormatUint(r.st.RaftTerm, 10))
+			cells[5] = view.Plain(strconv.FormatUint(r.st.RaftIndex, 10))
+			cells[6] = view.Plain(appliedText(r.st))
+			cells[7] = view.Plain(behindText(r, lead))
+			cells[8] = view.Plain(strconv.FormatInt(r.st.Header.Revision, 10))
+			cells[9] = view.Bytes(r.st.DbSize)
 		}
-		t.Rows = append(t.Rows, append(cells, memberHealth(r, lead)))
+		t.Add(append(cells, view.Plain(memberHealth(r, lead)))...)
 	}
 	t.Total = len(t.Rows)
 	return t
