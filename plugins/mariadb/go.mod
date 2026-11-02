@@ -14,13 +14,13 @@ godebug x509sslcertoverrideplatform=0
 
 require (
 	github.com/this-is-tobi/rta v0.57.1
-	github.com/this-is-tobi/rta-plugins/plugins/mysql v0.13.2
+	github.com/this-is-tobi/rta-plugins/plugins/mysql v0.13.3
 )
 
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/fatih/color v1.13.0 // indirect
-	github.com/go-sql-driver/mysql v1.10.0 // indirect
+	github.com/go-sql-driver/mysql v1.10.1 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
 	github.com/hashicorp/go-plugin v1.8.0 // indirect
