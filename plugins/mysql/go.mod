@@ -13,7 +13,7 @@ go 1.27.3
 godebug x509sslcertoverrideplatform=0
 
 require (
-	github.com/go-sql-driver/mysql v1.10.0
+	github.com/go-sql-driver/mysql v1.10.1
 	github.com/this-is-tobi/rta v0.57.0
 )
 
