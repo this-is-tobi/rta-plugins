@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.12.6](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.12.5...plugins/mariadb/v0.12.6) (2026-11-02)
+
+
+### Dependencies
+
+* **deps:** update github.com/this-is-tobi/rta-plugins/plugins/mysql to v0.13.2 ([544ab91](https://github.com/this-is-tobi/rta-plugins/commit/544ab9114e369b6b23ccaab0636433434680f3de))
+* every plugin builds against rta v0.57.1 ([566a619](https://github.com/this-is-tobi/rta-plugins/commit/566a61931af104cd96d14be915f3db91a9a7d521))
+* every plugin builds with Go 1.27.3 and keeps macOS's own certificate verifier ([94ae884](https://github.com/this-is-tobi/rta-plugins/commit/94ae884feb8656b4e45509ae85e132561ac6158f))
+
 ## [0.12.5](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.12.4...plugins/mariadb/v0.12.5) (2026-11-01)
 
 
