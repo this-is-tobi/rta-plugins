@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.16.1](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.16.0...plugins/pg/v0.16.1) (2026-11-02)
+
+
+### Dependencies
+
+* **deps:** update go modules ([022d2b6](https://github.com/this-is-tobi/rta-plugins/commit/022d2b6d251f9d9799d03f76607c73051a9a1381))
+* every plugin builds against rta v0.57.1 ([566a619](https://github.com/this-is-tobi/rta-plugins/commit/566a61931af104cd96d14be915f3db91a9a7d521))
+* every plugin builds with Go 1.27.3 and keeps macOS's own certificate verifier ([94ae884](https://github.com/this-is-tobi/rta-plugins/commit/94ae884feb8656b4e45509ae85e132561ac6158f))
+
 ## [0.16.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.15.1...plugins/pg/v0.16.0) (2026-11-01)
 
 

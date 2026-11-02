@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.14.2...plugins/cnpg/v0.14.3) (2026-11-02)
+
+
+### Dependencies
+
+* every plugin builds against rta v0.57.1 ([566a619](https://github.com/this-is-tobi/rta-plugins/commit/566a61931af104cd96d14be915f3db91a9a7d521))
+* every plugin builds with Go 1.27.3 and keeps macOS's own certificate verifier ([94ae884](https://github.com/this-is-tobi/rta-plugins/commit/94ae884feb8656b4e45509ae85e132561ac6158f))
+
 ## [0.14.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.14.1...plugins/cnpg/v0.14.2) (2026-11-01)
 
 
