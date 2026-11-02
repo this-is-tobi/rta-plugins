@@ -29,6 +29,7 @@ func (r *typedRows) Scan(...any) error                            { return nil }
 func (r *typedRows) Values() ([]any, error)                       { return r.rows[r.at-1], nil }
 func (r *typedRows) RawValues() [][]byte                          { return nil }
 func (r *typedRows) Conn() *pgx.Conn                              { return nil }
+func (r *typedRows) TypeMap() *pgtype.Map                         { return nil }
 
 // A result's columns say what they hold, from the type each was declared
 // with, as mysql.query's do: every column was text, so a count sorted as a
