@@ -283,10 +283,17 @@ $(TOOLS)/golangci-lint-%:
 	GOBIN=$(TOOLS) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$*
 	mv $(TOOLS)/golangci-lint $@
 
+# The last line holds every module to the godebug line that keeps macOS's
+# own certificate verifier, which rta's go.mod explains. A module without it
+# verifies against SSL_CERT_FILE or SSL_CERT_DIR on a Mac with Go's own
+# verifier, and nothing says so; `rta plugin new` leaves the line out of the
+# go.mod it writes, which outlives the setting. Go 1.31 removes it and
+# refuses the line: delete the line from every go.mod, and this test, then.
 $(CHECK_PLUGINS): check-%: name-check
 	@echo "==> plugins/$*"
 	@cd plugins/$* && go build -o /dev/null . && go vet ./... && go test ./... -count=1 -race -shuffle=on
 	@test -z "$$(gofmt -l plugins/$*)" || { echo "gofmt needed in plugins/$*"; exit 1; }
+	@grep -qx 'godebug x509sslcertoverrideplatform=0' plugins/$*/go.mod || { echo "plugins/$*/go.mod does not keep macOS's own certificate verifier: add 'godebug x509sslcertoverrideplatform=0' after its go line, as every module has"; exit 1; }
 
 cross: name-check ## Compile every plugin for every release target and discard the output
 	@for p in $(PLUGIN_LIST); do for t in $(RELEASE_TARGETS); do \

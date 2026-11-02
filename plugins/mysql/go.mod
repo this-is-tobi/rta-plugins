@@ -5,7 +5,12 @@
 //
 module github.com/this-is-tobi/rta-plugins/plugins/mysql
 
-go 1.26.10
+go 1.27.3
+
+// Keeps macOS's own certificate verifier when SSL_CERT_FILE or SSL_CERT_DIR
+// is set, as rta's go.mod does, and says why. Go 1.31 removes the setting
+// and refuses this line; the check recipe in the Makefile says what then.
+godebug x509sslcertoverrideplatform=0
 
 require (
 	github.com/go-sql-driver/mysql v1.10.0
