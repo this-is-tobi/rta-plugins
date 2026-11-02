@@ -7,29 +7,29 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: docker
-version: 0.7.2
+version: 0.7.3
 summary: "Containers and images: what is running, what is stale, and the daily tidy-up"
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/docker
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.7.2/rta-plugin-docker_0.7.2_darwin_amd64.tar.gz
-  sha256: aad8aeff0273033382ba3b742632066a66ad6d4f10625ea6a8e599caa3b93649
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.7.3/rta-plugin-docker_0.7.3_darwin_amd64.tar.gz
+  sha256: e7daf8ab7f713a7bdf2df8bf6c8d789a5ae400f0802b3d24f20a4ca092753b82
   bin: rta-plugin-docker
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.7.2/rta-plugin-docker_0.7.2_darwin_arm64.tar.gz
-  sha256: 7cede755d11df846e15c3bbe19245164feb8604c86511c11d0fd34ce5a597fd2
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.7.3/rta-plugin-docker_0.7.3_darwin_arm64.tar.gz
+  sha256: a22196fdd9d1de73134d31da9169fd41fc7c81f563f01a0e78b3bbf449c2218b
   bin: rta-plugin-docker
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.7.2/rta-plugin-docker_0.7.2_linux_amd64.tar.gz
-  sha256: eb03f0d1503b650e8e75acdc0c94f8d56eb63dad5ecfdaf11ac2907608b11377
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.7.3/rta-plugin-docker_0.7.3_linux_amd64.tar.gz
+  sha256: c593da9e1bbe0f4249917d326bdca532e6f2118a51411ee306c562841bc117a9
   bin: rta-plugin-docker
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.7.2/rta-plugin-docker_0.7.2_linux_arm64.tar.gz
-  sha256: 2c89d9da3e5d989edf7a6686fd0dea0f32c36b94a762d15916af0e642007bb50
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fdocker%2Fv0.7.3/rta-plugin-docker_0.7.3_linux_arm64.tar.gz
+  sha256: 985c8e0a498fcb7794ada6c209db9f268ad2c106686365f85b8a3df9ffac2927
   bin: rta-plugin-docker
 capabilities:
 - id: docker.container.list
