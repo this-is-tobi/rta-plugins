@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.7](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.12.6...plugins/mariadb/v0.12.7) (2026-11-03)
+
+
+### Dependencies
+
+* **deps:** update github.com/this-is-tobi/rta-plugins/plugins/mysql to v0.13.3 ([e7dd3db](https://github.com/this-is-tobi/rta-plugins/commit/e7dd3db06fc27a93b9500fb4add7b89366731fe7))
+* every plugin builds against rta v0.58.0 ([db026dc](https://github.com/this-is-tobi/rta-plugins/commit/db026dc1ab70f9d896369b21da06d08994885d3e))
+
 ## [0.12.6](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.12.5...plugins/mariadb/v0.12.6) (2026-11-02)
 
 
