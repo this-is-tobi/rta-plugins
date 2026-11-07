@@ -59,7 +59,7 @@ Reads the realm and grades what it finds: whether a second factor is required or
 | input:tls-server-name | string, group tls, local (never offered to MCP callers), from config plugins.keycloak.tls-server-name — name to check the server's certificate for, in place of the URL's host                                                          |
 | set a key             | rta config set plugins.keycloak.limit 200                                                                                                                                                                                               |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.audit\`, or + on it in the TUI, puts it there, re-run every 1h                                                                                |
-| input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                                                                      |
+| input:detail          | bool, default false — full detailed view                                                                                                                                                                                                |
 
 ## keycloak.client.list
 
@@ -237,7 +237,7 @@ The first row, `status`, is the verdict: ok, or fail or warn with the worst fact
 | input:tls-server-name | string, group tls, local (never offered to MCP callers), from config plugins.keycloak.tls-server-name — name to check the server's certificate for, in place of the URL's host                                               |
 | set a key             | rta config set plugins.keycloak.url http://127.0.0.1:8080                                                                                                                                                                    |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add keycloak.overview\`, or + on it in the TUI, puts it there, re-run every 2m                                                                  |
-| input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                                                           |
+| input:detail          | bool, default false — full detailed view                                                                                                                                                                                     |
 
 ## keycloak.role.list
 

@@ -446,7 +446,7 @@ Several buckets, or none named: `status` (`ok`, or `warn` naming the buckets tha
 | input:tls-server-name | string, group tls, local (never offered to MCP callers), from config plugins.s3.tls-server-name — name to check the server's certificate for, in place of the address's host                                                                        |
 | set a key             | rta config set plugins.s3.bucket \<value>                                                                                                                                                                                                           |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add s3.overview\`, or + on it in the TUI, puts it there, re-run every 2m                                                                                               |
-| input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                                                                                  |
+| input:detail          | bool, default false — full detailed view                                                                                                                                                                                                            |
 
 ## s3.policy.get
 
