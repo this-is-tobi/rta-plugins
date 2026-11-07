@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.5](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.14.4...plugins/s3/v0.14.5) (2026-11-07)
+
+
+### Dependencies
+
+* **deps:** update github.com/klauspost/compress to v1.20.2 [security] ([564f7fd](https://github.com/this-is-tobi/rta-plugins/commit/564f7fd7798978054efd8370f64bf929aea289f6))
+
 ## [0.14.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.14.3...plugins/s3/v0.14.4) (2026-11-03)
 
 
