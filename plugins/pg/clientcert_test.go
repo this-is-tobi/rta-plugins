@@ -403,9 +403,8 @@ func TestTheTLSFileSettingsAreTheOperators(t *testing.T) {
 				continue
 			}
 			found = true
-			if !f.Local || f.Config != name || f.TLSAdjacent {
-				t.Errorf("%s: Local %v, Config %q, TLSAdjacent %v; want Local, configurable and not TLSAdjacent",
-					name, f.Local, f.Config, f.TLSAdjacent)
+			if !f.Local || f.Config != name {
+				t.Errorf("%s: Local %v, Config %q; want Local and configurable", name, f.Local, f.Config)
 			}
 		}
 		if !found {

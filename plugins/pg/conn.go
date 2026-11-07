@@ -110,8 +110,8 @@ func connFields() []plugin.Field {
 		// refuses a caller's own, so the elevation declined above is not the
 		// operator's to decline: nothing else on the line says TLS. A CA, or
 		// a name to check (tls-server-name), turns it on at verify-full, as
-		// plugins/etcd's ca-file turns on its tls, and so this is not
-		// TLSAdjacent: a profile may hold it beside its forward.
+		// plugins/etcd's ca-file turns on its tls, and so a profile may hold
+		// it beside its forward.
 		{Name: "sslrootcert", Type: plugin.String, Default: "", Config: "sslrootcert",
 			Local: true,
 			Help: "CA bundle to verify the server against, or system for this machine's own store — " +
@@ -125,11 +125,11 @@ func connFields() []plugin.Field {
 		// alone (checkServerName). Local for the reason sslmode is: what a
 		// certificate has to prove is the operator's to say.
 		//
-		// Not TLSAdjacent, for sslrootcert's reason: over a forward it is what
-		// turns TLS on. A kube: forward ends the forward at the first clean
-		// disconnect of a TLS connection (the sslmode note above), so a call
-		// that connects twice, as a dump does for its pre-flight and then its
-		// child, finds the forward gone for the second.
+		// Like sslrootcert, over a forward it is what turns TLS on. A kube:
+		// forward ends the forward at the first clean disconnect of a TLS
+		// connection (the sslmode note above), so a call that connects twice,
+		// as a dump does for its pre-flight and then its child, finds the
+		// forward gone for the second.
 		{Name: "tls-server-name", Type: plugin.String, Default: "", Config: "tls-server-name",
 			Local: true,
 			Help: "name to check the server's certificate for, in place of the host's — verify-full only, and " +
@@ -150,8 +150,8 @@ func connFields() []plugin.Field {
 		// with no file named is pointed at one that does not exist
 		// (transport). ssl-home below asks for libpq's search back.
 		//
-		// Not TLSAdjacent, for sslrootcert's reason: over a forward a client
-		// certificate asks for TLS as the CA does, at verify-full.
+		// Like sslrootcert, over a forward a client certificate asks for TLS
+		// as the CA does, at verify-full.
 		{Name: "sslcert", Type: plugin.String, Default: "", Config: "sslcert",
 			Local: true,
 			Help: "client certificate to present to the server, PEM, with sslkey — for a server whose " +
