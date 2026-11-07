@@ -152,7 +152,7 @@ The full page (`detail`) is everything the compact form holds and what it leaves
 | input:password        | secret, group credentials, local (never offered to MCP callers), from $RTA_MYSQL_PASSWORD — password for the user                                                                                                                                                                                        |
 | set a key             | rta config set plugins.mysql.host localhost                                                                                                                                                                                                                                                              |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add mysql.overview\`, or + on it in the TUI, puts it there, re-run every 30s                                                                                                                                                |
-| input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                                                                                                                                       |
+| input:detail          | bool, default false — full detailed view                                                                                                                                                                                                                                                                 |
 
 ## mysql.query
 

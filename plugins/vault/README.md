@@ -296,7 +296,7 @@ The rows are seven requests: the seal status, the leader, the token, the raft st
 | input:tls-server-name | string, group tls, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the URL's host                                  |
 | set a key             | rta config set plugins.vault.url http://127.0.0.1:8200                                                                                                                                                       |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.overview\`, or + on it in the TUI, puts it there, re-run every 1m                                                     |
-| input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                                           |
+| input:detail          | bool, default false — full detailed view                                                                                                                                                                     |
 
 ## vault.policy.get
 

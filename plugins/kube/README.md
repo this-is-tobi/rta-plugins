@@ -275,7 +275,7 @@ Reads more than it names: every pod, Deployment, ResourceQuota and TLS Secret of
 | input:context        | string, group network, completes, local (never offered to MCP callers), from config plugins.kube.context — kubeconfig context to use — the current one when omitted                                         |
 | set a key            | rta config set plugins.kube.namespace \<value>                                                                                                                                                              |
 | dashboard            | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add kube.overview\`, or + on it in the TUI, puts it there, re-run every 1m                                                     |
-| input:detail         | bool, default false — return the full detailed view instead of the compact summary                                                                                                                          |
+| input:detail         | bool, default false — full detailed view                                                                                                                                                                    |
 
 ## kube.pod.list
 

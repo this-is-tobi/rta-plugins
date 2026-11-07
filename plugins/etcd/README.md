@@ -213,7 +213,7 @@ Each member is asked at the client URL it advertises, and waited for two seconds
 | input:password        | secret, group credentials, local (never offered to MCP callers), from $RTA_ETCD_PASSWORD — password for the user                                                                                                              |
 | set a key             | rta config set plugins.etcd.address 127.0.0.1:2379                                                                                                                                                                            |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add etcd.overview\`, or + on it in the TUI, puts it there, re-run every 1m                                                                       |
-| input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                                                            |
+| input:detail          | bool, default false — full detailed view                                                                                                                                                                                      |
 
 ## etcd.snapshot
 

@@ -8,7 +8,7 @@ go 1.27.3
 godebug x509sslcertoverrideplatform=0
 
 require (
-	github.com/this-is-tobi/rta v0.58.0
+	github.com/this-is-tobi/rta v0.59.0
 	go.etcd.io/etcd/api/v3 v3.7.3
 	go.etcd.io/etcd/client/v3 v3.7.3
 	google.golang.org/grpc v1.85.0

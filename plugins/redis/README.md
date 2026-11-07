@@ -270,7 +270,7 @@ Memory is the row to watch. A server at maxmemory with `noeviction` refuses ever
 | input:db              | int, group target, default 0, a value of at least 0, local (never offered to MCP callers), from config plugins.redis.db — logical database to SELECT                                                                                           |
 | set a key             | rta config set plugins.redis.address 127.0.0.1:6379                                                                                                                                                                                            |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add redis.overview\`, or + on it in the TUI, puts it there, re-run every 30s                                                                                      |
-| input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                                                                             |
+| input:detail          | bool, default false — full detailed view                                                                                                                                                                                                       |
 
 ## redis.slowlog
 

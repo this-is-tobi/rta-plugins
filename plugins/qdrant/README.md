@@ -149,7 +149,7 @@ Describes collections and returns no point; reading points is qdrant.points.scro
 | input:tls-server-name | string, group tls, local (never offered to MCP callers), from config plugins.qdrant.tls-server-name — name to check the server's certificate for, in place of the address's host                                   |
 | set a key             | rta config set plugins.qdrant.collection \<value>                                                                                                                                                                  |
 | dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add qdrant.overview\`, or + on it in the TUI, puts it there, re-run every 1m                                                          |
-| input:detail          | bool, default false — return the full detailed view instead of the compact summary                                                                                                                                 |
+| input:detail          | bool, default false — full detailed view                                                                                                                                                                           |
 
 ## qdrant.points.count
 
