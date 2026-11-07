@@ -101,8 +101,8 @@ func connFields() []plugin.Field {
 		// refuses a caller's own, so the elevation declined above is not the
 		// operator's to decline: nothing else on the line says TLS. A CA, or a
 		// name to check (tls-server-name), turns it on at true (tlsMode), as
-		// plugins/pg's sslrootcert and tls-server-name do, and so this is not
-		// TLSAdjacent: a profile may hold it beside its forward.
+		// plugins/pg's sslrootcert and tls-server-name do, and so a profile
+		// may hold it beside its forward.
 		{Name: "ca-file", Type: plugin.String, Default: "", Config: "ca-file",
 			Local: true,
 			Help: "PEM bundle to verify the server against — read when tls is true or verify-ca; under a " +
@@ -115,8 +115,7 @@ func connFields() []plugin.Field {
 		// (checkServerName). Local for the reason tls is: what a certificate
 		// has to prove is the operator's to say.
 		//
-		// Not TLSAdjacent, for ca-file's reason: over a forward it is what turns
-		// TLS on.
+		// Like ca-file, over a forward it is what turns TLS on.
 		{Name: "tls-server-name", Type: plugin.String, Default: "", Config: "tls-server-name",
 			Local: true,
 			Help: "name to check the server's certificate for, in place of the host's — tls true only; under a " +
