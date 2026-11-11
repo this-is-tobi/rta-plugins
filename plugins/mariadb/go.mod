@@ -5,7 +5,7 @@
 //
 module github.com/this-is-tobi/rta-plugins/plugins/mariadb
 
-go 1.27.3
+go 1.27.4
 
 // Keeps macOS's own certificate verifier when SSL_CERT_FILE or SSL_CERT_DIR
 // is set, as rta's go.mod does, and says why. Go 1.31 removes the setting
