@@ -27,16 +27,23 @@
       "commitMessageTopic": "{{depName}}"
     },
     {
-      "description": "The Go toolchain is the go directive in every plugin's go.mod and the pin in mise.toml. One pull request moves them all.",
-      "matchDepNames": ["go"],
-      "groupName": "Go toolchain"
-    },
-    {
       "description": "Non-major Go module bumps across the plugins land together: one commit and one round of patch releases a week rather than one per module per plugin. A vulnerable module skips both the grouping and the schedule through the OSV alerts above. This repository's own modules are left out, for the rule below.",
       "matchManagers": ["gomod"],
       "matchUpdateTypes": ["minor", "patch", "digest"],
       "matchDepNames": ["!github.com/this-is-tobi/rta-plugins/**"],
       "groupName": "Go modules"
+    },
+    {
+      "description": "The Go toolchain is the go directive in every plugin's go.mod and the pin in mise.toml. One pull request moves them all. It is listed after the Go modules rule on purpose: the last rule to name a group wins, and the go directive is a gomod dependency that rule would otherwise take into the weekly bump, away from mise.toml.",
+      "matchDepNames": ["go"],
+      "groupName": "Go toolchain"
+    },
+    {
+      "description": "The go directive is a minimum, 'compatible with this version or later', and Renovate's default is never to propose a new one (docs.renovatebot.com/modules/manager/gomod), so without this the group above moves mise.toml and leaves all twelve go.mod directives where they are. Those are what cd.yml builds each plugin's release archives with: a Go security release would reach no plugin until somebody moved them by hand. This is Renovate's documented opt-in for always moving them.",
+      "matchManagers": ["gomod"],
+      "matchDepNames": ["go"],
+      "matchDepTypes": ["golang"],
+      "rangeStrategy": "bump"
     },
     {
       "description": "A plugin that serves another plugin's package, as mariadb serves the family package of plugins/mysql, pins that plugin's release, so a release of it reaches the other plugin only through this bump: on its own, and as soon as the release exists rather than the next Monday beside unrelated modules.",
