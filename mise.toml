@@ -3,7 +3,9 @@
 # it.
 #
 # Go, at the version every plugin's go.mod names; Renovate moves this line
-# and the go.mod directives together (renovate.json).
+# and the go.mod directives together (renovate.json), which it does for a go
+# directive only because that file tells it to. `make check` fails a module
+# whose directive disagrees with this line.
 #
 # And rta itself, at the release .rta-version names: the one ci.yml installs
 # to render each README and cd.yml to write the index, and therefore the one
