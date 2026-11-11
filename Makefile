@@ -283,6 +283,17 @@ $(TOOLS)/golangci-lint-%:
 	GOBIN=$(TOOLS) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$*
 	mv $(TOOLS)/golangci-lint $@
 
+# The first line holds the module's go directive to the pin in mise.toml, and
+# through it to every other module's. Go's version is stated in all of them:
+# ci.yml sets Go up from plugins/pg/go.mod and cd.yml builds each plugin's
+# release archives with that plugin's own go.mod, so a directive left behind
+# is a plugin shipped on the older standard library while the checks run on
+# the newer. Renovate's "Go toolchain" group moves them together, but only
+# because renovate.json tells it to touch a go directive; by default it never
+# proposes one, and a Go release once moved mise.toml and nothing else. Any
+# change to mise.toml or a go.mod puts the module in scope, so a pull request
+# that moves some of them and not all fails in its own checks.
+#
 # The last line holds every module to the godebug line that keeps macOS's
 # own certificate verifier, which rta's go.mod explains. A module without it
 # verifies against SSL_CERT_FILE or SSL_CERT_DIR on a Mac with Go's own
@@ -291,6 +302,7 @@ $(TOOLS)/golangci-lint-%:
 # refuses the line: delete the line from every go.mod, and this test, then.
 $(CHECK_PLUGINS): check-%: name-check
 	@echo "==> plugins/$*"
+	@want=$$(sed -n 's/^go = "\(.*\)"$$/\1/p' mise.toml); have=$$(sed -n 's/^go \(.*\)$$/\1/p' plugins/$*/go.mod); test -n "$$want" && test "$$want" = "$$have" || { echo "plugins/$*/go.mod says go '$$have' and mise.toml pins '$$want': every go directive and the pin name one release, because ci.yml sets Go up from plugins/pg/go.mod and cd.yml builds each plugin with its own go.mod"; exit 1; }
 	@cd plugins/$* && go build -o /dev/null . && go vet ./... && go test ./... -count=1 -race -shuffle=on
 	@test -z "$$(gofmt -l plugins/$*)" || { echo "gofmt needed in plugins/$*"; exit 1; }
 	@grep -qx 'godebug x509sslcertoverrideplatform=0' plugins/$*/go.mod || { echo "plugins/$*/go.mod does not keep macOS's own certificate verifier: add 'godebug x509sslcertoverrideplatform=0' after its go line, as every module has"; exit 1; }
