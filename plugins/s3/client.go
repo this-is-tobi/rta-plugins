@@ -183,7 +183,7 @@ func serverName(req plugin.Request) string { return strings.TrimSpace(req.String
 // connection, where the endpoint the forward filled names nothing the
 // operator could change.
 //
-// **Not tunnelTLS, which this plugin never sees.** The host reads it for a
+// **Not tunnel-tls, which this plugin never sees.** The host reads it for a
 // setting that is a URL and turns tls off whatever it says, and this one is
 // an address beside a switch: the hint that named it sent the operator to set
 // a key that changed nothing, and the call refused again. tls-server-name is

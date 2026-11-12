@@ -661,7 +661,7 @@ func TestADialIsReadByTheErrorItCarries(t *testing.T) {
 // Keycloak's HTTPS listener hangs up on plain HTTP with nothing said, which
 // Go's client reads as EOF. That says only that the server hung up, so it is
 // still conn.failed — but to an http:// URL the hint names the likeliest
-// reason and where it is changed: tunnelTLS through a forward, which carries
+// reason and where it is changed: tunnel-tls through a forward, which carries
 // plain HTTP unless the profile's connection says otherwise, and the URL's
 // scheme otherwise. Over HTTPS the hint is the one it always was.
 func TestAHangUpOnPlainHTTPNamesTheScheme(t *testing.T) {
@@ -671,7 +671,7 @@ func TestAHangUpOnPlainHTTPNamesTheScheme(t *testing.T) {
 		hint       string
 	}{
 		{"reached directly", "http://sso.internal:8443", plugin.TunnelNone, "--url names the scheme"},
-		{"through a forward", "http://127.0.0.1:54321", plugin.TunnelKube, "tunnelTLS: true on that connection"},
+		{"through a forward", "http://127.0.0.1:54321", plugin.TunnelKube, "tunnel-tls: true on that connection"},
 		{"over HTTPS", "https://sso.internal", plugin.TunnelNone, "`rta explain keycloak.overview`"},
 	} {
 		s := &session{req: plugin.NewRequest(nil, false, false).WithProfile("lab", tc.tunnel), base: tc.base}

@@ -142,13 +142,13 @@ func TestThroughAForwardTheCertificateIsCheckedForTheNameGiven(t *testing.T) {
 
 // A certificate's name given to a call over plain HTTP checks nothing, and
 // the call is refused before it goes in the clear; through a forward the way
-// out is the connection's tunnelTLS, since the host wrote the http://.
+// out is the connection's tunnel-tls, since the host wrote the http://.
 func TestAServerNameOverPlainHTTPIsRefused(t *testing.T) {
 	hostport, ca := vaultBehindAForward(t)
 	values := map[string]any{"url": "http://" + hostport, "ca-file": ca, "tls-server-name": "svc.example.internal"}
 	verr := seal(t, values, plugin.TunnelKube)
-	if verr == nil || verr.Code != "vault.tls.plaintext" || !strings.Contains(verr.Hint, "tunnelTLS: true") {
-		t.Errorf("through a forward: %+v, want vault.tls.plaintext naming tunnelTLS", verr)
+	if verr == nil || verr.Code != "vault.tls.plaintext" || !strings.Contains(verr.Hint, "tunnel-tls: true") {
+		t.Errorf("through a forward: %+v, want vault.tls.plaintext naming tunnel-tls", verr)
 	}
 	verr = seal(t, values, plugin.TunnelNone)
 	if verr == nil || verr.Code != "vault.tls.plaintext" || !strings.Contains(verr.Hint, "an https:// URL") {
@@ -182,8 +182,8 @@ func TestAPlaintextRefusalAlsoNamesTheWayToClearTheSetting(t *testing.T) {
 			t.Errorf("%s, reached directly: %+v, want the hint to say %q", tc.name, verr, tc.direct)
 		}
 		verr := seal(t, values(), plugin.TunnelKube)
-		if verr == nil || !strings.Contains(verr.Hint, tc.forward) || !strings.Contains(verr.Hint, "tunnelTLS: true") {
-			t.Errorf("%s, through a forward: %+v, want both ways out: tunnelTLS, and %q", tc.name, verr, tc.forward)
+		if verr == nil || !strings.Contains(verr.Hint, tc.forward) || !strings.Contains(verr.Hint, "tunnel-tls: true") {
+			t.Errorf("%s, through a forward: %+v, want both ways out: tunnel-tls, and %q", tc.name, verr, tc.forward)
 		}
 	}
 }
@@ -215,9 +215,9 @@ func TestACAFileOverPlainHTTPIsRefusedBeforeAnythingIsSent(t *testing.T) {
 		t.Errorf("message %q does not say which setting names a CA, and where the call would have gone", verr.Message)
 	}
 	verr = seal(t, values(), plugin.TunnelKube)
-	if verr == nil || verr.Code != "vault.tls.ca.unused" || !strings.Contains(verr.Hint, "tunnelTLS: true") ||
+	if verr == nil || verr.Code != "vault.tls.ca.unused" || !strings.Contains(verr.Hint, "tunnel-tls: true") ||
 		!strings.Contains(verr.Message, "profile lab (through its kube: forward)") {
-		t.Errorf("through a forward: %+v, want vault.tls.ca.unused naming the forward and tunnelTLS", verr)
+		t.Errorf("through a forward: %+v, want vault.tls.ca.unused naming the forward and tunnel-tls", verr)
 	}
 	if n := sent.Load(); n != 0 {
 		t.Errorf("%d requests reached the plain-HTTP server, the token on them, before the refusal", n)
@@ -231,12 +231,12 @@ func TestACAFileOverPlainHTTPIsRefusedBeforeAnythingIsSent(t *testing.T) {
 
 // Plain HTTP to a listener that speaks only TLS is answered by the listener,
 // not by Vault, and was read as Vault refusing the request. Through a forward
-// the http:// is the host's, and the connection's tunnelTLS is the way out.
+// the http:// is the host's, and the connection's tunnel-tls is the way out.
 func TestPlainHTTPToATLSListenerNamesTheScheme(t *testing.T) {
 	hostport, _ := vaultBehindAForward(t)
 	verr := seal(t, map[string]any{"url": "http://" + hostport}, plugin.TunnelKube)
-	if verr == nil || verr.Code != "vault.tls.expected" || !strings.Contains(verr.Hint, "tunnelTLS: true") {
-		t.Errorf("through a forward: %+v, want vault.tls.expected naming tunnelTLS", verr)
+	if verr == nil || verr.Code != "vault.tls.expected" || !strings.Contains(verr.Hint, "tunnel-tls: true") {
+		t.Errorf("through a forward: %+v, want vault.tls.expected naming tunnel-tls", verr)
 	}
 	if verr != nil && !strings.Contains(verr.Message, "to profile lab (through its kube: forward), which speaks only HTTPS") {
 		t.Errorf("%q names the forward's end rather than the profile", verr.Message)

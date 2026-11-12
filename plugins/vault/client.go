@@ -231,7 +231,7 @@ func serverName(req plugin.Request) string { return strings.TrimSpace(req.String
 // is changed: the forward carries http:// unless the profile's connection says
 // its far end speaks TLS, which Vault's own listener does.
 const forwardPlaintextHint = "a forward carries plain http:// unless the profile's connection says its far end " +
-	"speaks TLS, as Vault's own listener does: tunnelTLS: true on that connection"
+	"speaks TLS, as Vault's own listener does: tunnel-tls: true on that connection"
 
 // plaintextServerName is the refusal for a certificate's name given to a
 // call that would check no certificate: a URL that is not https://.

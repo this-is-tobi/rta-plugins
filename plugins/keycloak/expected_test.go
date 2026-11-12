@@ -27,7 +27,7 @@ func TestATLSOnlyServerThatAnswersPlainHTTPIsNamedForIt(t *testing.T) {
 		{"an alert, reached directly", "http://sso.internal:8443", plugin.TunnelNone, alert,
 			"keycloak.tls.expected", "--url names the scheme"},
 		{"a Go listener's 400, through a forward", "http://127.0.0.1:54321", plugin.TunnelKube, listener,
-			"keycloak.tls.expected", "tunnelTLS: true on that connection"},
+			"keycloak.tls.expected", "tunnel-tls: true on that connection"},
 		{"an alert over HTTPS is no plain HTTP", "https://sso.internal", plugin.TunnelNone, alert,
 			"keycloak.conn.failed", "`rta explain keycloak.overview`"},
 	} {
