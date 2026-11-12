@@ -49,7 +49,7 @@ func userListCapability() plugin.Capability {
 	},
 		plugin.Field{Name: "search", Type: plugin.String, Positional: true, Default: "",
 			Help: "username, email, first or last name to look for; empty lists from the start"},
-		limitField(100, 1000, "how many users to list"),
+		limitField("user.list.limit", 100, 1000, "how many users to list"),
 	)
 }
 
