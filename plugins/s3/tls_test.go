@@ -65,14 +65,15 @@ func TestCAFileTrustsATunneledServersOwnCertificate(t *testing.T) {
 		t.Fatalf("plain HTTP against a TLS server answered %v, want s3.tls.expected naming --tls", err)
 	}
 	// Through a forward the host turned tls off, and the way out is the
-	// profile's: tunnelTLS on its connection.
+	// profile's: tls-server-name on its connection. tunnelTLS, which the hint
+	// once named, never reaches an address and changed nothing.
 	_, err = runOverview(context.Background(), req(t, "s3.overview", map[string]any{
 		"address": endpoint, "tls": false,
 	}).WithProfile("lab", plugin.TunnelKube))
 	if verr, ok := err.(*view.Error); !ok || verr.Code != "s3.tls.expected" ||
-		!strings.Contains(verr.Hint, "tunnelTLS: true on that connection") ||
+		!strings.Contains(verr.Hint, "tls-server-name on that connection") || strings.Contains(verr.Hint, "tunnelTLS") ||
 		!strings.Contains(verr.Message, "to profile lab (through its kube: forward), which speaks only HTTPS") {
-		t.Fatalf("plain HTTP through a forward answered %v, want s3.tls.expected naming tunnelTLS", err)
+		t.Fatalf("plain HTTP through a forward answered %v, want s3.tls.expected naming tls-server-name", err)
 	}
 
 	// With ca-file naming the server's own certificate: the handshake

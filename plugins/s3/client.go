@@ -178,16 +178,25 @@ func tlsTransport(sf plugin.Surface, ca, name string) (*http.Transport, *view.Er
 func serverName(req plugin.Request) string { return strings.TrimSpace(req.String("tls-server-name")) }
 
 // tlsExpected is the refusal for a plain-HTTP call to a port that speaks only
-// TLS. Through a forward that is the host's doing — it turns tls off unless
-// the profile's connection says its far end speaks TLS — so the way out is
-// named there, where the endpoint the forward filled names nothing the
+// TLS. Through a forward that is the host's doing — it turns tls off, since
+// the forward's own end is plain — so the way out is named on the profile's
+// connection, where the endpoint the forward filled names nothing the
 // operator could change.
+//
+// **Not tunnelTLS, which this plugin never sees.** The host reads it for a
+// setting that is a URL and turns tls off whatever it says, and this one is
+// an address beside a switch: the hint that named it sent the operator to set
+// a key that changed nothing, and the call refused again. tls-server-name is
+// what turns HTTPS on through a forward (connectWith's Secure), and the one a
+// forward needs in any case, since the address it reaches is 127.0.0.1 and the
+// certificate is for the server's own name.
 func tlsExpected(req plugin.Request) *view.Error {
 	refusal := view.Errorf("s3.tls.expected", "this call spoke plain HTTP to %s, which speaks only HTTPS",
 		req.Reached(req.String("address")))
 	if req.Tunnel() != plugin.TunnelNone {
-		return refusal.WithHint("a forward carries plain HTTP unless the profile's connection says its far end " +
-			"speaks TLS: tunnelTLS: true on that connection")
+		return refusal.WithHint("a forward carries plain HTTP: tls-server-name on that connection, the name the " +
+			"server's certificate is for, turns HTTPS on through it — with ca-file when this machine does not " +
+			"trust its issuer")
 	}
 	return refusal.WithHint(req.Surface().SettingName("tls") + " turns HTTPS on")
 }
