@@ -288,6 +288,8 @@ func Plugin() plugin.Plugin {
 		Name:    "cnpg",
 		Summary: "Read the state of CloudNativePG PostgreSQL clusters",
 		Version: version,
+		Renamed: map[string]string{"backup.method": "backup.request.method", "backup.target": "backup.request.target",
+			"backup.online": "backup.request.online"},
 		// Everything this plugin does is a kubectl call, and kubectl cannot
 		// make one without the kubeconfig. Declaring it is a request, not a
 		// grant: rta denies credential locations to every plugin by default,
