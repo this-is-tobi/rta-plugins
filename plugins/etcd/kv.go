@@ -69,7 +69,7 @@ func kvListCapability() plugin.Capability {
 			})
 		},
 	}, prefixField(),
-		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 200, Min: 1, Max: maxKeys,
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "kv.list.limit", Default: 200, Min: 1, Max: maxKeys,
 			Help: "how many keys to return"},
 		plugin.Field{Name: "after", Type: plugin.String,
 			Help: "continue after this key — the one the last page ended at"})
@@ -219,7 +219,7 @@ func kvTreeCapability() plugin.Capability {
 	}, prefixField(),
 		plugin.Field{Name: "depth", Short: "d", Type: plugin.Int, Config: "depth", Default: 4, Min: 1, Max: 20,
 			Help: "how many levels to expand"},
-		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: maxKeys, Min: 1, Max: 100000,
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "kv.tree.limit", Default: maxKeys, Min: 1, Max: 100000,
 			Help: "how many keys to read before stopping"})
 }
 
