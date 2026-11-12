@@ -442,7 +442,7 @@ func Plugin() plugin.Plugin {
 			},
 				plugin.Field{Name: "schema", Short: "s", Type: plugin.String, Config: "schema", Default: "",
 					Help: "only this schema; empty means all"},
-				plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 50, Min: 1, Max: 1000,
+				plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "table.list.limit", Default: 50, Min: 1, Max: 1000,
 					Help: "how many tables to show"}),
 
 			cap(plugin.Capability{
@@ -534,7 +534,7 @@ func Plugin() plugin.Plugin {
 				// a slice in the plugin, through the host, and at a model's
 				// context — an unbounded allocation driven by an argument, and
 				// a bulk read of a table nobody consented to row by row.
-				plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 200, Min: 1, Max: 10000,
+				plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "query.limit", Default: 200, Min: 1, Max: 10000,
 					Help: "maximum rows to return; a larger result set is refused, not shortened"}),
 
 			cap(plugin.Capability{
@@ -571,7 +571,7 @@ func Plugin() plugin.Plugin {
 			},
 				plugin.Field{Name: "schema", Type: plugin.String, Default: "public", Positional: true,
 					Help: "schema to describe"},
-				plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 100, Min: 1, Max: maxSchemaTables,
+				plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "schema.limit", Default: 100, Min: 1, Max: maxSchemaTables,
 					Help: "how many tables to describe"}),
 
 			cap(plugin.Capability{
@@ -643,7 +643,7 @@ func Plugin() plugin.Plugin {
 					Help: "table to read, as schema.table (required over MCP; bare names are resolved for a person)"},
 				plugin.Field{Name: "columns", Short: "c", Type: plugin.StringSlice,
 					Help: "only these columns; empty means all"},
-				plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 1000, Min: 1, Max: maxTableRows,
+				plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "table.rows.limit", Default: 1000, Min: 1, Max: maxTableRows,
 					Help: "maximum rows to return; a larger table is refused, not shortened"}),
 
 			cap(plugin.Capability{
@@ -776,7 +776,7 @@ func Plugin() plugin.Plugin {
 				// bridge cuts it, so a ceiling of ten thousand bought no answer anything and
 				// cost the server a query for that many. The largest come first, so what a
 				// listing stops short of is the least of them, and it says when it stopped.
-				plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 50, Min: 1, Max: 1000,
+				plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "database.list.limit", Default: 50, Min: 1, Max: 1000,
 					Help: "how many databases to show"}),
 
 			cap(plugin.Capability{
@@ -807,7 +807,7 @@ func Plugin() plugin.Plugin {
 					})
 				},
 			},
-				plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 50, Min: 1, Max: 1000,
+				plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "activity.limit", Default: 50, Min: 1, Max: 1000,
 					Help: "how many sessions to show"}),
 
 			cap(plugin.Capability{
