@@ -105,6 +105,21 @@ type client struct {
 
 func (c *client) Close() { _ = c.conn.Close() }
 
+// tlsRequested is whether any setting asks for TLS: the switch itself, or a
+// file or a name that only means something over it. tls-server-name turns it
+// on as ca-file does: through a forward the host turns tls off, and a name
+// given in the profile beside it would have been a plaintext call to a TLS
+// port, the name checked by nothing.
+//
+// A key-file is one of them, as a cert-file is. Left out, a key given alone
+// asked for nothing: the connection went out in the clear, AUTH sent the
+// password over it, and the refusal of a key without its certificate was
+// never reached. etcd reads the same settings the same way.
+func tlsRequested(req plugin.Request) bool {
+	return req.Bool("tls") || req.String("ca-file") != "" || req.String("cert-file") != "" ||
+		req.String("key-file") != "" || serverName(req) != ""
+}
+
 func connect(ctx context.Context, req plugin.Request) (*client, *view.Error) {
 	addr := req.String("address")
 	if _, _, err := stdnet.SplitHostPort(addr); err != nil {
@@ -113,11 +128,7 @@ func connect(ctx context.Context, req plugin.Request) (*client, *view.Error) {
 	dialer := stdnet.Dialer{Timeout: dialTimeout}
 	var conn stdnet.Conn
 	var err error
-	// tls-server-name turns TLS on as ca-file does, for the same reason:
-	// through a forward the host turns tls off, and a name given in the
-	// profile beside it would have been a plaintext call to a TLS port, the
-	// name checked by nothing.
-	if req.Bool("tls") || req.String("ca-file") != "" || req.String("cert-file") != "" || serverName(req) != "" {
+	if tlsRequested(req) {
 		cfg, verr := tlsConfig(req)
 		if verr != nil {
 			return nil, verr

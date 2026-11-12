@@ -143,6 +143,12 @@ func TestARefusalOfOneInputNamesIt(t *testing.T) {
 
 		{name: "a port nothing listens on", id: "redis.overview", code: "redis.conn.refused",
 			run: func(t *testing.T) error { return runOn(t, "redis.overview", map[string]any{"address": nowhere}) }},
+		// Given alone, a key asked for nothing: the call went out in the clear,
+		// AUTH sent the password over it, and this refusal was never reached.
+		{name: "a client key given without its certificate", id: "redis.overview", code: "redis.tls.cert.missing",
+			run: func(t *testing.T) error {
+				return runOn(t, "redis.overview", map[string]any{"address": nowhere, "key-file": key, "password": "secret"})
+			}},
 		{name: "a resolver that failed", id: "redis.overview", code: "redis.host.unknown",
 			run: func(t *testing.T) error {
 				failed := &stdnet.DNSError{Err: "server misbehaving", Name: "cache.internal", IsTemporary: true}
