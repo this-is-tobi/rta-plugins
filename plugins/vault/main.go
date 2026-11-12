@@ -73,6 +73,7 @@ func Plugin() plugin.Plugin {
 		Name:    "vault",
 		Summary: "HashiCorp Vault: secrets, tokens, leases, policies and transit encryption",
 		Version: version,
+		Renamed: map[string]string{"wrap.ttl": "wrap.set.ttl"},
 		Capabilities: []plugin.Capability{
 			overviewCapability(),
 			sealStatusCapability(),

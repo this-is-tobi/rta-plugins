@@ -40,7 +40,7 @@ Under `plugins: vault@<digest>:` in rta's configuration, or in a profile's `set:
 | tls-server-name | vault.kv.delete, vault.kv.destroy, vault.kv.get, vault.kv.history, vault.kv.list, vault.kv.set, vault.kv.tree, vault.kv.undelete, vault.lease.show, vault.overview, vault.policy.get, vault.policy.list, vault.restore, vault.seal.status, vault.snapshot, vault.token.status, vault.transit.decrypt, vault.transit.encrypt, vault.wrap.get, vault.wrap.set | name to check the server's certificate for, in place of the URL's host                        |
 | transit-mount   | vault.transit.decrypt, vault.transit.encrypt                                                                                                                                                                                                                                                                                                                | the transit secrets engine's mount path                                                       |
 | url             | vault.kv.delete, vault.kv.destroy, vault.kv.get, vault.kv.history, vault.kv.list, vault.kv.set, vault.kv.tree, vault.kv.undelete, vault.lease.show, vault.overview, vault.policy.get, vault.policy.list, vault.restore, vault.seal.status, vault.snapshot, vault.token.status, vault.transit.decrypt, vault.transit.encrypt, vault.wrap.get, vault.wrap.set | Vault server URL                                                                              |
-| wrap.ttl        | vault.wrap.set                                                                                                                                                                                                                                                                                                                                              | how long the token stays valid, unread — not the data's own lifetime                          |
+| wrap.set.ttl    | vault.wrap.set                                                                                                                                                                                                                                                                                                                                              | how long the token stays valid, unread — not the data's own lifetime                          |
 
 ## vault.kv.delete
 
@@ -120,7 +120,7 @@ Returns the secret's plaintext, which is why it needs a grant although nothing h
 | input:ca-file         | string, group tls, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle of the CA to verify the server against, in place of this machine's own trust store                   |
 | input:tls-server-name | string, group tls, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the URL's host                                  |
 | set a key             | rta config set plugins.vault.kv-mount secret                                                                                                                                                                 |
-| dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                 |
+| dashboard             | never a tile — a tile runs on a timer with no confirmation, and this reveals a stored value                                                                                                                  |
 
 ## vault.kv.history
 
@@ -144,7 +144,7 @@ Every version the engine still knows about, when each was written, and whether i
 | input:ca-file         | string, group tls, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle of the CA to verify the server against, in place of this machine's own trust store                   |
 | input:tls-server-name | string, group tls, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the URL's host                                  |
 | set a key             | rta config set plugins.vault.kv-mount secret                                                                                                                                                                 |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.kv.history --set path=…\` puts it there, re-run every 30s                                                             |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.kv.history --with path=…\` puts it there, re-run every 30s                                                            |
 
 ## vault.kv.list
 
@@ -270,7 +270,7 @@ When a leased secret (a database credential, an issued certificate) expires and 
 | input:ca-file         | string, group tls, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle of the CA to verify the server against, in place of this machine's own trust store                   |
 | input:tls-server-name | string, group tls, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the URL's host                                  |
 | set a key             | rta config set plugins.vault.url http://127.0.0.1:8200                                                                                                                                                       |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.lease.show --set id=…\` puts it there, re-run every 30s                                                               |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.lease.show --with id=…\` puts it there, re-run every 30s                                                              |
 
 ## vault.overview
 
@@ -316,7 +316,7 @@ The rows are seven requests: the seal status, the leader, the token, the raft st
 | input:ca-file         | string, group tls, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle of the CA to verify the server against, in place of this machine's own trust store                   |
 | input:tls-server-name | string, group tls, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the URL's host                                  |
 | set a key             | rta config set plugins.vault.url http://127.0.0.1:8200                                                                                                                                                       |
-| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.policy.get --set name=…\` puts it there, re-run every 30s                                                             |
+| dashboard             | not on the automatic dashboard — it declines to run unasked; \`rta dashboard add vault.policy.get --with name=…\` puts it there, re-run every 30s                                                            |
 
 ## vault.policy.list
 
@@ -459,7 +459,7 @@ The reveal half of transit: whoever holds the ciphertext gets the plaintext back
 | input:ca-file         | string, group tls, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle of the CA to verify the server against, in place of this machine's own trust store                   |
 | input:tls-server-name | string, group tls, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the URL's host                                  |
 | set a key             | rta config set plugins.vault.transit-mount transit                                                                                                                                                           |
-| dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                 |
+| dashboard             | never a tile — a tile runs on a timer with no confirmation, and this reveals a stored value                                                                                                                  |
 
 ## vault.transit.encrypt
 
@@ -524,11 +524,11 @@ The recipient calls vault.wrap.get with the token this returns, once — Vault d
 | grant required (mcp)  | yes — a person must run \`rta grant allow vault.wrap.set\`                                                                                                                                                   |
 | profiles              | --profile \<name> runs this against a configured connection; over MCP that always needs \`rta grant allow vault --profile \<name>\`; \`only:\` in a profile's entry fences an input to the values it reaches |
 | input:data            | secretSlice, required — key=value, repeated for more than one field                                                                                                                                          |
-| input:ttl             | string, default 5m, completes, from config plugins.vault.wrap.ttl — how long the token stays valid, unread — not the data's own lifetime                                                                     |
+| input:ttl             | string, default 5m, completes, from config plugins.vault.wrap.set.ttl — how long the token stays valid, unread — not the data's own lifetime                                                                 |
 | input:url             | string, group network, default http://127.0.0.1:8200, local (never offered to MCP callers), from config plugins.vault.url, filled by a profile's tunnel (the forward's url) — Vault server URL               |
 | input:namespace       | string, group target, local (never offered to MCP callers), from config plugins.vault.namespace — Vault Enterprise namespace — empty for OSS or the root namespace                                           |
 | input:token           | secret, group credentials, local (never offered to MCP callers), from $RTA_VAULT_TOKEN — Vault token                                                                                                         |
 | input:ca-file         | string, group tls, local (never offered to MCP callers), from config plugins.vault.ca-file — PEM bundle of the CA to verify the server against, in place of this machine's own trust store                   |
 | input:tls-server-name | string, group tls, local (never offered to MCP callers), from config plugins.vault.tls-server-name — name to check the server's certificate for, in place of the URL's host                                  |
-| set a key             | rta config set plugins.vault.wrap.ttl 5m                                                                                                                                                                     |
+| set a key             | rta config set plugins.vault.wrap.set.ttl 5m                                                                                                                                                                 |
 | dashboard             | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                 |
