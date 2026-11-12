@@ -13,8 +13,8 @@ go 1.27.4
 godebug x509sslcertoverrideplatform=0
 
 require (
-	github.com/this-is-tobi/rta v0.59.0
-	github.com/this-is-tobi/rta-plugins/plugins/mysql v0.13.5
+	github.com/this-is-tobi/rta v0.60.0
+	github.com/this-is-tobi/rta-plugins/plugins/mysql v0.14.0
 )
 
 require (
@@ -29,8 +29,8 @@ require (
 	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/oklog/run v1.1.0 // indirect
 	golang.org/x/net v0.62.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
-	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
+	golang.org/x/text v0.44.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260818201246-1b0934165a6f // indirect
 	google.golang.org/grpc v1.85.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
