@@ -7,29 +7,29 @@
 #
 # Regenerate with `rta plugin manifest` rather than editing.
 name: kube
-version: 0.12.5
+version: 0.13.0
 summary: "Read-first Kubernetes: contexts, namespaces, pods, deployments"
 homepage: https://github.com/this-is-tobi/rta-plugins/tree/main/plugins/kube
 platforms:
 - os: darwin
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.12.5/rta-plugin-kube_0.12.5_darwin_amd64.tar.gz
-  sha256: 6cce83cac2a88b2fa435c6576a3b3ca890a9604d62218f98a0ed8c427d90d4dc
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.13.0/rta-plugin-kube_0.13.0_darwin_amd64.tar.gz
+  sha256: 50743d3ab10cbdafa5185d487c8856b0ac421b3f435d8229a833c0f464c3338e
   bin: rta-plugin-kube
 - os: darwin
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.12.5/rta-plugin-kube_0.12.5_darwin_arm64.tar.gz
-  sha256: b7845bf5974500b806d87336243e70899600d0c0272a9b4460eb4a7c84ba12ea
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.13.0/rta-plugin-kube_0.13.0_darwin_arm64.tar.gz
+  sha256: 88116f29ecbf1a95e339564c380b768e97cfb26a97959fec7222fde2cf995244
   bin: rta-plugin-kube
 - os: linux
   arch: amd64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.12.5/rta-plugin-kube_0.12.5_linux_amd64.tar.gz
-  sha256: c72c035eb67edbfcb1c21cd4efb54894bf91f959e12895df09515c3e9f8a5313
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.13.0/rta-plugin-kube_0.13.0_linux_amd64.tar.gz
+  sha256: c34f88f115aa92b193cba07e9338b783a4e455378824067e8dfb03ae33d797c1
   bin: rta-plugin-kube
 - os: linux
   arch: arm64
-  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.12.5/rta-plugin-kube_0.12.5_linux_arm64.tar.gz
-  sha256: c343b98343b8bd58ae2ff2c8eec3bc244d43bd1fbbbb1479f92d857a772c54e6
+  url: https://github.com/this-is-tobi/rta-plugins/releases/download/plugins%2Fkube%2Fv0.13.0/rta-plugin-kube_0.13.0_linux_arm64.tar.gz
+  sha256: c8236f168ec3f30412f00f1243bd27cd5e27011ec1f951dab36741e0d4546d7c
   bin: rta-plugin-kube
 capabilities:
 - id: kube.context.list
