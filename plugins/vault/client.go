@@ -58,7 +58,7 @@ func connFields() []plugin.Field {
 		// store does not carry, and the URL alone reaching https:// does not
 		// change what rta is willing to trust.
 		{Name: "ca-file", Type: plugin.String, Default: "", Config: "ca-file",
-			Local: true, Help: "PEM bundle to verify the server against, beyond the host's own trust store"},
+			Local: true, Help: "PEM bundle of the CA to verify the server against, in place of this machine's own trust store"},
 		// The name the certificate is checked for when it is not the host in
 		// url — above all through a kube: or ssh: forward, whose end is
 		// 127.0.0.1 whatever the Vault is called, and which its certificate

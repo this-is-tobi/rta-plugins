@@ -90,8 +90,8 @@ func connFields() []plugin.Field {
 		// word to mirror, sslmode above already commits this plugin to
 		// libpq's own vocabulary, and sslrootcert is libpq's own keyword for
 		// exactly this (jackc/pgx's pgconn.configTLS reads it directly,
-		// alongside sslcert/sslkey for a client pair this plugin does not
-		// expose). Not a plugin.Secret: a CA certificate is the public half
+		// alongside sslcert and sslkey, the client pair declared below). Not
+		// a plugin.Secret: a CA certificate is the public half
 		// of a key pair, the half a CA hands out for wide distribution so
 		// anyone can verify what it signed.
 		//
