@@ -606,6 +606,32 @@ func TestTheCAFileResolvesTheHomeDirectory(t *testing.T) {
 	_ = resp.Body.Close()
 }
 
+// Naming a CA or a server name keeps what the default transport gives every
+// call: the proxy the host hands the plugin, HTTP/2, and a dial and a
+// handshake that give up. A bare http.Transport had none of the three.
+func TestANamedCAKeepsTheProxyHTTP2AndTimeouts(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer srv.Close()
+	caPath := filepath.Join(t.TempDir(), "ca.pem")
+	if err := os.WriteFile(caPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: srv.Certificate().Raw}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for name, values := range map[string]map[string]any{
+		"a CA":          {"ca-file": caPath},
+		"a server name": {"tls-server-name": "sso.internal"},
+	} {
+		client, verr := httpClient(req(t, "keycloak.overview", values))
+		if verr != nil {
+			t.Fatalf("%s: %s: %s", name, verr.Code, verr.Message)
+		}
+		tr := client.Transport.(*http.Transport)
+		if tr.Proxy == nil || !tr.ForceAttemptHTTP2 || tr.TLSHandshakeTimeout == 0 || tr.DialContext == nil {
+			t.Errorf("%s: proxy %v, http/2 %v, handshake timeout %v, dialer %v; want the default transport's",
+				name, tr.Proxy != nil, tr.ForceAttemptHTTP2, tr.TLSHandshakeTimeout, tr.DialContext != nil)
+		}
+	}
+}
+
 // A failed dial is read by the operating system's error it carries, not by the
 // *net.OpError every failed dial is: one that was reset reached no port that
 // refused it, and one that timed out is a timeout. Text that lost its errno is
