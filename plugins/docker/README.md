@@ -49,7 +49,7 @@ Every variable the container sets, with its value as set — the image's own, ev
 | input:host           | string, group network, local (never offered to MCP callers), from config plugins.docker.host — daemon address, e.g. unix:///var/run/docker.sock — the CLI's own default when omitted                          |
 | input:context        | string, group network, local (never offered to MCP callers), from config plugins.docker.context — docker context to use — the current one when omitted                                                        |
 | set a key            | rta config set plugins.docker.host \<value>                                                                                                                                                                   |
-| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this mutates                                                                                                                                  |
+| dashboard            | never a tile — a tile runs on a timer with no confirmation, and this reveals a stored value                                                                                                                   |
 
 ## docker.container.inspect
 
