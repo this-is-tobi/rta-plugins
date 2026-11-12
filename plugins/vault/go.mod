@@ -12,7 +12,7 @@ godebug x509sslcertoverrideplatform=0
 
 require (
 	github.com/hashicorp/vault/api v1.23.0
-	github.com/this-is-tobi/rta v0.59.0
+	github.com/this-is-tobi/rta v0.60.0
 )
 
 require (
@@ -64,9 +64,9 @@ require (
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/xo/terminfo v1.0.0 // indirect
 	golang.org/x/net v0.62.0 // indirect
-	golang.org/x/sync v0.24.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
-	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/sync v0.25.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
+	golang.org/x/text v0.44.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260818201246-1b0934165a6f // indirect
 	google.golang.org/grpc v1.85.0 // indirect
