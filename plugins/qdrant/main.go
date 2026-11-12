@@ -96,6 +96,7 @@ func Plugin() plugin.Plugin {
 		Name:    "qdrant",
 		Summary: "Qdrant: collections, their configuration and index health",
 		Version: version,
+		Renamed: map[string]string{"count.exact": "points.count.exact"},
 		Capabilities: []plugin.Capability{
 			overviewCapability(),
 			collectionListCapability(),

@@ -34,7 +34,7 @@ func pointsCountCapability() plugin.Capability {
 			"nothing about what it is.",
 		Run: runPointsCount,
 	}, collectionField("collection to count"),
-		plugin.Field{Name: "exact", Short: "e", Type: plugin.Bool, Config: "count.exact", Default: true,
+		plugin.Field{Name: "exact", Short: "e", Type: plugin.Bool, Config: "points.count.exact", Default: true,
 			Help: "scan for an exact count rather than taking the estimate"})
 }
 
