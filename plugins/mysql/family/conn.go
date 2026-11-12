@@ -105,7 +105,7 @@ func connFields() []plugin.Field {
 		// may hold it beside its forward.
 		{Name: "ca-file", Type: plugin.String, Default: "", Config: "ca-file",
 			Local: true,
-			Help: "PEM bundle to verify the server against — read when tls is true or verify-ca; under a " +
+			Help: "PEM bundle of the CA to verify the server against, in place of this machine's own trust store — read when tls is true or verify-ca; under a " +
 				"kube:/ssh: forward it turns TLS on, at true"},
 		// The name the certificate is checked for when it is not the host
 		// dialled — above all through a kube: or ssh: forward, whose end is

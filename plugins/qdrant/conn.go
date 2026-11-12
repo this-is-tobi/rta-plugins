@@ -55,7 +55,7 @@ func connFields() []plugin.Field {
 		// Local for the file-read-primitive reason address does, not
 		// because its contents are sensitive.
 		{Name: "ca-file", Type: plugin.String, Default: "", Config: "ca-file",
-			Local: true, Help: "PEM bundle to verify the server against, beyond the host's own trust store"},
+			Local: true, Help: "PEM bundle of the CA to verify the server against, in place of this machine's own trust store"},
 		// The name the certificate is checked for when it is not the host
 		// dialled — above all through a kube: or ssh: forward, whose end is
 		// 127.0.0.1 whatever the instance is called, and which a service's
