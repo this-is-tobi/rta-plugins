@@ -77,7 +77,7 @@ func s3ObjectTreeCapability() plugin.Capability {
 			Live: true, Suggest: suggestKeys("prefix")},
 		plugin.Field{Name: "depth", Short: "d", Type: plugin.Int, Config: "depth", Default: 4, Min: 1, Max: 20,
 			Help: "how many levels to expand"},
-		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: defaultTreeKeys, Min: 1, Max: 100000,
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "object.tree.limit", Default: defaultTreeKeys, Min: 1, Max: 100000,
 			Help: "how many keys to read before stopping"})
 }
 

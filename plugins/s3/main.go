@@ -56,6 +56,7 @@ func Plugin() plugin.Plugin {
 		Name:    "s3",
 		Summary: "S3-compatible object storage: buckets, objects, presigned URLs and policy",
 		Version: version,
+		Renamed: map[string]string{"presign.ttl": "object.presign.ttl"},
 		Capabilities: []plugin.Capability{
 			overviewCapability(),
 			bucketListCapability(),

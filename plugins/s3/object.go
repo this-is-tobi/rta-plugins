@@ -53,7 +53,7 @@ func s3ObjectListCapability() plugin.Capability {
 		plugin.Field{Name: "prefix", Short: "p", Type: plugin.String, Config: "prefix", Help: "only keys starting with this",
 			Live: true, Suggest: suggestKeys("prefix")},
 		plugin.Field{Name: "recursive", Short: "r", Type: plugin.Bool, Config: "recursive", Help: "ignore the \"/\" delimiter and list everything under prefix"},
-		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: listLimit, Min: 1, Max: 10000,
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "object.list.limit", Default: listLimit, Min: 1, Max: 10000,
 			Help: "how many objects to return"},
 		plugin.Field{Name: "after", Type: plugin.String,
 			Help: "continue from the key the last page ended at"})
