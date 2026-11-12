@@ -41,7 +41,7 @@ func eventListCapability() plugin.Capability {
 		plugin.Field{Name: "user", Short: "u", Type: plugin.String, Default: "", Help: "events of one user, by username or id"},
 		plugin.Field{Name: "client", Short: "c", Type: plugin.String, Default: "", Help: "events of one client",
 			Live: true, Suggest: suggestClients},
-		limitField(50, 1000, "how many events to list"),
+		limitField("event.list.limit", 50, 1000, "how many events to list"),
 	)
 }
 
@@ -102,7 +102,7 @@ func eventAdminCapability() plugin.Capability {
 			"stopped. Needs a grant.",
 		Run: runEventAdmin,
 	},
-		limitField(50, 1000, "how many events to list"),
+		limitField("event.admin.limit", 50, 1000, "how many events to list"),
 	)
 }
 

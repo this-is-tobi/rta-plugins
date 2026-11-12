@@ -72,7 +72,7 @@ func auditCapability() plugin.Capability {
 			"Compact by default; `detail` is the work list, grouped, with the references at the end.",
 		Run: runAudit,
 	},
-		limitField(200, 5000, "how many users to examine for a second factor"),
+		limitField("audit.limit", 200, 5000, "how many users to examine for a second factor"),
 	)
 }
 

@@ -36,7 +36,7 @@ func sessionListCapability() plugin.Capability {
 		plugin.Field{Name: "user", Short: "u", Type: plugin.String, Default: "", Help: "one user's sessions, by username or id"},
 		plugin.Field{Name: "client", Short: "c", Type: plugin.String, Default: "", Help: "the sessions open against one client",
 			Live: true, Suggest: suggestClients},
-		limitField(100, 1000, "how many sessions to list for a client"),
+		limitField("session.list.limit", 100, 1000, "how many sessions to list for a client"),
 	)
 }
 
