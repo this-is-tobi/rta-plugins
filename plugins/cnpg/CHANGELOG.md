@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.15.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.14.5...plugins/cnpg/v0.15.0) (2026-11-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cnpg:** plugins.cnpg.backup.method, backup.target and backup.online are backup.request.method, backup.request.target and backup.request.online.
+
+### Features
+
+* **cnpg:** a backup request's settings are keys of its own, on rta v0.60.0 ([21afe06](https://github.com/this-is-tobi/rta-plugins/commit/21afe064a906fe8f370998c7cf94610ab5f7b692))
+
+
+### Dependencies
+
+* **deps:** every plugin builds with Go 1.27.4, which fixes a net/http advisory ([005fce6](https://github.com/this-is-tobi/rta-plugins/commit/005fce6077db0aae3456b376d787a95398212c03))
+
 ## [0.14.5](https://github.com/this-is-tobi/rta-plugins/compare/plugins/cnpg/v0.14.4...plugins/cnpg/v0.14.5) (2026-11-07)
 
 

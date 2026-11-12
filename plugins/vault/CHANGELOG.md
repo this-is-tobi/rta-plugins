@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.11.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.10.8...plugins/vault/v0.11.0) (2026-11-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **vault:** plugins.vault.wrap.ttl is wrap.set.ttl.
+
+### Features
+
+* **vault:** a wrap's ttl is its capability's own key, on rta v0.60.0 ([93d01b6](https://github.com/this-is-tobi/rta-plugins/commit/93d01b66327ca623440d56eca6694555d67dc6f6))
+
+
+### Bug Fixes
+
+* a ca-file is said to replace this machine's trust store, as it does ([464d55f](https://github.com/this-is-tobi/rta-plugins/commit/464d55fd65c64e95a218f1d58a7ed83fa446e365))
+* **keycloak,vault:** a forward that carries TLS is said as tunnel-tls, the spelling rta reads ([250e2ff](https://github.com/this-is-tobi/rta-plugins/commit/250e2ff53290e6248a369847c3935634cdb5f681))
+
+
+### Dependencies
+
+* **deps:** every plugin builds with Go 1.27.4, which fixes a net/http advisory ([005fce6](https://github.com/this-is-tobi/rta-plugins/commit/005fce6077db0aae3456b376d787a95398212c03))
+
 ## [0.10.8](https://github.com/this-is-tobi/rta-plugins/compare/plugins/vault/v0.10.7...plugins/vault/v0.10.8) (2026-11-07)
 
 

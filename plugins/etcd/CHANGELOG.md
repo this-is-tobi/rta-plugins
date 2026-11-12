@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.11.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.10.5...plugins/etcd/v0.11.0) (2026-11-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **etcd:** plugins.etcd.limit is kv.list.limit, kv.tree.limit or lease.list.limit.
+
+### Features
+
+* **etcd:** each listing's limit is a key of its own, on rta v0.60.0 ([4befb69](https://github.com/this-is-tobi/rta-plugins/commit/4befb692b88f1bfa9d00e75e5c6a9755bfdddf30))
+
+
+### Bug Fixes
+
+* a ca-file is said to replace this machine's trust store, as it does ([464d55f](https://github.com/this-is-tobi/rta-plugins/commit/464d55fd65c64e95a218f1d58a7ed83fa446e365))
+* **etcd:** a key that is also a level is drawn as both ([03963f3](https://github.com/this-is-tobi/rta-plugins/commit/03963f3feeba1e73dd3afe794b8aaeb1b5d1c79d))
+
+
+### Dependencies
+
+* **deps:** every plugin builds with Go 1.27.4, which fixes a net/http advisory ([005fce6](https://github.com/this-is-tobi/rta-plugins/commit/005fce6077db0aae3456b376d787a95398212c03))
+
 ## [0.10.5](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.10.4...plugins/etcd/v0.10.5) (2026-11-07)
 
 

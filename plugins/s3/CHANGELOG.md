@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.15.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.14.5...plugins/s3/v0.15.0) (2026-11-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **s3:** plugins.s3.presign.ttl is object.presign.ttl, and plugins.s3.limit is object.list.limit, object.tree.limit, bucket.download.limit or bucket.upload.limit.
+
+### Features
+
+* **s3:** a presign ttl and each listing's limit are their capability's own, on rta v0.60.0 ([c9f487e](https://github.com/this-is-tobi/rta-plugins/commit/c9f487e861987b700007ed737107ce103134b1b3))
+
+
+### Bug Fixes
+
+* a ca-file is said to replace this machine's trust store, as it does ([464d55f](https://github.com/this-is-tobi/rta-plugins/commit/464d55fd65c64e95a218f1d58a7ed83fa446e365))
+* **keycloak,vault:** a forward that carries TLS is said as tunnel-tls, the spelling rta reads ([250e2ff](https://github.com/this-is-tobi/rta-plugins/commit/250e2ff53290e6248a369847c3935634cdb5f681))
+* **qdrant,s3:** a plain call through a forward names the setting that turns tls on ([6d8c29d](https://github.com/this-is-tobi/rta-plugins/commit/6d8c29d86d0c712cc03ffc219e0d2088262e9917))
+* **s3:** an object that is also a prefix is drawn as both, sized as itself ([603887a](https://github.com/this-is-tobi/rta-plugins/commit/603887a86af4da3345dd01e5371cdaeed3e7c8c4))
+
+
+### Dependencies
+
+* **deps:** every plugin builds with Go 1.27.4, which fixes a net/http advisory ([005fce6](https://github.com/this-is-tobi/rta-plugins/commit/005fce6077db0aae3456b376d787a95398212c03))
+* **deps:** update golang.org/x/crypto to v0.59.0 [security] ([a1d68d0](https://github.com/this-is-tobi/rta-plugins/commit/a1d68d0774b15808c7f92bc5e6859e082d643b5d))
+
 ## [0.14.5](https://github.com/this-is-tobi/rta-plugins/compare/plugins/s3/v0.14.4...plugins/s3/v0.14.5) (2026-11-07)
 
 

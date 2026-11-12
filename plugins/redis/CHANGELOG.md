@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.10.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.9.5...plugins/redis/v0.10.0) (2026-11-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **redis:** plugins.redis.limit is key.list.limit or key.tree.limit.
+
+### Features
+
+* **redis:** each listing's limit is a key of its own, on rta v0.60.0 ([26bbfc4](https://github.com/this-is-tobi/rta-plugins/commit/26bbfc4e8833437ba2b4a9bbd9e104379920285f))
+
+
+### Bug Fixes
+
+* a ca-file is said to replace this machine's trust store, as it does ([464d55f](https://github.com/this-is-tobi/rta-plugins/commit/464d55fd65c64e95a218f1d58a7ed83fa446e365))
+* **redis:** a client key given alone asks for tls, as a certificate does ([05f9bea](https://github.com/this-is-tobi/rta-plugins/commit/05f9beaaff98f2d89e58db0bb08c374ff4ca84db))
+* **redis:** a key SCAN returns twice is counted once ([d8a76b9](https://github.com/this-is-tobi/rta-plugins/commit/d8a76b920ba746b6cfd250b141b512a2267fe2b6))
+* **redis:** a key that is also a level is drawn as both ([a3d8e8c](https://github.com/this-is-tobi/rta-plugins/commit/a3d8e8c8ffa6caad41e3937e8268a5aadc6f7d39))
+
+
+### Dependencies
+
+* **deps:** every plugin builds with Go 1.27.4, which fixes a net/http advisory ([005fce6](https://github.com/this-is-tobi/rta-plugins/commit/005fce6077db0aae3456b376d787a95398212c03))
+
 ## [0.9.5](https://github.com/this-is-tobi/rta-plugins/compare/plugins/redis/v0.9.4...plugins/redis/v0.9.5) (2026-11-07)
 
 

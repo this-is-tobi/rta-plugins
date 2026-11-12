@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.11](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.12.10...plugins/mariadb/v0.12.11) (2026-11-12)
+
+
+### Dependencies
+
+* **deps:** every plugin builds with Go 1.27.4, which fixes a net/http advisory ([005fce6](https://github.com/this-is-tobi/rta-plugins/commit/005fce6077db0aae3456b376d787a95398212c03))
+
 ## [0.12.10](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.12.9...plugins/mariadb/v0.12.10) (2026-11-08)
 
 

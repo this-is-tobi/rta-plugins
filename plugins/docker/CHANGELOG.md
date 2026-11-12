@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.6](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.7.5...plugins/docker/v0.7.6) (2026-11-12)
+
+
+### Dependencies
+
+* **deps:** every plugin builds with Go 1.27.4, which fixes a net/http advisory ([005fce6](https://github.com/this-is-tobi/rta-plugins/commit/005fce6077db0aae3456b376d787a95398212c03))
+* docker and the README renderer build against rta v0.60.0 ([a50b10d](https://github.com/this-is-tobi/rta-plugins/commit/a50b10d17435f020b7bd94e3e756da3b95d6f934))
+
 ## [0.7.5](https://github.com/this-is-tobi/rta-plugins/compare/plugins/docker/v0.7.4...plugins/docker/v0.7.5) (2026-11-07)
 
 
