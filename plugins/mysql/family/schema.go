@@ -108,7 +108,7 @@ func tableListCapability() plugin.Capability {
 		// bridge cuts it, so a ceiling of ten thousand bought no answer anything and
 		// cost the server a query for that many. The largest come first, so what a
 		// listing stops short of is the least of them, and it says when it stopped.
-		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 50, Min: 1, Max: 1000,
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "table.list.limit", Default: 50, Min: 1, Max: 1000,
 			Help: "how many tables to show"})
 }
 
@@ -206,7 +206,7 @@ func schemaCapability() plugin.Capability {
 	}, schemaField(),
 		plugin.Field{Name: "table", Short: "t", Type: plugin.String, Default: "",
 			Help: "expand only this table", Live: true, Suggest: suggestTables},
-		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 100, Min: 1, Max: maxSchemaTables,
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "schema.limit", Default: 100, Min: 1, Max: maxSchemaTables,
 			Help: "how many tables to expand"})
 }
 

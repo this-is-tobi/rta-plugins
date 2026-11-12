@@ -71,7 +71,7 @@ func queryCapability() plugin.Capability {
 		// on PostgreSQL was refused at the defaults here, and the sentence
 		// never said that the call fails rather than cuts. The size of what
 		// comes back is bounded by maxBytes whatever this is raised to.
-		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 200, Min: 1, Max: 10000,
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "query.limit", Default: 200, Min: 1, Max: 10000,
 			Help: "maximum rows to return; a larger result set is refused, not shortened"})
 }
 
@@ -195,7 +195,7 @@ func activityCapability() plugin.Capability {
 				return activityView(ctx, db, req, true, true)
 			})
 		},
-	}, plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 50, Min: 1, Max: 1000,
+	}, plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "activity.limit", Default: 50, Min: 1, Max: 1000,
 		Help: "how many sessions to show"})
 }
 
