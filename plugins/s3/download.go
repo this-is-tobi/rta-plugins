@@ -99,7 +99,7 @@ func s3BucketDownloadCapability() plugin.Capability {
 			Help: "directory to create and write into; refused if it already exists"},
 		plugin.Field{Name: "parallel", Type: plugin.Int, Config: "parallel", Default: 8, Min: 1, Max: 64,
 			Help: "how many objects to download at once"},
-		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: downloadLimit, Min: 1, Max: 1000000,
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "bucket.download.limit", Default: downloadLimit, Min: 1, Max: 1000000,
 			Help: "maximum objects to copy; a larger bucket is refused, not truncated"})
 }
 

@@ -87,7 +87,7 @@ func s3BucketUploadCapability() plugin.Capability {
 			Help: "allow replacing remote objects whose keys collide; others are left as they are"},
 		plugin.Field{Name: "parallel", Type: plugin.Int, Config: "parallel", Default: 8, Min: 1, Max: 64,
 			Help: "how many objects to upload at once"},
-		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: downloadLimit, Min: 1, Max: 1000000,
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "bucket.upload.limit", Default: downloadLimit, Min: 1, Max: 1000000,
 			Help: "maximum files to upload; a larger directory is refused, not truncated"})
 }
 
