@@ -59,7 +59,7 @@ func keyListCapability() plugin.Capability {
 			})
 		},
 	}, patternField(),
-		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 200, Min: 1, Max: maxKeys,
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "key.list.limit", Default: 200, Min: 1, Max: maxKeys,
 			Help: "how many keys to return"})
 }
 
@@ -182,7 +182,7 @@ func keyTreeCapability() plugin.Capability {
 			Help: "the character that separates levels in key names"},
 		plugin.Field{Name: "depth", Short: "d", Type: plugin.Int, Config: "depth", Default: 4, Min: 1, Max: 20,
 			Help: "how many levels to expand"},
-		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: maxKeys, Min: 1, Max: 100000,
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "key.tree.limit", Default: maxKeys, Min: 1, Max: 100000,
 			Help: "how many keys to walk before stopping"})
 }
 
