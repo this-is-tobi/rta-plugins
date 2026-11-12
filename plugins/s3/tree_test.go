@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/this-is-tobi/rta/pkg/format"
 	"github.com/this-is-tobi/rta/pkg/plugin"
 	"github.com/this-is-tobi/rta/pkg/view"
 )
@@ -316,4 +318,31 @@ func TestTreeIsAReadCapability(t *testing.T) {
 		}
 	}
 	t.Fatal("s3.object.tree is not registered in Plugin()")
+}
+
+// An object that is also a prefix, logs beside logs/app.txt, is drawn as both
+// and sized as itself. Keyed by name alone they were one node, the prefix,
+// which carried the object's bytes as its own: the size question this tree is
+// for, answered wrong. A directory marker beside an object of its name draws
+// both too.
+func TestAnObjectThatIsAlsoAPrefixIsDrawnAsBoth(t *testing.T) {
+	root := &treeNode{}
+	root.insert(splitKey("logs"), 1000)
+	root.insert(splitKey("logs/app.txt"), 2000)
+	root.ensure(splitKey("cache"))
+	root.insert(splitKey("cache"), 10)
+	nodes := (&treeRender{maxDepth: 4, sf: plugin.SurfaceCLI}).expand(root, 1)
+	var labels []string
+	for _, n := range nodes {
+		labels = append(labels, n.Label)
+	}
+	if want := []string{"cache/", "logs/", "cache", "logs"}; !slices.Equal(labels, want) {
+		t.Fatalf("the root draws %v, want %v", labels, want)
+	}
+	if want := format.CountOf(1, "object") + ", " + format.Bytes(2000); nodes[1].Detail != want {
+		t.Errorf("logs/ detail = %q, want %q", nodes[1].Detail, want)
+	}
+	if want := format.Bytes(1000); nodes[3].Detail != want {
+		t.Errorf("the object logs detail = %q, want %q", nodes[3].Detail, want)
+	}
 }

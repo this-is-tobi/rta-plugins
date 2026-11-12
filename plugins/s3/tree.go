@@ -170,20 +170,28 @@ func splitKey(key string) []string {
 // every level, and adding to each node as a key passes through it costs one
 // pass instead of two.
 type treeNode struct {
-	children map[string]*treeNode
+	children map[segment]*treeNode
 	objects  int
 	bytes    int64
-	leaf     bool
 }
 
-func (n *treeNode) child(name string) *treeNode {
+// segment is one level's name, and whether an object ends there. A key that is
+// also a level (logs beside logs/app.txt) is two children of one name: keyed by
+// name alone they were one node, drawn as the level only, which counted the
+// object's bytes as its own.
+type segment struct {
+	name string
+	leaf bool
+}
+
+func (n *treeNode) child(s segment) *treeNode {
 	if n.children == nil {
-		n.children = map[string]*treeNode{}
+		n.children = map[segment]*treeNode{}
 	}
-	c, ok := n.children[name]
+	c, ok := n.children[s]
 	if !ok {
 		c = &treeNode{}
-		n.children[name] = c
+		n.children[s] = c
 	}
 	return c
 }
@@ -194,11 +202,7 @@ func (n *treeNode) insert(parts []string, size int64) {
 	if len(parts) == 0 {
 		return
 	}
-	c := n.child(parts[0])
-	if len(parts) == 1 {
-		c.leaf = true
-	}
-	c.insert(parts[1:], size)
+	n.child(segment{name: parts[0], leaf: len(parts) == 1}).insert(parts[1:], size)
 }
 
 // ensure creates the path without counting anything, which is what a
@@ -208,7 +212,7 @@ func (n *treeNode) ensure(parts []string) {
 	if len(parts) == 0 {
 		return
 	}
-	n.child(parts[0]).ensure(parts[1:])
+	n.child(segment{name: parts[0]}).ensure(parts[1:])
 }
 
 // treeRender carries the node budget across the walk, so the bound is one
@@ -225,37 +229,36 @@ type treeRender struct {
 }
 
 func (w *treeRender) expand(n *treeNode, depth int) []view.Node {
-	names := make([]string, 0, len(n.children))
-	for name := range n.children {
-		names = append(names, name)
+	segs := make([]segment, 0, len(n.children))
+	for s := range n.children {
+		segs = append(segs, s)
 	}
 	// Prefixes before objects, each alphabetically. A map's iteration order is
 	// deliberately random in Go, so without this the same bucket renders
 	// differently on every call — which would make the output useless to diff
 	// and impossible to test.
-	sort.Slice(names, func(i, j int) bool {
-		a, b := n.children[names[i]], n.children[names[j]]
-		if a.leaf != b.leaf {
-			return b.leaf
+	sort.Slice(segs, func(i, j int) bool {
+		if segs[i].leaf != segs[j].leaf {
+			return segs[j].leaf
 		}
-		return names[i] < names[j]
+		return segs[i].name < segs[j].name
 	})
 
 	var out []view.Node
-	for _, name := range names {
+	for _, s := range segs {
 		if w.nodes >= maxTreeNodes {
 			w.stopped = fmt.Sprintf("stopped at %d nodes; narrow it with %s", maxTreeNodes, w.sf.InputName("prefix"))
 			return append(out, view.Node{Label: "…", Detail: w.stopped})
 		}
 		w.nodes++
-		c := n.children[name]
-		if c.leaf {
-			out = append(out, view.Node{Label: plugin.ListedName(name), Detail: format.Bytes(c.bytes)})
+		c := n.children[s]
+		if s.leaf {
+			out = append(out, view.Node{Label: plugin.ListedName(s.name), Detail: format.Bytes(c.bytes)})
 			continue
 		}
 
 		node := view.Node{
-			Label:  plugin.ListedName(name) + "/",
+			Label:  plugin.ListedName(s.name) + "/",
 			Detail: format.CountOf(c.objects, "object") + ", " + format.Bytes(c.bytes),
 		}
 		if depth >= w.maxDepth {
