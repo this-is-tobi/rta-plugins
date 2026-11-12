@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.13.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.12.5...plugins/kube/v0.13.0) (2026-11-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **kube:** plugins.kube.serviceaccount.ttl is serviceaccount.provision.ttl.
+
+### Features
+
+* **kube:** a provisioned account's ttl is its capability's own key, on rta v0.60.0 ([5da0239](https://github.com/this-is-tobi/rta-plugins/commit/5da0239fbd78a696e837ab24633f2e7ad58851dd))
+
+
+### Dependencies
+
+* **deps:** every plugin builds with Go 1.27.4, which fixes a net/http advisory ([005fce6](https://github.com/this-is-tobi/rta-plugins/commit/005fce6077db0aae3456b376d787a95398212c03))
+
 ## [0.12.5](https://github.com/this-is-tobi/rta-plugins/compare/plugins/kube/v0.12.4...plugins/kube/v0.12.5) (2026-11-07)
 
 

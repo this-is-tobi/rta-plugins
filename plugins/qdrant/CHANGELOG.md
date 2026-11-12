@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.12.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.11.8...plugins/qdrant/v0.12.0) (2026-11-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **qdrant:** plugins.qdrant.count.exact is points.count.exact.
+
+### Features
+
+* **qdrant:** an exact count is its capability's own key, on rta v0.60.0 ([d47149b](https://github.com/this-is-tobi/rta-plugins/commit/d47149b05ad9f60b2315790c406a73b97c966d14))
+
+
+### Bug Fixes
+
+* a ca-file is said to replace this machine's trust store, as it does ([464d55f](https://github.com/this-is-tobi/rta-plugins/commit/464d55fd65c64e95a218f1d58a7ed83fa446e365))
+* **keycloak,qdrant:** a named ca keeps the proxy, http/2 and the timeouts ([b8c96c2](https://github.com/this-is-tobi/rta-plugins/commit/b8c96c2bdd9e87f410fe688fdc075cd1ae217018))
+* **keycloak,vault:** a forward that carries TLS is said as tunnel-tls, the spelling rta reads ([250e2ff](https://github.com/this-is-tobi/rta-plugins/commit/250e2ff53290e6248a369847c3935634cdb5f681))
+* **qdrant,s3:** a plain call through a forward names the setting that turns tls on ([6d8c29d](https://github.com/this-is-tobi/rta-plugins/commit/6d8c29d86d0c712cc03ffc219e0d2088262e9917))
+
+
+### Dependencies
+
+* **deps:** every plugin builds with Go 1.27.4, which fixes a net/http advisory ([005fce6](https://github.com/this-is-tobi/rta-plugins/commit/005fce6077db0aae3456b376d787a95398212c03))
+
 ## [0.11.8](https://github.com/this-is-tobi/rta-plugins/compare/plugins/qdrant/v0.11.7...plugins/qdrant/v0.11.8) (2026-11-07)
 
 

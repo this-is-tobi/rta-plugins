@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.17.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.16.3...plugins/pg/v0.17.0) (2026-11-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **pg:** plugins.pg.limit is table.list.limit, database.list.limit, activity.limit, schema.limit, query.limit or table.rows.limit.
+
+### Features
+
+* **pg:** each listing's limit is a key of its own, on rta v0.60.0 ([b0037b9](https://github.com/this-is-tobi/rta-plugins/commit/b0037b90859f4dd4ceebf2cf6de7d049f3c705b0))
+
+
+### Bug Fixes
+
+* a ca-file is said to replace this machine's trust store, as it does ([464d55f](https://github.com/this-is-tobi/rta-plugins/commit/464d55fd65c64e95a218f1d58a7ed83fa446e365))
+
+
+### Dependencies
+
+* **deps:** every plugin builds with Go 1.27.4, which fixes a net/http advisory ([005fce6](https://github.com/this-is-tobi/rta-plugins/commit/005fce6077db0aae3456b376d787a95398212c03))
+
 ## [0.16.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.16.2...plugins/pg/v0.16.3) (2026-11-07)
 
 
