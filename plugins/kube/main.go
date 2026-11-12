@@ -573,6 +573,7 @@ func Plugin() plugin.Plugin {
 		Name:    "kube",
 		Summary: "Read-first Kubernetes: contexts, namespaces, pods, deployments",
 		Version: version,
+		Renamed: map[string]string{"serviceaccount.ttl": "serviceaccount.provision.ttl"},
 		// Everything this plugin does is a kubectl call, and kubectl cannot
 		// make one without the kubeconfig. Declaring it is a request, not a
 		// grant: rta denies credential locations to every plugin by default,
