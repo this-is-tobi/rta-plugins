@@ -282,9 +282,17 @@ func splitKey(key string) []string {
 // down: the total is wanted at every level, and adding to each node as a key
 // passes through it costs one pass instead of two.
 type treeNode struct {
-	children map[string]*treeNode
+	children map[segment]*treeNode
 	keys     int
-	leaf     bool
+}
+
+// segment is one level's name, and whether a key ends there. A key that is
+// also a level (/a/b beside /a/b/c) is two children of one name: keyed by
+// name alone they were one node, drawn as the level only, which counted the
+// key among the keys under it.
+type segment struct {
+	name string
+	leaf bool
 }
 
 func (n *treeNode) insert(parts []string) {
@@ -293,15 +301,13 @@ func (n *treeNode) insert(parts []string) {
 		return
 	}
 	if n.children == nil {
-		n.children = map[string]*treeNode{}
+		n.children = map[segment]*treeNode{}
 	}
-	c, ok := n.children[parts[0]]
+	s := segment{name: parts[0], leaf: len(parts) == 1}
+	c, ok := n.children[s]
 	if !ok {
 		c = &treeNode{}
-		n.children[parts[0]] = c
-	}
-	if len(parts) == 1 {
-		c.leaf = true
+		n.children[s] = c
 	}
 	c.insert(parts[1:])
 }
@@ -314,31 +320,30 @@ type treeRender struct {
 }
 
 func (w *treeRender) expand(n *treeNode, depth int) []view.Node {
-	names := make([]string, 0, len(n.children))
-	for name := range n.children {
-		names = append(names, name)
+	segs := make([]segment, 0, len(n.children))
+	for s := range n.children {
+		segs = append(segs, s)
 	}
 	// Levels before leaves, each alphabetically. Go randomizes map iteration
 	// on purpose, so without this the same keyspace renders differently on
 	// every call — undiffable, and untestable.
-	sort.Slice(names, func(i, j int) bool {
-		a, b := n.children[names[i]], n.children[names[j]]
-		if a.leaf != b.leaf {
-			return b.leaf
+	sort.Slice(segs, func(i, j int) bool {
+		if segs[i].leaf != segs[j].leaf {
+			return segs[j].leaf
 		}
-		return names[i] < names[j]
+		return segs[i].name < segs[j].name
 	})
 
 	var out []view.Node
-	for _, name := range names {
+	for _, s := range segs {
 		if w.nodes >= maxTreeNodes {
 			w.stopped = fmt.Sprintf("stopped at %d nodes; narrow it with %s", maxTreeNodes, w.sf.ArgumentName("prefix"))
 			return append(out, view.Node{Label: "…", Detail: w.stopped})
 		}
 		w.nodes++
-		c := n.children[name]
-		listed := plugin.ListedName(name)
-		if c.leaf && len(c.children) == 0 {
+		c := n.children[s]
+		listed := plugin.ListedName(s.name)
+		if s.leaf {
 			out = append(out, view.Node{Label: listed})
 			continue
 		}

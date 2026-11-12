@@ -177,16 +177,20 @@ func TestTheNodeBudgetIsMarkedRatherThanSilent(t *testing.T) {
 }
 
 // A key that is both a level and a leaf is normal in etcd — nothing stops
-// /a/b existing alongside /a/b/c — and dropping either would lose data.
+// /a/b existing alongside /a/b/c — and dropping either would lose data. It
+// is drawn as both, the level b/ holding c and the key b beside it. Keyed by
+// name alone they were one node, drawn as the level only, which counted the
+// key b among the keys under it.
 func TestAKeyThatIsAlsoAPrefixKeepsItsChildren(t *testing.T) {
 	root := treeFrom(t, 6, "/a/b", "/a/b/c")
 	b := child(t, root.Children, "a/", "b/")
-	if len(b.Children) == 0 {
-		t.Fatal("a key that is also a prefix lost its children")
-	}
 	child(t, root.Children, "a/", "b/", "c")
-	if !strings.Contains(b.Detail, "2 keys") {
-		t.Errorf("b/ detail = %q, want both keys counted", b.Detail)
+	if !strings.Contains(b.Detail, "1 key") {
+		t.Errorf("b/ detail = %q, want the one key under it", b.Detail)
+	}
+	child(t, root.Children, "a/", "b")
+	if a := child(t, root.Children, "a/"); !strings.Contains(a.Detail, "2 keys") {
+		t.Errorf("a/ detail = %q, want both keys", a.Detail)
 	}
 }
 
