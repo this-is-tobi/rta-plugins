@@ -138,15 +138,15 @@ func TestThroughAForwardTheCertificateIsCheckedForTheNameGiven(t *testing.T) {
 
 // A certificate's name given to a call over plain HTTP checks nothing, and
 // the call is refused before it goes in the clear; through a forward the way
-// out is the connection's tunnelTLS, since the host wrote the http://.
+// out is the connection's tunnel-tls, since the host wrote the http://.
 func TestAServerNameOverPlainHTTPIsRefused(t *testing.T) {
 	values := func() map[string]any {
 		return map[string]any{"url": "http://127.0.0.1:54321", "tls-server-name": "svc.example.internal"}
 	}
 	verr := mint(t, values(), plugin.TunnelKube)
-	if verr == nil || verr.Code != "keycloak.tls.plaintext" || !strings.Contains(verr.Hint, "tunnelTLS: true") ||
+	if verr == nil || verr.Code != "keycloak.tls.plaintext" || !strings.Contains(verr.Hint, "tunnel-tls: true") ||
 		!strings.Contains(verr.Message, "profile lab (through its kube: forward)") {
-		t.Errorf("through a forward: %+v, want keycloak.tls.plaintext naming the forward and tunnelTLS", verr)
+		t.Errorf("through a forward: %+v, want keycloak.tls.plaintext naming the forward and tunnel-tls", verr)
 	}
 	verr = mint(t, values(), plugin.TunnelNone)
 	if verr == nil || verr.Code != "keycloak.tls.plaintext" || !strings.Contains(verr.Hint, "an https:// URL") {
@@ -180,8 +180,8 @@ func TestAPlaintextRefusalAlsoNamesTheWayToClearTheSetting(t *testing.T) {
 			t.Errorf("%s, reached directly: %+v, want the hint to say %q", tc.name, verr, tc.direct)
 		}
 		verr := mint(t, values(), plugin.TunnelKube)
-		if verr == nil || !strings.Contains(verr.Hint, tc.forward) || !strings.Contains(verr.Hint, "tunnelTLS: true") {
-			t.Errorf("%s, through a forward: %+v, want both ways out: tunnelTLS, and %q", tc.name, verr, tc.forward)
+		if verr == nil || !strings.Contains(verr.Hint, tc.forward) || !strings.Contains(verr.Hint, "tunnel-tls: true") {
+			t.Errorf("%s, through a forward: %+v, want both ways out: tunnel-tls, and %q", tc.name, verr, tc.forward)
 		}
 	}
 }
@@ -212,9 +212,9 @@ func TestACAFileOverPlainHTTPIsRefusedBeforeAnythingIsSent(t *testing.T) {
 		t.Errorf("message %q does not say which setting names a CA, and where the call would have gone", verr.Message)
 	}
 	verr = mint(t, values(), plugin.TunnelKube)
-	if verr == nil || verr.Code != "keycloak.tls.ca.unused" || !strings.Contains(verr.Hint, "tunnelTLS: true") ||
+	if verr == nil || verr.Code != "keycloak.tls.ca.unused" || !strings.Contains(verr.Hint, "tunnel-tls: true") ||
 		!strings.Contains(verr.Message, "profile lab (through its kube: forward)") {
-		t.Errorf("through a forward: %+v, want keycloak.tls.ca.unused naming the forward and tunnelTLS", verr)
+		t.Errorf("through a forward: %+v, want keycloak.tls.ca.unused naming the forward and tunnel-tls", verr)
 	}
 	if n := sent.Load(); n != 0 {
 		t.Errorf("%d requests reached the plain-HTTP server, the client secret on them, before the refusal", n)

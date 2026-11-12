@@ -394,7 +394,7 @@ func plaintextServerName(req plugin.Request, base string) *view.Error {
 // its far end speaks TLS, which a Keycloak serving HTTPS on the port it
 // forwards does.
 const forwardPlaintextHint = "a forward carries plain http:// unless the profile's connection says its far end " +
-	"speaks TLS: tunnelTLS: true on that connection, for a Keycloak serving HTTPS on the port it forwards"
+	"speaks TLS: tunnel-tls: true on that connection, for a Keycloak serving HTTPS on the port it forwards"
 
 // plaintextCAFile is plaintextServerName for a CA: the refusal for one named
 // beside a URL that is not https://, which never verifies against it.
@@ -709,14 +709,14 @@ func (s *session) classifyTransport(err error) *view.Error {
 }
 
 // plainHTTPHint is where a call that spoke plain HTTP to a server that
-// speaks only TLS is changed: the connection's tunnelTLS through a forward,
+// speaks only TLS is changed: the connection's tunnel-tls through a forward,
 // which carries plain HTTP unless the profile says its far end speaks TLS,
 // and the URL's scheme otherwise. How the server refused it is how, the
 // clause a Keycloak serving only HTTPS does it by.
 func (s *session) plainHTTPHint(how string) string {
 	if s.req.Tunnel() != plugin.TunnelNone {
 		return "a Keycloak serving only HTTPS " + how + ", and a forward " +
-			"carries plain HTTP unless the profile's connection says its far end speaks TLS: tunnelTLS: true " +
+			"carries plain HTTP unless the profile's connection says its far end speaks TLS: tunnel-tls: true " +
 			"on that connection"
 	}
 	return "a Keycloak serving only HTTPS on that port " + how + " — " +
