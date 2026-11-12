@@ -587,8 +587,8 @@ func TestACertificateThatFailsVerificationIsNamedForWhy(t *testing.T) {
 // A Qdrant that speaks only TLS answers a plain-HTTP request with the alert
 // that refuses it, which Go's client quotes as a malformed response: the
 // answer names the scheme, and where it is chosen — tls at the endpoint, and
-// through a forward the profile's tunnelTLS, since the host turns tls off
-// there unless the connection says its far end speaks TLS.
+// through a forward tls-server-name on the profile's connection, since the
+// host turns tls off there and tunnelTLS never reaches an address.
 func TestPlainHTTPToAPortThatSpeaksOnlyTLSNamesTheScheme(t *testing.T) {
 	// What Go's client makes of the alert a TLS-only Qdrant answers a
 	// plain-HTTP request with: the record's bytes, quoted as a response line.
@@ -605,7 +605,7 @@ func TestPlainHTTPToAPortThatSpeaksOnlyTLSNamesTheScheme(t *testing.T) {
 		{"reached directly", "", plugin.TunnelNone, plugin.SurfaceCLI, "--tls turns TLS on"},
 		{"reached directly, by an agent", "", plugin.TunnelNone, plugin.SurfaceMCP,
 			"the operator's `tls` setting turns TLS on"},
-		{"through a forward", "lab", plugin.TunnelKube, plugin.SurfaceCLI, "tunnelTLS: true on that connection"},
+		{"through a forward", "lab", plugin.TunnelKube, plugin.SurfaceCLI, "tls-server-name on that connection"},
 	} {
 		r := req(t, "qdrant.overview", map[string]any{"address": "127.0.0.1:54321"}).
 			WithProfile(tc.profile, tc.tunnel).WithSurface(tc.sf)
