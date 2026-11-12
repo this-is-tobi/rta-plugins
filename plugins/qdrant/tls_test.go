@@ -98,6 +98,32 @@ func TestTheClientStatesItsTLSFloor(t *testing.T) {
 	}
 }
 
+// Naming a CA or a server name keeps what the default transport gives every
+// call: the proxy the host hands the plugin, HTTP/2, and a dial and a
+// handshake that give up. A bare http.Transport had none of the three.
+func TestANamedCAKeepsTheProxyHTTP2AndTimeouts(t *testing.T) {
+	caPath := filepath.Join(t.TempDir(), "ca.pem")
+	srv := httptest.NewTLSServer(http.NotFoundHandler())
+	defer srv.Close()
+	if err := os.WriteFile(caPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: srv.Certificate().Raw}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for name, values := range map[string]map[string]any{
+		"a CA":          {"address": "127.0.0.1:1", "ca-file": caPath},
+		"a server name": {"address": "127.0.0.1:1", "tls-server-name": "qdrant.internal"},
+	} {
+		client, verr := httpClient(req(t, "qdrant.collection.list", values))
+		if verr != nil {
+			t.Fatalf("%s: %v", name, verr)
+		}
+		tr := client.Transport.(*http.Transport)
+		if tr.Proxy == nil || !tr.ForceAttemptHTTP2 || tr.TLSHandshakeTimeout == 0 || tr.DialContext == nil {
+			t.Errorf("%s: proxy %v, http/2 %v, handshake timeout %v, dialer %v; want the default transport's",
+				name, tr.Proxy != nil, tr.ForceAttemptHTTP2, tr.TLSHandshakeTimeout, tr.DialContext != nil)
+		}
+	}
+}
+
 // ca-file is a path read on this machine, not a PEM blob a caller could hand
 // over directly — a file that does not hold a certificate at all has to fail
 // the same way, before any network call.

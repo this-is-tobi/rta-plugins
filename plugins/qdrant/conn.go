@@ -271,7 +271,7 @@ func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 	// says what it accepts, as plugins/keycloak's does.
 	cfg := &tls.Config{MinVersion: tls.VersionTLS12, ServerName: serverName(req)}
 	if ca == "" {
-		return &http.Client{Transport: &http.Transport{TLSClientConfig: cfg}, CheckRedirect: refuseRedirect}, nil
+		return &http.Client{Transport: transport(cfg), CheckRedirect: refuseRedirect}, nil
 	}
 	sf := req.Surface()
 	pem, err := os.ReadFile(ca)
@@ -294,7 +294,22 @@ func httpClient(req plugin.Request) (*http.Client, *view.Error) {
 			WithInput("ca-file")
 	}
 	cfg.RootCAs = pool
-	return &http.Client{Transport: &http.Transport{TLSClientConfig: cfg}, CheckRedirect: refuseRedirect}, nil
+	return &http.Client{Transport: transport(cfg), CheckRedirect: refuseRedirect}, nil
+}
+
+// transport is http.DefaultTransport's with cfg as its TLS settings, never a
+// bare http.Transport: a bare one has no proxy, no HTTP/2 and no dial or
+// handshake timeout, and naming a CA or a server name used to take all three
+// away. The proxy is the one the host hands every plugin (HTTP(S)_PROXY), set
+// again after the clone so nothing a dependency did to the default's decides
+// it: a CA is no longer a way around it, and a host the proxy should not see
+// belongs in NO_PROXY, as it does when no CA is named. A loopback address,
+// which every forward is, is never proxied.
+func transport(cfg *tls.Config) *http.Transport {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.Proxy = http.ProxyFromEnvironment
+	t.TLSClientConfig = cfg
+	return t
 }
 
 // serverName is the name the certificate is checked for in place of the
