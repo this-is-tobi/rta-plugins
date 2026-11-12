@@ -508,13 +508,13 @@ func backupRequestCapability() plugin.Capability {
 		// The three overrides carry the CRD's own enums, so a wrong value is
 		// refused by rta with the list in hand rather than by the API server
 		// with a schema error.
-		plugin.Field{Name: "method", Type: plugin.String, Config: "backup.method",
+		plugin.Field{Name: "method", Type: plugin.String, Config: "backup.request.method",
 			Options: backupMethods,
 			Help:    "how to take it — its only configured mechanism when omitted; plugin asks its WAL-archiver plugin"},
-		plugin.Field{Name: "target", Type: plugin.String, Config: "backup.target",
+		plugin.Field{Name: "target", Type: plugin.String, Config: "backup.request.target",
 			Options: []string{"primary", "prefer-standby"},
 			Help:    "which instance performs it — the cluster's own choice when omitted"},
-		plugin.Field{Name: "online", Type: plugin.String, Config: "backup.online",
+		plugin.Field{Name: "online", Type: plugin.String, Config: "backup.request.online",
 			Options: []string{"true", "false"},
 			Help: "hot or cold — only with a `method` of volumeSnapshot, and the cluster's " +
 				"own choice when omitted"})
@@ -769,7 +769,7 @@ func methodRefusal(sf plugin.Surface, c cluster, asked string) *view.Error {
 // One mechanism is a fact and resolves. None is the cluster's own problem and is
 // refused with its hint. Several is a choice between destinations and costs that
 // is not rta's to make for a backup that is a full copy — the caller names one,
-// or pins it in the config (`backup.method`).
+// or pins it in the config (`backup.request.method`).
 func resolveMethod(sf plugin.Surface, c cluster) (string, *view.Error) {
 	have := c.configuredMethods()
 	switch len(have) {
