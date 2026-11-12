@@ -658,3 +658,24 @@ func pairValue(kv view.KeyValue, key string) string {
 	}
 	return ""
 }
+
+// A key that is also a level, user:42 beside user:42:sessions, is drawn as
+// both. Keyed by name alone they were one node: the level alone was drawn,
+// and it counted the key user:42 among the keys under it.
+func TestAKeyThatIsAlsoALevelIsDrawnAsBoth(t *testing.T) {
+	root := &treeNode{}
+	for _, k := range []string{"user:42", "user:42:sessions"} {
+		root.insert(splitKey(k, ":"))
+	}
+	nodes := (&treeRender{maxDepth: 4, sep: ":", sf: plugin.SurfaceCLI}).expand(root, 1)
+	if len(nodes) != 1 || nodes[0].Label != "user:" {
+		t.Fatalf("the root holds %+v, want user:", nodes)
+	}
+	kids := nodes[0].Children
+	if len(kids) != 2 || kids[0].Label != "42:" || kids[1].Label != "42" {
+		t.Fatalf("user: holds %+v, want the level 42: and the key 42", kids)
+	}
+	if !strings.Contains(kids[0].Detail, "1 key") {
+		t.Errorf("42: detail = %q, want the one key under it", kids[0].Detail)
+	}
+}
