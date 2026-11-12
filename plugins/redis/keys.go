@@ -65,8 +65,15 @@ func keyListCapability() plugin.Capability {
 
 // scanKeys walks SCAN until the cursor comes back to 0 or limit is reached,
 // and reports which of the two stopped it.
+//
+// A key SCAN returns again is skipped: what SCAN promises is that every key
+// present for the whole walk comes back at least once, and a repeat counted
+// as a key of its own inflated every count drawn from it and spent the limit
+// on keys already held. The keys are sorted whichever stopped the walk, so a
+// list cut short reads in the order a whole one does.
 func scanKeys(ctx context.Context, c *client, pattern string, limit int) (keys []string, truncated bool, verr *view.Error) {
 	cursor := "0"
+	seen := map[string]bool{}
 	for {
 		r, err := c.do(ctx, "SCAN", cursor, "MATCH", pattern, "COUNT", strconv.Itoa(scanBatch))
 		if err != nil {
@@ -76,9 +83,14 @@ func scanKeys(ctx context.Context, c *client, pattern string, limit int) (keys [
 			return nil, false, view.Errorf("redis.scan.malformed", "%s answered SCAN with %s, want 2", c.reached, format.CountOf(len(r.items), "item"))
 		}
 		for _, k := range r.items[1].strings() {
+			if seen[k] {
+				continue
+			}
 			if len(keys) == limit {
+				sort.Strings(keys)
 				return keys, true, nil
 			}
+			seen[k] = true
 			keys = append(keys, k)
 		}
 		cursor = r.items[0].text()

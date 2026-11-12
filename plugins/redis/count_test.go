@@ -50,3 +50,21 @@ func TestAScanReplyWithOneElementIsCountedInTheSingular(t *testing.T) {
 		t.Errorf("message = %q, want the one element counted in the singular", ve.Message)
 	}
 }
+
+// SCAN may return a key more than once: what it promises is that every key
+// present for the whole walk is returned at least once. Each repeat was
+// counted, so a keyspace of three keys drew four.
+func TestAKeyScanReturnsTwiceIsCountedOnce(t *testing.T) {
+	srv := newFakeServer(t, map[string]string{
+		"SCAN 0 MATCH * COUNT 200": array(bulk("7"), array(bulk("a"), bulk("b"))),
+		"SCAN 7 MATCH * COUNT 200": array(bulk("0"), array(bulk("b"), bulk("c"))),
+	})
+	v, err := run(t, "redis.key.tree", srv, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := v.(view.Tree).Roots[0]
+	if !strings.Contains(root.Detail, "3 keys") || len(root.Children) != 3 {
+		t.Errorf("the tree reads %q with %d keys drawn, want the three distinct keys", root.Detail, len(root.Children))
+	}
+}
