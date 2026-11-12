@@ -1,4 +1,4 @@
-# rta plugins
+# RTA plugins :electric_plug:
 
 The first-party plugins for [rta](https://github.com/this-is-tobi/rta), and the index rta installs them from. Each is a separate binary you install only if you want it — none is linked into `rta`, so the ones you skip cost you nothing.
 
