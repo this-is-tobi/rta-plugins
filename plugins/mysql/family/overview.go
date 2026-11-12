@@ -345,7 +345,7 @@ func databaseListCapability() plugin.Capability {
 	},
 		// The bound of every listing of what is on a server, which is the one
 		// mysql.table.list's comment gives the reason for.
-		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "limit", Default: 50, Min: 1, Max: 1000,
+		plugin.Field{Name: "limit", Short: "n", Type: plugin.Int, Config: "database.list.limit", Default: 50, Min: 1, Max: 1000,
 			Help: "how many databases to show"})
 }
 
