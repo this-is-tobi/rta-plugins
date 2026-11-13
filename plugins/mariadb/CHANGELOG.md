@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.13.0](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.12.11...plugins/mariadb/v0.13.0) (2026-11-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* **mariadb:** plugins.mariadb.limit is database.list.limit, table.list.limit, schema.limit, query.limit or activity.limit.
+
+### Features
+
+* **mariadb:** each listing's limit is a key of its own, on mysql v0.14.0 and rta v0.60.0 ([ae2c1f4](https://github.com/this-is-tobi/rta-plugins/commit/ae2c1f46e706690c7157fe3d19e67ea60e447579))
+
+
+### Dependencies
+
+* every plugin builds against rta v0.61.0 ([1f3a2c0](https://github.com/this-is-tobi/rta-plugins/commit/1f3a2c006780f5d1e9e0562e985591c58c4d5080))
+
 ## [0.12.11](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mariadb/v0.12.10...plugins/mariadb/v0.12.11) (2026-11-12)
 
 
