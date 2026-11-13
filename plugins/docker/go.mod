@@ -7,7 +7,7 @@ go 1.27.4
 // and refuses this line; the check recipe in the Makefile says what then.
 godebug x509sslcertoverrideplatform=0
 
-require github.com/this-is-tobi/rta v0.60.0
+require github.com/this-is-tobi/rta v0.61.0
 
 require (
 	charm.land/bubbles/v2 v2.2.1 // indirect

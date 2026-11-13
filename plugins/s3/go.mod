@@ -12,7 +12,7 @@ godebug x509sslcertoverrideplatform=0
 
 require (
 	github.com/minio/minio-go/v7 v7.4.1
-	github.com/this-is-tobi/rta v0.60.0
+	github.com/this-is-tobi/rta v0.61.0
 )
 
 require (
