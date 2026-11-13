@@ -14,7 +14,7 @@ godebug x509sslcertoverrideplatform=0
 
 require (
 	github.com/jackc/pgx/v5 v5.12.0
-	github.com/this-is-tobi/rta v0.61.0
+	github.com/this-is-tobi/rta v0.62.0
 )
 
 require (
