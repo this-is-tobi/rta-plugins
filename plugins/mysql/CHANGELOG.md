@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.14.2...plugins/mysql/v0.14.3) (2026-11-16)
+
+
+### Dependencies
+
+* every plugin builds against rta v0.62.1 ([1a8666e](https://github.com/this-is-tobi/rta-plugins/commit/1a8666e6a26d9cbdf7b1da7c3f80908112f049c5))
+
 ## [0.14.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/mysql/v0.14.1...plugins/mysql/v0.14.2) (2026-11-13)
 
 
