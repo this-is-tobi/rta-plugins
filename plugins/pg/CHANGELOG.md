@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.17.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.17.2...plugins/pg/v0.17.3) (2026-11-16)
+
+
+### Dependencies
+
+* **deps:** update github.com/jackc/pgx/v5 to v5.13.0 ([cabf7b5](https://github.com/this-is-tobi/rta-plugins/commit/cabf7b5a7e3ff8edfdaff741449efc70cd66acf6))
+* every plugin builds against rta v0.62.1 ([1a8666e](https://github.com/this-is-tobi/rta-plugins/commit/1a8666e6a26d9cbdf7b1da7c3f80908112f049c5))
+
 ## [0.17.2](https://github.com/this-is-tobi/rta-plugins/compare/plugins/pg/v0.17.1...plugins/pg/v0.17.2) (2026-11-13)
 
 
