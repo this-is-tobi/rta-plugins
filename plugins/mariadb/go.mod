@@ -14,7 +14,7 @@ godebug x509sslcertoverrideplatform=0
 
 require (
 	github.com/this-is-tobi/rta v0.62.1
-	github.com/this-is-tobi/rta-plugins/plugins/mysql v0.14.2
+	github.com/this-is-tobi/rta-plugins/plugins/mysql v0.14.3
 )
 
 require (
