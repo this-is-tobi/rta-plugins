@@ -146,7 +146,7 @@ jobs:
         persist-credentials: false
 
     - name: Setup Go
-      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
       with:
         # No root module. Every plugin declares the same toolchain, and pg
         # is the first one anybody bumps.
@@ -209,7 +209,7 @@ jobs:
     # modules' own Go rather than whatever the runner carries. No cache:
     # nothing here compiles.
     - name: Setup Go
-      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
       with:
         go-version-file: plugins/pg/go.mod
         cache: false
@@ -234,7 +234,7 @@ jobs:
         persist-credentials: false
 
     - name: Setup Go
-      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
       with:
         go-version-file: plugins/pg/go.mod
         cache: true
@@ -284,7 +284,7 @@ jobs:
         persist-credentials: false
 
     - name: Setup Go
-      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
       with:
         go-version-file: plugins/pg/go.mod
         cache: true
