@@ -9,8 +9,8 @@ godebug x509sslcertoverrideplatform=0
 
 require (
 	github.com/this-is-tobi/rta v0.62.1
-	go.etcd.io/etcd/api/v3 v3.7.3
-	go.etcd.io/etcd/client/v3 v3.7.3
+	go.etcd.io/etcd/api/v3 v3.7.4
+	go.etcd.io/etcd/client/v3 v3.7.4
 	google.golang.org/grpc v1.85.0
 )
 
@@ -51,7 +51,7 @@ require (
 	github.com/oklog/run v1.1.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/xo/terminfo v1.0.0 // indirect
-	go.etcd.io/etcd/client/pkg/v3 v3.7.3 // indirect
+	go.etcd.io/etcd/client/pkg/v3 v3.7.4 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.1 // indirect
 	golang.org/x/net v0.62.0 // indirect
