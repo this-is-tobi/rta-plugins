@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.4](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.11.3...plugins/etcd/v0.11.4) (2026-11-28)
+
+
+### Dependencies
+
+* **deps:** update go modules ([40a4ada](https://github.com/this-is-tobi/rta-plugins/commit/40a4adad65a728bc0b7d5255471ee781bffd13ff))
+* every plugin builds against rta v0.62.2 ([2a881a4](https://github.com/this-is-tobi/rta-plugins/commit/2a881a4a430d5aaf299a9ed85003d4cd876a5004))
+
 ## [0.11.3](https://github.com/this-is-tobi/rta-plugins/compare/plugins/etcd/v0.11.2...plugins/etcd/v0.11.3) (2026-11-16)
 
 
